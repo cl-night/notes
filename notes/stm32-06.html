@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[3-2] LED闪烁 / LED流水灯 / 蜂鸣器 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 课程第 6 集：GPIO 输出实战——重建标准库工程、LED 闪烁（RCC/GPIO_Init/输出函数/Delay）、LED 流水灯（GPIO_Write 写 ODR）、蜂鸣器（PB12 低电平触发）与库函数查阅方法。">
+  <meta property="og:title" content="[3-2] LED闪烁 / LED流水灯 / 蜂鸣器 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 课程第 6 集：GPIO 输出实战——重建标准库工程、LED 闪烁（RCC/GPIO_Init/输出函数/Delay）、LED 流水灯（GPIO_Write 写 ODR）、蜂鸣器（PB12 低电平触发）与库函数查阅方法。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html" class="active" aria-current="page">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>13 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">GPIO</span><span class="tag">输出</span><span class="tag">库函数</span>
+    </div>
+    <article class="prose"><h1>[3-2] LED闪烁 / LED流水灯 / 蜂鸣器 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=6，39:10</li>
+<li>素材：235 帧关键帧（每 10 秒，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（483 段）；关键截图 15 张随笔记收录（源图在 <code>vidsum_out/stm32_p6/frames/</code>，站内图片在 <code>assets/images/stm32-06/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（source=subtitle-ocr），偶有错字已按画面校正。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>这一集把 [3-1] 的 GPIO 理论落成代码：先快速重建一个标准库工程（开始到编译下载跑通），再依次写 <strong>LED 闪烁</strong>（RCC 开时钟 → GPIO_Init → 输出函数 + Delay 延时）、<strong>LED 流水灯</strong>（8 个 LED、<code>GPIO_Write</code> 直接写 ODR、低电平点亮所以数据要取反）、<strong>蜂鸣器</strong>（PB12 低电平触发，注意避开 JTAG 引脚），最后讲“<strong>怎么查库函数/手册/例程</strong>”。</p>
+<h2 id="0-三个程序与硬件">0. 三个程序与硬件</h2>
+<table>
+<thead>
+<tr>
+<th>程序</th>
+<th>硬件连接</th>
+<th>现象</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>3-1 LED闪烁</code></td>
+<td>1 个 LED：长脚（正极）→ 正极供电孔，短脚 → <strong>PA0</strong>（低电平点亮；为简化不接限流电阻）</td>
+<td>LED 每 500ms 闪烁</td>
+</tr>
+<tr>
+<td><code>3-2 LED流水灯</code></td>
+<td>8 个 LED：正极接正极供电孔，负极分别接 <strong>PA0~PA7</strong></td>
+<td>8 个 LED 依次流水点亮</td>
+</tr>
+<tr>
+<td><code>3-3 蜂鸣器</code></td>
+<td>有源蜂鸣器：VCC → 正极排、GND → 负极排、控制极 → <strong>PB12</strong>（低电平触发响）</td>
+<td>蜂鸣器“滴滴”鸣响</td>
+</tr>
+</tbody></table>
+<ul>
+<li>面包板/最小系统板/ST-LINK 接线：面包板<strong>红线（正极）朝上</strong>，最小系统板跨中间凹槽插；GND 用蓝跳线引到负极供电排、3.3V 用红跳线引到正极排；ST-LINK 的引脚<strong>不是按顺序排的</strong>，要按丝印 <strong>3.3V / SWDIO / SWCLK / GND</strong> 对应连接，别插错。</li>
+</ul>
+<p><img src="../assets/images/stm32-06/01-circuit.jpg" alt="图 1：3-1 LED闪烁 面包板接线——最小系统板 + ST-LINK，电源灯亮"></p>
+<p><em>图 1：3-1 LED闪烁 面包板接线——最小系统板 + ST-LINK，电源灯亮</em></p>
+<h2 id="1-快速搭一个标准库工程">1. 快速搭一个标准库工程</h2>
+<p>本集从零演示一遍新建工程（详细原理见 [2-2] 新建工程笔记），以后就可以直接复制现有工程改名：</p>
+<ol>
+<li>Project → New Project，选工程总文件夹；按 <strong>Ctrl+Shift+N</strong> 新建工程文件夹（如 <code>3-1 LED闪烁</code>）；</li>
+<li>工程名起 <code>Project</code>，选芯片 <strong>STM32F103C8</strong>，关掉 Manage Run-Time Environment 小助手；</li>
+<li>在工程文件夹里建 <code>Start</code>、<code>Library</code>、<code>User</code> 三个文件夹，从固件库复制文件：<ul>
+<li><code>Start</code>：启动文件、<code>stm32f10x.h</code>、<code>system</code> 两个文件、<code>core_cm3</code> 两个文件（启动文件全部复制、Keil 分组只加 md.s）；</li>
+<li><code>Library</code>：标准外设驱动 <code>src</code> 全部 <code>.c</code> 和 <code>inc</code> 全部 <code>.h</code>；</li>
+<li><code>User</code>：从固件库 <code>Project\...\Template</code> 复制 <code>main.c</code>、<code>stm32f10x_conf.h</code>、<code>stm32f10x_it.c/h</code>。</li>
+</ul>
+</li>
+<li>Keil 里（三个箱子的工程管理按钮）删掉默认组，新建 <code>Start</code>、<code>Library</code>、<code>User</code> 三个组，分别 Add Files 把文件夹里的文件加进去；</li>
+<li>魔术棒 → C/C++：Include Paths 添加 <code>..\Start</code>、<code>..\Library</code>、<code>..\User</code>，Define 填 <strong><code>USE_STDPERIPH_DRIVER</code></strong>；</li>
+<li>Debug 选 <strong>ST-Link Debugger</strong>，Settings → Flash Download 勾 <strong>Reset and Run</strong>；</li>
+<li>清空 main.c 原有代码，编译 → <strong>0 Error(s), 0 Warning(s)</strong>，下载正常。</li>
+</ol>
+<ul>
+<li><strong>工程清理小工具</strong>：视频分享了一个 <code>keilkill.bat</code>（在工程总文件夹 <code>STM32Project</code> 的 <code>1-2 keilkill批处理</code> 文件夹里），复制到工程文件夹里双击运行，会删掉 <code>Listings</code>、<code>Objects</code> 等中间文件，工程从 <strong>20MB 缩小到 2MB 左右</strong>，方便打包分享给别人。</li>
+<li>以后写新程序直接<strong>复制上一集的工程文件夹改个名字</strong>即可，不用每次新建。</li>
+</ul>
+<p><img src="../assets/images/stm32-06/02-new-project.jpg" alt="图 2：新建工程——Create New Project 里按 Ctrl+Shift+N 新建“3-1 LED闪烁”文件夹"></p>
+<p><em>图 2：新建工程——Create New Project 里按 Ctrl+Shift+N 新建“3-1 LED闪烁”文件夹</em></p>
+<p><img src="../assets/images/stm32-06/03-project-groups.jpg" alt="图 3：Keil 工程管理——Start / Library / User 三个组，Add Files 把文件加进来"></p>
+<p><em>图 3：Keil 工程管理——Start / Library / User 三个组，Add Files 把文件加进来</em></p>
+<p><img src="../assets/images/stm32-06/04-ccpp-options.jpg" alt="图 4：C/C++ 选项——Define 填 USE_STDPERIPH_DRIVER（画面为输入中），Include Paths 已加三个文件夹"></p>
+<p><em>图 4：C/C++ 选项——Define 填 USE_STDPERIPH_DRIVER（画面为输入中），Include Paths 已加三个文件夹</em></p>
+<h2 id="2-库函数地图-rcc-与-gpio">2. 库函数地图（RCC 与 GPIO）</h2>
+<ul>
+<li>打开 <code>Library</code> 里的 <strong><code>stm32f10x_rcc.h</code></strong>，拖到最下面（.h 文件末尾一般就是函数声明）：<ul>
+<li><code>RCC_AHBPeriphClockCmd</code>、<code>RCC_APB2PeriphClockCmd</code>、<code>RCC_APB1PeriphClockCmd</code>：分别开启 AHB / APB2 / APB1 外设时钟，参数是“外设枚举 + ENABLE/DISABLE”；<strong>GPIO 挂在 APB2 上</strong>，所以用 <code>RCC_APB2PeriphClockCmd</code>。</li>
+</ul>
+</li>
+<li>打开 <strong><code>stm32f10x_gpio.h</code></strong>：<ul>
+<li><code>GPIO_DeInit</code>（复位外设）、<code>GPIO_Init</code>（用结构体初始化）、<code>GPIO_StructInit</code>（给结构体赋默认值）；</li>
+<li><strong>4 个读函数</strong>：<code>GPIO_ReadInputDataBit</code> / <code>GPIO_ReadInputData</code> / <code>GPIO_ReadOutputDataBit</code> / <code>GPIO_ReadOutputData</code>；</li>
+<li><strong>4 个写函数</strong>：<code>GPIO_SetBits</code> / <code>GPIO_ResetBits</code> / <code>GPIO_WriteBit</code> / <code>GPIO_Write</code>。</li>
+</ul>
+</li>
+</ul>
+<p><img src="../assets/images/stm32-06/05-rcc-functions.jpg" alt="图 5：stm32f10x_rcc.h 末尾——最常用的三个时钟使能函数（AHB/APB2/APB1）"></p>
+<p><em>图 5：stm32f10x_rcc.h 末尾——最常用的三个时钟使能函数（AHB/APB2/APB1）</em></p>
+<h2 id="3-led-闪烁-3-1">3. LED 闪烁（3-1）</h2>
+<p><strong>点灯三步</strong>：① 用 RCC 开启 GPIO 时钟 → ② 用 <code>GPIO_Init</code> 初始化 GPIO → ③ 用输出函数控制引脚。</p>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+#include &quot;Delay.h&quot;
+
+int main(void)
+{
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);   // ① 开 GPIOA 时钟
+
+	GPIO_InitTypeDef GPIO_InitStructure;                     // ② 初始化 GPIO
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;         // 推挽输出
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;                // PA0
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOA, &amp;GPIO_InitStructure);
+
+	while (1)                                                // ③ 输出函数控制
+	{
+		GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_RESET);         // 低电平 → 点亮
+		Delay_ms(500);
+		GPIO_WriteBit(GPIOA, GPIO_Pin_0, Bit_SET);           // 高电平 → 熄灭
+		Delay_ms(500);
+	}
+}
+</code></pre>
+<ul>
+<li>输出函数：<code>GPIO_SetBits</code> 置高、<code>GPIO_ResetBits</code> 置低、<code>GPIO_WriteBit</code> 按位写、<code>GPIO_Write</code> 写整个端口；<code>GPIO_WriteBit</code> 第三个参数是枚举 <strong><code>BitAction</code></strong>（<code>Bit_RESET</code> / <code>Bit_SET</code>），<strong>如果直接写 0/1 需要强制类型转换</strong> <code>(BitAction)0</code> / <code>(BitAction)1</code>，否则可能报错/警告。</li>
+<li><strong>Delay 延时模块</strong>：资料里提供了 Delay 函数模块（在工程总文件夹的 <code>1-3 Delay函数模块</code> 文件夹里），复制到本工程里新建的 <code>System</code> 文件夹；Keil 里加 <code>System</code> 组并添加 Delay 文件，主函数 <code>#include &quot;Delay.h&quot;</code> 后就能用 <code>Delay_us</code> / <code>Delay_ms</code> / <code>Delay_s</code>。</li>
+<li>现象：LED 每 500ms 闪烁；把 500 改成 100 会明显变快。</li>
+</ul>
+<p><img src="../assets/images/stm32-06/06-gpio-init.jpg" alt="图 6：GPIO_Init 完整初始化代码——Out_PP、Pin_0、50MHz、GPIO_Init(GPIOA, &amp;…)"></p>
+<p><em>图 6：GPIO_Init 完整初始化代码——Out_PP、Pin_0、50MHz、GPIO_Init(GPIOA, &amp;…)</em></p>
+<p><img src="../assets/images/stm32-06/07-led-blink.jpg" alt="图 7：GPIO_ResetBits 点亮测试——下载成功（Flash Load finished），PA0 输出低电平"></p>
+<p><em>图 7：GPIO_ResetBits 点亮测试——下载成功（Flash Load finished），PA0 输出低电平</em></p>
+<p><img src="../assets/images/stm32-06/08-delay.jpg" alt="图 8：System/Delay.h——三个延时函数 Delay_us / Delay_ms / Delay_s"></p>
+<p><em>图 8：System/Delay.h——三个延时函数 Delay_us / Delay_ms / Delay_s</em></p>
+<p><img src="../assets/images/stm32-06/09-blink-code.jpg" alt="图 9：LED 闪烁完整代码——WriteBit(Bit_RESET) + Delay_ms(500) + WriteBit(Bit_SET)"></p>
+<p><em>图 9：LED 闪烁完整代码——WriteBit(Bit_RESET) + Delay_ms(500) + WriteBit(Bit_SET)</em></p>
+<p><strong>推挽输出 vs 开漏输出实验</strong>（把 LED 反接成高电平点亮：长脚接 PA0、短脚接 GND）：</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>高电平</th>
+<th>低电平</th>
+<th>LED（高电平点亮接法）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>推挽输出（Out_PP）</td>
+<td>上管导通、有驱动</td>
+<td>下管导通、有驱动</td>
+<td>正常闪烁</td>
+</tr>
+<tr>
+<td>开漏输出（Out_OD）</td>
+<td>高阻态、<strong>无驱动</strong></td>
+<td>下管导通、有驱动</td>
+<td>高电平点不亮；把 LED 接回低电平点亮接法时低电平能点亮</td>
+</tr>
+</tbody></table>
+<ul>
+<li>结论：<strong>一般输出都选推挽</strong>；开漏只在特殊场合用（视频原话“特殊的地方才会用到开漏模式”，例如 [3-1] 讲过的外接上拉输出 5V、I2C 多机通信等）。</li>
+<li>改用开漏只需把结构体的 <code>GPIO_Mode</code> 改成 <code>GPIO_Mode_Out_OD</code>。</li>
+</ul>
+<p><img src="../assets/images/stm32-06/10-push-pull.jpg" alt="图 10：推挽输出高电平驱动实验——LED 反接（长脚→PA0、短脚→GND）也能正常闪烁"></p>
+<p><em>图 10：推挽输出高电平驱动实验——LED 反接（长脚→PA0、短脚→GND）也能正常闪烁</em></p>
+<p><img src="../assets/images/stm32-06/11-open-drain.jpg" alt="图 11：开漏输出实验——开漏模式下高电平无驱动、低电平有驱动能力"></p>
+<p><em>图 11：开漏输出实验——开漏模式下高电平无驱动、低电平有驱动能力</em></p>
+<h2 id="4-led-流水灯-3-2">4. LED 流水灯（3-2）</h2>
+<ul>
+<li>复制 <code>3-1 LED闪烁</code> 工程文件夹，改名为 <code>3-2 LED流水灯</code>，双击 <code>.uvprojx</code> 打开；</li>
+<li>硬件：8 个 LED 的正极都接正极供电孔，负极分别接 <strong>PA0~PA7</strong>（低电平点亮）；</li>
+<li>初始化 Pin 时可以用<strong>按位或</strong>一次选中多个引脚：<code>GPIO_Pin_0 | GPIO_Pin_1 | … | GPIO_Pin_7</code>，或者用 <strong><code>GPIO_Pin_All</code></strong>；</li>
+<li>用 <strong><code>GPIO_Write(GPIOA, PortVal)</code></strong> 一次写整个输出数据寄存器（ODR）；因为 LED 是<strong>低电平点亮</strong>，想让 0 号灯亮、其余灭，数据要取反：<code>~0x0001</code>。</li>
+</ul>
+<pre><code class="language-c">while (1)
+{
+	GPIO_Write(GPIOA, ~0x0001);   // 0000 0000 0000 0001 取反 → 只有 PA0 低电平
+	Delay_ms(500);
+	GPIO_Write(GPIOA, ~0x0002);   // 0000 0000 0000 0010
+	Delay_ms(500);
+	GPIO_Write(GPIOA, ~0x0004);
+	Delay_ms(500);
+	GPIO_Write(GPIOA, ~0x0008);
+	Delay_ms(500);
+	GPIO_Write(GPIOA, ~0x0010);
+	Delay_ms(500);
+	GPIO_Write(GPIOA, ~0x0020);
+	Delay_ms(500);
+	GPIO_Write(GPIOA, ~0x0040);
+	Delay_ms(500);
+	GPIO_Write(GPIOA, ~0x0080);
+	Delay_ms(500);
+}
+</code></pre>
+<ul>
+<li>0x0001、0x0002、0x0004、0x0008、0x0010、0x0020、0x0040、0x0080 就是二进制里逐位为 1；取反后对应引脚输出低电平点亮。</li>
+<li>想更花哨可以改成数组查表：把显示数据放进数组、循环取用（视频提到做法，未展开）。</li>
+<li>现象：8 个 LED 以 500ms 间隔循环流水点亮（把 500 改小会更快）。</li>
+</ul>
+<p><img src="../assets/images/stm32-06/12-shift-write.jpg" alt="图 12：流水灯完整代码——GPIO_Write(GPIOA, ~0x0001) 依次到 ~0x0080，编译 0 Error/0 Warning"></p>
+<p><em>图 12：流水灯完整代码——GPIO_Write(GPIOA, ~0x0001) 依次到 ~0x0080，编译 0 Error/0 Warning</em></p>
+<h2 id="5-蜂鸣器-3-3">5. 蜂鸣器（3-3）</h2>
+<ul>
+<li>接线：有源蜂鸣器 <strong>VCC → 正极供电排</strong>、<strong>GND → 负极供电排</strong>、<strong>控制极 → PB12</strong>。</li>
+<li>⚠️ <strong>避开 PA15 / PB3 / PB4</strong>：这三个引脚默认是 <strong>JTAG 调试口</strong>（JTDI/JTDO/NJTRST），直接当普通 IO 用不会输出；必须用时要在代码里做引脚重映射配置。选 PB12 就没这个问题。</li>
+<li>复制 <code>3-1 LED闪烁</code> 工程，改名 <code>3-3 蜂鸣器</code>；把初始化里的 GPIOA 改成 GPIOB、<code>GPIO_Pin_0</code> 改成 <code>GPIO_Pin_12</code>；</li>
+<li>主循环写“响-停-响-停”节奏（有源蜂鸣器<strong>低电平触发</strong>）：</li>
+</ul>
+<pre><code class="language-c">RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
+GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+GPIO_Init(GPIOB, &amp;GPIO_InitStructure);
+while (1)
+{
+	GPIO_ResetBits(GPIOB, GPIO_Pin_12);   // 低电平 → 响
+	Delay_ms(100);
+	GPIO_SetBits(GPIOB, GPIO_Pin_12);     // 高电平 → 停
+	Delay_ms(100);
+	GPIO_ResetBits(GPIOB, GPIO_Pin_12);   // 响
+	Delay_ms(100);
+	GPIO_SetBits(GPIOB, GPIO_Pin_12);     // 停
+	Delay_ms(700);
+}
+</code></pre>
+<ul>
+<li>现象：蜂鸣器“滴—滴——”有节奏地响。</li>
+</ul>
+<p><img src="../assets/images/stm32-06/13-jtag-pins.jpg" alt="图 13：引脚定义图——PA15/PB3/PB4 默认是 JTAG 调试口，用作普通 IO 需要额外配置"></p>
+<p><em>图 13：引脚定义图——PA15/PB3/PB4 默认是 JTAG 调试口，用作普通 IO 需要额外配置</em></p>
+<p><img src="../assets/images/stm32-06/14-buzzer-code.jpg" alt="图 14：蜂鸣器最终代码——GPIOB + Pin_12 推挽输出，ResetBits 响 / SetBits 停，Delay 100/100/100/700ms"></p>
+<p><em>图 14：蜂鸣器最终代码——GPIOB + Pin_12 推挽输出，ResetBits 响 / SetBits 停，Delay 100/100/100/700ms</em></p>
+<h2 id="6-怎么查库函数-本集附送的方法">6. 怎么查库函数（本集附送的方法）</h2>
+<ol>
+<li><strong>看 .h 文件末尾</strong>：库函数的声明一般都在头文件最后（<code>rcc.h</code>、<code>gpio.h</code>），先看函数列表；在函数上右键 → Go To Definition 可以跳到定义看参数（F12 是 Keil 的快捷键，笔记补充）；</li>
+<li><strong>中文库函数用户手册</strong>：资料文件夹里有一份中文《STM32F103xx 固件函数库用户手册》，每个函数下面都有说明和例程，可以直接复制过来用（注意它是旧版本资料，和 V3.5.0 可能有出入）；</li>
+<li><strong>英文 CHM 帮助文档</strong>：V3.5.0 没有官方中文用户手册，固件库压缩包里附带了英文 CHM 帮助文档（STM32F10x Standard Peripherals Firmware Library），可按函数/结构体索引查；</li>
+<li><strong>网上参考例程</strong>：百度/CSDN 搜“STM32 GPIO 初始化程序”等参考别人代码（注意甄别）；配合有道词典看英文注释。</li>
+</ol>
+<ul>
+<li>小坑：清理中间文件后，右键“跳转到定义”可能提示没有信息，重新编译一次即可。</li>
+</ul>
+<p><img src="../assets/images/stm32-06/15-library-manual.jpg" alt="图 15：资料里的中文库函数用户手册——每个函数有说明和例程（如图中 GPIO_Mode 索引表及其例程）"></p>
+<p><em>图 15：资料里的中文库函数用户手册——每个函数有说明和例程（如图中 GPIO_Mode 索引表及其例程）</em></p>
+<h2 id="7-坑与易错点">7. 坑与易错点</h2>
+<ol>
+<li><strong>ST-LINK 接线别插错</strong>：引脚不按顺序排，要按丝印一一对应（3.3V/SWDIO/SWCLK/GND）。</li>
+<li><strong>PA15/PB3/PB4 默认 JTAG</strong>：直接配成普通输出不会生效，需要用其他引脚或做重映射。</li>
+<li><strong>推挽 vs 开漏</strong>：推挽高低电平均有驱动；开漏高电平是高阻态、没有驱动能力，一般输出用推挽。</li>
+<li><strong><code>GPIO_WriteBit</code> 第三参数是枚举</strong>：<code>Bit_RESET</code>/<code>Bit_SET</code>；直接写 0/1 要加 <code>(BitAction)</code> 强转。</li>
+<li><strong>Delay 模块要加进工程</strong>：System 组 + 文件 + Include Paths，否则 <code>#include &quot;Delay.h&quot;</code> 报错。</li>
+<li><strong>老编译器要求局部变量定义放开头</strong>：视频提到有些老编译器要求所有局部变量定义必须放在函数最前面（C89 风格限制，笔记补充）；新编译器一般不受限。</li>
+<li><strong>工程中间文件很大</strong>：<code>Listings</code>、<code>Objects</code> 占空间（20MB），分享前用清理工具删掉（约 2MB）。</li>
+<li><strong>低电平点亮</strong>：流水灯写 ODR 要取反（<code>~</code>），不然是“逐个熄灭”而不是“逐个点亮”。</li>
+<li><strong>面包板接线</strong>：红线朝上、板子跨凹槽插；本课演示为简化省了限流电阻，实际电路要加。</li>
+<li><strong>新建工程步骤与 [2-2] 一样</strong>：本集只是快速演示，以后直接复制旧工程改名即可。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:00</td>
+<td>本小节编写上一小节演示的三个程序，先搭面包板电路</td>
+</tr>
+<tr>
+<td>0:20</td>
+<td>看接线图：面包板红线朝上、插最小系统板、供电跳线、接 ST-LINK</td>
+</tr>
+<tr>
+<td>2:00</td>
+<td>LED 低电平驱动接法（长脚→正极孔、短脚→PA0），上电电源灯亮</td>
+</tr>
+<tr>
+<td>2:40</td>
+<td>快速新建工程：3-1 LED闪烁、工程名 Project、选 STM32F103C8、建 Start/Library/User 并复制固件库文件</td>
+</tr>
+<tr>
+<td>5:20</td>
+<td>Keil 建组加文件；Include Paths、Define、Debug 设置；编译下载 0 错</td>
+</tr>
+<tr>
+<td>8:20</td>
+<td>工程清理小工具：删 Listings/Objects，20M→2M</td>
+</tr>
+<tr>
+<td>9:20</td>
+<td>认识库函数：rcc.h 三个时钟函数、gpio.h 函数列表；点灯三步（开时钟→GPIO_Init→输出函数）</td>
+</tr>
+<tr>
+<td>12:50</td>
+<td>在 main.c 里写点灯代码：RCC 开时钟 → GPIO_Init → 输出函数</td>
+</tr>
+<tr>
+<td>17:10</td>
+<td>输出函数演示：ResetBits 点亮、SetBits 熄灭、WriteBit(Bit_RESET/Bit_SET)</td>
+</tr>
+<tr>
+<td>20:30</td>
+<td>加入 System/Delay 延时模块，写 LED 闪烁 500ms</td>
+</tr>
+<tr>
+<td>24:10</td>
+<td>WriteBit 传 0/1 演示：出现 2 个警告，加 (BitAction) 强转后 0 Error/0 Warning</td>
+</tr>
+<tr>
+<td>25:10</td>
+<td>推挽输出 vs 开漏输出实验</td>
+</tr>
+<tr>
+<td>26:50</td>
+<td>LED 流水灯：8 灯接 PA0~PA7，GPIO_Write(~0x0001…~0x0080)</td>
+</tr>
+<tr>
+<td>33:20</td>
+<td>蜂鸣器：PB12 低电平触发，避开 PA15/PB3/PB4（JTAG）</td>
+</tr>
+<tr>
+<td>36:50</td>
+<td>库函数使用技巧：.h 列表 → 跳定义 → 中文用户手册 → 英文 CHM → 网上例程</td>
+</tr>
+<tr>
+<td>39:10</td>
+<td>结束语</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr），不是 ASR；本集真实例子：GPIO→“GPlo”（2 次）、“IO口”→“O口”（3 次）、“个1”等噪声，以及“厂/」/■”等杂散字符、编译输出行偶被识别成乱码，已按画面校正。</li>
+<li>视频里 Keil 编译输出行字号小、偶被 OCR 成乱码；除“0/1 直接传给 BitAction”的演示出现 2 个警告外，各次编译结果均为 <strong>0 Error/0 Warning</strong>（画面可见）。</li>
+<li>工程名、引脚按画面记录；蜂鸣器节奏 100/100/100/700ms 为视频演示值，可按需调整。</li>
+<li>推挽/开漏实验的结论与 LED 接法有关：开漏“高电平不亮”是在<strong>高电平点亮接法</strong>下观察的，换回低电平点亮接法后低电平可驱动点亮。</li>
+<li>视频里的“库函数用户手册”是资料包里的中文《STM32F103xx 固件函数库用户手册》（旧版本，与 V3.5.0 可能有差异）；固件库压缩包里另附英文 CHM 帮助文档，本笔记不附这些文件。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-07.html"><span class="label">下一篇</span>[3-3] GPIO输入</a>
+    <a class="next" href="stm32-05.html"><span class="label">上一篇</span>[3-1] GPIO输出</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E4%B8%89%E4%B8%AA%E7%A8%8B%E5%BA%8F%E4%B8%8E%E7%A1%AC%E4%BB%B6">0. 三个程序与硬件</a>
+        <a class="level-2" href="#1-%E5%BF%AB%E9%80%9F%E6%90%AD%E4%B8%80%E4%B8%AA%E6%A0%87%E5%87%86%E5%BA%93%E5%B7%A5%E7%A8%8B">1. 快速搭一个标准库工程</a>
+        <a class="level-2" href="#2-%E5%BA%93%E5%87%BD%E6%95%B0%E5%9C%B0%E5%9B%BE-rcc-%E4%B8%8E-gpio">2. 库函数地图（RCC 与 GPIO）</a>
+        <a class="level-2" href="#3-led-%E9%97%AA%E7%83%81-3-1">3. LED 闪烁（3-1）</a>
+        <a class="level-2" href="#4-led-%E6%B5%81%E6%B0%B4%E7%81%AF-3-2">4. LED 流水灯（3-2）</a>
+        <a class="level-2" href="#5-%E8%9C%82%E9%B8%A3%E5%99%A8-3-3">5. 蜂鸣器（3-3）</a>
+        <a class="level-2" href="#6-%E6%80%8E%E4%B9%88%E6%9F%A5%E5%BA%93%E5%87%BD%E6%95%B0-%E6%9C%AC%E9%9B%86%E9%99%84%E9%80%81%E7%9A%84%E6%96%B9%E6%B3%95">6. 怎么查库函数（本集附送的方法）</a>
+        <a class="level-2" href="#7-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">7. 坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>
