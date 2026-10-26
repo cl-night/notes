@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>STM32 课程地图与学习路线 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 50 集 STM32 入门教程的模块划分、时长与四周学习计划。">
+  <meta property="og:title" content="STM32 课程地图与学习路线 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 50 集 STM32 入门教程的模块划分、时长与四周学习计划。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-course-map.html" class="active" aria-current="page">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-26">2026-10-26</time>
+      <span>3 分钟</span>
+      <span class="tag">STM32</span><span class="tag">课程地图</span><span class="tag">学习路线</span>
+    </div>
+    <article class="prose"><h1>江协科技《STM32入门教程-2023版 细致讲解 中文字幕》课程地图</h1>
+<ul>
+<li>BV：BV1th411z7sn（av206940155）</li>
+<li>UP 主：江协科技</li>
+<li>规模：50 集，总时长约 33 小时 30 分</li>
+<li>资料：<a href="https://jiangxiekeji.com/download.html">https://jiangxiekeji.com/download.html</a></li>
+<li>说明：B 站 CC 字幕需要登录才可读取；视频本身带画面字幕。逐集总结需要先下载该集素材（转写/关键帧）。</li>
+</ul>
+<h2 id="前置知识">前置知识</h2>
+<ul>
+<li>C 语言：指针、结构体、位运算、函数、宏</li>
+<li>基础电路：高低电平、上拉/下拉、串口/总线的基本概念</li>
+<li>一块 STM32F103C8T6 最小系统板 + ST-Link + 若干外设（OLED、按键、光敏、红外、编码器、MPU6050、W25Q64 等）</li>
+</ul>
+<h2 id="模块划分">模块划分</h2>
+<table>
+<thead>
+<tr>
+<th>模块</th>
+<th>集数</th>
+<th>时长</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1. 课程与 STM32 简介</td>
+<td>[1-1] 课程简介、[1-2] STM32简介</td>
+<td>约 60 分钟</td>
+</tr>
+<tr>
+<td>2. 开发环境</td>
+<td>[2-1] 软件安装、[2-2] 新建工程</td>
+<td>约 59 分钟</td>
+</tr>
+<tr>
+<td>3. GPIO</td>
+<td>[3-1] GPIO输出、[3-2] LED闪烁/流水灯/蜂鸣器、[3-3] GPIO输入、[3-4] 按键控制LED/光敏控制蜂鸣器</td>
+<td>约 2.5 小时</td>
+</tr>
+<tr>
+<td>4. OLED 调试</td>
+<td>[4-1] OLED调试工具、[4-2] OLED显示屏</td>
+<td>约 34 分钟</td>
+</tr>
+<tr>
+<td>5. 外部中断 EXTI</td>
+<td>[5-1] EXTI外部中断、[5-2] 红外/旋转编码器计次</td>
+<td>约 1.5 小时</td>
+</tr>
+<tr>
+<td>6. 定时器 TIM（重点）</td>
+<td>[6-1] 定时中断、[6-2] 定时器中断/外部时钟、[6-3] 输出比较、[6-4] PWM 呼吸灯/舵机/电机、[6-5] 输入捕获、[6-6] 测频率/占空比、[6-7] 编码器接口、[6-8] 编码器测速</td>
+<td>约 5.5 小时</td>
+</tr>
+<tr>
+<td>7. ADC</td>
+<td>[7-1] ADC模数转换器、[7-2] AD单通道/多通道</td>
+<td>约 1.6 小时</td>
+</tr>
+<tr>
+<td>8. DMA</td>
+<td>[8-1] DMA直接存储器存取、[8-2] DMA数据转运/DMA+AD多通道</td>
+<td>约 1.7 小时</td>
+</tr>
+<tr>
+<td>9. USART 串口</td>
+<td>[9-1] 串口协议、[9-2] 串口外设、[9-3] 发送/接收、[9-4] 数据包、[9-5] HEX/文本数据包、[9-6] FlyMcu/STLINK Utility</td>
+<td>约 3.7 小时</td>
+</tr>
+<tr>
+<td>10. I2C + MPU6050</td>
+<td>[10-1] I2C协议、[10-2] MPU6050简介、[10-3] 软件I2C、[10-4] I2C外设、[10-5] 硬件I2C</td>
+<td>约 5.2 小时</td>
+</tr>
+<tr>
+<td>11. SPI + W25Q64</td>
+<td>[11-1] SPI协议、[11-2] W25Q64简介、[11-3] 软件SPI、[11-4] SPI外设、[11-5] 硬件SPI</td>
+<td>约 4.4 小时</td>
+</tr>
+<tr>
+<td>12. 时间戳 / BKP / RTC</td>
+<td>[12-1] Unix时间戳、[12-2] BKP/RTC、[12-3] 读写备份寄存器/实时时钟</td>
+<td>约 2.3 小时</td>
+</tr>
+<tr>
+<td>13. PWR 电源控制</td>
+<td>[13-1] PWR电源控制、[13-2] 主频/睡眠/停止/待机模式</td>
+<td>约 1.6 小时</td>
+</tr>
+<tr>
+<td>14. WDG 看门狗</td>
+<td>[14-1] WDG看门狗、[14-2] 独立/窗口看门狗</td>
+<td>约 1.2 小时</td>
+</tr>
+<tr>
+<td>15. FLASH 闪存</td>
+<td>[15-1] FLASH闪存、[15-2] 读写内部FLASH/芯片ID</td>
+<td>约 1.7 小时</td>
+</tr>
+<tr>
+<td>结束</td>
+<td>结束语</td>
+<td>约 1.5 分钟</td>
+</tr>
+</tbody></table>
+<h2 id="建议学习路线-按每天-1-5-2-小时">建议学习路线（按每天 1.5–2 小时）</h2>
+<ul>
+<li>第 1 周：模块 1–3。目标：装好 Keil/STM32CubeMX（或课程用的工具链），跑通点灯、按键、蜂鸣器，理解 GPIO 八种模式。</li>
+<li>第 2 周：模块 4–6。目标：会用 OLED 调试；理解中断、定时器时基、PWM、输入捕获、编码器；能独立写 PWM 呼吸灯和舵机控制。</li>
+<li>第 3 周：模块 7–9。目标：ADC 采样、DMA 转运、串口收发与数据包协议；能做一个“串口遥控 + OLED 显示”的小项目。</li>
+<li>第 4 周：模块 10–15。目标：软件/硬件 I2C、SPI 读写传感器与 Flash、RTC、低功耗、看门狗、内部 FLASH；最后做一个综合项目（例如：MPU6050 姿态 + OLED + 串口上报 + Flash 存参数）。</li>
+</ul>
+<h2 id="每集笔记模板">每集笔记模板</h2>
+<ol>
+<li>这一集解决什么问题（一句话）</li>
+<li>关键外设/寄存器/库函数（按初始化顺序列）</li>
+<li>代码骨架（可复制的初始化 + 主循环）</li>
+<li>现象与验证方法（怎么确认跑通了）</li>
+<li>坑与易错点（时钟、复用、上下拉、中断优先级、DMA 对齐等）</li>
+<li>3 个自测问题</li>
+</ol>
+<h2 id="备注">备注</h2>
+<ul>
+<li>课程体量大，整门课不适合一次性总结；建议按集/按模块总结，并把结果累积到 <code>notes/</code> 下。</li>
+<li>后续每集总结可以再用 <code>video_material</code> 生成该集的 <code>transcript.txt</code>、关键帧拼图和单帧，按“结论先行 + 时间轴 + 画面对照”的方式产出。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <span></span>
+    <a class="next" href="stm32-01.html"><span class="label">上一篇</span>[1-1] 课程简介</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E5%89%8D%E7%BD%AE%E7%9F%A5%E8%AF%86">前置知识</a>
+        <a class="level-2" href="#%E6%A8%A1%E5%9D%97%E5%88%92%E5%88%86">模块划分</a>
+        <a class="level-2" href="#%E5%BB%BA%E8%AE%AE%E5%AD%A6%E4%B9%A0%E8%B7%AF%E7%BA%BF-%E6%8C%89%E6%AF%8F%E5%A4%A9-1-5-2-%E5%B0%8F%E6%97%B6">建议学习路线（按每天 1.5–2 小时）</a>
+        <a class="level-2" href="#%E6%AF%8F%E9%9B%86%E7%AC%94%E8%AE%B0%E6%A8%A1%E6%9D%BF">每集笔记模板</a>
+        <a class="level-2" href="#%E5%A4%87%E6%B3%A8">备注</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>
