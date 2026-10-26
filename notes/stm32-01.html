@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[1-1] 课程简介 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 入门教程第一集：教学方式、硬件平台、Keil MDK5 与套件清单。">
+  <meta property="og:title" content="[1-1] 课程简介 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 入门教程第一集：教学方式、硬件平台、Keil MDK5 与套件清单。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-01.html" class="active" aria-current="page">[1-1] 课程简介</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-26">2026-10-26</time>
+      <span>3 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">课程简介</span>
+    </div>
+    <article class="prose"><h1>[1-1] 课程简介 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=1，11:27</li>
+<li>素材：172 帧关键帧（每 4 秒）+ faster-whisper small 语音转写（232 段）；画面与转写互相校正</li>
+<li>素材目录：<code>vidsum_out/stm32_p1/</code>（<code>sheets/</code> 拼图、<code>frames/</code> 单帧）</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>这一集不是技术课，而是“课程说明书”：讲清课程怎么教（手把手、程序纯手打）、用什么硬件（STM32 最小系统板 + 面包板 + 套件）、用什么软件（Keil MDK5），以及适合什么基础的人学。</p>
+<h2 id="要点">要点</h2>
+<h3 id="1-教学方式">1. 教学方式</h3>
+<ul>
+<li>程序纯手打、手把手教学，从零开始；延时函数、显示屏函数这类固定代码会直接提供，关键部分亲自敲。</li>
+<li>会一步步演示工程怎么建、程序怎么调；强调“手打代码”和“对着现成代码讲”的学习感受差别很大。</li>
+<li>面向有一点 51 基础、或完全零基础但愿意补基础的同学；UP 主之前发布过 51 单片机入门教程，零基础建议先看那套，再学 STM32 会简单一些。</li>
+<li>面包板让接线可见、易改，接近实际开发板。</li>
+</ul>
+<h3 id="2-硬件平台">2. 硬件平台</h3>
+<ul>
+<li>核心：STM32 最小系统板 + 面包板 + 杜邦线 + ST-Link。</li>
+<li>套件还包含：LED、按键、蜂鸣器、OLED、光敏/热敏/红外/霍尔等传感器、MPU6050、W25Q64、舵机、直流电机/编码器电机等，后续章节逐个使用。</li>
+<li>工具：Windows 电脑、万用表（测通断/电压）、示波器（可选）、镊子/剪刀等。</li>
+</ul>
+<h3 id="3-软件">3. 软件</h3>
+<ul>
+<li>Keil MDK5（ARM 版），区别于以前 51 用的 Keil C51；两者可以装在同一台电脑上，C51 不能开发 STM32。</li>
+</ul>
+<h3 id="4-课程结构预告-结合目录">4. 课程结构预告（结合目录）</h3>
+<ul>
+<li>先 GPIO、OLED，再中断、定时器、ADC/DMA、串口，最后 I2C/SPI/RTC/低功耗/看门狗/FLASH。</li>
+</ul>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:00</td>
+<td>片头与欢迎；介绍课程定位，建议零基础先看 51 教程</td>
+</tr>
+<tr>
+<td>0:46</td>
+<td>教学方式：固定代码直接给，关键代码手打，演示建工程与调试</td>
+</tr>
+<tr>
+<td>1:42</td>
+<td>硬件平台：最小系统板 + 面包板 + OLED + ST-Link；面包板的优缺点</td>
+</tr>
+<tr>
+<td>3:43</td>
+<td>硬件设备清单：套件、Windows 电脑、万用表、示波器、镊子剪刀</td>
+</tr>
+<tr>
+<td>5:31</td>
+<td>软件设备：Keil MDK5 与 Keil C51 的区别，可共存</td>
+</tr>
+<tr>
+<td>6:26</td>
+<td>套件开箱：面包板、跳线/杜邦线、ST-Link、OLED、按键、LED、蜂鸣器</td>
+</tr>
+<tr>
+<td>8:00</td>
+<td>传感器模块：光敏、热敏、对射/反射红外</td>
+</tr>
+<tr>
+<td>9:30</td>
+<td>W25Q64、MPU6050、旋转编码器、直流电机 + TB6612、SG90 舵机</td>
+</tr>
+<tr>
+<td>11:14</td>
+<td>收尾：套件获取、资料下载、课程安排见视频简介</td>
+</tr>
+</tbody></table>
+<h2 id="学习行动">学习行动</h2>
+<ol>
+<li>先确认手头硬件：最小系统板、ST-Link、面包板、杜邦线；没有套件也可以先学 [1-2]、[2-1]。</li>
+<li>装 Keil MDK5（下一集 [2-1] 软件安装会讲具体步骤）。</li>
+<li>本集不用记代码；记住“多敲、多改、多验证”的学习方式。</li>
+<li>下一集 [1-2] STM32简介 再开始记概念。</li>
+</ol>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>转写由 faster-whisper small 生成，存在识别错字：STM32→“S-TM32”、51→“512”、Keil→“KO5”、I2C→“iPhone SE”、SPI→“SPA”、示波器→“时波器”、蜂鸣器→“分明器”、光敏/热敏→“光明/热明”等；本文已按上下文校正，具体以视频画面为准。</li>
+<li>套件清单按画面与转写归纳，具体型号/数量以官方资料为准。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-course-map.html"><span class="label">下一篇</span>STM32 课程地图与学习路线</a>
+    <span></span>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#%E8%A6%81%E7%82%B9">要点</a>
+        <a class="level-3" href="#1-%E6%95%99%E5%AD%A6%E6%96%B9%E5%BC%8F">1. 教学方式</a>
+        <a class="level-3" href="#2-%E7%A1%AC%E4%BB%B6%E5%B9%B3%E5%8F%B0">2. 硬件平台</a>
+        <a class="level-3" href="#3-%E8%BD%AF%E4%BB%B6">3. 软件</a>
+        <a class="level-3" href="#4-%E8%AF%BE%E7%A8%8B%E7%BB%93%E6%9E%84%E9%A2%84%E5%91%8A-%E7%BB%93%E5%90%88%E7%9B%AE%E5%BD%95">4. 课程结构预告（结合目录）</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%A6%E4%B9%A0%E8%A1%8C%E5%8A%A8">学习行动</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>
