@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>我的学习笔记</title>
+  <meta name="description" content="个人学习笔记：STM32、嵌入式与更多。">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="index.html">全部笔记</a>
+      
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<main class="home">
+  <section class="hero">
+    <p class="eyebrow">PERSONAL NOTES</p>
+    <h1>我的学习笔记</h1>
+    <p class="hero-tagline">把视频、课程和书，整理成能复习的笔记。</p>
+    <p class="hero-meta">2 篇笔记 · 最近更新 2026-10-26</p>
+  </section>
+  <section class="toolbar">
+    <label class="search">
+      <input id="search" type="search" placeholder="搜索标题、摘要或标签…（按 / 聚焦）" autocomplete="off">
+    </label>
+    <div class="tag-filter" id="tag-filter">
+      <button class="tag-chip active" type="button" data-tag="">全部</button>
+      <button class="tag-chip" type="button" data-tag="课程地图">课程地图</button>
+      <button class="tag-chip" type="button" data-tag="课程简介">课程简介</button>
+      <button class="tag-chip" type="button" data-tag="学习笔记">学习笔记</button>
+      <button class="tag-chip" type="button" data-tag="学习路线">学习路线</button>
+      <button class="tag-chip" type="button" data-tag="stm32">STM32</button>
+    </div>
+  </section>
+  <section class="note-grid" id="note-grid">
+<a class="note-card" href="notes/stm32-01.html" data-search="[1-1] 课程简介 江协科技 stm32 入门教程第一集：教学方式、硬件平台、keil mdk5 与套件清单。 stm32 学习笔记 课程简介 2026-10-26" data-tags="stm32|学习笔记|课程简介">
+        <div class="card-top"><time datetime="2026-10-26">2026-10-26</time><span>3 分钟</span></div>
+        <h2>[1-1] 课程简介</h2>
+        <p>江协科技 STM32 入门教程第一集：教学方式、硬件平台、Keil MDK5 与套件清单。</p>
+        <div class="tags"><span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">课程简介</span></div>
+      </a>
+<a class="note-card" href="notes/stm32-course-map.html" data-search="stm32 课程地图与学习路线 江协科技 50 集 stm32 入门教程的模块划分、时长与四周学习计划。 stm32 课程地图 学习路线 2026-10-26" data-tags="stm32|课程地图|学习路线">
+        <div class="card-top"><time datetime="2026-10-26">2026-10-26</time><span>3 分钟</span></div>
+        <h2>STM32 课程地图与学习路线</h2>
+        <p>江协科技 50 集 STM32 入门教程的模块划分、时长与四周学习计划。</p>
+        <div class="tags"><span class="tag">STM32</span><span class="tag">课程地图</span><span class="tag">学习路线</span></div>
+      </a>
+  </section>
+  <p class="empty" id="empty" hidden>没有匹配的笔记。</p>
+</main>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="assets/app.js" defer></script>
+</body>
+</html>
