@@ -1,0 +1,582 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[2-2] 新建工程 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 课程第 4 集：从零建立标准库工程——Start/Library/User 目录、Keil 分组与选项配置、寄存器与库函数两种点灯验证，以及启动文件选择与工程架构。">
+  <meta property="og:title" content="[2-2] 新建工程 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 课程第 4 集：从零建立标准库工程——Start/Library/User 目录、Keil 分组与选项配置、寄存器与库函数两种点灯验证，以及启动文件选择与工程架构。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html" class="active" aria-current="page">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-26">2026-10-26</time>
+      <span>17 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">开发环境</span><span class="tag">工程模板</span>
+    </div>
+    <article class="prose"><h1>[2-2] 新建工程 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=4，42:14</li>
+<li>素材：253 帧关键帧（每 10 秒，宽 1280px）+ faster-whisper small 语音转写（821 段）；关键画面截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p4/frames/</code>，站内图片在 <code>assets/images/stm32-04/</code>）</li>
+<li>字幕情况：该集同样<strong>没有 B 站 CC/AI 字幕</strong>（yt-dlp 元数据 <code>subtitles</code> 为空，视频自带的是画面硬字幕），文本由 ASR 生成，专有名词已按画面校正。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>这一集从零搭出**“标准库工程模板”<strong>：建 <code>Start / Library / User</code> 三个文件夹并复制固件库文件，Keil 里建同名分组，再配好 <strong>Include Paths、<code>USE_STDPERIPH_DRIVER</code>、ST-Link 调试器和 Reset and Run</strong>；最后分别用「直接写寄存器」和「调用库函数」点亮 PC13 的 LED 来验证工程，并补充了</strong>启动文件怎么选**、<strong>六步流程总结</strong>和<strong>工程架构</strong>。</p>
+<h2 id="最终工程结构-本集完成时">最终工程结构（本集完成时）</h2>
+<table>
+<thead>
+<tr>
+<th>文件夹</th>
+<th>放什么</th>
+<th>来源</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Start</code></td>
+<td><code>startup\arm</code> 下全部 8 个 <code>startup_stm32f10x_*.s</code>（Keil 分组里只添加 <code>md.s</code> 一个）、<code>core_cm3.c/h</code>、<code>stm32f10x.h</code>、<code>system_stm32f10x.c/h</code></td>
+<td>固件库 <code>CMSIS\CM3\...</code></td>
+</tr>
+<tr>
+<td><code>Library</code></td>
+<td><code>misc.c/h</code> + <code>stm32f10x_*.c/h</code>（标准外设驱动）</td>
+<td>固件库 <code>STM32F10x_StdPeriph_Driver\src</code> 与 <code>inc</code></td>
+</tr>
+<tr>
+<td><code>User</code></td>
+<td><code>main.c</code>、<code>stm32f10x_conf.h</code>、<code>stm32f10x_it.c/h</code></td>
+<td>自建 main.c + 固件库 <code>Project\...\Template</code></td>
+</tr>
+</tbody></table>
+<ul>
+<li>Keil 工程里建立<strong>同名分组</strong> <code>Start / Library / User</code>，把对应文件夹里的文件添加进分组。</li>
+<li>工程选项：C/C++ 的 Include Paths 声明三个文件夹，Define 填 <code>USE_STDPERIPH_DRIVER</code>；Debug 选 ST-Link，Flash Download 勾 Reset and Run。</li>
+</ul>
+<h2 id="0-三种开发方式-选题铺垫">0. 三种开发方式（选题铺垫）</h2>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>做法</th>
+<th>特点</th>
+<th>本课程</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基于寄存器</td>
+<td>程序直接配置寄存器</td>
+<td>最底层、最直接、效率高；但 STM32 寄存器太多，不推荐</td>
+<td>演示一下，不是重点</td>
+</tr>
+<tr>
+<td><strong>基于标准库（库函数）</strong></td>
+<td>调用 ST 封装好的函数，间接配置寄存器</td>
+<td>ST 封装得好，既能配置寄存器，对开发者也友好</td>
+<td><strong>本课程使用</strong></td>
+</tr>
+<tr>
+<td>基于 HAL 库</td>
+<td>图形化界面快速配置</td>
+<td>适合快速上手，但隐藏底层逻辑，不熟悉 STM32 容易停在浅层</td>
+<td>学完标准库后了解</td>
+</tr>
+</tbody></table>
+<h2 id="1-准备固件库">1. 准备固件库</h2>
+<ul>
+<li>资料链接在视频简介里（江协科技资料下载页 <a href="https://jiangxiekeji.com/download.html">https://jiangxiekeji.com/download.html</a>）。</li>
+<li>需要的压缩包：<strong><code>STM32F10x_StdPeriph_Lib_V3.5.0</code></strong>（STM32F10x 标准外设库），解压后主要目录：<ul>
+<li><code>.htmresc</code>：就两张图片资源，用不到；</li>
+<li><code>Libraries</code>：库函数文件（建工程用），含 CMSIS 和 <code>STM32F10x_StdPeriph_Driver</code>；</li>
+<li><code>Project</code>：官方工程示例和模板（以后用库函数时可参考）；</li>
+<li><code>Utilities</code>：STM32 官方评估板（一块小电路板）的测评程序；</li>
+<li>另有库函数发布文档和使用手册，可以闲时翻翻。</li>
+</ul>
+</li>
+</ul>
+<h2 id="2-新建工程">2. 新建工程</h2>
+<ol>
+<li>先建一个<strong>存放所有工程的总文件夹</strong>（视频在桌面建了 <code>STM32Project</code>，以后的工程都放这里，便于管理）。</li>
+<li>打开 Keil5，<strong>Project → New uVision Project</strong>。</li>
+<li>在总文件夹里<strong>再新建一个本次工程的文件夹</strong>（视频命名 <code>2-1 STM32工程模板</code>，用文件夹名说明这个工程是干啥的）。</li>
+<li>给工程文件起名：起一个<strong>通用名字</strong>（视频用 <code>project</code>）。原因：文件夹名以后很好改，<strong>工程名以后不太好改</strong>。</li>
+<li>选择器件型号：芯片是 <strong>STM32F103C8T6</strong>，这里选 <strong>STM32F103C8</strong>，点 OK。</li>
+</ol>
+<p><img src="../assets/images/stm32-04/01-create-project.jpg" alt="图 1：Keil 新建工程，选择工程文件夹并命名"></p>
+<p><em>图 1：Keil 新建工程，选择工程文件夹并命名</em></p>
+<p><img src="../assets/images/stm32-04/02-select-chip.jpg" alt="图 2：Select Device 里选择 STM32F103C8"></p>
+<p><em>图 2：Select Device 里选择 STM32F103C8</em></p>
+<ol start="6">
+<li>会弹出 <strong>Manage Run-Time Environment</strong>（新建工程小助手），本集暂时不用，直接关掉。此时工程还是空的、不能直接用，需要添加工程必要文件。</li>
+</ol>
+<h2 id="3-复制工程必要文件到-start">3. 复制工程必要文件到 Start</h2>
+<p>先复制 <strong>CMSIS 内核相关文件</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>作用</th>
+<th>固件库位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>startup_stm32f10x_*.s</code>（8 个）</td>
+<td>启动文件，程序从这里开始执行；本课 Keil 分组里只添加 <code>md.s</code> 这一个</td>
+<td><code>Libraries\CMSIS\CM3\DeviceSupport\ST\STM32F10x\startup\arm</code></td>
+</tr>
+<tr>
+<td><code>stm32f10x.h</code></td>
+<td>STM32 外设寄存器描述文件（类似 51 的 <code>reg52.h</code>），描述有哪些寄存器及地址</td>
+<td><code>...\DeviceSupport\ST\STM32F10x\</code></td>
+</tr>
+<tr>
+<td><code>system_stm32f10x.c/h</code></td>
+<td>配置系统时钟，<strong>72MHz 主频就是这里配置的</strong></td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>core_cm3.c/h</code></td>
+<td>Cortex-M3 内核的寄存器描述（还带内核配置函数）</td>
+<td><code>Libraries\CMSIS\CM3\CoreSupport</code></td>
+</tr>
+</tbody></table>
+<ul>
+<li>在工程文件夹下<strong>新建 <code>Start</code> 文件夹</strong>：先把 <code>startup\arm</code> 里<strong>全部 8 个启动文件</strong>复制进去（Ctrl+A 全选），再复制 <code>stm32f10x.h</code> + <code>system_stm32f10x.c/h</code> + <code>core_cm3.c/h</code>。<strong>Keil 分组里只添加 <code>md.s</code> 这一个启动文件</strong>，其余 7 个留在文件夹里备用。</li>
+<li>之后 Keil 自动生成的 <code>DebugConfig</code>、<code>Listings</code>、<code>Objects</code> 等文件夹是输出/调试目录，不用管。</li>
+</ul>
+<p><img src="../assets/images/stm32-04/03-project-folders.jpg" alt="图 3：工程文件夹里新建 Start/User 等文件夹来分类放置文件"></p>
+<p><em>图 3：工程文件夹里新建 Start/User 等文件夹来分类放置文件</em></p>
+<h2 id="4-在-keil-里建分组-加文件">4. 在 Keil 里建分组、加文件</h2>
+<ol>
+<li>把工程里的 <code>Source Group 1</code> 选中再单击一下，<strong>改名为 <code>Start</code></strong>。</li>
+<li>在 <code>Start</code> 上右键 → <strong>Add Existing Files to Group &#39;Start&#39;</strong>。</li>
+<li>文件过滤器选 <strong>All files</strong>，打开 <code>Start</code> 文件夹。</li>
+<li>先添加<strong>启动文件</strong> <code>startup_stm32f10x_md.s</code>（前缀 <code>md</code> = Medium Density，中容量；Start 文件夹里 8 个启动文件都有，但工程里<strong>只能加一个</strong>）。</li>
+<li>再按住 <strong>Ctrl</strong> 多选其余 <code>.c</code> 和 <code>.h</code> 文件，点 Add → Close。</li>
+</ol>
+<ul>
+<li>带<strong>小钥匙</strong>图标的文件是<strong>只读文件</strong>，这些是 STM32 最基本的文件，不需要修改，添加进来即可。</li>
+<li>最后在工程选项里声明 <code>Start</code> 的头文件路径，否则编译器找不到 <code>.h</code>：魔术棒 → <strong>C/C++</strong> → <strong>Include Paths</strong> → 新建一行，点右侧 <code>...</code> 把 <code>Start</code> 路径加进来（先加 <code>..\Start</code>，后面再加 User 和 Library）。</li>
+</ul>
+<p><img src="../assets/images/stm32-04/04-keil-groups.jpg" alt="图 4：Keil 工程里的 Start / Library / User 分组与文件（这是全部建完后的最终状态；Library 分组在步骤 8 才加入；带小钥匙的是只读文件）"></p>
+<p><em>图 4：Keil 工程里的 Start / Library / User 分组与文件（全部建完后的最终状态，画面已滚动到 User/Library；Library 分组在步骤 8 才加入；带小钥匙的是只读文件）</em></p>
+<h2 id="5-建-user-分组和-main-c">5. 建 User 分组和 main.c</h2>
+<ol>
+<li>工程文件夹下建 <code>User</code> 文件夹，main 函数放在这里。</li>
+<li>Keil 里 <code>Target</code> 右键 → <strong>Add Group</strong>，命名 <code>User</code>。</li>
+<li>在 <code>User</code> 上右键 → <strong>Add New Item to Group &#39;User&#39;</strong> → 选 <strong>C File</strong>，名字写 <code>main</code>；<strong>注意下方 Location 默认是工程根目录，要手动把路径选到 User 文件夹</strong>。</li>
+<li>main.c 里写最小程序：</li>
+</ol>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+
+int main(void)
+{
+	while (1)
+	{
+	}
+}
+</code></pre>
+<ul>
+<li>注意：<code>main</code> 是<strong>返回 <code>int</code>、参数 <code>void</code></strong>；<strong>文件最后一行必须是空行</strong>，否则会报警告。</li>
+<li>编译（Build）后显示 <strong>0 Errors, 0 Warnings</strong>，说明工程能正常编译——此时还是<strong>基于寄存器的工程</strong>。</li>
+</ul>
+<h2 id="6-接硬件-配置调试器与下载">6. 接硬件、配置调试器与下载</h2>
+<ol>
+<li>准备：<strong>STM32 最小系统板 + ST-Link + 4 根母对母杜邦线</strong>；按板子引脚旁的标识连接 <strong>3.3V、SWDIO、SWCLK、GND</strong>，然后把 ST-Link 插到电脑 USB。</li>
+<li>上电现象：板上<strong>电源灯长亮</strong>，接在 <strong>PC13</strong> 口的 LED <strong>默认闪烁</strong>（这是芯片里预装的测试程序）。</li>
+</ol>
+<p><img src="../assets/images/stm32-04/13-stlink-wiring.jpg" alt="图 5：ST-Link 与最小系统板的 SWD 接线（3.3V / SWDIO / SWCLK / GND）"></p>
+<p><em>图 5：ST-Link 与最小系统板的 SWD 接线（3.3V / SWDIO / SWCLK / GND）</em></p>
+<ol start="3">
+<li>Keil 里点魔术棒 → <strong>Debug</strong> 选项卡：默认调试器是 <strong>ULINK</strong>，我们用的是 ST-Link，所以下拉选 <strong>ST-Link Debugger</strong>。</li>
+<li>点右侧 <strong>Settings</strong> → <strong>Flash Download</strong> 选项卡 → 勾选 <strong>Reset and Run</strong>：<ul>
+<li>勾上后下载完程序会<strong>立即复位并执行</strong>；</li>
+<li>否则每次下载后还要手动按一下板子上的复位键。</li>
+</ul>
+</li>
+</ol>
+<p><img src="../assets/images/stm32-04/07-debug-stlink.jpg" alt="图 6：Debug 选项卡选择 ST-Link Debugger"></p>
+<p><em>图 6：Debug 选项卡选择 ST-Link Debugger</em></p>
+<p><img src="../assets/images/stm32-04/08-flash-reset-run.jpg" alt="图 7：Flash Download 里勾选 Reset and Run"></p>
+<p><em>图 7：Flash Download 里勾选 Reset and Run</em></p>
+<ol start="5">
+<li>重新编译，点 <strong>Load</strong> 按钮下载。程序下载成功后，板子 PC13 的灯不再闪（因为当前程序是空的）。</li>
+</ol>
+<h2 id="7-演示-寄存器方式点灯-理解底层">7. 演示：寄存器方式点灯（理解底层）</h2>
+<p>打开 STM32 参考手册，点灯只需要配置 3 个寄存器：</p>
+<table>
+<thead>
+<tr>
+<th>寄存器</th>
+<th>配置</th>
+<th>值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>RCC_APB2ENR</code></td>
+<td>GPIO 都是 APB2 外设；<code>IOPCEN</code>（bit4）写 1 使能 GPIOC 时钟</td>
+<td><code>0x00000010</code></td>
+</tr>
+<tr>
+<td><code>GPIOC_CRH</code></td>
+<td>PC13 的 <code>CNF13 = 00</code>（通用推挽输出）、<code>MODE13 = 11</code>（输出 50MHz）</td>
+<td><code>0x00300000</code></td>
+</tr>
+<tr>
+<td><code>GPIOC_ODR</code></td>
+<td><code>ODR13</code> 写 1 = 高电平，写 0 = 低电平；<strong>本板 LED 低电平点亮</strong></td>
+<td><code>0x00002000</code>（灭）/ <code>0x00000000</code>（亮）</td>
+</tr>
+</tbody></table>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+
+int main(void)
+{
+	RCC-&gt;APB2ENR = 0x00000010;   // 使能 GPIOC 时钟
+	GPIOC-&gt;CRH = 0x00300000;     // PC13 通用推挽输出，50MHz
+	GPIOC-&gt;ODR = 0x00002000;     // 高电平（灭）；改成 0x00000000 则亮
+	while (1)
+	{
+	}
+}
+</code></pre>
+<p><img src="../assets/images/stm32-04/09-register-code.jpg" alt="图 8：寄存器点灯代码（RCC_APB2ENR / GPIOC_CRH / GPIOC_ODR）"></p>
+<p><em>图 8：寄存器点灯代码（RCC_APB2ENR / GPIOC_CRH / GPIOC_ODR）</em></p>
+<ul>
+<li>编译、下载后观察：<code>ODR = 0</code> 时灯亮，<code>ODR = 0x2000</code> 时灯灭。</li>
+<li><strong>弊端</strong>：直接给整个寄存器赋值，会把 PC13 之外的其他位也配置成 0，<strong>影响其他端口的原有配置</strong>；要只改 PC13 就得用 <code>&amp;=</code>、<code>|=</code> 操作，更麻烦——这正是需要库函数的原因。</li>
+</ul>
+<h2 id="8-加入库函数-补全-library-user-define-include-paths">8. 加入库函数（补全 Library / User / Define / Include Paths）</h2>
+<ol>
+<li>工程文件夹下新建 <strong><code>Library</code></strong> 文件夹。</li>
+<li>打开固件库 <code>Libraries\STM32F10x_StdPeriph_Driver\src</code>，<strong>Ctrl+A 全选 <code>.c</code> 文件复制到 <code>Library</code></strong>；再打开 <code>...\inc</code>，<strong>Ctrl+A 全选 <code>.h</code> 文件复制到 <code>Library</code></strong>。<ul>
+<li><code>misc.c</code> 是内核相关的库函数，其余是外设库函数。</li>
+</ul>
+</li>
+<li>Keil 里 <code>Target</code> 右键 → Add Group，命名 <code>Library</code>；右键 → Add Existing Files，打开 Library → <strong>Ctrl+A</strong> 全选 → Add。</li>
+<li><strong>还需要 3 个“库函数配置”文件</strong>：打开固件库 <code>Project\STM32F10x_StdPeriph_Template</code>，把 <strong><code>stm32f10x_conf.h</code>、<code>stm32f10x_it.c</code>、<code>stm32f10x_it.h</code></strong> 复制到工程 <code>User</code> 文件夹，并在 <code>User</code> 分组里添加。<ul>
+<li><code>stm32f10x_conf.h</code> 用来配置库函数头文件的包含关系，里面还有库函数需要的参数检查宏；</li>
+<li><code>stm32f10x_it.c/h</code> 用来存放中断服务函数。</li>
+</ul>
+</li>
+<li>打开 <code>stm32f10x.h</code> 翻到最后，能看到条件编译：</li>
+</ol>
+<pre><code class="language-c">#ifdef USE_STDPERIPH_DRIVER
+	#include &quot;stm32f10x_conf.h&quot;
+#endif
+</code></pre>
+<p>   所以要让库函数生效，必须在魔术棒 → <strong>C/C++ → Define</strong> 里填上 <strong><code>USE_STDPERIPH_DRIVER</code></strong>。
+6. 同时在 <strong>Include Paths</strong> 里补上 <strong><code>..\User</code></strong> 和 <strong><code>..\Library</code></strong>（加上之前的 <code>..\Start</code>，三个文件夹都声明）。</p>
+<p><img src="../assets/images/stm32-04/06-define-macro.jpg" alt="图 9：C/C++ Define 填 USE_STDPERIPH_DRIVER"></p>
+<p><em>图 9：C/C++ Define 填 USE_STDPERIPH_DRIVER</em></p>
+<p><img src="../assets/images/stm32-04/05-include-paths.jpg" alt="图 10：Include Paths 声明 ..\Start、..\User、..\Library"></p>
+<p><em>图 10：Include Paths 声明 ..\Start、..\User、..\Library</em></p>
+<ol start="7">
+<li>重新编译：第一次编译比较慢（要编译整个库），以后就快了；结果 <strong>0 Errors, 0 Warnings</strong>，库函数工程建立成功。<ul>
+<li>Library 里的库函数文件也都带小钥匙（只读），不需要修改；<strong>我们唯一要改的是 User 里的文件</strong>。</li>
+<li><code>STM32F10X_MD</code> 这个字符串 Keil 新建工程时已经自动声明了，不需要额外加。</li>
+</ul>
+</li>
+</ol>
+<p><img src="../assets/images/stm32-04/16-build-success.jpg" alt="图 11：库函数工程编译成功：0 Error(s), 0 Warning(s)"></p>
+<p><em>图 11：库函数工程编译成功：0 Error(s), 0 Warning(s)（此时 main.c 里还是寄存器代码，第 9 节才换成库函数）</em></p>
+<h2 id="9-演示-库函数方式点灯-对比">9. 演示：库函数方式点灯（对比）</h2>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+
+int main(void)
+{
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);   // 使能 GPIOC 时钟
+	GPIO_InitTypeDef GPIO_InitStructure;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;        // 通用推挽输出
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_13;              // PC13
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;       // 50MHz
+	GPIO_Init(GPIOC, &amp;GPIO_InitStructure);                   // 配置生效
+	GPIO_SetBits(GPIOC, GPIO_Pin_13);                        // PC13 高电平（灭）
+	// GPIO_ResetBits(GPIOC, GPIO_Pin_13);                   // PC13 低电平（亮）
+	while (1)
+	{
+	}
+}
+</code></pre>
+<p><img src="../assets/images/stm32-04/10-library-code.jpg" alt="图 12：库函数点灯代码（RCC_APB2PeriphClockCmd / GPIO_Init / GPIO_SetBits）"></p>
+<p><em>图 12：库函数点灯代码（RCC_APB2PeriphClockCmd / GPIO_Init / GPIO_SetBits）</em></p>
+<ul>
+<li>库函数内部<strong>仍然是配置寄存器</strong>，但它已经用 <code>|=</code> 和 <code>&amp;=</code> 操作，<strong>不会影响寄存器的其他位</strong>；代码比寄存器方式长，但语义明确，也不用查手册算寄存器值。</li>
+<li>下载验证：注释掉高电平、放开低电平 → 灯亮；反过来 → 灯灭。</li>
+</ul>
+<p><img src="../assets/images/stm32-04/14-download-run.jpg" alt="图 13：下载成功（Flash Load finished）后程序立即运行"></p>
+<p><em>图 13：库函数程序下载成功（Build Output 显示 Programming / Verify OK、Application running）</em></p>
+<h2 id="10-补充一-启动文件怎么选">10. 补充一：启动文件怎么选</h2>
+<p>启动文件按芯片容量分很多种，选错会出问题。STM32F1 系列的型号分类与缩写：</p>
+<table>
+<thead>
+<tr>
+<th>缩写</th>
+<th>释义</th>
+<th>Flash 容量</th>
+<th>型号</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>LD_VL</td>
+<td>小容量产品超值系列</td>
+<td>16–32K</td>
+<td>STM32F100</td>
+</tr>
+<tr>
+<td>MD_VL</td>
+<td>中容量产品超值系列</td>
+<td>64–128K</td>
+<td>STM32F100</td>
+</tr>
+<tr>
+<td>HD_VL</td>
+<td>大容量产品超值系列</td>
+<td>256–512K</td>
+<td>STM32F100</td>
+</tr>
+<tr>
+<td>LD</td>
+<td>小容量产品</td>
+<td>16–32K</td>
+<td>STM32F101/102/103</td>
+</tr>
+<tr>
+<td>MD</td>
+<td>中容量产品</td>
+<td>64–128K</td>
+<td>STM32F101/102/103</td>
+</tr>
+<tr>
+<td>HD</td>
+<td>大容量产品</td>
+<td>256–512K</td>
+<td>STM32F101/102/103</td>
+</tr>
+<tr>
+<td>XL</td>
+<td>加大容量产品</td>
+<td>大于 512K</td>
+<td>STM32F101/102/103</td>
+</tr>
+<tr>
+<td>CL</td>
+<td>互联型产品</td>
+<td>—</td>
+<td>STM32F105/107</td>
+</tr>
+</tbody></table>
+<ul>
+<li>选择规则：F100 → 选带 <code>VL</code> 的，再按 Flash 选 LD/MD/HD；F101/102/103 → 选不带 VL 的，再按 Flash 选 LD/MD/HD/XL；F105/107 → 直接选 <code>CL</code>。</li>
+<li>启动文件目录（<code>startup\arm</code>）里共有 8 个：<code>startup_stm32f10x_cl/hd/hd_vl/ld/ld_vl/md/md_vl/xl.s</code>，文件名后缀和上表缩写一一对应。</li>
+<li>本课程芯片 <strong>STM32F103C8T6</strong>：Flash 64K，所以选 <strong><code>startup_stm32f10x_md.s</code>（MD）</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-04/15-startup-table.jpg" alt="图 14：型号分类与缩写，C8T6 的 Flash 是 64K，对应 MD 启动文件"></p>
+<p><em>图 14：型号分类与缩写，C8T6 的 Flash 是 64K，对应 MD 启动文件</em></p>
+<h2 id="11-补充二-新建工程六步总结">11. 补充二：新建工程六步总结</h2>
+<ol>
+<li>建立工程文件夹，Keil 中新建工程、选择型号。</li>
+<li>工程文件夹里建立 <code>Start</code>、<code>Library</code>、<code>User</code> 等文件夹，<strong>复制</strong>固件库里面的文件到工程文件夹（一定要复制到工程内，不要添加工程外文件，否则外面文件一挪位置工程就找不到）。</li>
+<li>工程里对应建立同名称分组，然后把文件夹内的文件添加到工程分组里（Keil 不能直接添加文件夹，所以要先建组再逐组加文件）。</li>
+<li>工程选项 → C/C++ → <strong>Include Paths</strong> 声明所有包含头文件的文件夹（自己建的文件夹 Keil 并不知道，必须声明）。</li>
+<li>工程选项 → C/C++ → <strong>Define</strong> 定义 <code>USE_STDPERIPH_DRIVER</code>（使用库函数的条件编译；其他工程里常见的 <code>STM32F10X_MD</code> 字符串 Keil 已自动声明）。</li>
+<li>工程选项 → <strong>Debug</strong>：下拉列表选择对应调试器 → Settings → <strong>Flash Download</strong> 勾选 <strong>Reset and Run</strong>。</li>
+</ol>
+<ul>
+<li>视频补充：文件夹的名称和数量<strong>没有限制</strong>，可以按自己的理解来建；把 <code>.h</code> 文件也加进工程是 UP 主自己的习惯（<code>.h</code> 不参与编译，很多工程不添加）。</li>
+</ul>
+<p><img src="../assets/images/stm32-04/11-project-steps.jpg" alt="图 15：新建工程六步总结（PPT）"></p>
+<p><em>图 15：新建工程六步总结（PPT）</em></p>
+<h2 id="12-补充三-工程架构与各文件作用">12. 补充三：工程架构与各文件作用</h2>
+<p><img src="../assets/images/stm32-04/12-architecture.jpg" alt="图 16：工程架构（启动文件 → 运行时资源 → 库函数 → 用户代码）"></p>
+<p><em>图 16：工程架构（左：启动文件；中：用户代码；右：STM32 资源——寄存器描述、库函数、库函数配置）</em></p>
+<ul>
+<li><strong><code>startup_xx.s</code> 启动文件</strong>：汇编编写，定义了中断向量表、中断服务函数；其中<strong>复位中断是整个程序的入口</strong>，复位后做两件事：调用 <code>SystemInit</code> → 调用 <code>main</code>。main 的最后一定是死循环（单片机程序永不结束）。</li>
+<li><strong><code>system_stm32f10x.c/h</code></strong>：定义 <code>SystemInit</code>，配置系统时钟、Flash、PLL 等；在 main 之前就把时钟等底层配置好了（不需要我们改）。</li>
+<li><strong><code>main.c</code></strong>：用户主程序入口。</li>
+<li><strong><code>stm32f10x_it.c/h</code></strong>：定义 STM32 的中断服务函数（启动文件里定义的是弱符号，实际处理写在这里；也可以自己定义用户文件来封装中断）。</li>
+<li><strong><code>stm32f10x.h</code></strong>：外设寄存器描述（寄存器名、每一位名字、地址）。</li>
+<li><strong><code>core_cm3.c/h</code></strong>：内核（Cortex-M3）寄存器描述。</li>
+<li><strong><code>misc.c/h</code> + <code>stm32f10x_xxx.c/h</code>（Library）</strong>：ST 封装好的库函数，把寄存器操作包装成人性化的函数。</li>
+<li><strong><code>stm32f10x_conf.h</code></strong>：配置库函数头文件包含关系；它被 <code>stm32f10x.h</code> 在 <code>USE_STDPERIPH_DRIVER</code> 条件下包含，所以用户代码<strong>只需 <code>#include &quot;stm32f10x.h&quot;</code></strong> 就能用所有库函数。</li>
+</ul>
+<h2 id="13-坑与易错点">13. 坑与易错点</h2>
+<ol>
+<li><strong>工程名不好改、文件夹名好改</strong>：工程名起通用名（如 <code>project</code>），用外层文件夹名区分不同实验。</li>
+<li><strong>文件一定要复制进工程文件夹</strong>：添加工程外部的文件，外部路径一变动工程就找不到文件。</li>
+<li><strong>启动文件只能加一个，后缀要对</strong>：F103C8T6 用 <code>startup_stm32f10x_md.s</code>（MD）；选错容量后缀会出问题。</li>
+<li><strong>Include Paths 必须声明自己建的每个文件夹</strong>：否则编译时报找不到头文件。</li>
+<li><strong>Define 必须写 <code>USE_STDPERIPH_DRIVER</code></strong>：不写的话 <code>stm32f10x_conf.h</code> 不会被包含，库函数头文件都找不到。</li>
+<li><strong>main.c 的 main 是 <code>int main(void)</code></strong>，文件最后一行要留空行，否则报警告。</li>
+<li><strong>编码设为 UTF-8</strong>：出现中文乱码时检查 Edit → Configuration → 编码设置；顺手可把字号调 14、Tab 设 4。</li>
+<li><strong>Debug 默认是 ULINK</strong>：用 ST-Link 必须改成 <strong>ST-Link Debugger</strong>；<strong>Flash Download 勾 Reset and Run</strong>，下载后自动复位运行。</li>
+<li><strong>寄存器直接赋值会影响其他位</strong>：只改某一位要用 <code>&amp;=</code>、<code>|=</code>；库函数内部已经处理好了。</li>
+<li><strong>第一次编译慢是正常的</strong>：要编译整个标准外设库，之后改代码就快了。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:00</td>
+<td>本集任务：建立基于标准库的 STM32 工程；三种开发方式对比（寄存器 / 标准库 / HAL）</td>
+</tr>
+<tr>
+<td>1:50</td>
+<td>解压 <code>STM32F10x_StdPeriph_Lib_V3.5.0</code>，介绍 Libraries / Project / Utilities</td>
+</tr>
+<tr>
+<td>3:20</td>
+<td>建总文件夹 <code>STM32Project</code>，Keil 新建工程、建 <code>2-1 STM32工程模板</code> 文件夹、起工程名 <code>project</code></td>
+</tr>
+<tr>
+<td>4:45</td>
+<td>选择器件 STM32F103C8；关掉 Manage Run-Time Environment 小助手</td>
+</tr>
+<tr>
+<td>5:10</td>
+<td>从固件库复制启动文件、<code>stm32f10x.h</code>、<code>system</code> 文件、<code>core_cm3</code> 到 Start 文件夹</td>
+</tr>
+<tr>
+<td>7:30</td>
+<td>Keil 里建 Start 组、添加文件（启动文件 + 其余文件），文件带小钥匙（只读）</td>
+</tr>
+<tr>
+<td>9:05</td>
+<td>魔术棒 → C/C++ → Include Paths 添加 <code>..\Start</code></td>
+</tr>
+<tr>
+<td>9:45</td>
+<td>建 User 文件夹和 <code>main.c</code>，写最简 main 函数；11:00 左右编译 0 错误 0 警告</td>
+</tr>
+<tr>
+<td>11:50</td>
+<td>调整字号、编码 UTF-8、Tab = 4</td>
+</tr>
+<tr>
+<td>12:50</td>
+<td>硬件接线：最小系统板 + ST-Link + 4 根杜邦线（3.3V/SWDIO/SWCLK/GND），上电 PC13 灯闪烁</td>
+</tr>
+<tr>
+<td>13:35</td>
+<td>Debug 选 ST-Link Debugger，Flash Download 勾 Reset and Run，下载空程序后灯不闪</td>
+</tr>
+<tr>
+<td>14:35</td>
+<td>寄存器点灯：参考手册里配置 RCC_APB2ENR、GPIOC_CRH、GPIOC_ODR，观察亮灭</td>
+</tr>
+<tr>
+<td>18:55</td>
+<td>加 Library 文件夹（库函数 .c/.h）、User 里补 conf/it 文件，建 Library 分组</td>
+</tr>
+<tr>
+<td>22:00</td>
+<td>Define 填 <code>USE_STDPERIPH_DRIVER</code>，Include Paths 补 <code>..\User</code>、<code>..\Library</code>，重新编译</td>
+</tr>
+<tr>
+<td>23:30</td>
+<td>库函数点灯：<code>RCC_APB2PeriphClockCmd</code>、<code>GPIO_Init</code>、<code>GPIO_SetBits/ResetBits</code>，下载验证</td>
+</tr>
+<tr>
+<td>31:35</td>
+<td>补充一：启动文件选择（LD/MD/HD/XL/VL/CL 与型号对应）</td>
+</tr>
+<tr>
+<td>33:40</td>
+<td>补充二：新建工程六步总结与每一步的原因</td>
+</tr>
+<tr>
+<td>36:53</td>
+<td>补充三：工程架构——启动文件、SystemInit、中断、寄存器描述、库函数、conf</td>
+</tr>
+<tr>
+<td>42:00</td>
+<td>总结：基于库函数的工程建好，下一节开始学 GPIO</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>转写由 faster-whisper small 生成（本集 B 站无 CC 字幕，只能走 ASR）。ASR 专名错字已按画面校正：寄存器→“计存器/技能器”、库函数→“库喊数/酷寒数”、main→“命函数/组函数”、User→“优势/优设”、Library→“Lebris/LABORING/Leborate”、GPIOC→“GPLC”、Flash→“Flex”、调试器→“调识器”、器件型号→“7件型号”、Keil→“K5/KO5/KL/Q”、锁相环→“锁像环”、system 文件→“SystemCattle/SystemCat”等。</li>
+<li>版本以画面为准：固件库 <strong>V3.5.0</strong>；Keil 工程文件为 <code>Project.uvprojx</code>，工程路径在视频机上是 <code>C:\Users\Admin\Desktop\STM32Project\2-1 STM32工程模板\</code>。</li>
+<li>本集把下一节 [3-1] GPIO 输出要讲的“库函数点灯”提前演示了一遍，笔记里也按视频顺序保留；GPIO 的详细结构、8 种模式等内容在下一集展开（“8 种模式”见课程大纲，本集未展开）。</li>
+<li>视频<strong>没有</strong>演示 Output 选项卡的 Create HEX File，也没有改 Target 选项卡的 Xtal（视频 09:00 的 Options → Target 画面里 Xtal 显示 12.0MHz，全程未改动、也未提及），笔记不写入这些未讲内容；需要时再按需配置。</li>
+<li>启动文件/型号分类表以视频 PPT 和官方参考手册为准，不同型号请对表选择。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-course-map.html"><span class="label">下一篇</span>STM32 课程地图与学习路线</a>
+    <a class="next" href="stm32-03.html"><span class="label">上一篇</span>[2-1] 软件安装</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#%E6%9C%80%E7%BB%88%E5%B7%A5%E7%A8%8B%E7%BB%93%E6%9E%84-%E6%9C%AC%E9%9B%86%E5%AE%8C%E6%88%90%E6%97%B6">最终工程结构（本集完成时）</a>
+        <a class="level-2" href="#0-%E4%B8%89%E7%A7%8D%E5%BC%80%E5%8F%91%E6%96%B9%E5%BC%8F-%E9%80%89%E9%A2%98%E9%93%BA%E5%9E%AB">0. 三种开发方式（选题铺垫）</a>
+        <a class="level-2" href="#1-%E5%87%86%E5%A4%87%E5%9B%BA%E4%BB%B6%E5%BA%93">1. 准备固件库</a>
+        <a class="level-2" href="#2-%E6%96%B0%E5%BB%BA%E5%B7%A5%E7%A8%8B">2. 新建工程</a>
+        <a class="level-2" href="#3-%E5%A4%8D%E5%88%B6%E5%B7%A5%E7%A8%8B%E5%BF%85%E8%A6%81%E6%96%87%E4%BB%B6%E5%88%B0-start">3. 复制工程必要文件到 Start</a>
+        <a class="level-2" href="#4-%E5%9C%A8-keil-%E9%87%8C%E5%BB%BA%E5%88%86%E7%BB%84-%E5%8A%A0%E6%96%87%E4%BB%B6">4. 在 Keil 里建分组、加文件</a>
+        <a class="level-2" href="#5-%E5%BB%BA-user-%E5%88%86%E7%BB%84%E5%92%8C-main-c">5. 建 User 分组和 main.c</a>
+        <a class="level-2" href="#6-%E6%8E%A5%E7%A1%AC%E4%BB%B6-%E9%85%8D%E7%BD%AE%E8%B0%83%E8%AF%95%E5%99%A8%E4%B8%8E%E4%B8%8B%E8%BD%BD">6. 接硬件、配置调试器与下载</a>
+        <a class="level-2" href="#7-%E6%BC%94%E7%A4%BA-%E5%AF%84%E5%AD%98%E5%99%A8%E6%96%B9%E5%BC%8F%E7%82%B9%E7%81%AF-%E7%90%86%E8%A7%A3%E5%BA%95%E5%B1%82">7. 演示：寄存器方式点灯（理解底层）</a>
+        <a class="level-2" href="#8-%E5%8A%A0%E5%85%A5%E5%BA%93%E5%87%BD%E6%95%B0-%E8%A1%A5%E5%85%A8-library-user-define-include-paths">8. 加入库函数（补全 Library / User / Define / Include Paths）</a>
+        <a class="level-2" href="#9-%E6%BC%94%E7%A4%BA-%E5%BA%93%E5%87%BD%E6%95%B0%E6%96%B9%E5%BC%8F%E7%82%B9%E7%81%AF-%E5%AF%B9%E6%AF%94">9. 演示：库函数方式点灯（对比）</a>
+        <a class="level-2" href="#10-%E8%A1%A5%E5%85%85%E4%B8%80-%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%80%8E%E4%B9%88%E9%80%89">10. 补充一：启动文件怎么选</a>
+        <a class="level-2" href="#11-%E8%A1%A5%E5%85%85%E4%BA%8C-%E6%96%B0%E5%BB%BA%E5%B7%A5%E7%A8%8B%E5%85%AD%E6%AD%A5%E6%80%BB%E7%BB%93">11. 补充二：新建工程六步总结</a>
+        <a class="level-2" href="#12-%E8%A1%A5%E5%85%85%E4%B8%89-%E5%B7%A5%E7%A8%8B%E6%9E%B6%E6%9E%84%E4%B8%8E%E5%90%84%E6%96%87%E4%BB%B6%E4%BD%9C%E7%94%A8">12. 补充三：工程架构与各文件作用</a>
+        <a class="level-2" href="#13-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">13. 坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>
