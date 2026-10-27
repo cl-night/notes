@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[4-1] OLED调试工具 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 课程第 9 集：为什么需要 OLED 调试、三种程序调试方式对比、0.96 寸 OLED 模块规格与接线、驱动函数模块的 8 个函数用法。">
+  <meta property="og:title" content="[4-1] OLED调试工具 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 课程第 9 集：为什么需要 OLED 调试、三种程序调试方式对比、0.96 寸 OLED 模块规格与接线、驱动函数模块的 8 个函数用法。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html" class="active" aria-current="page">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>8 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">OLED</span><span class="tag">调试</span>
+    </div>
+    <article class="prose"><h1>[4-1] OLED调试工具 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=9，14:00</li>
+<li>素材：210 帧关键帧（每 4 秒，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（181 段）；关键截图 8 张随笔记收录（源图在 <code>vidsum_out/stm32_p9/frames/</code>，站内图片在 <code>assets/images/stm32-09/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（source=subtitle-ocr），偶有错字已按画面校正。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>这一集很短、也很关键：它解决“<strong>单片机没有屏幕，程序怎么调试</strong>”的问题——对比串口调试、显示屏调试、Keil 调试三种方式，选择用 <strong>0.96 寸 OLED</strong> 当调试屏；本课<strong>不写驱动</strong>，直接使用作者提供的驱动函数模块（8 个显示函数），下一集 [4-2] 再用它写代码显示内容。</p>
+<h2 id="0-本集程序的现象">0. 本集程序的现象</h2>
+<p>只有一个程序（<code>4-1 OLED显示屏</code>），下载后插在面包板上的 OLED 显示：</p>
+<ul>
+<li>第 1 行：字符 <strong>A</strong>、字符串 <strong>HelloWorld!</strong></li>
+<li>第 2 行：数字 <strong>12345</strong>、有符号数字 <strong>-66</strong></li>
+<li>第 3 行：十六进制 <strong>AA55</strong></li>
+<li>第 4 行：二进制 <strong>1010101001010101</strong>（就是 0xAA55 的二进制）</li>
+</ul>
+<p>这些就是驱动模块能显示的内容，用来调试程序足够了。</p>
+<p><img src="../assets/images/stm32-09/01-phenomenon.jpg" alt="图 1：OLED 现象——屏幕上显示字符 A、HelloWorld!、12345、-66、AA55 和二进制数"></p>
+<p><em>图 1：OLED 现象——屏幕上显示字符 A、HelloWorld!、12345、-66、AA55 和二进制数</em></p>
+<h2 id="1-为什么需要-调试工具">1. 为什么需要“调试工具”</h2>
+<ul>
+<li>单片机编程最大的问题之一是<strong>程序调试</strong>：电脑有大屏幕，想看什么变量直接打印到屏幕就行（<code>printf</code>）；单片机受成本和电路结构限制，通常没有大屏，调试很困难。</li>
+<li>本集列举 <strong>3 种常用调试方式</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>做法</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>串口调试</td>
+<td>通过串口把调试信息发到电脑，电脑用串口助手显示</td>
+<td>借用电脑强大的软件界面，可显示曲线/图形，可做交互界面</td>
+<td>调试时要拖着电脑；串口助手一般只能一行行信息流刷屏</td>
+</tr>
+<tr>
+<td>显示屏调试</td>
+<td>直接把显示屏接到单片机，把调试信息打印在屏上</td>
+<td>对不断变化的数据可以<strong>覆盖刷新</strong>；屏可以一直接在板子上；可直接当产品的人机界面</td>
+<td>屏幕小、显示内容有限</td>
+</tr>
+<tr>
+<td>Keil 调试模式</td>
+<td>用 Keil 的调试功能：单步运行、设置断点、查看寄存器和变量等</td>
+<td>功能非常强大，不用额外硬件</td>
+<td>视频未展开缺点，下一小节专门演示（笔记补充：需要连接调试器、操作偏复杂）</td>
+</tr>
+</tbody></table>
+<ul>
+<li>其他土办法：<strong>点灯调试法</strong>（程序执行到某处就点灯）、<strong>注释调试法</strong>（把新加代码注释掉、逐行恢复来定位问题）、<strong>对照法</strong>（拿一个能跑的程序，逐步替换成自己的逻辑来定位错误）。</li>
+<li>本课程大多只是显示一些参数变量，所以作者选择 <strong>OLED 显示屏调试</strong>（更直观、更方便）。</li>
+</ul>
+<p><img src="../assets/images/stm32-09/02-debug-methods.jpg" alt="图 2：三种常用调试方式——串口调试、显示屏调试、Keil 调试模式"></p>
+<p><em>图 2：三种常用调试方式——串口调试、显示屏调试、Keil 调试模式</em></p>
+<p><img src="../assets/images/stm32-09/03-oled-module.jpg" alt="图 3：0.96 寸 OLED 模块实物——插在面包板上，四针 I2C 接口"></p>
+<p><em>图 3：0.96 寸 OLED 模块实物——插在面包板上，四针 I2C 接口</em></p>
+<h2 id="2-oled-介绍">2. OLED 介绍</h2>
+<ul>
+<li><strong>OLED = Organic Light Emitting Diode，有机发光二极管</strong>；OLED 显示屏就是用有机发光二极管做出来的屏幕，是一种性能优异的新型显示屏。</li>
+<li>优点：<ul>
+<li><strong>功耗低</strong>：每个像素都是单独的发光二极管、能自发光，不像 LCD 需要背光，所以省电；</li>
+<li><strong>响应速度快</strong>：可做到更高刷新率、总线时序快，不易阻塞程序；</li>
+<li><strong>宽视角</strong>：任何角度看显示内容都清晰（对比 LCD 斜看会变黑）；</li>
+<li><strong>轻薄柔韧</strong>：手机折叠屏、柔性屏用的就是 OLED。</li>
+</ul>
+</li>
+<li>缺点：一般只有<strong>单色</strong>、分辨率较低。</li>
+<li>本集用 <strong>0.96 寸 OLED 模块</strong>：小巧、占用接口少、简单易用，是电子设计中非常常见的显示屏模块。</li>
+<li>模块规格：<ul>
+<li><strong>4 针</strong>（白色像素，<strong>I2C</strong> 协议）/ <strong>7 针</strong>（SPI 协议，占用 IO 更多）；</li>
+<li>像素颜色有白色、蓝色、<strong>黄蓝双色</strong>（黄蓝双色不是真双色：上面 1/4 固定黄色、下面 3/4 固定蓝色，适合“标题 + 内容”界面）；无论什么颜色，驱动方式都一样；</li>
+<li>供电 <strong>3~5.5V</strong>（3.3V 和 5V 单片机都兼容）；</li>
+<li>分辨率 <strong>128×64</strong>。</li>
+</ul>
+</li>
+</ul>
+<p><img src="../assets/images/stm32-09/04-oled-intro.jpg" alt="图 4：OLED 简介——有机发光二极管、功耗低/响应快/宽视角/轻薄柔韧、0.96 寸模块参数"></p>
+<p><em>图 4：OLED 简介——有机发光二极管、功耗低/响应快/宽视角/轻薄柔韧、0.96 寸模块参数</em></p>
+<h2 id="3-硬件电路与接线">3. 硬件电路与接线</h2>
+<ul>
+<li><strong>4 针版本（本课使用）</strong>：<strong>GND → GND、VCC → 3.3V</strong> 供电；<strong>SCL、SDA</strong> 是 I2C 通信引脚。</li>
+<li><strong>7 针版本</strong>：GND/VCC 供电，其余是 SPI 引脚（D0/D1/RES/DC/CS）。</li>
+<li>关键点：作者提供的驱动模块是用 <strong>GPIO 模拟 I2C/SPI</strong> 的，所以 <strong>SCL、SDA 可以接在任意 GPIO 口上</strong>（不要求接硬件 I2C 引脚）。</li>
+<li>后续 [4-2] 写代码时，会用两个普通 GPIO 模拟 I2C 来驱动 OLED（具体引脚见下一集）。</li>
+</ul>
+<p><img src="../assets/images/stm32-09/05-hardware.jpg" alt="图 5：OLED 硬件电路——左：4 针 I2C（GND/VCC/SCL/SDA）；右：7 针 SPI"></p>
+<p><em>图 5：OLED 硬件电路——左：4 针 I2C（GND/VCC/SCL/SDA）；右：7 针 SPI</em></p>
+<p><img src="../assets/images/stm32-09/06-gpio-i2c.jpg" alt="图 6：SCL/SDA 可接任意 GPIO——因为驱动模块用 GPIO 模拟 I2C 通信"></p>
+<p><em>图 6：SCL/SDA 可接任意 GPIO——因为驱动模块用 GPIO 模拟 I2C 通信</em></p>
+<h2 id="4-驱动函数模块-本集重点-会用这些函数">4. 驱动函数模块（本集重点：会用这些函数）</h2>
+<ul>
+<li>屏幕坐标：把 128×64 的屏分成 <strong>4 行 × 16 列</strong>的小区块；从左上开始，向下依次是第 1<del>4 行，向右依次是第 1</del>16 列。显示函数的“行、列”参数就是指定从这个小区块开始显示。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+<th>参数说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>OLED_Init()</code></td>
+<td>初始化</td>
+<td>使用 OLED 前必须调用</td>
+</tr>
+<tr>
+<td><code>OLED_Clear()</code></td>
+<td>清屏</td>
+<td>调用后屏幕清空</td>
+</tr>
+<tr>
+<td><code>OLED_ShowChar(行, 列, 字符)</code></td>
+<td>显示一个字符</td>
+<td>如 <code>OLED_ShowChar(1, 1, &#39;A&#39;)</code> 在第 1 行第 1 列显示 A</td>
+</tr>
+<tr>
+<td><code>OLED_ShowString(行, 列, 字符串)</code></td>
+<td>显示字符串</td>
+<td>如 <code>OLED_ShowString(1, 3, &quot;HelloWorld!&quot;)</code></td>
+</tr>
+<tr>
+<td><code>OLED_ShowNum(行, 列, 数字, 长度)</code></td>
+<td>显示无符号十进制数字</td>
+<td>如 <code>OLED_ShowNum(2, 1, 12345, 5)</code></td>
+</tr>
+<tr>
+<td><code>OLED_ShowSignedNum(行, 列, 数字, 长度)</code></td>
+<td>显示有符号十进制数字（带正负号）</td>
+<td>如 <code>OLED_ShowSignedNum(2, 7, -66, 2)</code></td>
+</tr>
+<tr>
+<td><code>OLED_ShowHexNum(行, 列, 数字, 长度)</code></td>
+<td>显示十六进制数字</td>
+<td>如 <code>OLED_ShowHexNum(3, 1, 0xAA55, 4)</code></td>
+</tr>
+<tr>
+<td><code>OLED_ShowBinNum(行, 列, 数字, 长度)</code></td>
+<td>显示二进制数字</td>
+<td>如 <code>OLED_ShowBinNum(4, 1, 0xAA55, 16)</code></td>
+</tr>
+</tbody></table>
+<ul>
+<li>本集只要求<strong>会用</strong>这个驱动模块；原理和代码编写以后单独讲。</li>
+<li>驱动模块暂时<strong>没有加入中文和图像显示</strong>（调试用不到），以后单独学 OLED 时再演示。</li>
+</ul>
+<p><img src="../assets/images/stm32-09/07-functions.jpg" alt="图 7：OLED 驱动函数表——8 个函数、参数示例，右上角是屏幕 4 行 16 列坐标图"></p>
+<p><em>图 7：OLED 驱动函数表——8 个函数、参数示例，右上角是屏幕 4 行 16 列坐标图</em></p>
+<p><img src="../assets/images/stm32-09/08-showchar.jpg" alt="图 8：OLED_ShowChar(1,1,&#39;A&#39;) 示例——在屏幕第 1 行第 1 列显示字符 A"></p>
+<p><em>图 8：OLED_ShowChar(1,1,&#39;A&#39;) 示例——在屏幕第 1 行第 1 列显示字符 A</em></p>
+<h2 id="5-坑与易错点">5. 坑与易错点</h2>
+<ol>
+<li><strong>用 OLED 前必须先 <code>OLED_Init()</code></strong>，否则屏幕不显示。</li>
+<li><strong>4 针是 I2C、7 针是 SPI</strong>，买模块/接线前先看清针脚数量。</li>
+<li><strong>驱动模块用 GPIO 模拟 I2C</strong>，SCL/SDA 接任意 GPIO 都可以；但要和代码里定义的引脚一致。</li>
+<li><strong>VCC 接 3.3V</strong>（模块支持 3~5.5V，但本课程板子用 3.3V），GND 别接反。</li>
+<li><strong>行列从 1 开始数</strong>：4 行 × 16 列；字符串/数字的<strong>长度参数</strong>要按实际内容给够（视频只讲坐标和长度参数，未讲越界行为）。</li>
+<li><strong>黄蓝双色不是真双色</strong>：上 1/4 固定黄、下 3/4 固定蓝，做界面时按这个规律排版。</li>
+<li><strong>屏幕只能单色、分辨率 128×64</strong>，显示内容有限，别指望显示复杂图形。</li>
+<li>本集只演示现象、不写代码；<strong>代码在下一集 [4-2]</strong>。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:00</td>
+<td>开场：本课学 OLED 调试工具，先学会用提供的驱动模块</td>
+</tr>
+<tr>
+<td>0:41</td>
+<td>现象：OLED 显示字符 A、HelloWorld!、12345、-66、AA55、二进制</td>
+</tr>
+<tr>
+<td>1:53</td>
+<td>为什么要调试：单片机没有大屏，3 种常用调试方式</td>
+</tr>
+<tr>
+<td>2:53</td>
+<td>串口调试方式说明（发到电脑、串口助手显示）</td>
+</tr>
+<tr>
+<td>3:57</td>
+<td>显示屏调试方式说明（0.96 寸 OLED 直接接单片机）</td>
+</tr>
+<tr>
+<td>5:43</td>
+<td>Keil 调试模式，以及点灯法/注释法/对照法</td>
+</tr>
+<tr>
+<td>7:19</td>
+<td>OLED 介绍：有机发光二极管、功耗低/响应快/宽视角/轻薄柔韧</td>
+</tr>
+<tr>
+<td>9:11</td>
+<td>0.96 寸模块规格：4 针/7 针、白色/蓝色/黄蓝双色</td>
+</tr>
+<tr>
+<td>9:57</td>
+<td>参数：供电 3~5.5V、I2C/SPI、分辨率 128×64</td>
+</tr>
+<tr>
+<td>10:32</td>
+<td>硬件电路：4 针 I2C（GND/VCC/SCL/SDA）/ 7 针 SPI</td>
+</tr>
+<tr>
+<td>11:20</td>
+<td>驱动函数模块：屏幕坐标与 8 个函数</td>
+</tr>
+<tr>
+<td>12:10</td>
+<td>各显示函数的用法示例（ShowChar/ShowString/ShowNum…）</td>
+</tr>
+<tr>
+<td>13:28</td>
+<td>中文/图像暂未加入，下一小节用它写代码</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr），不是 ASR；本集真实错字例子：目前→“自前”、打印→“打即”、缺点→“端”、串口→“事口”、比较→“北较”、I2C→“12C”、OLED→“O山D”，已按画面校正。</li>
+<li>本集<strong>只演示现象、不写代码</strong>；OLED 驱动代码在下一集 [4-2] 讲。</li>
+<li>驱动模块的中文/图像显示本课未包含，作者说以后单独讲 OLED 时再演示。</li>
+<li>“三种调试方式”的优缺点按视频原话整理；Keil 调试模式的具体操作在下一集演示。</li>
+<li>模块价格/型号未在视频中给出，本笔记不涉及具体购买信息。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-10.html"><span class="label">下一篇</span>[4-2] OLED显示屏</a>
+    <a class="next" href="stm32-08.html"><span class="label">上一篇</span>[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E7%A8%8B%E5%BA%8F%E7%9A%84%E7%8E%B0%E8%B1%A1">0. 本集程序的现象</a>
+        <a class="level-2" href="#1-%E4%B8%BA%E4%BB%80%E4%B9%88%E9%9C%80%E8%A6%81-%E8%B0%83%E8%AF%95%E5%B7%A5%E5%85%B7">1. 为什么需要“调试工具”</a>
+        <a class="level-2" href="#2-oled-%E4%BB%8B%E7%BB%8D">2. OLED 介绍</a>
+        <a class="level-2" href="#3-%E7%A1%AC%E4%BB%B6%E7%94%B5%E8%B7%AF%E4%B8%8E%E6%8E%A5%E7%BA%BF">3. 硬件电路与接线</a>
+        <a class="level-2" href="#4-%E9%A9%B1%E5%8A%A8%E5%87%BD%E6%95%B0%E6%A8%A1%E5%9D%97-%E6%9C%AC%E9%9B%86%E9%87%8D%E7%82%B9-%E4%BC%9A%E7%94%A8%E8%BF%99%E4%BA%9B%E5%87%BD%E6%95%B0">4. 驱动函数模块（本集重点：会用这些函数）</a>
+        <a class="level-2" href="#5-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">5. 坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>
