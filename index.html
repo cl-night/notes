@@ -36,7 +36,7 @@
     <p class="eyebrow">PERSONAL NOTES</p>
     <h1>我的学习笔记</h1>
     <p class="hero-tagline">把视频、课程和书，整理成能复习的笔记。</p>
-    <p class="hero-meta">13 篇笔记 · 最近更新 2026-10-27</p>
+    <p class="hero-meta">14 篇笔记 · 最近更新 2026-10-27</p>
   </section>
   <section class="toolbar">
     <label class="search">
@@ -45,6 +45,7 @@
     <div class="tag-filter" id="tag-filter">
       <button class="tag-chip active" type="button" data-tag="">全部</button>
       <button class="tag-chip" type="button" data-tag="调试">调试</button>
+      <button class="tag-chip" type="button" data-tag="定时器">定时器</button>
       <button class="tag-chip" type="button" data-tag="工程模板">工程模板</button>
       <button class="tag-chip" type="button" data-tag="工具链">工具链</button>
       <button class="tag-chip" type="button" data-tag="基础概念">基础概念</button>
@@ -53,6 +54,7 @@
       <button class="tag-chip" type="button" data-tag="课程简介">课程简介</button>
       <button class="tag-chip" type="button" data-tag="库函数">库函数</button>
       <button class="tag-chip" type="button" data-tag="模块化编程">模块化编程</button>
+      <button class="tag-chip" type="button" data-tag="时基单元">时基单元</button>
       <button class="tag-chip" type="button" data-tag="输出">输出</button>
       <button class="tag-chip" type="button" data-tag="输入">输入</button>
       <button class="tag-chip" type="button" data-tag="外设">外设</button>
@@ -68,6 +70,7 @@
       <button class="tag-chip" type="button" data-tag="nvic">NVIC</button>
       <button class="tag-chip" type="button" data-tag="oled">OLED</button>
       <button class="tag-chip" type="button" data-tag="stm32">STM32</button>
+      <button class="tag-chip" type="button" data-tag="tim">TIM</button>
     </div>
   </section>
   <section class="note-grid" id="note-grid">
@@ -118,6 +121,12 @@
         <h2>[5-2] 对射式红外传感器计次 / 旋转编码器计次</h2>
         <p>江协科技 STM32 课程第 12 集：外部中断实战——对射式红外传感器计次（EXTI 五步配置、中断服务函数、OLED 显示 Count）与旋转编码器计次（AB 相正交信号、双中断判方向、计数值增减），最后是中断编程建议。</p>
         <div class="tags"><span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">中断</span><span class="tag">EXTI</span><span class="tag">旋转编码器</span></div>
+      </a>
+<a class="note-card" href="notes/stm32-13.html" data-search="[6-1] tim定时中断 江协科技 stm32 课程第 13 集 [6-1]（现象 + 理论）：片头先演示「定时器定时中断」和「定时器外部时钟」两个现成程序的现象，然后进入 ppt 与参考手册，讲 tim 的定时器类型与芯片资源、时基单元（psc 预分频器 / cnt 计数器 / arr 自动重装寄存器）、向上·向下·中央对齐三种计数模式、内外时钟源（etr 外部时钟模式 2、trgi 外部时钟模式 1、编码器模式）、定时中断的基本结构、预分频器与计数器时序及影子（缓冲）寄存器、rcc 时钟树与「所有定时器都是 72mhz」的由来。本集不写代码、也没有讲 tim 库函数，那部分在下一集 [6-2]。 stm32 学习笔记 定时器 tim 时基单元 2026-10-27" data-tags="stm32|学习笔记|定时器|tim|时基单元">
+        <div class="card-top"><time datetime="2026-10-27">2026-10-27</time><span>48 分钟</span></div>
+        <h2>[6-1] TIM定时中断</h2>
+        <p>江协科技 STM32 课程第 13 集 [6-1]（现象 + 理论）：片头先演示「定时器定时中断」和「定时器外部时钟」两个现成程序的现象，然后进入 PPT 与参考手册，讲 TIM 的定时器类型与芯片资源、时基单元（PSC 预分频器 / CNT 计数器 / ARR 自动重装寄存器）、向上·向下·中央对齐三种计数模式、内外时钟源（ETR 外部时钟模式 2、TRGI 外部时钟模式 1、编码器模式）、定时中断的基本结构、预分频器与计数器时序及影子（缓冲）寄存器、RCC 时钟树与「所有定时器都是 72MHz」的由来。本集不写代码、也没有讲 TIM 库函数，那部分在下一集 [6-2]。</p>
+        <div class="tags"><span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">时基单元</span></div>
       </a>
 <a class="note-card" href="notes/stm32-01.html" data-search="[1-1] 课程简介 江协科技 stm32 入门教程第一集：教学方式、硬件平台、keil mdk5 与套件清单。 stm32 学习笔记 课程简介 2026-10-26" data-tags="stm32|学习笔记|课程简介">
         <div class="card-top"><time datetime="2026-10-26">2026-10-26</time><span>3 分钟</span></div>
