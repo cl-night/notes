@@ -36,7 +36,7 @@
     <p class="eyebrow">PERSONAL NOTES</p>
     <h1>我的学习笔记</h1>
     <p class="hero-tagline">把视频、课程和书，整理成能复习的笔记。</p>
-    <p class="hero-meta">9 篇笔记 · 最近更新 2026-10-27</p>
+    <p class="hero-meta">13 篇笔记 · 最近更新 2026-10-27</p>
   </section>
   <section class="toolbar">
     <label class="search">
@@ -44,6 +44,7 @@
     </label>
     <div class="tag-filter" id="tag-filter">
       <button class="tag-chip active" type="button" data-tag="">全部</button>
+      <button class="tag-chip" type="button" data-tag="调试">调试</button>
       <button class="tag-chip" type="button" data-tag="工程模板">工程模板</button>
       <button class="tag-chip" type="button" data-tag="工具链">工具链</button>
       <button class="tag-chip" type="button" data-tag="基础概念">基础概念</button>
@@ -55,10 +56,17 @@
       <button class="tag-chip" type="button" data-tag="输出">输出</button>
       <button class="tag-chip" type="button" data-tag="输入">输入</button>
       <button class="tag-chip" type="button" data-tag="外设">外设</button>
+      <button class="tag-chip" type="button" data-tag="旋转编码器">旋转编码器</button>
       <button class="tag-chip" type="button" data-tag="学习笔记">学习笔记</button>
       <button class="tag-chip" type="button" data-tag="学习路线">学习路线</button>
+      <button class="tag-chip" type="button" data-tag="中断">中断</button>
       <button class="tag-chip" type="button" data-tag="c语言">C语言</button>
+      <button class="tag-chip" type="button" data-tag="exti">EXTI</button>
       <button class="tag-chip" type="button" data-tag="gpio">GPIO</button>
+      <button class="tag-chip" type="button" data-tag="i2c">I2C</button>
+      <button class="tag-chip" type="button" data-tag="keil调试">Keil调试</button>
+      <button class="tag-chip" type="button" data-tag="nvic">NVIC</button>
+      <button class="tag-chip" type="button" data-tag="oled">OLED</button>
       <button class="tag-chip" type="button" data-tag="stm32">STM32</button>
     </div>
   </section>
@@ -86,6 +94,30 @@
         <h2>[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</h2>
         <p>江协科技 STM32 课程第 8 集：GPIO 输入实战——按键控制 LED（模块化封装、消抖、状态取反）与光敏传感器控制蜂鸣器（DO 输出、阈值调节）。</p>
         <div class="tags"><span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">GPIO</span><span class="tag">输入</span><span class="tag">模块化编程</span></div>
+      </a>
+<a class="note-card" href="notes/stm32-09.html" data-search="[4-1] oled调试工具 江协科技 stm32 课程第 9 集：为什么需要 oled 调试、三种程序调试方式对比、0.96 寸 oled 模块规格与接线、驱动函数模块的 8 个函数用法。 stm32 学习笔记 oled 调试 2026-10-27" data-tags="stm32|学习笔记|oled|调试">
+        <div class="card-top"><time datetime="2026-10-27">2026-10-27</time><span>8 分钟</span></div>
+        <h2>[4-1] OLED调试工具</h2>
+        <p>江协科技 STM32 课程第 9 集：为什么需要 OLED 调试、三种程序调试方式对比、0.96 寸 OLED 模块规格与接线、驱动函数模块的 8 个函数用法。</p>
+        <div class="tags"><span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">OLED</span><span class="tag">调试</span></div>
+      </a>
+<a class="note-card" href="notes/stm32-10.html" data-search="[4-2] oled显示屏 江协科技 stm32 课程第 10 集：把 4 针 i2c oled 驱动模块加进工程（只改两处）、8 个显示函数的用法与现象，以及 keil 调试模式的完整使用（单步/断点/变量观察/外设寄存器实时查看）。 stm32 学习笔记 oled i2c keil调试 2026-10-27" data-tags="stm32|学习笔记|oled|i2c|keil调试">
+        <div class="card-top"><time datetime="2026-10-27">2026-10-27</time><span>11 分钟</span></div>
+        <h2>[4-2] OLED显示屏</h2>
+        <p>江协科技 STM32 课程第 10 集：把 4 针 I2C OLED 驱动模块加进工程（只改两处）、8 个显示函数的用法与现象，以及 Keil 调试模式的完整使用（单步/断点/变量观察/外设寄存器实时查看）。</p>
+        <div class="tags"><span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">OLED</span><span class="tag">I2C</span><span class="tag">Keil调试</span></div>
+      </a>
+<a class="note-card" href="notes/stm32-11.html" data-search="[5-1] exti外部中断 江协科技 stm32 课程第 11 集（纯理论）：中断的概念与执行流程、stm32 的 68 个中断通道与中断向量表、nvic 结构与优先级分组、exti 的 20 条中断线与 afio 引脚选择、事件响应，以及旋转编码器 ab 相正交波形与硬件电路。 stm32 学习笔记 中断 exti nvic 2026-10-27" data-tags="stm32|学习笔记|中断|exti|nvic">
+        <div class="card-top"><time datetime="2026-10-27">2026-10-27</time><span>37 分钟</span></div>
+        <h2>[5-1] EXTI外部中断</h2>
+        <p>江协科技 STM32 课程第 11 集（纯理论）：中断的概念与执行流程、STM32 的 68 个中断通道与中断向量表、NVIC 结构与优先级分组、EXTI 的 20 条中断线与 AFIO 引脚选择、事件响应，以及旋转编码器 AB 相正交波形与硬件电路。</p>
+        <div class="tags"><span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">中断</span><span class="tag">EXTI</span><span class="tag">NVIC</span></div>
+      </a>
+<a class="note-card" href="notes/stm32-12.html" data-search="[5-2] 对射式红外传感器计次 / 旋转编码器计次 江协科技 stm32 课程第 12 集：外部中断实战——对射式红外传感器计次（exti 五步配置、中断服务函数、oled 显示 count）与旋转编码器计次（ab 相正交信号、双中断判方向、计数值增减），最后是中断编程建议。 stm32 学习笔记 中断 exti 旋转编码器 2026-10-27" data-tags="stm32|学习笔记|中断|exti|旋转编码器">
+        <div class="card-top"><time datetime="2026-10-27">2026-10-27</time><span>26 分钟</span></div>
+        <h2>[5-2] 对射式红外传感器计次 / 旋转编码器计次</h2>
+        <p>江协科技 STM32 课程第 12 集：外部中断实战——对射式红外传感器计次（EXTI 五步配置、中断服务函数、OLED 显示 Count）与旋转编码器计次（AB 相正交信号、双中断判方向、计数值增减），最后是中断编程建议。</p>
+        <div class="tags"><span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">中断</span><span class="tag">EXTI</span><span class="tag">旋转编码器</span></div>
       </a>
 <a class="note-card" href="notes/stm32-01.html" data-search="[1-1] 课程简介 江协科技 stm32 入门教程第一集：教学方式、硬件平台、keil mdk5 与套件清单。 stm32 学习笔记 课程简介 2026-10-26" data-tags="stm32|学习笔记|课程简介">
         <div class="card-top"><time datetime="2026-10-26">2026-10-26</time><span>3 分钟</span></div>
