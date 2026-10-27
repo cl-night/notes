@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[4-2] OLED显示屏 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 课程第 10 集：把 4 针 I2C OLED 驱动模块加进工程（只改两处）、8 个显示函数的用法与现象，以及 Keil 调试模式的完整使用（单步/断点/变量观察/外设寄存器实时查看）。">
+  <meta property="og:title" content="[4-2] OLED显示屏 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 课程第 10 集：把 4 针 I2C OLED 驱动模块加进工程（只改两处）、8 个显示函数的用法与现象，以及 Keil 调试模式的完整使用（单步/断点/变量观察/外设寄存器实时查看）。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html" class="active" aria-current="page">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>11 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">OLED</span><span class="tag">I2C</span><span class="tag">Keil调试</span>
+    </div>
+    <article class="prose"><h1>[4-2] OLED显示屏 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=10，19:55</li>
+<li>素材：239 帧关键帧（每 5 秒，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（246 段）；关键截图 11 张随笔记收录（源图在 <code>vidsum_out/stm32_p10/frames/</code>，站内图片在 <code>assets/images/stm32-10/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（source=subtitle-ocr），偶有错字已按画面校正。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>本集把 [4-1] 的 OLED 驱动模块真正用起来：<strong>接线</strong>（4 针 I2C：SCL→PB8、SDA→PB9）→ <strong>把驱动三件套加进工程</strong>（<code>OLED.c</code>/<code>OLED.h</code>/<code>OLED_Font.h</code>，只改“引脚配置”和 <code>OLED_I2C_Init</code> 两处）→ 用 <strong>8 个显示函数</strong>显示字符/字符串/数字/进制；后半段完整介绍 <strong>Keil 调试模式</strong>（单步、断点、变量观察、外设寄存器实时查看），以后调复杂程序时非常有用。</p>
+<h2 id="0-接线与现象">0. 接线与现象</h2>
+<ul>
+<li>4 针 OLED 固定在面包板<strong>右下角</strong>（以后一直插在这里，不占地方）；</li>
+<li><strong>GND → 负极供电孔、VCC → 正极供电孔</strong>（3.3V）；<strong>SCL → PB8、SDA → PB9</strong>；</li>
+<li>注意：OLED 下方的两个供电孔同时连到了 STM32 的 <strong>PB6、PB7</strong>——只要程序里<strong>不初始化</strong>这两个引脚，它们上电后默认是<strong>浮空输入</strong>，不会输出电平，没有影响；也可以用 GPIO 给 OLED 供电（PB6 输出低、PB7 输出高），但不规范，实际项目还是用电源供电。</li>
+</ul>
+<p>现象：OLED 依次显示字符 <code>A</code>、字符串 <code>HelloWorld!</code>、数字 <code>12345</code>、有符号数 <code>-66</code>、十六进制 <code>AA55</code>、二进制 <code>1010101001010101</code>，最后调用 <code>OLED_Clear()</code> 清屏。</p>
+<p><img src="../assets/images/stm32-10/01-wiring.jpg" alt="图 1：「4-1 OLED显示屏」接线图——OLED 插在面包板右下角，4 针 GND/VCC/SCL/SDA"></p>
+<p><em>图 1：「4-1 OLED显示屏」接线图——OLED 插在面包板右下角，4 针 GND/VCC/SCL/SDA</em></p>
+<p><img src="../assets/images/stm32-10/02-breadboard.jpg" alt="图 2：面包板插线演示——电源引到 PB6/PB7（随后把 OLED 插到 PB6~PB9）"></p>
+<p><em>图 2：面包板插线演示——电源引到 PB6/PB7（随后把 OLED 插到 PB6~PB9）</em></p>
+<h2 id="1-搭工程-加入-oled-驱动模块">1. 搭工程、加入 OLED 驱动模块</h2>
+<ol>
+<li>复制 [3-4] 的「按键控制LED」工程文件夹，改名 <strong><code>4-1 OLED显示屏</code></strong>，打开工程，把原来 main.c 里的代码删掉、关掉多余标签页；</li>
+<li>源码目录里有两个版本：<strong>4 针 I2C 版</strong>和 <strong>7 针 SPI 版</strong>；本课用 4 针版；</li>
+<li>把 4 针版里的 <strong>3 个文件</strong>（<code>OLED.c</code>、<code>OLED.h</code>、<code>OLED_Font.h</code>）复制到工程的 <code>Hardware</code> 文件夹；</li>
+<li>Keil 里 Hardware 组右键 → Add Existing Files，选这 3 个文件加入工程。</li>
+</ol>
+<p>三个文件的作用：</p>
+<ul>
+<li><code>OLED.c</code>：函数主体代码——<strong>引脚配置、引脚初始化、I2C 通信基本时序、用户调用的显示函数</strong>；</li>
+<li><code>OLED.h</code>：外部可调用函数的声明；</li>
+<li><code>OLED_Font.h</code>：<strong>字库点阵数据</strong>。OLED 显示屏本身不带字库，想显示字符/图形必须先把字符点阵数据定义好，这个文件就是字库，<strong>不需要修改</strong>。</li>
+</ul>
+<p><strong>只需要改两处</strong>（其余代码都不用动）：</p>
+<ol>
+<li><strong>引脚配置</strong>：<code>SCL</code>、<code>SDA</code> 接在哪个端口就改成哪个——默认 <code>SCL = GPIOB / GPIO_Pin_8</code>、<code>SDA = GPIOB / GPIO_Pin_9</code>；换端口要同时改这两行；</li>
+<li><strong><code>OLED_I2C_Init</code> 初始化函数</strong>：用 RCC 开启所用 GPIO 的时钟，并把 SCL、SDA 两个引脚初始化为<strong>开漏输出</strong>（<code>GPIO_Mode_Out_OD</code>），并分别初始化 Pin_8、Pin_9。</li>
+</ol>
+<p><img src="../assets/images/stm32-10/03-oled-code.jpg" alt="图 3：OLED.c 里的引脚配置——SCL/SDA 默认 GPIOB 的 Pin_8 / Pin_9（接线不同时要改这里）"></p>
+<p><em>图 3：OLED.c 里的引脚配置——SCL/SDA 默认 GPIOB 的 Pin_8 / Pin_9（接线不同时要改这里）</em></p>
+<p><img src="../assets/images/stm32-10/04-i2c-init.jpg" alt="图 4：OLED_I2C_Init——开 GPIOB 时钟，把 Pin_8/Pin_9 初始化为开漏输出（Out_OD）"></p>
+<p><em>图 4：OLED_I2C_Init——开 GPIOB 时钟，把 Pin_8/Pin_9 初始化为开漏输出（Out_OD）</em></p>
+<h2 id="2-用显示函数-本集重点">2. 用显示函数（本集重点）</h2>
+<p>main.c 里先 <code>#include &quot;OLED.h&quot;</code>，然后在主循环之前调用 <code>OLED_Init()</code> 初始化，之后就能用各显示函数：</p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+<th>示例</th>
+<th>现象</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>OLED_Init()</code></td>
+<td>初始化</td>
+<td>使用前必须调用</td>
+<td>屏幕准备好</td>
+</tr>
+<tr>
+<td><code>OLED_Clear()</code></td>
+<td>清屏</td>
+<td>最后调用</td>
+<td>屏幕全空</td>
+</tr>
+<tr>
+<td><code>OLED_ShowChar(行, 列, 字符)</code></td>
+<td>显示一个字符（单引号）</td>
+<td><code>OLED_ShowChar(1, 1, &#39;A&#39;)</code></td>
+<td>1 行 1 列显示 A</td>
+</tr>
+<tr>
+<td><code>OLED_ShowString(行, 列, 字符串)</code></td>
+<td>显示字符串（双引号）</td>
+<td><code>OLED_ShowString(1, 3, &quot;HelloWorld!&quot;)</code></td>
+<td>1 行 3 列开始显示 HelloWorld!</td>
+</tr>
+<tr>
+<td><code>OLED_ShowNum(行, 列, 数字, 长度)</code></td>
+<td>显示<strong>无符号</strong>十进制数</td>
+<td><code>OLED_ShowNum(2, 1, 12345, 5)</code></td>
+<td>2 行 1 列显示 12345</td>
+</tr>
+<tr>
+<td><code>OLED_ShowSignedNum(行, 列, 数字, 长度)</code></td>
+<td>显示<strong>有符号</strong>十进制数（带正负号）</td>
+<td><code>OLED_ShowSignedNum(2, 7, -66, 2)</code></td>
+<td>显示 -66</td>
+</tr>
+<tr>
+<td><code>OLED_ShowHexNum(行, 列, 数字, 长度)</code></td>
+<td>显示十六进制</td>
+<td><code>OLED_ShowHexNum(3, 1, 0xAA55, 4)</code></td>
+<td>显示 AA55</td>
+</tr>
+<tr>
+<td><code>OLED_ShowBinNum(行, 列, 数字, 长度)</code></td>
+<td>显示二进制</td>
+<td><code>OLED_ShowBinNum(4, 1, 0xAA55, 16)</code></td>
+<td>显示 1010101001010101</td>
+</tr>
+</tbody></table>
+<ul>
+<li>坐标：<strong>4 行 × 16 列</strong>，行/列都从 1 开始。</li>
+<li><strong>长度参数</strong>（<code>ShowNum</code> 等）：长度比数字实际位数<strong>大</strong>时，前面<strong>补 0</strong>（如 12345 长度给 6 → 显示 012345）；长度比数字位数<strong>小</strong>时，会<strong>把高位切掉</strong>（如长度给 4 → 显示 2345）。</li>
+<li>显示字符串/数字时<strong>先算好坐标 + 长度</strong>，不要超出屏幕。</li>
+<li><strong>C 语言不支持直接写二进制数</strong>，所以 <code>ShowBinNum</code> 的入参用十六进制（如 0xAA55）代替，函数内部再按二进制显示。</li>
+<li>只想清掉部分字符：在对应位置调用 <code>ShowString</code> 显示<strong>空格</strong>字符串即可，不必全屏清空。</li>
+</ul>
+<p>主函数示例（依次显示六种内容，最后清屏）：</p>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+#include &quot;Delay.h&quot;
+#include &quot;OLED.h&quot;
+
+int main(void)
+{
+	OLED_Init();
+
+	OLED_ShowChar(1, 1, &#39;A&#39;);
+	OLED_ShowString(1, 3, &quot;HelloWorld!&quot;);
+	OLED_ShowNum(2, 1, 12345, 5);
+	OLED_ShowSignedNum(2, 7, -66, 2);
+	OLED_ShowHexNum(3, 1, 0xAA55, 4);
+	OLED_ShowBinNum(4, 1, 0xAA55, 16);
+	OLED_Clear();
+
+	while (1)
+	{
+	}
+}
+</code></pre>
+<p><img src="../assets/images/stm32-10/05-main-init.jpg" alt="图 5：main.c——#include &quot;OLED.h&quot; 后先调用 OLED_Init()，再调用显示函数"></p>
+<p><em>图 5：main.c——#include &quot;OLED.h&quot; 后先调用 OLED_Init()，再调用显示函数</em></p>
+<p><img src="../assets/images/stm32-10/06-showchar.jpg" alt="图 6：OLED_ShowChar(1,1,&#39;A&#39;) 现象——屏幕第 1 行第 1 列显示字符 A"></p>
+<p><em>图 6：OLED_ShowChar(1,1,&#39;A&#39;) 现象——屏幕第 1 行第 1 列显示字符 A</em></p>
+<p><img src="../assets/images/stm32-10/07-showstring.jpg" alt="图 7：OLED_ShowString(1,3,&quot;HelloWorld!&quot;) 现象——从 1 行 3 列开始显示 HelloWorld!"></p>
+<p><em>图 7：OLED_ShowString(1,3,&quot;HelloWorld!&quot;) 现象——从 1 行 3 列开始显示 HelloWorld!</em></p>
+<p><img src="../assets/images/stm32-10/08-shownum.jpg" alt="图 8：OLED_ShowNum 的长度参数——比数字长补 0、比数字短则切掉高位"></p>
+<p><em>图 8：OLED_ShowNum 的长度参数——比数字长补 0、比数字短则切掉高位</em></p>
+<p><img src="../assets/images/stm32-10/09-showbin.jpg" alt="图 9：OLED_ShowBinNum(4,1,0xAA55,16) 代码示例——用十六进制代替二进制字面量"></p>
+<p><em>图 9：OLED_ShowBinNum(4,1,0xAA55,16) 代码示例——用十六进制代替二进制字面量</em></p>
+<h2 id="3-keil-调试模式-后半段">3. Keil 调试模式（后半段）</h2>
+<p>这是本集后半部分，作者说“教程里用得少，但确实非常强大”，调复杂程序时很有用。</p>
+<h3 id="3-1-配置与进入">3.1 配置与进入</h3>
+<ul>
+<li>工程选项 → <strong>Debug</strong> 页：默认选<strong>右侧硬件在线仿真</strong>（需要 ST-Link 和 STM32 都连好）；也可以选<strong>左侧仿真器</strong>，用电脑模拟 STM32 运行（不接硬件）。</li>
+<li>先编译确保工程没问题，再点工具栏里<strong>放大镜带 d 的图标</strong>进入调试模式。</li>
+</ul>
+<h3 id="3-2-调试界面">3.2 调试界面</h3>
+<ul>
+<li>主窗口：<strong>C 语言程序</strong>（黄色箭头指示下一条将要执行的代码）；</li>
+<li>上方窗口：C 语言翻译成的<strong>汇编程序</strong>；</li>
+<li>左侧窗口：<strong>寄存器组和状态标志位</strong>（汇编编程才需要关注，用 C 语言可以不管）；</li>
+<li>下方/右下：<strong>Call Stack &amp; Locals</strong>（调用栈和局部变量）。</li>
+</ul>
+<h3 id="3-3-运行控制">3.3 运行控制</h3>
+<ul>
+<li><strong>复位</strong>：让程序回到最开始；</li>
+<li><strong>全速运行</strong> / <strong>停止</strong>全速运行；</li>
+<li><strong>单步运行</strong>、<strong>跳过当前行</strong>、<strong>跳出当前函数</strong>、<strong>运行到光标指定行</strong>；</li>
+<li><strong>断点</strong>：在代码左侧深灰色区域点击设置；全速运行会一直跑到断点处停下；没有断点就只能手动点停止；</li>
+<li>复位后程序从<strong>启动文件的复位中断函数</strong>开始，先跳 <code>SystemInit</code>，再执行 <code>main</code>（单步可以清楚看到这个过程）。</li>
+</ul>
+<h3 id="3-4-变量与寄存器观察">3.4 变量与寄存器观察</h3>
+<ul>
+<li><strong>命令窗口、反汇编窗口、符号窗口</strong>：符号窗口里可以查看程序里的所有变量；找到 <code>GPIO_InitStructure</code> 结构体，展开可看各成员；右键可以把变量/结构体添加到 <strong>Watch1</strong> 窗口实时观察，单步时能看到值的变化。</li>
+<li>还有<strong>串口</strong>、<strong>逻辑分析仪</strong>等工具（功能强大，视频未逐一演示）。</li>
+<li><strong>外设菜单 → 系统资源查看</strong>：能看到所有外设的寄存器；例如选 <strong>GPIOA</strong>，右侧就显示 GPIOA 的全部寄存器；程序在翻转 PA0 时，看 <strong>ODR 寄存器的 ODR0 位</strong>会实时变化，同时面包板上 PA0 的 LED 也在同步闪烁——<strong>在线调试时 STM32 实时执行、Keil 实时显示外设寄存器</strong>。</li>
+</ul>
+<h3 id="3-5-注意事项">3.5 注意事项</h3>
+<ul>
+<li><strong>调试模式下不能直接修改程序</strong>：要改程序必须先退出调试模式 → 重新编译 → 再进入调试。</li>
+<li>更多功能可以翻 <strong>Keil 的官方帮助文档</strong>（Help → 第一项），是对软件最权威细致的介绍。</li>
+</ul>
+<p><img src="../assets/images/stm32-10/10-debug-ui.jpg" alt="图 10：Keil 调试界面——左侧寄存器组、上方反汇编、下方 C 代码与调用栈"></p>
+<p><em>图 10：Keil 调试界面——左侧寄存器组、上方反汇编、下方 C 代码与调用栈</em></p>
+<p><img src="../assets/images/stm32-10/11-watch-registers.jpg" alt="图 11：在线调试实时观察——Watch1 里看结构体成员，外设 GPIOA 的 ODR0 随程序实时变化"></p>
+<p><em>图 11：在线调试实时观察——Watch1 里看结构体成员，外设 GPIOA 的 ODR0 随程序实时变化</em></p>
+<h2 id="4-坑与易错点">4. 坑与易错点</h2>
+<ol>
+<li><strong>先 <code>OLED_Init()</code> 再显示</strong>，否则屏幕不亮。</li>
+<li><strong>改引脚要改两处</strong>：OLED.c 顶部的引脚配置（<code>OLED_W_SCL</code>/<code>OLED_W_SDA</code> 宏）和 <code>OLED_I2C_Init</code> 里的时钟/引脚初始化，只改一处会不显示。</li>
+<li><strong>SCL/SDA 必须初始化为开漏输出</strong>（<code>GPIO_Mode_Out_OD</code>），这是 GPIO 模拟 I2C 的必要条件。</li>
+<li><strong>字符用单引号、字符串用双引号</strong>；坐标 4 行×16 列，别越界。</li>
+<li><strong>长度参数要算好</strong>：比数字长补 0、比数字短则把高位丢掉（不是把整个数字完整显示出来）。</li>
+<li><strong>C 语言不能直接写二进制字面量</strong>，用十六进制代替。</li>
+<li><strong>OLED 不带字库</strong>：<code>OLED_Font.h</code> 必须复制进工程，否则字符显示不出来。</li>
+<li><strong>PB6/PB7 不要配置成输出</strong>：它们借给 OLED 当供电孔，默认浮空输入不输出电平；除非刻意用 GPIO 给 OLED 供电，否则别把它们初始化成输出。</li>
+<li><strong>部分清屏</strong>用 <code>ShowString</code> 显示空格即可，不必 <code>OLED_Clear</code>。</li>
+<li><strong>Keil 调试模式不能边调边改代码</strong>：改完要退出调试、重新编译再进。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:00</td>
+<td>接线：OLED 固定面包板右下角，GND/VCC 供电，SCL→PB8、SDA→PB9；供电孔兼接 PB6/PB7</td>
+</tr>
+<tr>
+<td>2:00</td>
+<td>面包板插线演示：电源引到 PB6/PB7、OLED 插 PB6~PB9 四孔</td>
+</tr>
+<tr>
+<td>2:25</td>
+<td>复制「按键控制LED」工程改名「4-1 OLED显示屏」，删除旧代码</td>
+</tr>
+<tr>
+<td>2:55</td>
+<td>源码有 4 针 I2C / 7 针 SPI 两版；复制 4 针版三文件到 Hardware 并在 Keil 添加</td>
+</tr>
+<tr>
+<td>4:00</td>
+<td>OLED.c 结构：引脚配置、引脚初始化、I2C 时序、用户函数；只需改两处</td>
+</tr>
+<tr>
+<td>5:20</td>
+<td>OLED.h 函数声明、OLED_Font.h 字库点阵（不带字库）</td>
+</tr>
+<tr>
+<td>6:30</td>
+<td>main.c 包含 OLED.h、调用 OLED_Init()，编译下载</td>
+</tr>
+<tr>
+<td>7:10</td>
+<td>OLED_ShowChar / ShowString 显示字符与字符串，注意坐标和长度</td>
+</tr>
+<tr>
+<td>8:20</td>
+<td>OLED_ShowNum 长度参数：补 0 与切掉高位</td>
+</tr>
+<tr>
+<td>9:20</td>
+<td>ShowSignedNum / ShowHexNum / ShowBinNum 演示；C 不支持直接写二进制</td>
+</tr>
+<tr>
+<td>11:00</td>
+<td>OLED_Clear 清屏与局部清屏（显示空格）</td>
+</tr>
+<tr>
+<td>12:00</td>
+<td>Keil 调试模式：Debug 配置（硬件在线仿真 / 软件仿真）</td>
+</tr>
+<tr>
+<td>13:20</td>
+<td>进入调试：C 代码、汇编、寄存器组、调用栈界面</td>
+</tr>
+<tr>
+<td>14:00</td>
+<td>运行控制：复位/全速/停止/单步/跳过/跳出/运行到光标；设置断点</td>
+</tr>
+<tr>
+<td>16:00</td>
+<td>符号窗口与 Watch1：查看变量、结构体成员实时变化</td>
+</tr>
+<tr>
+<td>17:20</td>
+<td>外设菜单查看 GPIOA 寄存器，ODR0 实时变化、PA0 LED 同步</td>
+</tr>
+<tr>
+<td>19:00</td>
+<td>调试模式下改程序需退出重编译；Keil 官方帮助文档；结束</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr），不是 ASR；本集真实错字例子：串口→“串回”、OLED→“OLD”、I2C→“12C”、引脚→“引I脚”、Watch 1→“Match1”、ODR0→“ODRO”等，已按画面校正；部分编译输出行被 OCR 成乱码，不影响结论。</li>
+<li>Keil 调试模式的界面/菜单依版本不同略有差异，本笔记按视频画面记录（作者用 Keil 5）。</li>
+<li>本集仍未涉及 OLED 显示中文/图片（[4-1] 里作者提过以后单独讲 OLED 时再演示）。</li>
+<li>PB6/PB7 默认浮空输入的说法按视频原话；实际接线若不同，请确认引脚状态再上电。</li>
+<li>调试模式下“实时观察寄存器有少量延迟”属正常（视频也提到）。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-11.html"><span class="label">下一篇</span>[5-1] EXTI外部中断</a>
+    <a class="next" href="stm32-09.html"><span class="label">上一篇</span>[4-1] OLED调试工具</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E7%8E%B0%E8%B1%A1">0. 接线与现象</a>
+        <a class="level-2" href="#1-%E6%90%AD%E5%B7%A5%E7%A8%8B-%E5%8A%A0%E5%85%A5-oled-%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9D%97">1. 搭工程、加入 OLED 驱动模块</a>
+        <a class="level-2" href="#2-%E7%94%A8%E6%98%BE%E7%A4%BA%E5%87%BD%E6%95%B0-%E6%9C%AC%E9%9B%86%E9%87%8D%E7%82%B9">2. 用显示函数（本集重点）</a>
+        <a class="level-2" href="#3-keil-%E8%B0%83%E8%AF%95%E6%A8%A1%E5%BC%8F-%E5%90%8E%E5%8D%8A%E6%AE%B5">3. Keil 调试模式（后半段）</a>
+        <a class="level-3" href="#3-1-%E9%85%8D%E7%BD%AE%E4%B8%8E%E8%BF%9B%E5%85%A5">3.1 配置与进入</a>
+        <a class="level-3" href="#3-2-%E8%B0%83%E8%AF%95%E7%95%8C%E9%9D%A2">3.2 调试界面</a>
+        <a class="level-3" href="#3-3-%E8%BF%90%E8%A1%8C%E6%8E%A7%E5%88%B6">3.3 运行控制</a>
+        <a class="level-3" href="#3-4-%E5%8F%98%E9%87%8F%E4%B8%8E%E5%AF%84%E5%AD%98%E5%99%A8%E8%A7%82%E5%AF%9F">3.4 变量与寄存器观察</a>
+        <a class="level-3" href="#3-5-%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9">3.5 注意事项</a>
+        <a class="level-2" href="#4-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">4. 坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>
