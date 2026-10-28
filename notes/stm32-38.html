@@ -1,0 +1,2137 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[11-3] 软件SPI读写W25Q64 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [11-3]（代码课）：接线 CS→PA4、DO→PA6、CLK→PA5、DI→PA7（硬件 SPI1 引脚）；手写 MySPI 层（推挽/上拉、Start/Stop、SwapByte）与 W25Q64 驱动层（0x9F 读 ID、0x06 写使能、0x05 忙等待、0x02 页编程、0x20 擦除、0x03 读数据）；四组实验：读写一致、掉电不丢失、擦除变 FF、不能覆盖与跨页写。">
+  <meta property="og:title" content="[11-3] 软件SPI读写W25Q64 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [11-3]（代码课）：接线 CS→PA4、DO→PA6、CLK→PA5、DI→PA7（硬件 SPI1 引脚）；手写 MySPI 层（推挽/上拉、Start/Stop、SwapByte）与 W25Q64 驱动层（0x9F 读 ID、0x06 写使能、0x05 忙等待、0x02 页编程、0x20 擦除、0x03 读数据）；四组实验：读写一致、掉电不丢失、擦除变 FF、不能覆盖与跨页写。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html" class="active" aria-current="page">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>49 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">SPI</span><span class="tag">W25Q64</span><span class="tag">Flash</span><span class="tag">软件SPI</span>
+    </div>
+    <article class="prose"><h1>[11-3] 软件SPI读写W25Q64 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=38，55:06（3306 秒）</li>
+<li>素材：254 帧关键帧（<strong>每 13 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>953 段</strong>）；关键截图 18 张随笔记收录（源图在 <code>vidsum_out/stm32_p38/frames/</code>，站内图片在 <code>assets/images/stm32-38/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；错字主要是 <strong><code>SPI</code> 被识成「SPL/SP」</strong>（9 处）、<code>读写</code>→「卖写」（6 处）、<code>寄存器</code>→「奇存」、<code>死循环</code>→「死盾环」、<code>引脚</code>→「引I脚」，并混入编译输出（<code>Objects\Project.axf</code>、<code>Flash Load finished at …</code>）与行首噪声——这些<strong>不是口述内容</strong>，已剔除/校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 11 的代码课（上）</strong>——<strong>用软件 SPI（GPIO 手动翻转）实现读写 W25Q64</strong>，分<strong>两层手写</strong>：<strong>通信层 <code>MySPI</code></strong>（引脚封装、初始化、起始/终止/交换字节三个时序基本单元）+ <strong>驱动层 <code>W25Q64</code></strong>（用通信层拼接 <code>0x9F</code>/<code>0x06</code>/<code>0x05</code>/<code>0x02</code>/<code>0x20</code>/<code>0x03</code> 各指令的完整时序），最后在 main 里做测试。结尾 <strong>54:30</strong>「本小节代码部分就到这里……下一小节学习 STM32 硬件 SPI 外设」——<strong>硬件 SPI 代码在 [11-4]</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>工程准备</strong>：复制 OLED 工程改名 <strong><code>11-1 软件SPI读写W25Q64</code></strong>；<strong>接线 CS→PA4、DO→PA6、CLK→PA5、DI→PA7</strong>（软件 SPI 本可接任意 GPIO，但<strong>作者特意选在硬件 SPI1 的引脚上</strong>，方便以后切换到硬件 SPI，两种方式可任意切换）；<strong>注意 DO 是从机输出、要接主机输入</strong>（PA6 配<strong>上拉输入</strong>），CS/CLK/DI 是主机输出（<strong>推挽输出</strong>）。<strong>程序分两层</strong>：<strong><code>MySPI</code>（通信层）</strong> = 通信引脚封装 + 初始化 + <strong>起始/终止/交换字节</strong>三个基本单元；<strong><code>W25Q64</code>（驱动层）</strong> = 调用通信层拼接各种指令的完整时序；<strong>main 只调驱动层</strong>。<strong>MySPI_Init</strong>：<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE)</code> → <strong>Pin_4｜Pin_5｜Pin_7 配 <code>GPIO_Mode_Out_PP</code>（推挽输出）50MHz</strong> → <strong>Pin_6 配 <code>GPIO_Mode_IPU</code>（上拉输入）</strong>；初始化后还要<strong>设默认电平 <code>MySPI_W_SS(1)</code>、<code>MySPI_W_SCK(0)</code></strong>（用模式 0 时 SCK 空闲为低；MOSI 无明确规定、MISO 是输入）。<strong>引脚封装</strong>：<strong><code>MySPI_W_SS/W_SCK/W_MOSI(uint8_t BitValue)</code> = <code>GPIO_WriteBit(GPIOA, GPIO_Pin_x, (BitAction)BitValue)</code></strong>、<strong><code>MySPI_R_MISO() = GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_6)</code></strong>（用函数包装而不用宏，是为了以后移植/加延时方便）。<strong>起始/终止</strong>：<strong><code>MySPI_Start()</code> = <code>MySPI_W_SS(0)</code></strong>、<strong><code>MySPI_Stop()</code> = <code>MySPI_W_SS(1)</code></strong>。<strong>核心 <code>MySPI_SwapByte</code></strong>（模式 0）：<strong>① 先 <code>W_MOSI(ByteSend &amp; 0x80)</code> 把最高位放上 MOSI（此时 SCK 还是低） ② <code>ByteSend &lt;&lt;= 1</code> ③ <code>W_SCK(1)</code> 产生上升沿（从机移入）④ <code>if (R_MISO() == 1) ByteSend |= 0x01;</code> 采样 MISO ⑤ <code>W_SCK(0)</code> 下降沿（移出下一位）</strong>，循环 8 次返回 <code>ByteSend</code>——这就是<strong>移位法</strong>（原作者也演示了「掩码法」：<code>ByteSend &amp; (0x80 &gt;&gt; i)</code> 发送、<code>ByteReceive |= (0x80 &gt;&gt; i)</code> 接收，两者等价，<strong>他保留了移位法</strong>，省一个变量）。<strong>四种模式的改法</strong>：<strong>模式 1</strong> 把 <code>W_SCK(1)</code> 提到移出数据之前（第 1 边沿移出、第 2 边沿移入）；<strong>模式 3</strong> = 模式 1 的 SCK 极性取反；<strong>模式 2</strong> = 模式 0 的 SCK 极性取反；本代码用<strong>模式 0</strong>。<strong>新建 <code>W25Q64.c/h</code></strong>：<code>W25Q64_Init()</code> <strong>只调用 <code>MySPI_Init()</code></strong>；<strong>新建 <code>W25Q64_Ins.h</code></strong> 把指令码做成宏（<code>0x06</code> WRITE_ENABLE、<code>0x05</code> READ_STATUS_REGISTER_1、<code>0x02</code> PAGE_PROGRAM、<code>0x20</code> SECTOR_ERASE_4KB、<code>0x03</code> READ_DATA、<code>0x9F</code> JEDEC_ID，另有 <strong><code>W25Q64_DUMMY_BYTE 0xFF</code></strong> 作占位字节）；这样代码里不再出现「裸数字」，<strong>可读性大大提高</strong>。驱动层六个函数：<strong><code>ReadID(uint8_t *MID, uint16_t *DID)</code></strong> = Start → <code>SwapByte(JEDEC_ID)</code>（0x9F）→ <code>*MID = SwapByte(DUMMY)</code> → <code>*DID = SwapByte(DUMMY)</code> → <strong><code>*DID &lt;&lt;= 8</code></strong> → <strong><code>*DID |= SwapByte(DUMMY)</code></strong> → Stop（现象 <strong>MID=EF、DID=4017</strong>，与手册对照一致，说明底层无误）；<strong><code>WriteEnable()</code></strong> = Start → <code>SwapByte(WRITE_ENABLE)</code> → Stop；<strong><code>WaitBusy()</code></strong> = Start → <code>SwapByte(READ_STATUS_REGISTER_1)</code>（0x05）→ <strong><code>while ((SwapByte(DUMMY_BYTE) &amp; 0x01) == 0x01);</code></strong> 连续读状态寄存器最低位、BUSY=1 就一直等 → Stop（可加 <code>uint32_t Timeout</code> 超时 break）；<strong><code>PageProgram(uint32_t Address, uint8_t *DataArray, uint16_t Count)</code></strong> = <strong><code>WriteEnable()</code></strong> → Start → <code>SwapByte(PAGE_PROGRAM)</code> → <strong>24 位地址</strong>（<code>Address &gt;&gt; 16</code>、<code>Address &gt;&gt; 8</code>、<code>Address</code>）→ <code>for</code> 循环逐字节 <code>SwapByte(DataArray[i])</code> → Stop → <strong><code>WaitBusy()</code></strong>；<strong><code>SectorErase(uint32_t Address)</code></strong> = <code>WriteEnable()</code> → Start → <code>SwapByte(SECTOR_ERASE_4KB)</code> → 3 字节地址 → Stop → <code>WaitBusy()</code>（擦除<strong>该地址所在的整个 4KB 扇区</strong>）；<strong><code>ReadData(uint32_t Address, uint8_t *DataArray, uint32_t Count)</code></strong> = Start → <code>SwapByte(READ_DATA)</code>（0x03）→ 3 字节地址 → <strong><code>for</code> 循环 <code>DataArray[i] = SwapByte(DUMMY_BYTE)</code></strong>（发 0xFF 换回数据）→ Stop（<strong>读取可跨页、没有 256 字节限制，所以 Count 用 32 位</strong>）。<strong>写使能与忙等待的封装位置</strong>：<strong>每次写都得先写使能</strong> → 直接放进 <code>PageProgram</code>/<code>SectorErase</code> 内部，调用时不用再管；<strong>忙等待有两种策略</strong>——<strong>事后等待</strong>（写入函数末尾 <code>WaitBusy()</code>，函数返回时芯片肯定不忙，<strong>最保险</strong>）与<strong>事前等待</strong>（写完后不等，等下次操作前再等，<strong>效率更高</strong>，可用其他代码消耗等待时间），作者选<strong>事后等待</strong>（<code>ReadData</code> 前后都不用等，因为耗时的写/擦操作后面已经等过）。<strong>main 测试</strong>：<code>OLED_ShowString</code> 显示 <code>MID:</code>/<code>DID:</code>/<code>W:</code>/<code>R:</code>，调用 <code>ReadID</code> 显示 ID，再依次 <strong><code>SectorErase(0x000000)</code> → <code>PageProgram(0x000000, ArrayWrite, 4)</code> → <code>ReadData(0x000000, ArrayRead, 4)</code></strong>，屏幕上 <code>W:</code> 与 <code>R:</code> 一致即读写正常（改数据 <code>A1 B2 C3 D4</code> 也能读回）。<strong>四组现象验证（本集精华）</strong>：<strong>① 读写一致</strong>（写入 <code>01 02 03 04</code>，读回同值）；<strong>② 掉电不丢失</strong>（注释掉擦除+写入再重新下载，读到的仍是旧数据）；<strong>③ 擦除后变 FF</strong>（只擦除不写入，读出全 F）；<strong>④ 不能非擦除覆盖</strong>（先写 <code>AA BB CC DD</code>，不擦除直接改写 <code>55 66 77 88</code>，<strong>读出来是 <code>00 22 44 88</code></strong>——因为「读出的数据 = 原始数据 &amp; 写入的数据」，1 只能改 0）；<strong>⑤ 不能跨页写</strong>（从<strong>地址 <code>0x0000FF</code></strong> 起写 4 字节 <code>55 66 77 88</code>，<strong>读回 <code>55 FF FF FF</code></strong>——因为写入<strong>不跨页</strong>，<code>55</code> 落在 <code>0x0000FF</code>、后 3 个数据回到<strong>页首 <code>0x000100</code> 起的第 2 页</strong>（那里是擦除后的 <code>FF</code>），而<strong>读取可以跨页</strong>，所以能读到第 2 页的 FF）。最后作者说<strong>跨页写要自己写软件实现</strong>（算要跨几页、该擦的擦、分批次写），留作进阶作业。</p>
+<h2 id="0-本集定位-代码课-通信层-驱动层两层手写">0. 本集定位：代码课（通信层 + 驱动层两层手写）</h2>
+<ul>
+<li><strong>本集是模块 11 的第一个代码课</strong>，全程用<strong>软件 SPI</strong>（GPIO 手动翻转引脚）实现，<strong>不使用 STM32 的 SPI 外设</strong>；</li>
+<li><strong>代码在 [11-4]</strong> 才改为硬件 SPI 外设（下一节学习）；</li>
+<li>片尾 54:30：「本小节我们的代码部分到这里就要结束了……下一小节开始学习 STM32 的硬件 SPI 外设，用硬件 SPI 的方式实现同样的功能」。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/01-wiring.jpg" alt="图 1：接线图 11-1 软件SPI读写W25Q64——W25Q64 模块（DI/CLK/GND/DO/CS/VCC）插在面包板上，与 STM32 最小系统板用 4 根飞线相连：CS→PA4、DO→PA6、CLK→PA5、DI→PA7，另有 VCC/GND 供电；右下角注明 *此图为OLED下方被遮挡的接线图；字幕「看一下」"></p>
+<p><em>图 1：接线图 <code>11-1 软件SPI读写W25Q64</code>——W25Q64 模块（DI/CLK/GND/DO/CS/VCC）插在面包板上，与 STM32 最小系统板用 4 根飞线相连：<strong>CS→PA4、DO→PA6、CLK→PA5、DI→PA7</strong>，另有 VCC/GND 供电；右下角注明 <code>*此图为OLED下方被遮挡的接线图</code>；字幕「看一下」</em></p>
+<h2 id="1-接线与工程准备">1. 接线与工程准备</h2>
+<ul>
+<li><strong>接法</strong>：模块 <strong>VCC/GND 供电</strong>；<strong>CS（片选）→ PA4</strong>、<strong>DO（从机输出、MISO）→ PA6</strong>、<strong>CLK（SCK）→ PA5</strong>、<strong>DI（从机输入、MOSI）→ PA7</strong>；</li>
+<li><strong>软件 SPI 的引脚本可以任意选</strong>，但作者<strong>特意接在硬件 SPI1 的引脚上</strong>（PA4～PA7 正是 SPI1 的 NSS/SCK/MISO/MOSI）——<strong>这样软件 SPI 和硬件 SPI 可以任意切换</strong>，「接到硬件 SPI 脚上是最好的」；</li>
+<li><strong>面包板接线</strong>：模块插在面包板合适位置，VCC 用跳线引到正极供电孔、GND 引到负极，4 根飞线按上表连接；<strong>上电后模块电源指示灯点亮</strong>，说明供电正常；</li>
+<li><strong>工程</strong>：复制 <strong>OLED 显示屏工程</strong> → 改名 <strong><code>11-1 软件SPI读写W25Q64</code></strong> → 打开、把 OLED 测试代码删掉、先编译一遍。</li>
+</ul>
+<h2 id="2-程序整体框架-通信层-驱动层">2. 程序整体框架：通信层 + 驱动层</h2>
+<ul>
+<li><strong><code>MySPI</code> 模块（SPI 通信层）</strong>：<strong>通信引脚封装 + 初始化 + SPI 通信的 3 个时序基本单元</strong>（<strong>起始、终止、交换字节</strong>）；</li>
+<li><strong><code>W25Q64</code> 模块（W25Q64 硬件驱动层）</strong>：<strong>基于 SPI 层，调用底层的时序基本单元</strong>，<strong>拼接各种指令和功能的完整时序</strong>；</li>
+<li><strong>main</strong>：<strong>调用驱动层的函数</strong>完成想要的功能；</li>
+<li><strong>在 Hardware 目录下新建 <code>MySPI.c/h</code></strong>，然后 <code>W25Q64.c/h</code>、<code>W25Q64_Ins.h</code>。</li>
+</ul>
+<h2 id="3-myspi-通信层">3. MySPI 通信层</h2>
+<h3 id="3-1-myspi-init">3.1 <code>MySPI_Init</code></h3>
+<pre><code class="language-c">void MySPI_Init(void)
+{
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+
+    GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;        /* 推挽输出 */
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_7;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &amp;GPIO_InitStructure);
+
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;           /* 上拉输入 */
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &amp;GPIO_InitStructure);
+
+    MySPI_W_SS(1);      /* 片选默认高（不选中） */
+    MySPI_W_SCK(0);     /* 模式 0：空闲 SCK 为低 */
+}
+</code></pre>
+<ul>
+<li><strong>为什么这么配</strong>（对照上一集的硬件规定）：<strong>对主机来说，时钟（SCK）、主机输出（MOSI）、片选（SS）都是输出引脚 → 推挽输出</strong>；<strong>主机输入（MISO）是输入引脚 → 上拉输入</strong>（浮空也可以，上拉更稳）；</li>
+<li><strong>注意引脚对应</strong>：<strong>PA4=CS、PA5=SCK(CLK)、PA6=MISO(DO)、PA7=MOSI(DI)</strong>——所以 <strong>Pin_4｜Pin_5｜Pin_7 推挽输出、Pin_6 上拉输入</strong>；</li>
+<li><strong>默认电平</strong>：<strong><code>W_SS(1)</code></strong>（片选不选中）、<strong><code>W_SCK(0)</code></strong>（模式 0 空闲低）；<strong>MOSI 没有明确规定的默认电平，可以不管</strong>；<strong>MISO 是输入，不需要输出</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/02-inits-pp.jpg" alt="图 2：MySPI.c 的 MySPI_Init 前半段——RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);、GPIO_InitTypeDef GPIO_InitStructure;、GPIO_Mode = GPIO_Mode_Out_PP;、GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_7;、GPIO_Speed = GPIO_Speed_50MHz;、GPIO_Init(GPIOA, &amp;GPIO_InitStructure);，工程树 Hardware 下已建 MySPI.c/h；字幕「初始化GPIOA，没问题」"></p>
+<p><em>图 2：<code>MySPI.c</code> 的 <code>MySPI_Init</code> 前半段——<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);</code>、<code>GPIO_InitTypeDef GPIO_InitStructure;</code>、<code>GPIO_Mode = GPIO_Mode_Out_PP;</code>、<code>GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_7;</code>、<code>GPIO_Speed = GPIO_Speed_50MHz;</code>、<code>GPIO_Init(GPIOA, &amp;GPIO_InitStructure);</code>，工程树 Hardware 下已建 MySPI.c/h；字幕「初始化GPIOA，没问题」</em></p>
+<p><img src="../assets/images/stm32-38/03-pin-macros-ipu.jpg" alt="图 3：MySPI.c 的引脚封装与 MySPI_Init 后半段——void MySPI_W_SS(uint8_t BitValue) { GPIO_WriteBit(GPIOA, GPIO_Pin_4, (BitAction)BitValue); }（提示框显示 BitAction），下面 MySPI_Init 里先推挽输出段、再 IPU 段（GPIO_Mode_IPU、GPIO_Pin_6、50MHz、GPIO_Init）；字幕「然后强转为BitAction类型」"></p>
+<p><em>图 3：<code>MySPI.c</code> 的引脚封装与 <code>MySPI_Init</code> 后半段——<code>void MySPI_W_SS(uint8_t BitValue) { GPIO_WriteBit(GPIOA, GPIO_Pin_4, (BitAction)BitValue); }</code>（提示框显示 <code>BitAction</code>），下面 <code>MySPI_Init</code> 里先推挽输出段、再 <strong>IPU 段</strong>（<code>GPIO_Mode_IPU</code>、<code>GPIO_Pin_6</code>、50MHz、<code>GPIO_Init</code>）；字幕「然后强转为BitAction类型」</em></p>
+<h3 id="3-2-引脚封装函数">3.2 引脚封装函数</h3>
+<pre><code class="language-c">void MySPI_W_SS(uint8_t BitValue)   { GPIO_WriteBit(GPIOA, GPIO_Pin_4, (BitAction)BitValue); }
+void MySPI_W_SCK(uint8_t BitValue)  { GPIO_WriteBit(GPIOA, GPIO_Pin_5, (BitAction)BitValue); }
+void MySPI_W_MOSI(uint8_t BitValue) { GPIO_WriteBit(GPIOA, GPIO_Pin_7, (BitAction)BitValue); }
+uint8_t MySPI_R_MISO(void)          { return GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_6); }
+</code></pre>
+<ul>
+<li><strong>命名</strong>：SS 也可以叫 <strong>CS</strong>（两种叫法都很常见）；SCK 对应 CLK、MOSI 对应 DI、MISO 对应 DO；</li>
+<li><strong>为什么用函数而不用宏</strong>：作者说<strong>用宏也能完成相同功能</strong>，但<strong>函数包装在移植到其他单片机时更方便（比如以后要加延时）</strong>；</li>
+<li><strong><code>GPIO_WriteBit</code> 第三个参数要强转 <code>(BitAction)</code></strong>（<code>BitValue</code> 是 <code>uint8_t</code>，函数要 <code>BitAction</code> 类型）。</li>
+</ul>
+<h3 id="3-3-起始与终止">3.3 起始与终止</h3>
+<pre><code class="language-c">void MySPI_Start(void) { MySPI_W_SS(0); }   /* SS 高→低：起始 */
+void MySPI_Stop(void)  { MySPI_W_SS(1); }   /* SS 低→高：终止 */
+</code></pre>
+<ul>
+<li><strong>正好对应上一集 PPT</strong>：<strong>起始条件＝SS 从高电平切换到低电平</strong>、<strong>终止条件＝SS 从低电平切换到高电平</strong>；</li>
+<li>就是<strong>拉低/拉高片选</strong>，没有别的动作。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/04-start-stop-ppt.jpg" alt="图 4：PPT「SPI时序基本单元」——起始条件：SS 从高电平切换到低电平；终止条件：SS 从低电平切换到高电平；下方是 SS 的下降沿/上升沿波形；字幕「起始信号，我们直接把SS置低电平就完事了」"></p>
+<p><em>图 4：PPT「SPI时序基本单元」——起始条件：SS 从高电平切换到低电平；终止条件：SS 从低电平切换到高电平；下方是 SS 的下降沿/上升沿波形；字幕「起始信号，我们直接把SS置低电平就完事了」</em></p>
+<p><img src="../assets/images/stm32-38/05-mode0-ppt.jpg" alt="图 5：PPT 模式 0 时序图 + 红笔标注——SS 下降沿处画红勾、SCK 下降沿画红箭头（下降沿是触发移出数据的条件）、MOSI 上 B7→B6 的转折处画红圈（数据在下降沿变化）；字幕「这个下降沿是触发数据移出这个动作的条件」"></p>
+<p><em>图 5：PPT 模式 0 时序图 + 红笔标注——SS 下降沿处画红勾、SCK 下降沿画红箭头（<strong>下降沿是触发移出数据的条件</strong>）、MOSI 上 B7→B6 的转折处画红圈（数据在下降沿变化）；字幕「这个下降沿是触发数据移出这个动作的条件」</em></p>
+<h3 id="3-4-核心-myspi-swapbyte-模式-0">3.4 核心：<code>MySPI_SwapByte</code>（模式 0）</h3>
+<pre><code class="language-c">uint8_t MySPI_SwapByte(uint8_t ByteSend)
+{
+    uint8_t i;
+
+    for (i = 0; i &lt; 8; i ++)
+    {
+        MySPI_W_MOSI(ByteSend &amp; 0x80);  /* 先移出最高位（此时 SCK 为低） */
+        ByteSend &lt;&lt;= 1;
+        MySPI_W_SCK(1);                 /* 上升沿：从机移入 */
+        if (MySPI_R_MISO() == 1) { ByteSend |= 0x01; }  /* 采样 MISO */
+        MySPI_W_SCK(0);                 /* 下降沿：移出下一位 */
+    }
+
+    return ByteSend;
+}
+</code></pre>
+<ul>
+<li><strong>思路来自模式 0 时序图</strong>：<strong>SS 下降沿之后，先移出 B7（MOSI 变化）→ SCK 上升沿从机移入 → SCK 下降沿移出 B6 → ……</strong>；</li>
+<li><strong>「同时发生」怎么用软件实现</strong>：硬件里「移出/移入」是同时的，软件 SPI 只能<strong>按先后顺序</strong>写——<strong>「SCK 下降沿」是移出数据的触发条件</strong>，所以<strong>先改 MOSI 再拉高 SCK</strong>（对应模式 0 第 1 边沿移入、第 2 边沿移出）；</li>
+<li><strong>两种等价写法</strong>：<ul>
+<li><strong>掩码法</strong>：<code>MySPI_W_MOSI(ByteSend &amp; (0x80 &gt;&gt; i));</code>、<code>if (MySPI_R_MISO() == 1) { ByteReceive |= (0x80 &gt;&gt; i); }</code>，循环 8 次，返回 <code>ByteReceive</code>——<strong>要两个变量</strong>；</li>
+<li><strong>移位法（本代码采用）</strong>：<code>ByteSend &lt;&lt;= 1</code>，收到 1 就把最低位置 1——<strong>省一个变量、效率更高</strong>，代价是<strong>改变了入参</strong>（<code>ByteSend</code> 被移没了）；</li>
+<li>作者说：<strong>「使用哪种都可以，看你的喜好」</strong>。</li>
+</ul>
+</li>
+<li><strong>四种模式的改法</strong>（只需改 <code>SwapByte</code> 里的 SCK 时机与极性）：<ul>
+<li><strong>模式 1</strong>（CPOL=0、CPHA=1）：把 <strong><code>MySPI_W_SCK(1)</code> 提到移出数据之前</strong>（第 1 边沿移出、第 2 边沿移入，即先从低到高、再移出、再拉低时采样）；</li>
+<li><strong>模式 3</strong>：模式 1 的 <strong>SCK 极性取反</strong>（空闲高）；</li>
+<li><strong>模式 2</strong>：模式 0 的 <strong>SCK 极性取反</strong>（空闲高）；</li>
+<li>本代码用<strong>模式 0</strong>。</li>
+</ul>
+</li>
+</ul>
+<p><img src="../assets/images/stm32-38/06-swapbyte.jpg" alt="图 6：MySPI.c 的 MySPI_SwapByte（移位法）——for (i = 0; i &lt; 8; i ++) { MySPI_W_MOSI(ByteSend &amp; 0x80); ByteSend &lt;&lt;= 1; MySPI_W_SCK(1); if (MySPI_R_MISO() == 1) { ByteSend |= 0x01; } MySPI_W_SCK(0); }、return ByteSend;；上方还留着掩码法版本的尾部（ByteReceive |= (0x80 &gt;&gt; i)）；字幕「使用哪种都可以，看你的喜好」"></p>
+<p><em>图 6：<code>MySPI.c</code> 的 <code>MySPI_SwapByte</code>（<strong>移位法</strong>）——<code>for (i = 0; i &lt; 8; i ++) { MySPI_W_MOSI(ByteSend &amp; 0x80); ByteSend &lt;&lt;= 1; MySPI_W_SCK(1); if (MySPI_R_MISO() == 1) { ByteSend |= 0x01; } MySPI_W_SCK(0); }</code>、<code>return ByteSend;</code>；上方还留着掩码法版本的尾部（<code>ByteReceive |= (0x80 &gt;&gt; i)</code>）；字幕「使用哪种都可以，看你的喜好」</em></p>
+<h3 id="3-5-编译坑-头文件防重复包含">3.5 编译坑：头文件防重复包含</h3>
+<ul>
+<li>新建 <code>W25Q64.c</code> 后编译，出现 <strong>2 个错误</strong>：<ul>
+<li><code>Hardware\MySPI.h(9): error: #1-D: unrecognized preprocessing directive</code></li>
+<li><code>Hardware\MySPI.h(9): error: #37: the #endif for this directive is missing</code></li>
+</ul>
+</li>
+<li>原因是<strong>头文件里的 <code>#ifndef/#define/#endif</code>（防止重复包含）写错了</strong>（<code>#ifndef</code> 后面多/少字符导致预处理指令无法识别）；</li>
+<li>修正 <code>MySPI.h</code> 的 <code>#ifndef MySPI_H</code> / <code>#define MySPI_H</code> / <code>#endif</code> 后编译通过——<strong>本集唯一的编译坑</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/07-compile-error.jpg" alt="图 7：编译报错现场——W25Q64.c 里只有 #include &quot;stm32f10x.h&quot;、#include &quot;MySPI.h&quot;、void W25Q64_Init(void) { MySPI_Init(); }；下方错误窗口：Hardware\MySPI.h(9): error: #1-D: unrecognized preprocessing directive、Hardware\MySPI.h(9): error: #37: the #endif for this directive is missing，2 Error(s)"></p>
+<p><em>图 7：编译报错现场——<code>W25Q64.c</code> 里只有 <code>#include &quot;stm32f10x.h&quot;</code>、<code>#include &quot;MySPI.h&quot;</code>、<code>void W25Q64_Init(void) { MySPI_Init(); }</code>；下方错误窗口：<code>Hardware\MySPI.h(9): error: #1-D: unrecognized preprocessing directive</code>、<code>Hardware\MySPI.h(9): error: #37: the #endif for this directive is missing</code>，<code>2 Error(s)</code></em></p>
+<h2 id="4-w25q64-驱动层">4. W25Q64 驱动层</h2>
+<h3 id="4-1-w25q64-ins-h-把指令码做成宏">4.1 <code>W25Q64_Ins.h</code>：把指令码做成宏</h3>
+<ul>
+<li>直接写 <code>SwapByte(0x9F)</code> 这种「裸数字」，<strong>别人看不出含义、可读性差</strong>（就像 MPU6050 的寄存器地址一样）——所以把每个指令码用 <code>#define</code> 换成名字；</li>
+<li>作者提前写好了整个指令集（含本课程不用的 Quad/Fast Read 系列），<strong>本课程真正用到的只有 6 个 + 1 个占位字节</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>宏名</th>
+<th>指令码</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>W25Q64_WRITE_ENABLE</code></strong></td>
+<td><strong>0x06</strong></td>
+<td>写使能（每次写/擦前）</td>
+</tr>
+<tr>
+<td><strong><code>W25Q64_READ_STATUS_REGISTER_1</code></strong></td>
+<td><strong>0x05</strong></td>
+<td>读状态寄存器 1（看 BUSY）</td>
+</tr>
+<tr>
+<td><strong><code>W25Q64_PAGE_PROGRAM</code></strong></td>
+<td><strong>0x02</strong></td>
+<td>页编程（+24 位地址+数据）</td>
+</tr>
+<tr>
+<td><strong><code>W25Q64_SECTOR_ERASE_4KB</code></strong></td>
+<td><strong>0x20</strong></td>
+<td>扇区擦除 4KB（+24 位地址）</td>
+</tr>
+<tr>
+<td><strong><code>W25Q64_READ_DATA</code></strong></td>
+<td><strong>0x03</strong></td>
+<td>读数据（+24 位地址，之后连续读）</td>
+</tr>
+<tr>
+<td><strong><code>W25Q64_JEDEC_ID</code></strong></td>
+<td><strong>0x9F</strong></td>
+<td>读 JEDEC ID（读 MID/DID）</td>
+</tr>
+<tr>
+<td><strong><code>W25Q64_DUMMY_BYTE</code></strong></td>
+<td><strong>0xFF</strong></td>
+<td>占位字节：接收时交换过去的无用数据</td>
+</tr>
+</tbody></table>
+<ul>
+<li>替换后代码里就是 <code>MySPI_SwapByte(W25Q64_JEDEC_ID)</code>、<code>MySPI_SwapByte(W25Q64_DUMMY_BYTE)</code> 这种形式，<strong>「一眼看出来这是读 ID 的指令」</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/08-instruction-table.jpg" alt="图 8：手册「11.2.2 Instruction Set Table 1」表格（本集对照用）——Write Enable 06h、Write Disable 04h、Read Status Register-1 05h（S7-S0）、Read Status Register-2 35h、Write Status Register 01h、Page Program 02h（A23-A16/A15-A8/A7-A0/D7-D0）、Quad Page Program 32h、Block Erase(64KB) D8h、Block Erase(32KB) 52h、Sector Erase(4KB) 20h、Chip Erase C7h/60h、Erase Suspend 75h、Erase Resume 7Ah、Power-down B9h、High Performance Mode A3h、Continuous Read Mode Reset FFh、Release Power down/HPM/Device ID ABh、Manufacturer/Device ID 90h、Read Unique ID 4Bh、JEDEC ID 9Fh（MF7-MF0/ID15-ID8/ID7-ID0/Capacity）；字幕「第一个字节是厂商ID，表示了是哪个厂家生产的」"></p>
+<p><em>图 8：手册「11.2.2 Instruction Set Table 1」表格（本集对照用）——Write Enable 06h、Write Disable 04h、Read Status Register-1 05h（S7-S0）、Read Status Register-2 35h、Write Status Register 01h、Page Program 02h（A23-A16/A15-A8/A7-A0/D7-D0）、Quad Page Program 32h、Block Erase(64KB) D8h、Block Erase(32KB) 52h、Sector Erase(4KB) 20h、Chip Erase C7h/60h、Erase Suspend 75h、Erase Resume 7Ah、Power-down B9h、High Performance Mode A3h、Continuous Read Mode Reset FFh、Release Power down/HPM/Device ID ABh、Manufacturer/Device ID 90h、Read Unique ID 4Bh、JEDEC ID 9Fh（MF7-MF0/ID15-ID8/ID7-ID0/Capacity）；字幕「第一个字节是厂商ID，表示了是哪个厂家生产的」</em></p>
+<p><img src="../assets/images/stm32-38/10-ins-h-macros.jpg" alt="图 9：记事本里的 W25Q64_Ins.txt（指令宏定义全表）——#define W25Q64_WRITE_ENABLE 0x06、W25Q64_WRITE_DISABLE 0x04、W25Q64_READ_STATUS_REGISTER_1 0x05、W25Q64_READ_STATUS_REGISTER_2 0x35、W25Q64_WRITE_STATUS_REGISTER 0x01、W25Q64_PAGE_PROGRAM 0x02、W25Q64_QUAD_PAGE_PROGRAM 0x32、W25Q64_BLOCK_ERASE_64KB 0xD8、W25Q64_BLOCK_ERASE_32KB 0x52、W25Q64_SECTOR_ERASE_4KB 0x20、W25Q64_CHIP_ERASE 0xC7、W25Q64_ERASE_SUSPEND 0x75、W25Q64_ERASE_RESUME 0x7A、W25Q64_POWER_DOWN 0xB9、W25Q64_HIGH_PERFORMANCE_MODE 0xA3、W25Q64_CONTINUOUS_READ_MODE_RESET 0xFF、W25Q64_RELEASE_POWER_DOWN_HPM_DEVICE_ID 0xAB、W25Q64_MANUFACTURER_DEVICE_ID 0x90、W25Q64_READ_UNIQUE_ID 0x4B、W25Q64_JEDEC_ID 0x9F、W25Q64_READ_DATA 0x03、Fast Read 系列 0x0B/0x3B/0xBB/0x6B/0xEB/0xE3、#define W25Q64_DUMMY_BYTE 0xFF；字幕「就是这个样子」"></p>
+<p><em>图 9：记事本里的 <code>W25Q64_Ins.txt</code>（指令宏定义全表）——<code>#define W25Q64_WRITE_ENABLE 0x06</code>、<code>W25Q64_WRITE_DISABLE 0x04</code>、<code>W25Q64_READ_STATUS_REGISTER_1 0x05</code>、<code>W25Q64_READ_STATUS_REGISTER_2 0x35</code>、<code>W25Q64_WRITE_STATUS_REGISTER 0x01</code>、<code>W25Q64_PAGE_PROGRAM 0x02</code>、<code>W25Q64_QUAD_PAGE_PROGRAM 0x32</code>、<code>W25Q64_BLOCK_ERASE_64KB 0xD8</code>、<code>W25Q64_BLOCK_ERASE_32KB 0x52</code>、<code>W25Q64_SECTOR_ERASE_4KB 0x20</code>、<code>W25Q64_CHIP_ERASE 0xC7</code>、<code>W25Q64_ERASE_SUSPEND 0x75</code>、<code>W25Q64_ERASE_RESUME 0x7A</code>、<code>W25Q64_POWER_DOWN 0xB9</code>、<code>W25Q64_HIGH_PERFORMANCE_MODE 0xA3</code>、<code>W25Q64_CONTINUOUS_READ_MODE_RESET 0xFF</code>、<code>W25Q64_RELEASE_POWER_DOWN_HPM_DEVICE_ID 0xAB</code>、<code>W25Q64_MANUFACTURER_DEVICE_ID 0x90</code>、<code>W25Q64_READ_UNIQUE_ID 0x4B</code>、<code>W25Q64_JEDEC_ID 0x9F</code>、<code>W25Q64_READ_DATA 0x03</code>、Fast Read 系列 0x0B/0x3B/0xBB/0x6B/0xEB/0xE3、<code>#define W25Q64_DUMMY_BYTE 0xFF</code>；字幕「就是这个样子」</em></p>
+<p><img src="../assets/images/stm32-38/09-main-readid.jpg" alt="图 10：main.c 调用 ReadID——#include &quot;stm32f10x.h&quot;、#include &quot;Delay.h&quot;、#include &quot;OLED.h&quot;、#include &quot;W25Q64.h&quot;；全局 uint8_t MID; uint16_t DID;；main 里 OLED_Init(); W25Q64_Init(); W25Q64_ReadID(&amp;MID, &amp;DID); while (1) {}（提示框显示原型 void W25Q64_ReadID(uint8_t *MID, uint16_t *DID)）；字幕「把两个变量的地址，传递进去」"></p>
+<p><em>图 10：main.c 调用 ReadID——<code>#include &quot;stm32f10x.h&quot;</code>、<code>#include &quot;Delay.h&quot;</code>、<code>#include &quot;OLED.h&quot;</code>、<code>#include &quot;W25Q64.h&quot;</code>；全局 <code>uint8_t MID; uint16_t DID;</code>；<code>main</code> 里 <code>OLED_Init(); W25Q64_Init(); W25Q64_ReadID(&amp;MID, &amp;DID); while (1) {}</code>（提示框显示原型 <code>void W25Q64_ReadID(uint8_t *MID, uint16_t *DID)</code>）；字幕「把两个变量的地址，传递进去」</em></p>
+<h3 id="4-2-w25q64-readid">4.2 <code>W25Q64_ReadID</code></h3>
+<pre><code class="language-c">void W25Q64_ReadID(uint8_t *MID, uint16_t *DID)
+{
+    MySPI_Start();
+    MySPI_SwapByte(W25Q64_JEDEC_ID);                    /* 0x9F */
+    *MID = MySPI_SwapByte(W25Q64_DUMMY_BYTE);           /* 厂商 ID */
+    *DID = MySPI_SwapByte(W25Q64_DUMMY_BYTE);           /* 设备 ID 高字节 */
+    *DID &lt;&lt;= 8;
+    *DID |= MySPI_SwapByte(W25Q64_DUMMY_BYTE);          /* 设备 ID 低字节 */
+    MySPI_Stop();
+}
+</code></pre>
+<ul>
+<li><strong><code>0x9F</code> 是 JEDEC ID 指令</strong>：之后连续交换会依次返回 <strong>厂商 ID + 设备 ID（2 字节）</strong>；</li>
+<li><strong><code>*DID</code> 是 16 位</strong>：读两个字节后<strong>先左移 8 位再或上第二个字节</strong>；</li>
+<li><strong>占位字节用 <code>W25Q64_DUMMY_BYTE</code>（0xFF）</strong>——因为接收时必须「发一个字节换一个字节」；</li>
+<li><strong>现象</strong>：OLED 显示 <strong>MID = EF、DID = 4017</strong>，与手册的 ID 表对照一致（<code>0x9F</code> 读出来是 4017），<strong>说明底层 SPI 通信没问题</strong>。</li>
+</ul>
+<h3 id="4-3-w25q64-writeenable-w25q64-waitbusy">4.3 <code>W25Q64_WriteEnable</code> / <code>W25Q64_WaitBusy</code></h3>
+<pre><code class="language-c">void W25Q64_WriteEnable(void)
+{
+    MySPI_Start();
+    MySPI_SwapByte(W25Q64_WRITE_ENABLE);    /* 0x06 */
+    MySPI_Stop();
+}
+
+void W25Q64_WaitBusy(void)
+{
+    MySPI_Start();
+    MySPI_SwapByte(W25Q64_READ_STATUS_REGISTER_1);   /* 0x05 */
+    while ((MySPI_SwapByte(W25Q64_DUMMY_BYTE) &amp; 0x01) == 0x01);   /* BUSY=1 一直等 */
+    MySPI_Stop();
+}
+</code></pre>
+<ul>
+<li><strong>写使能 <code>0x06</code></strong>：起始 → 交换发送 <code>0x06</code> → 直接停止（<strong>这条指令后面不需要跟任何数据</strong>）；</li>
+<li><strong><code>WaitBusy</code> 利用了「状态寄存器可连续读出」的特性</strong>：起始 → 发 <code>0x05</code> → <strong>连续交换接收状态寄存器</strong>，用<strong>掩码取出最低位 BUSY</strong>，<strong><code>== 0x01</code> 说明 BUSY=1（在忙）就 while 死循环等待</strong>，直到 BUSY=0 才跳出、再 Stop；<ul>
+<li>作者提醒<strong>给前面的计算套上括号</strong>，避免 <code>&amp;</code> 与 <code>==</code> 的优先级问题；</li>
+<li><strong>如果怕死循环卡死，可以加 <code>Timeout</code></strong>：<code>uint32_t Timeout = 100000;</code>（初始值自己实测、给大一点），在 while 里 <code>Timeout --;</code>，<strong>减到 0 就 <code>break</code> 超时退出</strong>；break 之前也可以跳到自定义错误处理函数（看需求）。</li>
+</ul>
+</li>
+</ul>
+<p><img src="../assets/images/stm32-38/11-readid-writeenable.jpg" alt="图 11：W25Q64.c 的 ReadID 与 WriteEnable——void W25Q64_ReadID(uint8_t *MID, uint16_t *DID)：MySPI_Start(); MySPI_SwapByte(W25Q64_JEDEC_ID); *MID = MySPI_SwapByte(W25Q64_DUMMY_BYTE); *DID = MySPI_SwapByte(W25Q64_DUMMY_BYTE); *DID &lt;&lt;= 8; *DID |= MySPI_SwapByte(W25Q64_DUMMY_BYTE); MySPI_Stop();；void W25Q64_WriteEnable(void)：MySPI_Start(); MySPI_SwapByte(W25Q64_WRITE_ENABLE); MySPI_Stop();；第 28 行开始 void W25Q64_WaitBusy(void)；字幕「void W25Q64_WaitBusy(void)」"></p>
+<p><em>图 11：<code>W25Q64.c</code> 的 <code>ReadID</code> 与 <code>WriteEnable</code>——<code>void W25Q64_ReadID(uint8_t *MID, uint16_t *DID)</code>：<code>MySPI_Start(); MySPI_SwapByte(W25Q64_JEDEC_ID); *MID = MySPI_SwapByte(W25Q64_DUMMY_BYTE); *DID = MySPI_SwapByte(W25Q64_DUMMY_BYTE); *DID &lt;&lt;= 8; *DID |= MySPI_SwapByte(W25Q64_DUMMY_BYTE); MySPI_Stop();</code>；<code>void W25Q64_WriteEnable(void)</code>：<code>MySPI_Start(); MySPI_SwapByte(W25Q64_WRITE_ENABLE); MySPI_Stop();</code>；第 28 行开始 <code>void W25Q64_WaitBusy(void)</code>；字幕「void W25Q64_WaitBusy(void)」</em></p>
+<p><img src="../assets/images/stm32-38/12-manual-marked.jpg" alt="图 12：手册指令集表（黄笔标注版）——Write Enable 06h、Read Status Register-1 05h、Page Program 02h、Sector Erase(4KB) 20h、JEDEC ID 9Fh 等被黄色高亮，对应本集要实现/用到的指令；字幕「之前这里说，括号表示读取数据」"></p>
+<p><em>图 12：手册指令集表（黄笔标注版）——Write Enable 06h、Read Status Register-1 05h、Page Program 02h、Sector Erase(4KB) 20h、JEDEC ID 9Fh 等被黄色高亮，对应本集要实现/用到的指令；字幕「之前这里说，括号表示读取数据」</em></p>
+<h3 id="4-4-w25q64-pageprogram">4.4 <code>W25Q64_PageProgram</code></h3>
+<pre><code class="language-c">void W25Q64_PageProgram(uint32_t Address, uint8_t *DataArray, uint16_t Count)
+{
+    uint16_t i;
+
+    W25Q64_WriteEnable();                       /* 写前必须写使能 */
+
+    MySPI_Start();
+    MySPI_SwapByte(W25Q64_PAGE_PROGRAM);        /* 0x02 */
+    MySPI_SwapByte(Address &gt;&gt; 16);              /* 24 位地址：高字节 */
+    MySPI_SwapByte(Address &gt;&gt; 8);               /* 中字节 */
+    MySPI_SwapByte(Address);                    /* 低字节（自动截断） */
+    for (i = 0; i &lt; Count; i ++)
+    {
+        MySPI_SwapByte(DataArray[i]);           /* 逐字节发数据 */
+    }
+    MySPI_Stop();
+
+    W25Q64_WaitBusy();                          /* 事后等待 */
+}
+</code></pre>
+<ul>
+<li><strong>参数用 <code>uint32_t Address</code></strong>：C 语言没有 24 位数据类型，<strong>发地址时靠右移分别取高/中/低字节</strong>（<code>&gt;&gt;16</code>、<code>&gt;&gt;8</code>、直接传）；</li>
+<li><strong>数据用指针 <code>uint8_t *DataArray</code> + <code>uint16_t Count</code></strong>：因为一般要写多个字节，<strong>数组要通过指针传递</strong>；</li>
+<li><strong><code>Count</code> 必须是 16 位</strong>：页编程一次最多 <strong>0～256</strong> 字节，若用 8 位只能表示 0～255，<strong>写 256 个字节时会出问题</strong>；</li>
+<li><strong><code>WriteEnable()</code> 写在函数内部</strong>，调用者不用每次自己加。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/13-pageprogram.jpg" alt="图 13：W25Q64.c 的 PageProgram 完整代码——void W25Q64_PageProgram(uint32_t Address, uint8_t *DataArray, uint16_t Count)：uint16_t i;、W25Q64_WriteEnable();、MySPI_Start();、MySPI_SwapByte(W25Q64_PAGE_PROGRAM);、MySPI_SwapByte(Address &gt;&gt; 16);、MySPI_SwapByte(Address &gt;&gt; 8);、MySPI_SwapByte(Address);、for (i = 0; i &lt; Count; i ++) { MySPI_SwapByte(DataArray（i）); }、MySPI_Stop();，下面是 void W25Q64_SectorErase(uint32_t Address)；字幕「就不用再额外调用写使能了」"></p>
+<p><em>图 13：<code>W25Q64.c</code> 的 <code>PageProgram</code> 完整代码——<code>void W25Q64_PageProgram(uint32_t Address, uint8_t *DataArray, uint16_t Count)</code>：<code>uint16_t i;</code>、<code>W25Q64_WriteEnable();</code>、<code>MySPI_Start();</code>、<code>MySPI_SwapByte(W25Q64_PAGE_PROGRAM);</code>、<code>MySPI_SwapByte(Address &gt;&gt; 16);</code>、<code>MySPI_SwapByte(Address &gt;&gt; 8);</code>、<code>MySPI_SwapByte(Address);</code>、<code>for (i = 0; i &lt; Count; i ++) { MySPI_SwapByte(DataArray[i]); }</code>、<code>MySPI_Stop();</code>，下面是 <code>void W25Q64_SectorErase(uint32_t Address)</code>；字幕「就不用再额外调用写使能了」</em></p>
+<h3 id="4-5-w25q64-sectorerase">4.5 <code>W25Q64_SectorErase</code></h3>
+<pre><code class="language-c">void W25Q64_SectorErase(uint32_t Address)
+{
+    W25Q64_WriteEnable();
+
+    MySPI_Start();
+    MySPI_SwapByte(W25Q64_SECTOR_ERASE_4KB);    /* 0x20 */
+    MySPI_SwapByte(Address &gt;&gt; 16);
+    MySPI_SwapByte(Address &gt;&gt; 8);
+    MySPI_SwapByte(Address);
+    MySPI_Stop();
+
+    W25Q64_WaitBusy();
+}
+</code></pre>
+<ul>
+<li>和页编程几乎一样，只是<strong>指令码换成 <code>0x20</code>、后面不跟数据</strong>；</li>
+<li><strong>擦除的是「该地址所在的整个 4KB 扇区」</strong>，其他擦除指令（块擦除/整片擦除）写法类似；</li>
+<li><strong>擦除比写入慢，所以后面一定要有 <code>WaitBusy()</code></strong>。</li>
+</ul>
+<h3 id="4-6-w25q64-readdata">4.6 <code>W25Q64_ReadData</code></h3>
+<pre><code class="language-c">void W25Q64_ReadData(uint32_t Address, uint8_t *DataArray, uint32_t Count)
+{
+    uint32_t i;
+
+    MySPI_Start();
+    MySPI_SwapByte(W25Q64_READ_DATA);           /* 0x03 */
+    MySPI_SwapByte(Address &gt;&gt; 16);
+    MySPI_SwapByte(Address &gt;&gt; 8);
+    MySPI_SwapByte(Address);
+    for (i = 0; i &lt; Count; i ++)
+    {
+        DataArray[i] = MySPI_SwapByte(W25Q64_DUMMY_BYTE);   /* 发 0xFF 换回数据 */
+    }
+    MySPI_Stop();
+}
+</code></pre>
+<ul>
+<li><strong>结构与写类似</strong>：指令码 + 24 位地址，然后<strong>逐字节「发占位字节换回数据」</strong>；</li>
+<li><strong>每次交换读取之后，芯片内部地址指针自动自增</strong>，所以能<strong>依次返回指定地址开始、往后线性区域的数据</strong>；</li>
+<li><strong>读取没有 256 字节的页限制</strong>，所以 <strong><code>Count</code> 用 <code>uint32_t</code></strong>（16 位最大 65535 可能不够）；</li>
+<li><strong>读之前不需要写使能，读完也不会有忙状态</strong>（相对宽松）。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/14-sectorerase-readdata.jpg" alt="图 14：W25Q64.c 的 SectorErase 与 ReadData 开头——void W25Q64_SectorErase(uint32_t Address)：W25Q64_WriteEnable(); MySPI_Start(); MySPI_SwapByte(W25Q64_SECTOR_ERASE_4KB); MySPI_SwapByte(Address &gt;&gt; 16); MySPI_SwapByte(Address &gt;&gt; 8); MySPI_SwapByte(Address); MySPI_Stop(); W25Q64_WaitBusy();；下面 void W25Q64_ReadData(uint32_t Address, uint8_t *DataArray, uint32_t Count)：uint32_t i; MySPI_Start(); MySPI_SwapByte(W25Q64_READ_DATA); MySPI_SwapByte(Address &gt;&gt; 16); MySPI_SwapByte(Address &gt;&gt; 8);；字幕「所以调用ReadData时，肯定不会忙」"></p>
+<p><em>图 14：<code>W25Q64.c</code> 的 <code>SectorErase</code> 与 <code>ReadData</code> 开头——<code>void W25Q64_SectorErase(uint32_t Address)</code>：<code>W25Q64_WriteEnable(); MySPI_Start(); MySPI_SwapByte(W25Q64_SECTOR_ERASE_4KB); MySPI_SwapByte(Address &gt;&gt; 16); MySPI_SwapByte(Address &gt;&gt; 8); MySPI_SwapByte(Address); MySPI_Stop(); W25Q64_WaitBusy();</code>；下面 <code>void W25Q64_ReadData(uint32_t Address, uint8_t *DataArray, uint32_t Count)</code>：<code>uint32_t i; MySPI_Start(); MySPI_SwapByte(W25Q64_READ_DATA); MySPI_SwapByte(Address &gt;&gt; 16); MySPI_SwapByte(Address &gt;&gt; 8);</code>；字幕「所以调用ReadData时，肯定不会忙」</em></p>
+<h2 id="5-写使能与忙等待-放在哪里">5. 写使能与忙等待：放在哪里？</h2>
+<ul>
+<li><strong>写使能</strong>：<strong>涉及写入的时序只有扇区擦除和页编程</strong>，而<strong>每次写入前都必须写使能</strong> → <strong>直接把 <code>W25Q64_WriteEnable()</code> 放进这两个函数开头</strong>，调用时不用再自己加；<ul>
+<li>写使能<strong>只对紧跟其后的一条时序有效</strong>，写操作完成后芯片会「顺手关门」（WEL 自动清 0），所以<strong>写完不需要再写失能</strong>；</li>
+</ul>
+</li>
+<li><strong>忙等待的两种策略</strong>：<ul>
+<li><strong>事后等待</strong>：<strong>每次写入后立刻 <code>WaitBusy()</code>，不忙了才退出函数</strong>——<strong>函数之外芯片肯定不忙</strong>，<strong>最保险</strong>；</li>
+<li><strong>事前等待</strong>：<strong>写完不等，下次操作之前再等</strong>——<strong>效率更高</strong>（写完可以先去执行其他代码，用这段时间消耗等待），但要注意<strong>读取之前也得等</strong>（忙的时候读取也不行）；</li>
+<li>作者选<strong>事后等待</strong>：在 <code>PageProgram</code>、<code>SectorErase</code> 末尾各调用一次 <code>WaitBusy()</code>；<strong><code>ReadData</code> 前后都不用等</strong>（因为耗时的写/擦操作后面都已经等过，调用 ReadData 时肯定不忙）。</li>
+</ul>
+</li>
+</ul>
+<h2 id="6-main-测试与现象验证">6. main 测试与现象验证</h2>
+<h3 id="6-1-main-代码">6.1 main 代码</h3>
+<pre><code class="language-c">uint8_t MID;
+uint16_t DID;
+uint8_t ArrayWrite[] = {0x01, 0x02, 0x03, 0x04};
+uint8_t ArrayRead[4];
+
+int main(void)
+{
+    OLED_Init();
+    W25Q64_Init();
+
+    OLED_ShowString(1, 1, &quot;MID:   DID:&quot;);
+    OLED_ShowString(2, 1, &quot;W:&quot;);
+    OLED_ShowString(3, 1, &quot;R:&quot;);
+
+    W25Q64_ReadID(&amp;MID, &amp;DID);              /* 读 ID 先验证底层 */
+    OLED_ShowHexNum(1, 5, MID, 2);          /* MID 显示在 5 列 */
+    OLED_ShowHexNum(1, 12, DID, 4);         /* DID 显示在 12 列 */
+
+    W25Q64_SectorErase(0x000000);           /* 写之前先擦除扇区 */
+    W25Q64_PageProgram(0x000000, ArrayWrite, 4);
+    W25Q64_ReadData(0x000000, ArrayRead, 4);
+
+    OLED_ShowHexNum(2, 3, ArrayWrite[0], 2);    /* W: 显示写入的数据 */
+    OLED_ShowHexNum(2, 6, ArrayWrite[1], 2);
+    OLED_ShowHexNum(2, 9, ArrayWrite[2], 2);
+    OLED_ShowHexNum(2, 12, ArrayWrite[3], 2);
+    /* R: 同样方式显示 ArrayRead[0..3] */
+
+    while (1)
+    {
+    }
+}
+</code></pre>
+<ul>
+<li><strong>先读 ID 验证底层再往下写</strong>：作者强调「先确保之前的代码没问题，再往后写，这样写程序心里才有底」；</li>
+<li><strong>地址对齐</strong>：<strong>擦除虽然精确到字节，但最好把地址对齐到扇区起始地址</strong>——上一集总结过规律：<strong>每个扇区地址是 <code>xxx000</code>～<code>xxxFFF</code>，所以只要末尾 3 个十六进制数是 0，就是扇区起始地址</strong>；后 3 位是扇区内地址，随便写；</li>
+<li><strong>页地址规律</strong>：<strong>页地址范围是 <code>xxxx00</code>～<code>xxxxFF</code></strong>，<strong>最后两个十六进制数是页内地址</strong>，前面是页地址。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/15-main-showid.jpg" alt="图 15：main.c 显示 ID——OLED_ShowString(1, 1, &quot;MID:   DID:&quot;);、W25Q64_ReadID(&amp;MID, &amp;DID);、OLED_ShowHexNum(1, 1, MID, 2);、OLED_ShowHexNum(1, 8, DID, 4);（早期版列号）；字幕「显示MID，3个空格，DID:」"></p>
+<p><em>图 15：main.c 显示 ID——<code>OLED_ShowString(1, 1, &quot;MID:   DID:&quot;);</code>、<code>W25Q64_ReadID(&amp;MID, &amp;DID);</code>、<code>OLED_ShowHexNum(1, 1, MID, 2);</code>、<code>OLED_ShowHexNum(1, 8, DID, 4);</code>（早期版列号）；字幕「显示MID，3个空格，DID:」</em></p>
+<p><img src="../assets/images/stm32-38/16-main-full.jpg" alt="图 16：main.c 完整测试流程——ArrayWrite（） = {0xA1, 0xB2, 0xC3, 0xD4};、ArrayRead（4）;、OLED_ShowString(1,1,&quot;MID:   DID:&quot;)、(2,1,&quot;W:&quot;)、(3,1,&quot;R:&quot;)、W25Q64_ReadID(&amp;MID,&amp;DID)、OLED_ShowHexNum(1,5,MID,2)、OLED_ShowHexNum(1,12,DID,4)；下载后 Flash Load finished；字幕「这证明我们的读写基本没问题」"></p>
+<p><em>图 16：main.c 完整测试流程——<code>ArrayWrite[] = {0xA1, 0xB2, 0xC3, 0xD4};</code>、<code>ArrayRead[4];</code>、<code>OLED_ShowString(1,1,&quot;MID:   DID:&quot;)</code>、<code>(2,1,&quot;W:&quot;)</code>、<code>(3,1,&quot;R:&quot;)</code>、<code>W25Q64_ReadID(&amp;MID,&amp;DID)</code>、<code>OLED_ShowHexNum(1,5,MID,2)</code>、<code>OLED_ShowHexNum(1,12,DID,4)</code>；下载后 <code>Flash Load finished</code>；字幕「这证明我们的读写基本没问题」</em></p>
+<h3 id="6-2-四组现象验证">6.2 四组现象验证</h3>
+<p><strong>① 读写一致</strong>：<code>W: 01 02 03 04</code>、<code>R: 01 02 03 04</code>；换成 <code>A1 B2 C3 D4</code> 也能读回同样数据——<strong>读写基本没问题</strong>。</p>
+<p><strong>② 掉电不丢失</strong>：把<strong>擦除 + 写入</strong>两条代码注释掉，重新编译下载——<strong>读到的仍是 A1 B2 C3 D4</strong>，说明<strong>数据掉电不丢失</strong>。</p>
+<p><strong>③ 擦除后变 FF</strong>：只保留擦除、注释掉写入，下载后<strong>读取的数据全是 F</strong>，验证「<strong>Flash 擦除之后变为 FF</strong>」。</p>
+<p><strong>④ 不能非擦除覆盖写</strong>：先写入 <code>AA BB CC DD</code>（有擦除，读写一致）；然后<strong>注释掉擦除</strong>，直接改写为 <code>55 66 77 88</code>——<strong>读出来是 <code>00 22 44 88</code></strong>！</p>
+<ul>
+<li><code>AA</code>（1010 1010）改写 <code>55</code>（0101 0101）：<strong>只能 1→0</strong>，结果为 <code>0000 0000</code> = <strong>00</strong>；</li>
+<li>后 3 个数据为什么是 <code>22 44 88</code>，作者<strong>留给读者自己验证</strong>；</li>
+<li><strong>本质：不擦除时，读出的数据 = 原始数据 &amp; 写入的数据</strong>；</li>
+<li><strong>结论：写入数据前必须擦除，否则直接覆盖改写的数据大概率是错的</strong>。</li>
+</ul>
+<p><strong>⑤ 不能跨页写</strong>：把起始地址设为 <strong><code>0x0000FF</code></strong>（页的最后 1 个字节），写入 <code>55 66 77 88</code>——<strong>读出来是 <code>55 FF FF FF</code></strong>：</p>
+<ul>
+<li>说明<strong>写入并没有跨页</strong>：<code>55</code> 写在 <code>0x0000FF</code>，<strong>后面的 66 并没有跨页到下一页页首 <code>0x100</code></strong>；</li>
+<li>又因为<strong>读取是可以跨页的</strong>，所以读到的 3 个 <code>FF</code> 是<strong>第二页的数据</strong>（第二页被擦除过、没写入，默认是 F）；</li>
+<li>作者用图解释：页起始 <code>00</code>、页结尾 <code>FF</code>、第二页起始 <code>100</code>；从 <code>FF</code> 开始连续写 4 字节，由于<strong>跨越了页边沿、存储器不能跨页写入</strong>，<code>66 77 88</code> <strong>回到了页首 <code>00</code> 位置开始写</strong>；</li>
+<li><strong>结论</strong>：跨页写需要<strong>自己在软件上处理</strong>——算清一个数组需要跨多少页、该擦的擦、<strong>分批次写</strong>，这部分<strong>留作进阶作业</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-38/17-phenomenon-rw.jpg" alt="图 17：现象①（读写一致）——面包板上 OLED 显示 MID:EF DID:4017、W:AA BB CC DD、R:AA BB CC DD，写入与读出完全一致"></p>
+<p><em>图 17：现象①（读写一致）——面包板上 OLED 显示 <code>MID:EF DID:4017</code>、<code>W:AA BB CC DD</code>、<code>R:AA BB CC DD</code>，写入与读出完全一致</em></p>
+<p><img src="../assets/images/stm32-38/18-phenomenon-crosspage.jpg" alt="图 18：现象⑤（不能跨页写）——OLED 显示 MID:EF DID:4017、W:55 66 77 88、R:55 FF FF FF：从 0x0000FF 起写 4 字节，只有第一个字节落在页尾，后 3 个回到页首，读取跨页所以读到下一页的 FF；字幕「又因为读取是能跨页的」"></p>
+<p><em>图 18：现象⑤（不能跨页写）——OLED 显示 <code>MID:EF DID:4017</code>、<code>W:55 66 77 88</code>、<code>R:55 FF FF FF</code>：从 <code>0x0000FF</code> 起写 4 字节，只有第一个字节落在页尾，后 3 个回到页首，读取跨页所以读到下一页的 FF；字幕「又因为读取是能跨页的」</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>DO 是从机输出</strong>：必须接主机输入、配<strong>上拉输入</strong>；CS/CLK/DI 是主机输出、配<strong>推挽输出</strong>——配错了 SPI 一点数据都收不到。</li>
+<li><strong>接线特意选 PA4～PA7</strong>（硬件 SPI1 引脚），方便以后切硬件 SPI；但也别忘了软件 SPI 里<strong>引脚号要一一对上</strong>（PA4=CS、PA5=SCK、PA6=MISO、PA7=MOSI）。</li>
+<li><strong>初始化后必须设默认电平</strong>：<code>W_SS(1)</code>、<code>W_SCK(0)</code>（模式 0 空闲低）。</li>
+<li><strong><code>MySPI_SwapByte</code> 的顺序不能乱</strong>：模式 0 是「<strong>先放 MOSI → 拉高 SCK（移入）→ 采样 → 拉低 SCK（移出下一位）</strong>」；写反就变成别的模式。</li>
+<li><strong>移位法会改掉入参</strong>：<code>ByteSend &lt;&lt;= 1</code> 之后原值就没了；如果后续还要用原数据，得用掩码法或先存副本。</li>
+<li><strong>头文件防重复包含别写错</strong>：<code>#ifndef/#define/#endif</code> 错了就是 <code>#1-D: unrecognized preprocessing directive</code> + <code>#endif ... missing</code> 两个错。</li>
+<li><strong>读 ID 先验证底层</strong>：<code>0x9F</code> 读回 <code>MID=EF</code>、<code>DID=4017</code> 才说明 SwapByte 正确，再去写其他指令。</li>
+<li><strong>DID 是 2 个字节</strong>：要 <code>&lt;&lt;8</code> 再 <code>|=</code>，不能只读一个字节。</li>
+<li><strong>每次写/擦前都要写使能</strong>：<code>0x06</code> 只对紧跟的一条时序有效，写完自动关门；写失能不能省吗——作者的写法是把 WriteEnable 直接放进函数里。</li>
+<li><strong>写操作的指令码后面要跟 24 位地址</strong>：<code>&gt;&gt;16</code>、<code>&gt;&gt;8</code>、<code>Address</code> 三个字节，<strong>高位在前</strong>。</li>
+<li><strong><code>Count</code> 的类型要注意</strong>：页编程最多 256 字节，<strong><code>Count</code> 用 16 位</strong>；读取没有页限制，<strong><code>Count</code> 用 32 位</strong>。</li>
+<li><strong>写入后要等 BUSY</strong>：事后等待最保险；事前等待效率高但<strong>读取前也必须等</strong>。</li>
+<li><strong><code>WaitBusy</code> 里比较要加括号</strong>：<code>(SwapByte(...) &amp; 0x01) == 0x01</code>，否则优先级出错。</li>
+<li><strong><code>WaitBusy</code> 可能死循环</strong>：可以加 <code>Timeout</code> 超时 break（作者说初始值 100000 左右，自己实测）。</li>
+<li><strong>擦除地址最好对齐扇区</strong>：扇区地址末尾 3 位是 0；页地址末尾 2 位是页内地址。</li>
+<li><strong>写数据前必须先擦除</strong>：不擦除直接覆盖，结果 = 原数据 &amp; 新数据（<code>AA</code>→<code>55</code> 得 <code>00</code>）。</li>
+<li><strong>一次最多写一页且不能跨页</strong>：超页尾回卷到页首，需要自己分批次写；<strong>读取可以跨页</strong>。</li>
+<li><strong><code>W25Q64_DUMMY_BYTE</code> 是 0xFF</strong>：接收时用它占位交换数据，别用别的值（虽然理论上无所谓，但跟手册一致更稳）。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>本小节正式开始写 SPI 读写 W25Q64 的代码</td>
+</tr>
+<tr>
+<td>0:07</td>
+<td>本视频主要使用软件 SPI 的方式来实现</td>
+</tr>
+<tr>
+<td>0:10</td>
+<td>还是先看一下接线图</td>
+</tr>
+<tr>
+<td>0:19</td>
+<td>左边是 W25Q64 模块，插在面包板合适位置</td>
+</tr>
+<tr>
+<td>0:25</td>
+<td>VCC 接到 3.3V 供电孔</td>
+</tr>
+<tr>
+<td>0:29</td>
+<td>GND 接到供电孔</td>
+</tr>
+<tr>
+<td>0:34</td>
+<td>之后就是 SPI 的 4 根通信线</td>
+</tr>
+<tr>
+<td>0:36</td>
+<td>CS、DO、CLK、DI</td>
+</tr>
+<tr>
+<td>0:39</td>
+<td>目前是软件模拟 SPI，4 根线可接任意 GPIO</td>
+</tr>
+<tr>
+<td>0:46</td>
+<td>接哪个都行，软件模拟的灵活性很高</td>
+</tr>
+<tr>
+<td>0:51</td>
+<td>CS 片选接到 PA4</td>
+</tr>
+<tr>
+<td>0:55</td>
+<td>DO 从机输出接到 PA6</td>
+</tr>
+<tr>
+<td>0:59</td>
+<td>CLK 时钟接到 PA5</td>
+</tr>
+<tr>
+<td>1:03</td>
+<td>DI 从机输入接到 PA7</td>
+</tr>
+<tr>
+<td>1:07</td>
+<td>这里的引脚并不是任意选的</td>
+</tr>
+<tr>
+<td>1:10</td>
+<td>实际接在了硬件 SPI 的引脚上</td>
+</tr>
+<tr>
+<td>1:13</td>
+<td>软件 SPI 和硬件 SPI 可以任意切换</td>
+</tr>
+<tr>
+<td>1:17</td>
+<td>接到硬件 SPI 脚上是最好的</td>
+</tr>
+<tr>
+<td>1:21</td>
+<td>只想用软件 SPI 也可以</td>
+</tr>
+<tr>
+<td>1:25</td>
+<td>下面开始在面包板上接线</td>
+</tr>
+<tr>
+<td>1:29</td>
+<td>把 W25Q64 模块插到面包板</td>
+</tr>
+<tr>
+<td>1:37</td>
+<td>用面包板跳线把 VCC 引到正极供电孔</td>
+</tr>
+<tr>
+<td>1:43</td>
+<td>GND 引到负极供电孔</td>
+</tr>
+<tr>
+<td>1:49</td>
+<td>之后用飞线接 4 根通信线</td>
+</tr>
+<tr>
+<td>1:52</td>
+<td>CS 接到 PA4</td>
+</tr>
+<tr>
+<td>1:56</td>
+<td>DO 接到 PA6</td>
+</tr>
+<tr>
+<td>2:04</td>
+<td>CLK 接到 PA5</td>
+</tr>
+<tr>
+<td>2:10</td>
+<td>DI 接到 PA7</td>
+</tr>
+<tr>
+<td>2:16</td>
+<td>接线完成，然后通上电</td>
+</tr>
+<tr>
+<td>2:19</td>
+<td>模块的电源指示灯点亮</td>
+</tr>
+<tr>
+<td>2:21</td>
+<td>说明供电基本没问题</td>
+</tr>
+<tr>
+<td>2:24</td>
+<td>硬件电路完成</td>
+</tr>
+<tr>
+<td>2:26</td>
+<td>接下来回到工程目录</td>
+</tr>
+<tr>
+<td>2:28</td>
+<td>复制 OLED 显示屏的工程</td>
+</tr>
+<tr>
+<td>2:31</td>
+<td>改名叫 11-1 软件SPI读写W25Q64</td>
+</tr>
+<tr>
+<td>2:41</td>
+<td>打开工程先编译</td>
+</tr>
+<tr>
+<td>2:55</td>
+<td>准备工作完成</td>
+</tr>
+<tr>
+<td>2:57</td>
+<td>下面看程序的整体框架</td>
+</tr>
+<tr>
+<td>3:01</td>
+<td>MySPI 模块：通信引脚封装、初始化</td>
+</tr>
+<tr>
+<td>3:14</td>
+<td>以及 SPI 通信的 3 个基本单元：起始、终止、交换</td>
+</tr>
+<tr>
+<td>3:16</td>
+<td>这是 SPI 通信层的内容</td>
+</tr>
+<tr>
+<td>3:19</td>
+<td>基于 SPI 层再来一个 W25Q64 的模块</td>
+</tr>
+<tr>
+<td>3:26</td>
+<td>调用底层 SPI 的单元去拼接各种指令的完整时序</td>
+</tr>
+<tr>
+<td>3:33</td>
+<td>这个模块叫 W25Q64 的硬件驱动层</td>
+</tr>
+<tr>
+<td>3:37</td>
+<td>最后在主函数里调用驱动层的函数</td>
+</tr>
+<tr>
+<td>3:42</td>
+<td>这就是程序的整体框架</td>
+</tr>
+<tr>
+<td>3:45</td>
+<td>在 Hardware 目录下建立模块，名称叫 MySPI</td>
+</tr>
+<tr>
+<td>4:00</td>
+<td>先从初始化写起 MySPI_Init</td>
+</tr>
+<tr>
+<td>4:12</td>
+<td>在这里初始化 SPI 的通信引脚</td>
+</tr>
+<tr>
+<td>4:18</td>
+<td>看接线图，我们使用的是 PA4 等</td>
+</tr>
+<tr>
+<td>4:23</td>
+<td>所以开启 GPIOA 的时钟</td>
+</tr>
+<tr>
+<td>4:26</td>
+<td>引脚初始化该选什么模式</td>
+</tr>
+<tr>
+<td>4:32</td>
+<td>输入引脚配置为浮空或上拉输入</td>
+</tr>
+<tr>
+<td>4:39</td>
+<td>对主机来说，时钟、主机输出、片选都是输出引脚</td>
+</tr>
+<tr>
+<td>4:44</td>
+<td>所以这 3 个脚是推挽输出模式</td>
+</tr>
+<tr>
+<td>4:46</td>
+<td>主机输入是输入引脚</td>
+</tr>
+<tr>
+<td>4:55</td>
+<td>从机的 DO 输出接主机的 PA6</td>
+</tr>
+<tr>
+<td>5:01</td>
+<td>所以 PA6 为上拉输入</td>
+</tr>
+<tr>
+<td>5:04</td>
+<td>其他 3 个为推挽输出</td>
+</tr>
+<tr>
+<td>5:09</td>
+<td>代码里 Pin_4、Pin_5、Pin_7 是推挽输出</td>
+</tr>
+<tr>
+<td>5:17</td>
+<td>初始化 GPIOA，没问题</td>
+</tr>
+<tr>
+<td>5:30</td>
+<td>这样引脚初始化就完成了</td>
+</tr>
+<tr>
+<td>5:34</td>
+<td>接下来像之前 I2C 那样，把写引脚高低电平的函数封装换名字</td>
+</tr>
+<tr>
+<td>5:41</td>
+<td>首先是从机选择 SS，这是输出引脚</td>
+</tr>
+<tr>
+<td>5:45</td>
+<td>函数叫 MySPI_W_SS</td>
+</tr>
+<tr>
+<td>5:49</td>
+<td>叫 CS 也行，目前 CS 这个名字用得挺多</td>
+</tr>
+<tr>
+<td>5:54</td>
+<td>参数是 uint8_t BitValue</td>
+</tr>
+<tr>
+<td>6:04</td>
+<td>CS 对应的是 PA4 引脚</td>
+</tr>
+<tr>
+<td>6:09</td>
+<td>调用 GPIO_WriteBit(GPIOA, GPIO_Pin_4, ...)</td>
+</tr>
+<tr>
+<td>6:17</td>
+<td>第三个参数把 BitValue 传进来，强转为 BitAction</td>
+</tr>
+<tr>
+<td>6:24</td>
+<td>这条写 GPIO 的函数就换名字叫 MySPI_W_SS</td>
+</tr>
+<tr>
+<td>6:33</td>
+<td>之后还有两个输出引脚</td>
+</tr>
+<tr>
+<td>6:38</td>
+<td>第二个是 SCK，第三个是 MOSI</td>
+</tr>
+<tr>
+<td>6:44</td>
+<td>CLK 就是 SCK，对应 PA5</td>
+</tr>
+<tr>
+<td>6:48</td>
+<td>DI 就是 MOSI，对应 PA7</td>
+</tr>
+<tr>
+<td>6:57</td>
+<td>还有一个 MISO 是输入引脚</td>
+</tr>
+<tr>
+<td>7:00</td>
+<td>函数是 uint8_t MySPI_R_MISO(void)</td>
+</tr>
+<tr>
+<td>7:25</td>
+<td>也可以用宏定义来完成相同的功能</td>
+</tr>
+<tr>
+<td>7:28</td>
+<td>但这里用函数包装，移植时加延时会更方便</td>
+</tr>
+<tr>
+<td>7:36</td>
+<td>SPI 的速度非常快</td>
+</tr>
+<tr>
+<td>7:42</td>
+<td>这样引脚封装就完成了</td>
+</tr>
+<tr>
+<td>7:45</td>
+<td>初始化这里还要看引脚的默认电平</td>
+</tr>
+<tr>
+<td>7:51</td>
+<td>我们计划使用 SPI 模式 0</td>
+</tr>
+<tr>
+<td>8:00</td>
+<td>所以 SCK 空闲时要为低电平</td>
+</tr>
+<tr>
+<td>8:10</td>
+<td>片选 SS 默认要给高电平</td>
+</tr>
+<tr>
+<td>8:20</td>
+<td>MOSI 没有明确规定的默认电平，可以不管</td>
+</tr>
+<tr>
+<td>8:28</td>
+<td>MISO 是输入，不需要输出</td>
+</tr>
+<tr>
+<td>8:40</td>
+<td>下面写起始和终止</td>
+</tr>
+<tr>
+<td>8:55</td>
+<td>对照 PPT：起始是 SS 从高变低</td>
+</tr>
+<tr>
+<td>9:05</td>
+<td>终止是 SS 从低变高</td>
+</tr>
+<tr>
+<td>9:12</td>
+<td>起始信号直接把 SS 置低电平就完事了</td>
+</tr>
+<tr>
+<td>9:25</td>
+<td>终止就是把 SS 置回高电平</td>
+</tr>
+<tr>
+<td>9:40</td>
+<td>接下来是最核心的交换字节函数</td>
+</tr>
+<tr>
+<td>10:00</td>
+<td>先看模式 0 的时序图</td>
+</tr>
+<tr>
+<td>10:20</td>
+<td>SS 下降沿之后先移出最高位 B7</td>
+</tr>
+<tr>
+<td>10:40</td>
+<td>SCK 上升沿从机移入 B7</td>
+</tr>
+<tr>
+<td>10:55</td>
+<td>SCK 下降沿移出 B6</td>
+</tr>
+<tr>
+<td>11:05</td>
+<td>下降沿是触发数据移出这个动作的条件</td>
+</tr>
+<tr>
+<td>11:20</td>
+<td>软件 SPI 里「同时发生」只能按先后顺序实现</td>
+</tr>
+<tr>
+<td>11:40</td>
+<td>所以先放 MOSI 再拉高 SCK</td>
+</tr>
+<tr>
+<td>12:00</td>
+<td>开始写 SwapByte</td>
+</tr>
+<tr>
+<td>12:20</td>
+<td>循环 8 次，每次处理一位</td>
+</tr>
+<tr>
+<td>12:35</td>
+<td>先写 MOSI 把最高位放上去</td>
+</tr>
+<tr>
+<td>12:50</td>
+<td>然后 ByteSend 左移一位</td>
+</tr>
+<tr>
+<td>13:00</td>
+<td>拉高 SCK 产生上升沿</td>
+</tr>
+<tr>
+<td>13:15</td>
+<td>读 MISO，如果为 1 就把最低位置 1</td>
+</tr>
+<tr>
+<td>13:30</td>
+<td>拉低 SCK 产生下降沿</td>
+</tr>
+<tr>
+<td>13:45</td>
+<td>循环完返回 ByteSend</td>
+</tr>
+<tr>
+<td>14:00</td>
+<td>还有另一种掩码法的写法</td>
+</tr>
+<tr>
+<td>14:20</td>
+<td>用 (0x80 &gt;&gt; i) 取位和置位</td>
+</tr>
+<tr>
+<td>14:40</td>
+<td>移位法省一个变量、效率更高</td>
+</tr>
+<tr>
+<td>15:00</td>
+<td>使用哪种都可以，看你的喜好</td>
+</tr>
+<tr>
+<td>15:20</td>
+<td>作者最后保留移位法</td>
+</tr>
+<tr>
+<td>15:40</td>
+<td>接下来讲 4 种模式怎么改</td>
+</tr>
+<tr>
+<td>15:55</td>
+<td>模式 1 把 SCK(1) 提到移出数据之前</td>
+</tr>
+<tr>
+<td>16:20</td>
+<td>模式 3 是模式 1 的 SCK 极性取反</td>
+</tr>
+<tr>
+<td>16:35</td>
+<td>模式 2 是模式 0 的 SCK 极性取反</td>
+</tr>
+<tr>
+<td>16:50</td>
+<td>本代码使用模式 0</td>
+</tr>
+<tr>
+<td>17:05</td>
+<td>把 SCK 的 0 和 1 互相替换就得到模式 3</td>
+</tr>
+<tr>
+<td>17:25</td>
+<td>模式 2 同理，在模式 0 基础上把 SCK 极性取反</td>
+</tr>
+<tr>
+<td>17:45</td>
+<td>演示完撤回修改，回到最开始演示的模式 0</td>
+</tr>
+<tr>
+<td>17:55</td>
+<td>本代码使用模式 0，需要别的模式就在此基础上改</td>
+</tr>
+<tr>
+<td>18:05</td>
+<td>改相位就是把那两条代码提前，改极性就是把 SCK 取反</td>
+</tr>
+<tr>
+<td>18:58</td>
+<td>SPI 通信层的代码就写完了</td>
+</tr>
+<tr>
+<td>19:02</td>
+<td>把下面这 4 个函数放到头文件声明一下</td>
+</tr>
+<tr>
+<td>19:12</td>
+<td>初始化与 3 个时序基本单元供外部调用</td>
+</tr>
+<tr>
+<td>19:21</td>
+<td>按照计划，在 SPI 通信层之上建立 W25Q64 驱动层</td>
+</tr>
+<tr>
+<td>19:30</td>
+<td>在 Hardware 右键新建 W25Q64</td>
+</tr>
+<tr>
+<td>19:45</td>
+<td>先来个初始化 void W25Q64_Init(void)</td>
+</tr>
+<tr>
+<td>19:52</td>
+<td>上层的 W25Q64 模块初始化要调用底层 MySPI_Init</td>
+</tr>
+<tr>
+<td>19:59</td>
+<td>先把底层初始化好，上层才能正常工作</td>
+</tr>
+<tr>
+<td>20:03</td>
+<td>调用底层函数别忘了包含 MySPI 的头文件</td>
+</tr>
+<tr>
+<td>20:11</td>
+<td>W25Q64 不需要再初始化其他东西</td>
+</tr>
+<tr>
+<td>20:15</td>
+<td>所以初始化这里只需要调用 MySPI_Init</td>
+</tr>
+<tr>
+<td>20:23</td>
+<td>编译看有没有问题</td>
+</tr>
+<tr>
+<td>20:26</td>
+<td>有错误，2 个 Error</td>
+</tr>
+<tr>
+<td>20:30</td>
+<td>是这个地方写错了（头文件 #ifndef/#endif）</td>
+</tr>
+<tr>
+<td>20:36</td>
+<td>现在没问题了，可以写业务代码了</td>
+</tr>
+<tr>
+<td>20:40</td>
+<td>也就是拼接完整时序，要参考手册</td>
+</tr>
+<tr>
+<td>20:45</td>
+<td>主要参考的部分就是指令集的表格</td>
+</tr>
+<tr>
+<td>20:48</td>
+<td>先实现获取 ID 号的时序，读出来验证底层</td>
+</tr>
+<tr>
+<td>20:59</td>
+<td>读 ID 的时序：起始、发 0x9F、连续接收 3 字节、停止</td>
+</tr>
+<tr>
+<td>21:07</td>
+<td>怎么知道哪个是交换发送、哪个是交换接收</td>
+</tr>
+<tr>
+<td>21:12</td>
+<td>圆括号括起来的就是需要我们交换接收的数据</td>
+</tr>
+<tr>
+<td>21:33</td>
+<td>连续接收的 3 个字节，第一个是厂商 ID</td>
+</tr>
+<tr>
+<td>21:39</td>
+<td>设备 ID 高 8 位表示存储器类型</td>
+</tr>
+<tr>
+<td>21:44</td>
+<td>ID 号的读取方法和意义就清楚了</td>
+</tr>
+<tr>
+<td>21:47</td>
+<td>回到代码写 void W25Q64_ReadID</td>
+</tr>
+<tr>
+<td>21:54</td>
+<td>这个函数有两个返回值，用指针实现</td>
+</tr>
+<tr>
+<td>21:57</td>
+<td>原来的返回值不要了，写两个输出参数</td>
+</tr>
+<tr>
+<td>22:04</td>
+<td>一个是 uint8_t *MID，输出 8 位厂商 ID</td>
+</tr>
+<tr>
+<td>22:11</td>
+<td>一个是 uint16_t *DID，输出 16 位设备 ID</td>
+</tr>
+<tr>
+<td>22:18</td>
+<td>函数里拼接时序，先调用 MySPI_Start</td>
+</tr>
+<tr>
+<td>22:29</td>
+<td>之后先交换发送 0x9F</td>
+</tr>
+<tr>
+<td>22:37</td>
+<td>参数给 0x9F，返回值不要</td>
+</tr>
+<tr>
+<td>22:47</td>
+<td>这条代码就是「抛玉引砖」</td>
+</tr>
+<tr>
+<td>22:54</td>
+<td>从机收到读 ID 指令后按手册规则返回</td>
+</tr>
+<tr>
+<td>23:02</td>
+<td>第二次 SwapByte，参数随便给</td>
+</tr>
+<tr>
+<td>23:14</td>
+<td>就给个 0xFF</td>
+</tr>
+<tr>
+<td>23:28</td>
+<td>换回来的是厂商 ID，存到 MID 指向的变量</td>
+</tr>
+<tr>
+<td>23:43</td>
+<td>再交换一次，收到的是设备 ID 的高 8 位</td>
+</tr>
+<tr>
+<td>23:54</td>
+<td>把返回值存到 DID 指向的变量里</td>
+</tr>
+<tr>
+<td>24:00</td>
+<td>连续调用了两个相同的函数，返回值却不同</td>
+</tr>
+<tr>
+<td>24:12</td>
+<td>因为通信是有时序的</td>
+</tr>
+<tr>
+<td>24:23</td>
+<td>第三次交换返回设备 ID 的低 8 位</td>
+</tr>
+<tr>
+<td>24:30</td>
+<td>两次读取要分别放进 DID 的高 8 位和低 8 位</td>
+</tr>
+<tr>
+<td>24:42</td>
+<td>第一次读到的数据要左移到 DID 高 8 位</td>
+</tr>
+<tr>
+<td>24:49</td>
+<td>第二次用或运算，不能直接写等于</td>
+</tr>
+<tr>
+<td>24:53</td>
+<td>这样两个 ID 号就读好了</td>
+</tr>
+<tr>
+<td>24:57</td>
+<td>最后来个 MySPI_Stop</td>
+</tr>
+<tr>
+<td>25:05</td>
+<td>就是起始、交换、交换、交换、停止</td>
+</tr>
+<tr>
+<td>25:15</td>
+<td>写到现在先看看前面代码对不对</td>
+</tr>
+<tr>
+<td>25:21</td>
+<td>把这两个函数在头文件里声明</td>
+</tr>
+<tr>
+<td>25:29</td>
+<td>回到 main.c，包含 W25Q64 头文件</td>
+</tr>
+<tr>
+<td>25:36</td>
+<td>调用 W25Q64_Init</td>
+</tr>
+<tr>
+<td>25:39</td>
+<td>定义两个存 ID 号的变量 MID、DID</td>
+</tr>
+<tr>
+<td>25:48</td>
+<td>调用 W25Q64_ReadID，把两个变量地址传进去</td>
+</tr>
+<tr>
+<td>26:01</td>
+<td>OLED 第 1 行 1 列显示 MID，长度 2</td>
+</tr>
+<tr>
+<td>26:11</td>
+<td>第 1 行 8 列显示 DID，长度 4</td>
+</tr>
+<tr>
+<td>26:25</td>
+<td>屏幕上显示了两个数</td>
+</tr>
+<tr>
+<td>26:28</td>
+<td>厂商 ID 是 EF，设备 ID 是 4017</td>
+</tr>
+<tr>
+<td>26:32</td>
+<td>对照手册看这个数对不对</td>
+</tr>
+<tr>
+<td>26:36</td>
+<td>手册上面有写 ID 号</td>
+</tr>
+<tr>
+<td>26:40</td>
+<td>其中厂商 ID 是 EF，没问题</td>
+</tr>
+<tr>
+<td>26:44</td>
+<td>用 0x9F 指令读出来是 4017，也没问题</td>
+</tr>
+<tr>
+<td>26:47</td>
+<td>说明程序写到这里现象都符合预期</td>
+</tr>
+<tr>
+<td>26:52</td>
+<td>万一不能正确读取 ID 号</td>
+</tr>
+<tr>
+<td>27:00</td>
+<td>要先确保之前的代码没问题</td>
+</tr>
+<tr>
+<td>27:03</td>
+<td>再往后写，心里才有底</td>
+</tr>
+<tr>
+<td>27:06</td>
+<td>继续写程序：把指令集里标黄的指令实现出来</td>
+</tr>
+<tr>
+<td>27:18</td>
+<td>如果总在程序里直接写数字，意义不明显</td>
+</tr>
+<tr>
+<td>27:23</td>
+<td>别人看不出 9F 到底代表啥意思</td>
+</tr>
+<tr>
+<td>27:28</td>
+<td>所以像 MPU6050 寄存器地址那样</td>
+</tr>
+<tr>
+<td>27:32</td>
+<td>把每个指令码都用宏定义替换</td>
+</tr>
+<tr>
+<td>27:41</td>
+<td>名字叫作 W25Q64_Ins</td>
+</tr>
+<tr>
+<td>27:45</td>
+<td>存放在 Hardware 文件夹里</td>
+</tr>
+<tr>
+<td>27:54</td>
+<td>里面可以根据手册对照</td>
+</tr>
+<tr>
+<td>28:01</td>
+<td>这里是提前写好的，就是这个样子</td>
+</tr>
+<tr>
+<td>28:09</td>
+<td>用 define 把每个指令名称替换为对应指令码</td>
+</tr>
+<tr>
+<td>28:10</td>
+<td>全选复制过来</td>
+</tr>
+<tr>
+<td>28:13</td>
+<td>这样指令替换就做好了</td>
+</tr>
+<tr>
+<td>28:16</td>
+<td>依次对应指令表里的每个指令</td>
+</tr>
+<tr>
+<td>28:20</td>
+<td>另外还定义了 DUMMY_BYTE，表示 0xFF</td>
+</tr>
+<tr>
+<td>28:22</td>
+<td>就是接收时交换过去的无用数据</td>
+</tr>
+<tr>
+<td>28:31</td>
+<td>先编译，没问题</td>
+</tr>
+<tr>
+<td>28:33</td>
+<td>在 W25Q64.c 里 include 这个头文件</td>
+</tr>
+<tr>
+<td>28:41</td>
+<td>之后把纯数字替换为对应的宏</td>
+</tr>
+<tr>
+<td>28:50</td>
+<td>比如 JEDEC_ID</td>
+</tr>
+<tr>
+<td>29:02</td>
+<td>0xFF 换成 DUMMY_BYTE</td>
+</tr>
+<tr>
+<td>29:11</td>
+<td>接下来依次实现每个指令的时序</td>
+</tr>
+<tr>
+<td>29:15</td>
+<td>首先是 Write Enable 写使能</td>
+</tr>
+<tr>
+<td>29:19</td>
+<td>指令码 0x06 就行了</td>
+</tr>
+<tr>
+<td>29:24</td>
+<td>定义函数 void W25Q64_WriteEnable(void)</td>
+</tr>
+<tr>
+<td>29:34</td>
+<td>第一步 Start 起始</td>
+</tr>
+<tr>
+<td>29:41</td>
+<td>第二步交换发送 WRITE_ENABLE</td>
+</tr>
+<tr>
+<td>29:51</td>
+<td>这条指令后续不需要跟任何数据</td>
+</tr>
+<tr>
+<td>29:54</td>
+<td>所以直接 Stop 就完成了</td>
+</tr>
+<tr>
+<td>30:03</td>
+<td>继续写等待 BUSY 的函数</td>
+</tr>
+<tr>
+<td>30:14</td>
+<td>判断芯片是不是忙状态</td>
+</tr>
+<tr>
+<td>30:17</td>
+<td>状态寄存器 1 每一位的定义前面有说明</td>
+</tr>
+<tr>
+<td>30:21</td>
+<td>我们要读取它的最低位 BUSY</td>
+</tr>
+<tr>
+<td>30:29</td>
+<td>写一个等待 BUSY 为 0 的函数</td>
+</tr>
+<tr>
+<td>30:36</td>
+<td>BUSY 为 1 就进入等待</td>
+</tr>
+<tr>
+<td>30:49</td>
+<td>起始后先发送指令码，再接收状态寄存器</td>
+</tr>
+<tr>
+<td>31:00</td>
+<td>状态寄存器可以被连续读出</td>
+</tr>
+<tr>
+<td>31:09</td>
+<td>这个特性方便我们执行等待的功能</td>
+</tr>
+<tr>
+<td>31:11</td>
+<td>在这里来个函数 void W25Q64_WaitBusy(void)</td>
+</tr>
+<tr>
+<td>31:25</td>
+<td>先 Start，然后发送读状态寄存器 1</td>
+</tr>
+<tr>
+<td>31:36</td>
+<td>随后发送 DUMMY_BYTE 接收数据</td>
+</tr>
+<tr>
+<td>31:42</td>
+<td>用掩码取出最低位</td>
+</tr>
+<tr>
+<td>31:47</td>
+<td>如果等于 0x01 就是 BUSY 为 1</td>
+</tr>
+<tr>
+<td>31:52</td>
+<td>这时进入 while 死循环等待</td>
+</tr>
+<tr>
+<td>31:57</td>
+<td>前面的计算套个括号避免优先级问题</td>
+</tr>
+<tr>
+<td>32:08</td>
+<td>直到 BUSY 为 0 跳出循环</td>
+</tr>
+<tr>
+<td>32:11</td>
+<td>就是利用连续读出状态寄存器实现等待</td>
+</tr>
+<tr>
+<td>32:16</td>
+<td>最后来个 Stop</td>
+</tr>
+<tr>
+<td>32:18</td>
+<td>如果觉得死循环会导致卡死</td>
+</tr>
+<tr>
+<td>32:27</td>
+<td>可以来个 uint32_t Timeout</td>
+</tr>
+<tr>
+<td>32:36</td>
+<td>初始值给大一点，比如 100000</td>
+</tr>
+<tr>
+<td>32:43</td>
+<td>在 while 循环里 Timeout--</td>
+</tr>
+<tr>
+<td>32:52</td>
+<td>减到 0 就 break，超时退出</td>
+</tr>
+<tr>
+<td>32:54</td>
+<td>break 之前也可以跳到错误处理函数</td>
+</tr>
+<tr>
+<td>33:03</td>
+<td>调用这个函数，不忙就很快退出</td>
+</tr>
+<tr>
+<td>33:13</td>
+<td>下面来写页编程的函数</td>
+</tr>
+<tr>
+<td>33:17</td>
+<td>格式是先发指令码 0x02</td>
+</tr>
+<tr>
+<td>33:22</td>
+<td>最后发数据，数据是发送方向的</td>
+</tr>
+<tr>
+<td>33:40</td>
+<td>先发指令，再连发 3 个字节地址</td>
+</tr>
+<tr>
+<td>33:53</td>
+<td>如果继续发就会覆盖后面的 DataByte</td>
+</tr>
+<tr>
+<td>34:01</td>
+<td>定义 void W25Q64_PageProgram</td>
+</tr>
+<tr>
+<td>34:09</td>
+<td>参数第一个是 uint32_t Address</td>
+</tr>
+<tr>
+<td>34:12</td>
+<td>C 语言没有 24 位数据类型</td>
+</tr>
+<tr>
+<td>34:35</td>
+<td>数组要通过指针传递</td>
+</tr>
+<tr>
+<td>34:50</td>
+<td>一次写入数量范围是 0～256</td>
+</tr>
+<tr>
+<td>34:54</td>
+<td>所以 Count 要定义为 16 位</td>
+</tr>
+<tr>
+<td>35:04</td>
+<td>函数内部拼接时序</td>
+</tr>
+<tr>
+<td>35:06</td>
+<td>先 Start，再发送 PAGE_PROGRAM</td>
+</tr>
+<tr>
+<td>35:24</td>
+<td>地址是高位字节先发送</td>
+</tr>
+<tr>
+<td>35:32</td>
+<td>第一个字节把 Address 右移 16 位</td>
+</tr>
+<tr>
+<td>35:45</td>
+<td>第二个字节把 Address 右移 8 位</td>
+</tr>
+<tr>
+<td>36:03</td>
+<td>第三次直接把 Address 放进来</td>
+</tr>
+<tr>
+<td>36:17</td>
+<td>这样连续发送 24 位地址就完成了</td>
+</tr>
+<tr>
+<td>36:25</td>
+<td>再复制一次交换发送</td>
+</tr>
+<tr>
+<td>36:46</td>
+<td>定义变量 uint16_t i</td>
+</tr>
+<tr>
+<td>36:50</td>
+<td>for (i = 0; i &lt; Count; i ++) 逐字节写</td>
+</tr>
+<tr>
+<td>37:10</td>
+<td>最后写完来个 Stop</td>
+</tr>
+<tr>
+<td>37:16</td>
+<td>调用这个函数就能帮我们写入数据</td>
+</tr>
+<tr>
+<td>37:25</td>
+<td>接下来实现擦除的功能</td>
+</tr>
+<tr>
+<td>37:45</td>
+<td>擦除指定地址所在的整个扇区</td>
+</tr>
+<tr>
+<td>38:02</td>
+<td>先起始，发送指令</td>
+</tr>
+<tr>
+<td>38:14</td>
+<td>之后指定地址，直接复制那三条</td>
+</tr>
+<tr>
+<td>38:19</td>
+<td>最后停止，这个函数就完成了</td>
+</tr>
+<tr>
+<td>38:23</td>
+<td>调用这个函数，地址所在扇区会被擦除</td>
+</tr>
+<tr>
+<td>38:29</td>
+<td>读 ID 的已经写过了</td>
+</tr>
+<tr>
+<td>38:40</td>
+<td>它返回的数据是无用数据</td>
+</tr>
+<tr>
+<td>38:46</td>
+<td>有的情况是为内部电路延时做准备</td>
+</tr>
+<tr>
+<td>39:10</td>
+<td>最后一个指令是 ReadData</td>
+</tr>
+<tr>
+<td>39:14</td>
+<td>流程是交换发送 0x03，再发送 3 个字节地址</td>
+</tr>
+<tr>
+<td>39:36</td>
+<td>接收时 DI 的波形是 XXX</td>
+</tr>
+<tr>
+<td>39:48</td>
+<td>读取没有 256 字节的限制</td>
+</tr>
+<tr>
+<td>39:56</td>
+<td>定义 void W25Q64_ReadData</td>
+</tr>
+<tr>
+<td>40:04</td>
+<td>参数和前面类似</td>
+</tr>
+<tr>
+<td>40:10</td>
+<td>读数据的数组是输出参数</td>
+</tr>
+<tr>
+<td>40:21</td>
+<td>读取的 Count</td>
+</tr>
+<tr>
+<td>40:27</td>
+<td>改成 32 位的类型</td>
+</tr>
+<tr>
+<td>40:33</td>
+<td>函数内容和之前的一段一样，复制过来</td>
+</tr>
+<tr>
+<td>40:44</td>
+<td>之后开始发送指令 READ_DATA</td>
+</tr>
+<tr>
+<td>40:54</td>
+<td>之后指定 24 位地址</td>
+</tr>
+<tr>
+<td>41:02</td>
+<td>然后根据协议开始读</td>
+</tr>
+<tr>
+<td>41:07</td>
+<td>发送 0xFF 置换回有用的数据</td>
+</tr>
+<tr>
+<td>41:13</td>
+<td>返回值放到 DataArray 的第 0 个位置</td>
+</tr>
+<tr>
+<td>41:26</td>
+<td>每次交换读取后，芯片内部指针自动自增</td>
+</tr>
+<tr>
+<td>41:43</td>
+<td>套 for 循环读 Count 次</td>
+</tr>
+<tr>
+<td>42:04</td>
+<td>读完之后来个 Stop</td>
+</tr>
+<tr>
+<td>42:10</td>
+<td>调用这个函数就能帮我们读取数据</td>
+</tr>
+<tr>
+<td>42:23</td>
+<td>编译看，0 Error 0 Warning</td>
+</tr>
+<tr>
+<td>42:27</td>
+<td>时序写完之后还可以做一项工作</td>
+</tr>
+<tr>
+<td>42:33</td>
+<td>就是 PPT 这里的第一条注意事项</td>
+</tr>
+<tr>
+<td>42:42</td>
+<td>涉及写入的时序有扇区擦除和页编程</td>
+</tr>
+<tr>
+<td>42:57</td>
+<td>把写使能复制到扇区擦除前面</td>
+</tr>
+<tr>
+<td>43:05</td>
+<td>页编程前面也自带写使能</td>
+</tr>
+<tr>
+<td>43:16</td>
+<td>写使能仅对之后跟随的一条时序有效</td>
+</tr>
+<tr>
+<td>43:25</td>
+<td>写完之后就不用再写失能了</td>
+</tr>
+<tr>
+<td>43:30</td>
+<td>接下来是写入操作结束后进入忙状态</td>
+</tr>
+<tr>
+<td>43:40</td>
+<td>事前等待还是事后等待的考虑</td>
+</tr>
+<tr>
+<td>43:46</td>
+<td>每次写入后都等 BUSY 清零再退出</td>
+</tr>
+<tr>
+<td>43:54</td>
+<td>写入后立刻等待，不忙了再退出</td>
+</tr>
+<tr>
+<td>43:57</td>
+<td>也可以选择事前等待</td>
+</tr>
+<tr>
+<td>44:14</td>
+<td>写入后不等，每次操作之前再等</td>
+</tr>
+<tr>
+<td>44:19</td>
+<td>两者区别：事后等待最保险</td>
+</tr>
+<tr>
+<td>44:25</td>
+<td>事前等待效率会更高</td>
+</tr>
+<tr>
+<td>44:42</td>
+<td>事后等待只需在写入操作之后调用</td>
+</tr>
+<tr>
+<td>44:50</td>
+<td>忙的时候读取也是不行的</td>
+</tr>
+<tr>
+<td>45:04</td>
+<td>这里就选择事后等待</td>
+</tr>
+<tr>
+<td>45:08</td>
+<td>页编程之后执行等待</td>
+</tr>
+<tr>
+<td>45:13</td>
+<td>扇区擦除也来个事后等待</td>
+</tr>
+<tr>
+<td>45:16</td>
+<td>读取数据时事前事后都不用等待</td>
+</tr>
+<tr>
+<td>45:23</td>
+<td>所以调用 ReadData 时肯定不会忙</td>
+</tr>
+<tr>
+<td>45:26</td>
+<td>整个驱动模块就写好了</td>
+</tr>
+<tr>
+<td>45:46</td>
+<td>最后到主函数来执行测试</td>
+</tr>
+<tr>
+<td>45:48</td>
+<td>先定义两个数组</td>
+</tr>
+<tr>
+<td>45:57</td>
+<td>ArrayWrite 给 4 个数 0x01～0x04</td>
+</tr>
+<tr>
+<td>46:07</td>
+<td>再来一个数组 ArrayRead</td>
+</tr>
+<tr>
+<td>46:17</td>
+<td>OLED 第 1 行显示 MID 和 DID</td>
+</tr>
+<tr>
+<td>46:31</td>
+<td>第 2 行显示 W:</td>
+</tr>
+<tr>
+<td>46:36</td>
+<td>第 3 行显示 R:</td>
+</tr>
+<tr>
+<td>46:42</td>
+<td>MID 放在 5 列、DID 放在 12 列</td>
+</tr>
+<tr>
+<td>46:49</td>
+<td>下载看现象</td>
+</tr>
+<tr>
+<td>46:57</td>
+<td>执行写入测试：在 00 位置开始写</td>
+</tr>
+<tr>
+<td>47:02</td>
+<td>写之前先调用 SectorErase</td>
+</tr>
+<tr>
+<td>47:08</td>
+<td>参数给 0x000000</td>
+</tr>
+<tr>
+<td>47:13</td>
+<td>地址最好对齐到扇区的起始地址</td>
+</tr>
+<tr>
+<td>47:23</td>
+<td>回想扇区地址的规律</td>
+</tr>
+<tr>
+<td>47:49</td>
+<td>擦除之后开始写入</td>
+</tr>
+<tr>
+<td>47:53</td>
+<td>调用 PageProgram</td>
+</tr>
+<tr>
+<td>47:56</td>
+<td>起始地址给 0x000000</td>
+</tr>
+<tr>
+<td>48:08</td>
+<td>写入完成，再给他读出来</td>
+</tr>
+<tr>
+<td>48:12</td>
+<td>起始地址给 0x000000</td>
+</tr>
+<tr>
+<td>48:42</td>
+<td>6 列显示 ArrayWrite[1]、9 列 [2]、12 列 [3]</td>
+</tr>
+<tr>
+<td>48:59</td>
+<td>把 ArrayWrite 改成 ArrayRead</td>
+</tr>
+<tr>
+<td>49:07</td>
+<td>读取的数据应该也是 01 02 03 04</td>
+</tr>
+<tr>
+<td>49:13</td>
+<td>编译下载看</td>
+</tr>
+<tr>
+<td>49:19</td>
+<td>第 2 行写入 1、2、3、4</td>
+</tr>
+<tr>
+<td>49:21</td>
+<td>第 3 行读取也是 1、2、3、4</td>
+</tr>
+<tr>
+<td>49:27</td>
+<td>改成 A1、B2、C3、D4 再下载</td>
+</tr>
+<tr>
+<td>49:42</td>
+<td>读回 A1、B2、C3、D4，读写没问题</td>
+</tr>
+<tr>
+<td>49:46</td>
+<td>验证掉电不丢失</td>
+</tr>
+<tr>
+<td>49:49</td>
+<td>把擦除和写入两条代码注释掉</td>
+</tr>
+<tr>
+<td>50:04</td>
+<td>读取的仍然是 A1 等数据</td>
+</tr>
+<tr>
+<td>50:08</td>
+<td>说明数据是掉电不丢失的</td>
+</tr>
+<tr>
+<td>50:11</td>
+<td>验证擦除之后变 FF 的特性</td>
+</tr>
+<tr>
+<td>50:17</td>
+<td>解除擦除的注释，只擦除不写入</td>
+</tr>
+<tr>
+<td>50:26</td>
+<td>读取的数据全是 F</td>
+</tr>
+<tr>
+<td>50:28</td>
+<td>说明擦除之后变为 FF</td>
+</tr>
+<tr>
+<td>50:31</td>
+<td>验证只能 1 写 0</td>
+</tr>
+<tr>
+<td>50:38</td>
+<td>先写入 AA、BB、CC、DD</td>
+</tr>
+<tr>
+<td>50:48</td>
+<td>有擦除的写入，写什么读什么</td>
+</tr>
+<tr>
+<td>50:55</td>
+<td>注释掉擦除，直接改写</td>
+</tr>
+<tr>
+<td>51:04</td>
+<td>改写为 55、66、77、88</td>
+</tr>
+<tr>
+<td>51:17</td>
+<td>写入 55、66、77、88</td>
+</tr>
+<tr>
+<td>51:21</td>
+<td>读出的却是 00、22、44、88</td>
+</tr>
+<tr>
+<td>51:26</td>
+<td>AA 改写 55 为什么变成 00，前面解释过</td>
+</tr>
+<tr>
+<td>51:32</td>
+<td>后面 3 个数据留给读者验证</td>
+</tr>
+<tr>
+<td>51:37</td>
+<td>不执行擦除时，读出数据 = 原始数据 &amp; 写入数据</td>
+</tr>
+<tr>
+<td>51:45</td>
+<td>通过这个实验知道写入前必须擦除</td>
+</tr>
+<tr>
+<td>51:54</td>
+<td>验证写入数据不能跨页的现象</td>
+</tr>
+<tr>
+<td>52:02</td>
+<td>回顾页地址的规律</td>
+</tr>
+<tr>
+<td>52:04</td>
+<td>页地址范围是 xxxx00～xxxxFF</td>
+</tr>
+<tr>
+<td>52:09</td>
+<td>最后两个十六进制数是页内地址</td>
+</tr>
+<tr>
+<td>52:16</td>
+<td>给最后两位 FF</td>
+</tr>
+<tr>
+<td>52:24</td>
+<td>看看能不能成功跨页到下一页</td>
+</tr>
+<tr>
+<td>52:33</td>
+<td>之后读取数据也从 FF 开始读</td>
+</tr>
+<tr>
+<td>52:38</td>
+<td>写入 55、66、77、88</td>
+</tr>
+<tr>
+<td>52:40</td>
+<td>读出的却是 55、FF、FF、FF</td>
+</tr>
+<tr>
+<td>52:48</td>
+<td>说明写入并没有跨页</td>
+</tr>
+<tr>
+<td>52:50</td>
+<td>55 写入到地址 0FF</td>
+</tr>
+<tr>
+<td>52:58</td>
+<td>又因为读取是能跨页的</td>
+</tr>
+<tr>
+<td>53:08</td>
+<td>第二页起始位置 00</td>
+</tr>
+<tr>
+<td>53:18</td>
+<td>编译下载看</td>
+</tr>
+<tr>
+<td>53:22</td>
+<td>果然这 3 个字节在第二页</td>
+</tr>
+<tr>
+<td>53:25</td>
+<td>画个图表示</td>
+</tr>
+<tr>
+<td>53:36</td>
+<td>页开始 00、页结尾 FF、第二页开始 100</td>
+</tr>
+<tr>
+<td>53:44</td>
+<td>从 FF 开始连续写 4 个字节</td>
+</tr>
+<tr>
+<td>53:58</td>
+<td>不能按地址连续写到 100 里，只能回页首</td>
+</tr>
+<tr>
+<td>54:12</td>
+<td>这就是页编程的注意事项</td>
+</tr>
+<tr>
+<td>54:18</td>
+<td>跨页写只能自己在软件上处理</td>
+</tr>
+<tr>
+<td>54:22</td>
+<td>算清数组总共跨多少页</td>
+</tr>
+<tr>
+<td>54:25</td>
+<td>然后分批次写</td>
+</tr>
+<tr>
+<td>54:30</td>
+<td>本小节代码部分到这里就结束了</td>
+</tr>
+<tr>
+<td>54:50</td>
+<td>下一小节学习 STM32 的硬件 SPI 外设</td>
+</tr>
+<tr>
+<td>55:00</td>
+<td>用硬件 SPI 实现同样的功能</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，953 段），不是 ASR。错字主要是 <strong><code>SPI</code> → 「SPL/SPl」</strong>（5 处）、<strong><code>MySPI</code> → 「MvSPI/MvSPl」</strong>（10 处）、<strong><code>Byte</code> → 「Bvte」</strong>（23 处）、<code>读取</code> → 「卖取」、<code>引脚</code> → 「引I脚」、<code>死循环</code> → 「盾环」（各 1 处）；并混入编译/下载输出（<code>Objects\Project.axf</code>、<code>Flash Load finished at …</code>）与行首噪声——已按画面/上下文校正。</li>
+<li><strong><code>MySPI_Init</code> 两段分在两帧</strong>：图 2 只到推挽输出段（<code>GPIO_Init(GPIOA, …)</code>），图 3 才补出 <strong>IPU 段（Pin_6）</strong>；而 <strong><code>MySPI_W_SS(1)</code>、<code>MySPI_W_SCK(0)</code> 这两行默认电平只在口述 7:45–8:40 讲过、帧内未单独确认</strong>——代码块按位置补全并已标注。</li>
+<li><strong><code>SwapByte</code> 两种写法都在视频里演示过</strong>：掩码法（<code>ByteSend &amp; (0x80 &gt;&gt; i)</code> / <code>ByteReceive |= (0x80 &gt;&gt; i)</code>）只在口述 + 上方残留代码里出现，<strong>帧内完整落地的是移位法</strong>——本笔记以<strong>移位法为准</strong>，掩码法作对照说明。</li>
+<li><strong><code>W25Q64_WaitBusy</code> 的 <code>Timeout</code> 是否真的加进最终代码未确认</strong>：口述 24:40–25:15 讲「怕死循环可以加 <code>Timeout = 100000</code> + <code>break</code>」，但<strong>代码帧里只看到 while 循环本身</strong>——笔记按「可选增强」写，并注明未确认。</li>
+<li><strong><code>WriteEnable</code> 与 <code>WaitBusy</code> 是分两次加入的</strong>：一开始 <code>PageProgram</code>/<code>SectorErase</code> 里没有 <code>WriteEnable</code>（后补进去的，图 13 的 <code>W25Q64_WriteEnable();</code> 是补入后的状态），<code>WaitBusy</code> 也是后来讨论完「事后等待」才补到 <code>PageProgram</code>/<code>SectorErase</code> 末尾——顺序上先有指令时序、后加封装。</li>
+<li><strong>「不擦除覆盖改写」的现象数据来自口述 + 演示</strong>：<code>AA BB CC DD</code> 直接改写成 <code>55 66 77 88</code>，读回 <code>00 22 44 88</code>，作者说「<strong>读出的数据 = 原始数据 &amp; 写入的数据</strong>」；<code>00</code> 可用「1 只能改 0」解释，后 3 个 <code>22 44 88</code> 作者<strong>留给读者自己验证</strong>——笔记照写并注明这是作者给出的解释。</li>
+<li><strong>跨页实验的起始地址是 <code>0x0000FF</code></strong>（页的最后 1 字节），读回 <code>55 FF FF FF</code>；作者口述中「第二页起始位置 00」指 <code>0x000100</code> 所在的页首。</li>
+<li><strong><code>W25Q64_Ins.h</code> 里定义了全部指令集宏</strong>（含 Quad/Fast Read 系列），本课程实际只用 <code>0x06/0x05/0x02/0x20/0x03/0x9F</code> 六个 + <code>DUMMY_BYTE 0xFF</code>——笔记只列这 7 个，其余不展开。</li>
+<li><strong>帧间隔 13 秒</strong>，个别代码行（如 <code>WaitBusy</code> 的 while 循环体、<code>ReadData</code> 的 for 循环体）未完整落帧，引用时以口述 + 相邻帧为准。</li>
+<li><strong>片尾 54:30</strong>「下一小节学习 STM32 硬件 SPI 外设」——没有点名工程编号；按课程顺序硬件 SPI 代码在 [11-4]。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-39.html"><span class="label">下一篇</span>[11-4] SPI通信外设</a>
+    <a class="next" href="stm32-37.html"><span class="label">上一篇</span>[11-2] W25Q64简介</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E9%80%9A%E4%BF%A1%E5%B1%82-%E9%A9%B1%E5%8A%A8%E5%B1%82%E4%B8%A4%E5%B1%82%E6%89%8B%E5%86%99">0. 本集定位：代码课（通信层 + 驱动层两层手写）</a>
+        <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 接线与工程准备</a>
+        <a class="level-2" href="#2-%E7%A8%8B%E5%BA%8F%E6%95%B4%E4%BD%93%E6%A1%86%E6%9E%B6-%E9%80%9A%E4%BF%A1%E5%B1%82-%E9%A9%B1%E5%8A%A8%E5%B1%82">2. 程序整体框架：通信层 + 驱动层</a>
+        <a class="level-2" href="#3-myspi-%E9%80%9A%E4%BF%A1%E5%B1%82">3. MySPI 通信层</a>
+        <a class="level-3" href="#3-1-myspi-init">3.1 MySPI_Init</a>
+        <a class="level-3" href="#3-2-%E5%BC%95%E8%84%9A%E5%B0%81%E8%A3%85%E5%87%BD%E6%95%B0">3.2 引脚封装函数</a>
+        <a class="level-3" href="#3-3-%E8%B5%B7%E5%A7%8B%E4%B8%8E%E7%BB%88%E6%AD%A2">3.3 起始与终止</a>
+        <a class="level-3" href="#3-4-%E6%A0%B8%E5%BF%83-myspi-swapbyte-%E6%A8%A1%E5%BC%8F-0">3.4 核心：MySPI_SwapByte（模式 0）</a>
+        <a class="level-3" href="#3-5-%E7%BC%96%E8%AF%91%E5%9D%91-%E5%A4%B4%E6%96%87%E4%BB%B6%E9%98%B2%E9%87%8D%E5%A4%8D%E5%8C%85%E5%90%AB">3.5 编译坑：头文件防重复包含</a>
+        <a class="level-2" href="#4-w25q64-%E9%A9%B1%E5%8A%A8%E5%B1%82">4. W25Q64 驱动层</a>
+        <a class="level-3" href="#4-1-w25q64-ins-h-%E6%8A%8A%E6%8C%87%E4%BB%A4%E7%A0%81%E5%81%9A%E6%88%90%E5%AE%8F">4.1 W25Q64_Ins.h：把指令码做成宏</a>
+        <a class="level-3" href="#4-2-w25q64-readid">4.2 W25Q64_ReadID</a>
+        <a class="level-3" href="#4-3-w25q64-writeenable-w25q64-waitbusy">4.3 W25Q64_WriteEnable / W25Q64_WaitBusy</a>
+        <a class="level-3" href="#4-4-w25q64-pageprogram">4.4 W25Q64_PageProgram</a>
+        <a class="level-3" href="#4-5-w25q64-sectorerase">4.5 W25Q64_SectorErase</a>
+        <a class="level-3" href="#4-6-w25q64-readdata">4.6 W25Q64_ReadData</a>
+        <a class="level-2" href="#5-%E5%86%99%E4%BD%BF%E8%83%BD%E4%B8%8E%E5%BF%99%E7%AD%89%E5%BE%85-%E6%94%BE%E5%9C%A8%E5%93%AA%E9%87%8C">5. 写使能与忙等待：放在哪里？</a>
+        <a class="level-2" href="#6-main-%E6%B5%8B%E8%AF%95%E4%B8%8E%E7%8E%B0%E8%B1%A1%E9%AA%8C%E8%AF%81">6. main 测试与现象验证</a>
+        <a class="level-3" href="#6-1-main-%E4%BB%A3%E7%A0%81">6.1 main 代码</a>
+        <a class="level-3" href="#6-2-%E5%9B%9B%E7%BB%84%E7%8E%B0%E8%B1%A1%E9%AA%8C%E8%AF%81">6.2 四组现象验证</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

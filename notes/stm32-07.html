@@ -38,6 +38,25 @@
   <aside class="sidebar">
     <p class="sidebar-title">全部笔记</p>
     <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
         <a href="stm32-05.html">[3-1] GPIO输出</a>
         <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
         <a href="stm32-07.html" class="active" aria-current="page">[3-3] GPIO输入</a>
@@ -46,6 +65,25 @@
         <a href="stm32-10.html">[4-2] OLED显示屏</a>
         <a href="stm32-11.html">[5-1] EXTI外部中断</a>
         <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
         <a href="stm32-01.html">[1-1] 课程简介</a>
         <a href="stm32-02.html">[1-2] STM32简介</a>
         <a href="stm32-03.html">[2-1] 软件安装</a>
@@ -68,7 +106,7 @@
 <li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（source=subtitle-ocr），偶有错字已按画面校正。</li>
 </ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>这一集是 GPIO 输入部分的<strong>理论课</strong>（本集<strong>不写代码</strong>，代码在下一集 [3-4]）：先看「按键控制 LED」「光敏传感器控制蜂鸣器」两个现象，再讲清楚 GPIO 输入要面对的硬件——按键消抖（5~10ms）、按键的 4 种接法、传感器模块的“分压 + LM393 比较器”电路和上下拉“杆子+弹簧”模型，最后补 C 语言基础（数据类型/stdint、宏定义、typedef、结构体、<code>-&gt;</code> 指针访问、枚举）。</p>
+<p>这一集是 GPIO 输入部分的<strong>理论课</strong>（本集<strong>不写代码</strong>，代码在下一集 [3-4]）：先看「按键控制 LED」「光敏传感器控制蜂鸣器」两个现象，再讲清楚 GPIO 输入要面对的硬件——按键消抖（5～10ms）、按键的 4 种接法、传感器模块的“分压 + LM393 比较器”电路和上下拉“杆子+弹簧”模型，最后补 C 语言基础（数据类型/stdint、宏定义、typedef、结构体、<code>-&gt;</code> 指针访问、枚举）。</p>
 <h2 id="0-两个示例程序的现象">0. 两个示例程序的现象</h2>
 <table>
 <thead>
@@ -100,14 +138,14 @@
 <ul>
 <li><strong>按键</strong>：最常见的输入设备，<strong>按下导通、松手断开</strong>。套件里的按键：上面白色的是按钮，下面两个引脚；按下去两个引脚接通，松手自动断开。</li>
 <li><strong>按键抖动</strong>：按键内部是<strong>机械式弹簧片</strong>通断，所以在按下和松手的瞬间会有一连串抖动。<ul>
-<li>波形：假设没按下是高电平、按下是低电平——按下瞬间从高变低时会来回抖几下；稳定按下约 <strong>50~200ms</strong>；松手时再抖 <strong>5~10ms</strong>。</li>
-<li>抖动很快（约 5~10ms），人眼分辨不出来，但<strong>高速运行的单片机</strong>会当成多次按下。</li>
+<li>波形：假设没按下是高电平、按下是低电平——按下瞬间从高变低时会来回抖几下；稳定按下约 <strong>50～200ms</strong>；松手时再抖 <strong>5～10ms</strong>。</li>
+<li>抖动很快（约 5～10ms），人眼分辨不出来，但<strong>高速运行的单片机</strong>会当成多次按下。</li>
 </ul>
 </li>
 <li><strong>最简单的消抖办法</strong>：加一段<strong>延时</strong>，把抖动时间耗过去。否则就会出现“按一下，单片机反映多次”的现象；松手时的抖动同样要过滤。</li>
 </ul>
-<p><img src="../assets/images/stm32-07/03-key-debounce.jpg" alt="图 3：按键抖动波形——按下/松手瞬间抖动约 510ms，稳定按下 50200ms"></p>
-<p><em>图 3：按键抖动波形——按下/松手瞬间抖动约 5<del>10ms，稳定按下 50</del>200ms</em></p>
+<p><img src="../assets/images/stm32-07/03-key-debounce.jpg" alt="图 3：按键抖动波形——按下/松手瞬间抖动约 5～10ms，稳定按下 50～200ms"></p>
+<p><em>图 3：按键抖动波形——按下/松手瞬间抖动约 5～10ms，稳定按下 50～200ms</em></p>
 <h2 id="2-传感器模块-套件里的-4-种">2. 传感器模块（套件里的 4 种）</h2>
 <p>套件提供四种传感器模块：<strong>光敏电阻传感器、热敏电阻传感器、对射式红外传感器、反射式红外传感器</strong>。它们的电路结构和工作原理差不多。</p>
 <ul>
@@ -216,32 +254,32 @@
 <tbody><tr>
 <td><code>char</code></td>
 <td>8</td>
-<td>-128 ~ 127</td>
+<td>-128 ～ 127</td>
 </tr>
 <tr>
 <td><code>unsigned char</code></td>
 <td>8</td>
-<td>0 ~ 255</td>
+<td>0 ～ 255</td>
 </tr>
 <tr>
 <td><code>short</code></td>
 <td>16</td>
-<td>-32768 ~ 32767</td>
+<td>-32768 ～ 32767</td>
 </tr>
 <tr>
 <td><code>unsigned short</code></td>
 <td>16</td>
-<td>0 ~ 65535</td>
+<td>0 ～ 65535</td>
 </tr>
 <tr>
 <td><code>int</code></td>
 <td><strong>32</strong></td>
-<td>-2147483648 ~ 2147483647</td>
+<td>-2147483648 ～ 2147483647</td>
 </tr>
 <tr>
 <td><code>unsigned int</code></td>
 <td>32</td>
-<td>0 ~ 4294967295</td>
+<td>0 ～ 4294967295</td>
 </tr>
 <tr>
 <td><code>long</code></td>
@@ -256,22 +294,22 @@
 <tr>
 <td><code>long long</code></td>
 <td>64</td>
-<td>约 -9.2e18 ~ 9.2e18</td>
+<td>约 -9.2e18 ～ 9.2e18</td>
 </tr>
 <tr>
 <td><code>unsigned long long</code></td>
 <td>64</td>
-<td>0 ~ 1.8e19</td>
+<td>0 ～ 1.8e19</td>
 </tr>
 <tr>
 <td><code>float</code></td>
 <td>32</td>
-<td>-3.4e38 ~ 3.4e38</td>
+<td>-3.4e38 ～ 3.4e38</td>
 </tr>
 <tr>
 <td><code>double</code></td>
 <td>64</td>
-<td>-1.7e308 ~ 1.7e308</td>
+<td>-1.7e308 ～ 1.7e308</td>
 </tr>
 </tbody></table>
 <ul>
@@ -332,7 +370,7 @@ pStructName-&gt;x = &#39;A&#39;;    // 指针引用：指针名 -&gt; 成员名�
 <h3 id="5-5-枚举-enum">5.5 枚举 enum</h3>
 <ul>
 <li>关键字 <strong><code>enum</code></strong>；用途：定义一个<strong>取值受限制的整型变量</strong>——限制变量只能取枚举列表里的值。</li>
-<li>例子：定义存星期的变量，理论上只能取 1~7；如果定义成普通整型，存 8 也不会被拦住。用枚举就能把取值范围限制住：</li>
+<li>例子：定义存星期的变量，理论上只能取 1～7；如果定义成普通整型，存 8 也不会被拦住。用枚举就能把取值范围限制住：</li>
 </ul>
 <pre><code class="language-c">enum week { MONDAY = 1, TUESDAY = 2, WEDNESDAY = 3, /* ... */ };
 // 配合 typedef：
@@ -350,7 +388,7 @@ week = MONDAY;     // 只能赋枚举列表里的值；DevC++ 对 week = 8 不�
 <p><em>图 14：Keil 里给枚举变量赋非法值（a = 0）→ 警告 #188-D“enumerated type mixed with another type”</em></p>
 <h2 id="6-坑与易错点">6. 坑与易错点</h2>
 <ol>
-<li><strong>按键必须消抖</strong>：抖动 5~10ms，程序里要加延时过滤，否则一次按下可能被识别多次。</li>
+<li><strong>按键必须消抖</strong>：抖动 5～10ms，程序里要加延时过滤，否则一次按下可能被识别多次。</li>
 <li><strong>下接按键必须上拉输入</strong>：按键一端接 GND 时，松手引脚悬空、电平不确定；配置成上拉输入才能在松手时稳定读到高电平。</li>
 <li><strong>没有外部上拉/驱动的引脚不能悬空</strong>：浮空输入本身是合法模式，但接法②④有外部上拉/下拉时可以浮空；接法①③这类会悬空的场合必须配置上拉/下拉输入。</li>
 <li><strong>STM32 的 int 是 32 位</strong>：51 单片机是 16 位；<code>long</code> 也是 32 位，64 位要用 <code>long long</code>。</li>
@@ -379,7 +417,7 @@ week = MONDAY;     // 只能赋枚举列表里的值；DevC++ 对 week = 8 不�
 </tr>
 <tr>
 <td>2:34</td>
-<td>按键介绍：按下导通/松手断开；按键抖动 5~10ms，需延时过滤</td>
+<td>按键介绍：按下导通/松手断开；按键抖动 5～10ms，需延时过滤</td>
 </tr>
 <tr>
 <td>4:05</td>
@@ -411,7 +449,7 @@ week = MONDAY;     // 只能赋枚举列表里的值；DevC++ 对 week = 8 不�
 </tr>
 <tr>
 <td>19:03</td>
-<td>stdint 新名字：int8_t~uint64_t，u8/u16 是兼容旧名字</td>
+<td>stdint 新名字：int8_t～uint64_t，u8/u16 是兼容旧名字</td>
 </tr>
 <tr>
 <td>22:30</td>

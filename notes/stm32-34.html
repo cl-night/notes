@@ -1,0 +1,978 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[10-4] I2C通信外设 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [10-4]（理论课，代码在 10-5）：软件 vs 硬件 I2C；外设简介（硬件自动生成时序、100kHz/400kHz、多主机、7/10 位地址、DMA、SMBus、I2C1/I2C2）；框图图242；引脚 I2C1=PB6/PB7、I2C2=PB10/PB11、复用开漏；主机发送图245 与接收图246 的 EV 事件；手册 24 章 4 种模式与寄存器。">
+  <meta property="og:title" content="[10-4] I2C通信外设 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [10-4]（理论课，代码在 10-5）：软件 vs 硬件 I2C；外设简介（硬件自动生成时序、100kHz/400kHz、多主机、7/10 位地址、DMA、SMBus、I2C1/I2C2）；框图图242；引脚 I2C1=PB6/PB7、I2C2=PB10/PB11、复用开漏；主机发送图245 与接收图246 的 EV 事件；手册 24 章 4 种模式与寄存器。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html" class="active" aria-current="page">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>37 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">I2C</span><span class="tag">硬件I2C</span><span class="tag">外设</span><span class="tag">参考手册</span>
+    </div>
+    <article class="prose"><h1>[10-4] I2C通信外设 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=34，45:07（2707 秒）</li>
+<li>素材：246 帧关键帧（<strong>每 11 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>748 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p34/frames/</code>，站内图片在 <code>assets/images/stm32-34/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；错字主要是 <strong><code>I2C</code> 被识成「12C」</strong>（60 处）、<code>引脚</code>→「引I脚」（1 处）、<code>寄存器</code>→「寄存哭」/「客存器」（各 1 处）、<code>地址</code>→「地机」（5 处）/「地止」（2 处）、<code>运行</code>→「云行」（1 处）/「云状态」；另有<strong>手册水印/英文正文</strong>（<code>RM0008 Reference Manual 英文第10版</code>、<code>请以英文原稿为准</code>、<code>CONFIDENTIAL &amp; PROPRIETARY</code>）混入——这些<strong>不是口述内容</strong>，已剔除/校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 10 的理论课</strong>——讲 <strong>STM32 内部的 I2C 硬件外设</strong>，并精读《STM32F10xxx 参考手册》第 24 章。片头回顾上一集的<strong>软件 I2C</strong>（GPIO 模拟）并明确「<strong>程序现象和上一集一样，这里就不演示了</strong>」；<strong>本集没有写一行代码</strong>，也<strong>几乎没出现库函数名</strong>（只在口述里提了一句 <code>I2C_Cmd</code>）。结尾 44:55「本小节的内容就全部结束了」，最后一句「<strong>硬件 I2C 的代码部分，那我们下一节</strong>」——<strong>代码在 [10-5]</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>先搞清楚<strong>软件 I2C 与硬件 I2C 的关系</strong>：I2C 是<strong>同步时序</strong>，对每一位的持续时间要求不严格（可以长点短点、甚至中途暂停），所以<strong>用 GPIO 手动拉低/释放时钟线来模拟非常常见、也非常灵活</strong>；但串口那种<strong>异步时序</strong>对时间要求严格、软件模拟很难，所以基本都用硬件外设。硬件 I2C 的好处是<strong>执行效率高、节省软件资源、时序波形规整、通信速率快</strong>——<strong>简单应用用软件 I2C，性能要求高用硬件 I2C</strong>。<strong>STM32 内部集成了硬件 I2C 收发电路</strong>，由硬件<strong>自动执行时钟生成、起始/终止条件生成、应答位收发、数据收发</strong>，大大减轻 CPU 负担；我们要做的只是<strong>写控制寄存器 CR、数据寄存器 DR、读状态寄存器 SR</strong>（比喻：<strong>CR 是油门刹车方向盘、SR 是仪表盘</strong>），有了库函数更简单。<strong>功能</strong>：支持<strong>多主机模型</strong>、<strong>7 位/10 位地址模式</strong>、<strong>标准速度（高达 100kHz）/快速（高达 400kHz）</strong>、<strong>DMA</strong>、<strong>兼容 SMBus 协议</strong>；<strong>STM32F103C8T6 的硬件 I2C 资源＝I2C1、I2C2</strong>（硬件资源受电路限制只有 2 路，软件 I2C 想开几路开几路）。<strong>多主机模型</strong>分<strong>固定多主机</strong>（总线上固定几个主机，两个同时说话＝<strong>总线冲突→仲裁</strong>）和<strong>可变多主机</strong>（谁要发数据谁「跳出来」当主机）——<strong>STM32 按可变多主机设计</strong>，实际没人跟它抢。<strong>地址模式</strong>：7 位地址（128 种）+ 读写位；<strong>10 位地址</strong>（1024 种）的思路是<strong>起始后两个字节都作寻址</strong>——第一字节<strong>前 5 位固定 <code>11110</code> 作标志位</strong>（这个组合在 7 位模式下不会出现），剩下 2 位 + 第二字节 8 位 = 10 位。<strong>框图（图242）</strong>：SDA/SCL 引脚（SMBALERT 是 SMBus 用、I2C 用不到）→ <strong>数据控制 + 数据移位寄存器 + DATA REGISTER</strong>；<strong>比较器 + 自身地址寄存器/双地址寄存器</strong>（从机模式用，可同时响应两个地址）、<strong>PEC 计算器/寄存器</strong>（CRC 校验）；<strong>时钟控制寄存器 CCR</strong>；<strong>控制寄存器 CR1&amp;CR2</strong>、<strong>状态寄存器 SR1&amp;SR2</strong> → <strong>控制逻辑电路</strong>；输出 <strong>中断</strong> 与 <strong>DMA 请求与响应</strong>。<strong>引脚映射</strong>（查引脚定义表「复用功能」栏）：<strong>I2C1：PB6=SCL、PB7=SDA</strong>，且<strong>可重映射到 PB8/PB9</strong>；<strong>I2C2：PB10=SCL、PB11=SDA</strong>——<strong>硬件 I2C 引脚是固定连接好的，不能像软件 I2C 那样任意指定</strong>；GPIO 要配成<strong>复用开漏输出</strong>（图17 里 P-MOS 上管没有，只能拉低或释放）。<strong>数据收发是「DR + 移位寄存器」两级</strong>：发送时写 DR → 转入移位寄存器逐位输出（<strong>TxE 发送寄存器空</strong>）；接收时移入移位寄存器 → 整体转到 DR（<strong>RxNE 接收寄存器非空</strong>）——与串口结构类似；<strong>I2C 高位先行，所以简化图里移位寄存器是「向左移」</strong>。<strong>主机发送流程（图245）</strong>：初始化后总线空闲、<strong>STM32 默认从模式</strong> → 写 CR1 的 <strong>START=1</strong>（硬件自动产生起始、转主模式）→ <strong>EV5</strong>（SB=1，读 SR1 后写地址到 DR 清除）→ 硬件发「地址+写」→ 从机应答 → <strong>EV6</strong>（ADDR=1，读 SR1 再读 SR2 清除）→ <strong>EV8_1</strong>（TxE=1 且移位寄存器空）→ 写数据到 DR → <strong>EV8</strong>（TxE=1、移位寄存器非空，写入 DR 清除）→ 逐字节重复 → 最后 <strong>EV8_2</strong>（TxE=1 且 BTF=1）→ 写 CR1 <strong>STOP=1</strong> 产生停止条件。<strong>主机接收流程（图246）</strong>：START → <strong>EV5</strong> → 写「地址+读」→ <strong>EV6</strong> → 清 ADDR 后进入接收 → <strong>EV7</strong>（RxNE=1，读 DR 清除）循环 → <strong>不再接收时提前把 ACK 置 0 并设置 STOP 请求</strong> → <strong>EV7_1</strong>（RxNE=1 且 ACK=0）→ 停止；<strong>只收 1 个字节时用 EV6_1</strong>（没有对应事件标志）。<strong>EV 事件本质是若干标志位的组合</strong>，按正常流程读寄存器会自动清标志，不用手动清。<strong>软件/硬件波形对比</strong>：数据一致，但<strong>硬件 I2C 波形更规整、SDA 变化紧贴 SCL 下降沿</strong>（可理解为「SCL 下降沿写、上升沿读」）；软件模拟因 <code>Delay</code> 不准导致周期不均——<strong>因为 I2C 是同步时序，这些「不标准」波形照样能正常通信</strong>。<strong>手册第 24 章</strong>：<strong>24.3.1 模式选择＝4 种模式</strong>（从发送器/从接收器/主发送器/主接收器，<strong>默认从模式，产生起始条件后自动转主模式，仲裁丢失或产生停止信号后转回从模式</strong>）；主模式操作顺序：<strong>CR2 设 FREQ（输入时钟）→ 配时钟控制寄存器 → 配上升时间寄存器 → CR1 启动外设 → START=1</strong>，且<strong>输入时钟标准模式 ≥2MHz、快速模式 ≥4MHz</strong>；寄存器：<strong>CR1/CR2/OAR1/OAR2/DR/SR1/SR2/CCR/TRISE</strong>（有库函数，<strong>CCR/TRISE 的公式不用自己算</strong>，本集只举例 FREQR=08 时 100kHz 需 <strong>CCR=0x28＝40×125ns=5000ns</strong>；TRISE 偏移 <strong>0x20</strong>、复位 <strong>0x0002</strong>）。</p>
+<h2 id="0-本集定位-理论课-stm32-i2c-外设原理-手册精读-代码在-10-5">0. 本集定位：理论课（STM32 I2C 外设原理 + 手册精读），代码在 10-5</h2>
+<ul>
+<li><strong>本集是纯理论课</strong>：全程 PPT + 参考手册第 24 章截图；片头明确「<strong>程序现象和上一集一样，这里就不演示了</strong>」；<strong>没有写一行代码</strong>。</li>
+<li><strong>本集几乎不出现库函数名</strong>：只在口述里提了一句 <strong><code>I2C_Cmd</code></strong>（使能外设）；<code>I2C_Init</code>/<code>I2C_SendData</code>/<code>I2C_GetFlagStatus</code> 等<strong>均未出现</strong>——笔记<strong>不提前写这些函数名</strong>，写法等 <strong>[10-5]</strong>。</li>
+<li><strong>本集的重点</strong>：「主机发送/主机接收」两个流程图 + 事件编号（EV5/EV6/EV8_1/EV8/EV8_2/EV7/EV7_1/EV6_1/EV9），以及寄存器 CR/DR/SR 的角色；<strong>从机模式、PEC、SMBus、双地址寄存器、10 位地址都只要求「了解」</strong>。</li>
+<li>片尾 44:55「本节内容全部结束」，下一节讲<strong>硬件 I2C 的代码部分</strong>（[10-5]）。</li>
+</ul>
+<p><img src="../assets/images/stm32-34/01-recap.jpg" alt="图 1：开场承接上一集——PPT「MPU6050简介」页（6 轴姿态传感器、3 轴加速度计 + 3 轴陀螺仪、加速度计/陀螺仪机械模型图）；字幕「实现了读写MPU6050的程序」"></p>
+<p><em>图 1：开场承接上一集——PPT「MPU6050简介」页（6 轴姿态传感器、3 轴加速度计 + 3 轴陀螺仪、加速度计/陀螺仪机械模型图）；字幕「实现了读写MPU6050的程序」</em></p>
+<h2 id="1-软件-i2c-与硬件-i2c">1. 软件 I2C 与硬件 I2C</h2>
+<ul>
+<li><strong>软件 I2C</strong>：就是<strong>用 GPIO 手动拉低/释放时钟线</strong>去凑时序；因为 <strong>I2C 是同步时序，每一位的持续时间要求不严格</strong>（长点、短点、中途暂停，影响都不大），所以<strong>软件模拟 I2C 非常常见</strong>；</li>
+<li><strong>对比串口</strong>：串口是<strong>异步时序</strong>，每一位的时间要求很严格（不能过长也不能过短），<strong>软件模拟很困难</strong>，所以串口实现<strong>基本都倒向硬件外设</strong>；</li>
+<li><strong>硬件 I2C 的意义</strong>：<strong>执行效率高、节省软件资源、时序波形规整、通信速率快</strong>——所以硬件 I2C 有它的应用场景；</li>
+<li><strong>选择建议</strong>：<strong>简单应用 → 用灵活的软件 I2C</strong>；<strong>性能指标要求高 → 用硬件 I2C</strong>。</li>
+<li>本集<strong>不演示现象</strong>（与上一集软件 I2C 的现象一样）。</li>
+</ul>
+<h2 id="2-i2c-外设简介">2. I2C 外设简介</h2>
+<ul>
+<li><strong>STM32 内部集成了硬件 I2C 收发电路</strong>（I2C 通信的硬件收发器）：由<strong>硬件自动执行时钟生成、起始/终止条件生成、应答位收发、数据收发</strong>等功能——<strong>硬件电路自动翻转引脚电平</strong>，我们只需要<strong>写控制寄存器 CR 和数据寄存器 DR</strong>、再<strong>读状态寄存器 SR</strong> 监控时序状态；</li>
+<li><strong>通俗比喻</strong>：<strong>写 CR 像踩油门/刹车/方向盘——控制汽车运行；读 SR 像看仪表盘——了解汽车运行状态</strong>；有了库函数封装，给个参数就能配置/读取，更简单；</li>
+<li><strong>意义</strong>：<strong>减轻 CPU 负担、节省软件资源</strong>，而且<strong>硬件生成时序的性能效率更高</strong>。</li>
+</ul>
+<p><strong>功能列表</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>多主机模型</strong></td>
+<td>支持固定多主机/可变多主机（STM32 按可变多主机设计）</td>
+</tr>
+<tr>
+<td><strong>7 位 / 10 位地址模式</strong></td>
+<td>两种寻址方式</td>
+</tr>
+<tr>
+<td><strong>标准 / 快速速度</strong></td>
+<td><strong>标准速度高达 100kHz、快速高达 400kHz</strong>（协议规定的上限）</td>
+</tr>
+<tr>
+<td><strong>DMA</strong></td>
+<td>多字节收发时用 DMA 自动转运数据，提高效率（几个字节就没必要）</td>
+</tr>
+<tr>
+<td><strong>兼容 SMBus</strong></td>
+<td>电源管理系统协议，与 I2C 很像，STM32 顺便兼容（本课程主要学 I2C）</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>资源</strong>：<strong>STM32F103C8T6 的硬件 I2C 资源＝I2C1、I2C2</strong>（两个独立外设）；</li>
+<li><strong>硬件 vs 软件的资源差异</strong>：<strong>硬件 I2C 受电路限制，本型号最多 2 路</strong>；<strong>软件 I2C 只需复制代码，想开几路开几路</strong>（只要代码存得下）。</li>
+</ul>
+<p><img src="../assets/images/stm32-34/02-peripheral-intro.jpg" alt="图 2：PPT「I2C外设简介」——STM32 内部集成硬件 I2C 收发电路，可由硬件自动执行时钟生成、起始终止条件生成、应答位收发、数据收发，减轻 CPU 负担；支持多主机模型；支持 7 位/10 位地址模式；支持不同通讯速度，标准速度（高达 100kHz）、快速（高达 400kHz）；支持 DMA；兼容 SMBus 协议；STM32F103C8T6 硬件 I2C 资源：I2C1、I2C2；字幕「所以程序这里我就不演示了」"></p>
+<p><em>图 2：PPT「I2C外设简介」——STM32 内部集成硬件 I2C 收发电路，可由硬件自动执行时钟生成、起始终止条件生成、应答位收发、数据收发，减轻 CPU 负担；支持多主机模型；支持 7 位/10 位地址模式；支持不同通讯速度，标准速度（高达 100kHz）、快速（高达 400kHz）；支持 DMA；兼容 SMBus 协议；<strong>STM32F103C8T6 硬件 I2C 资源：I2C1、I2C2</strong>；字幕「所以程序这里我就不演示了」</em></p>
+<p><img src="../assets/images/stm32-34/03-intro-marked.jpg" alt="图 3：同一页上的红/蓝笔标注——圈出「多主机模型」「7位/10位地址模式」「SMBus」「DMA」等条目，并在「100kHz / 400kHz」上画线；字幕「当有多个学生同时跳出来时」（讲多主机仲裁的比喻）"></p>
+<p><em>图 3：同一页上的红/蓝笔标注——圈出「多主机模型」「7位/10位地址模式」「SMBus」「DMA」等条目，并在「100kHz / 400kHz」上画线；字幕「当有多个学生同时跳出来时」（讲多主机仲裁的比喻）</em></p>
+<h2 id="3-多主机模型与地址模式">3. 多主机模型与地址模式</h2>
+<h3 id="3-1-多主机模型">3.1 多主机模型</h3>
+<ul>
+<li><strong>固定多主机</strong>：总线上有<strong>两个或更多固定的主机</strong>（始终固定为主机），其余固定为从机；<strong>两个主机同时想说话 → 总线冲突 → 总线仲裁</strong>，失败方让出总线控制权；</li>
+<li><strong>可变多主机</strong>：总线上<strong>没有固定的主机</strong>，任何设备<strong>谁要发数据谁就「跳出来」当主机</strong>，通信完成后再退回从机位置；<strong>多个同时跳出来 → 总线冲突 → 仲裁</strong>；</li>
+<li><strong>STM32 的 I2C 按可变多主机模型设计</strong>——虽然实际没人跟它争主机，但<strong>程序操作仍要按「谁要做主机谁跳出来」的思路来</strong>。</li>
+</ul>
+<h3 id="3-2-7-位与-10-位地址模式">3.2 7 位与 10 位地址模式</h3>
+<ul>
+<li><strong>7 位地址</strong>：起始条件之后<strong>第一字节＝7 位地址 + 读写位</strong>；7 位地址共 <strong>128 种</strong>——最简单最常见；如果一条总线要挂 128 个以上设备就不够用（还有「不同厂商地址冲突」问题，可改低位地址或开辟多条 I2C 总线来解决）；</li>
+<li><strong>10 位地址</strong>（1024 种）<strong>思路</strong>：既然一字节只能放 7 位，那就<strong>让起始之后的两个字节都作寻址</strong>——第一字节有 7 个空位、第二字节 8 个空位，共 15 位，但 I2C 的 10 位模式只取其中 10 位，<strong>多出来的 5 位当标志位用</strong>（否则从机无法判断「后面那个字节还是不是寻址」）：<ul>
+<li><strong>第一字节前 5 位固定为 <code>11110</code></strong> 作为<strong>10 位寻址模式的标志位</strong>；</li>
+<li>前 5 位<strong>不是</strong> <code>11110</code> 就说明是 7 位寻址模式；</li>
+<li>第一字节<strong>剩下的 2 位 + 第二字节 8 位 = 10 位地址</strong>；</li>
+<li><strong><code>11110</code> 开头的组合在 7 位地址模式中不会出现</strong>，所以不会混淆；</li>
+</ul>
+</li>
+<li><strong>本课程只要求掌握 7 位地址</strong>，10 位「了解即可」。</li>
+</ul>
+<p><img src="../assets/images/stm32-34/04-10bit-address.jpg" alt="图 4：PPT「I2C时序」指定地址写页（上集内容）+ 右上角红笔写的「10」——讲 STM32 的 I2C 也支持 10 位地址模式；下方是上集的实测波形（Send Byte 0xD0、0x19、0xAA、RA 0、P）；字幕「那STM32的I2C总线就支持10位地址模式」"></p>
+<p><em>图 4：PPT「I2C时序」指定地址写页（上集内容）+ 右上角红笔写的「10」——讲 STM32 的 I2C 也支持 10 位地址模式；下方是上集的实测波形（<code>Send Byte 0xD0</code>、<code>0x19</code>、<code>0xAA</code>、<code>RA 0</code>、<code>P</code>）；字幕「那STM32的I2C总线就支持10位地址模式」</em></p>
+<h2 id="4-i2c-框图-图242">4. I2C 框图（图242）</h2>
+<ul>
+<li><strong>左侧引脚</strong>：<strong>SDA、SCL</strong>（I2C 通信两个引脚），还有 <strong>SMBALERT</strong>（SMBus 用的中断信号线，<strong>I2C 用不到</strong>）；</li>
+<li><strong>数据通路</strong>：SDA ↔ <strong>数据控制</strong> ↔ <strong>数据移位寄存器</strong> ↔ <strong>DATA REGISTER（数据寄存器 DR）</strong>；</li>
+<li><strong>从机相关（了解）</strong>：<strong>比较器</strong> + <strong>自身地址寄存器 / 双地址寄存器</strong>——STM32 作为从机时，收到的寻址地址经比较器判断，与自身地址相同就响应；<strong>STM32 支持同时响应两个从机地址</strong>（双地址寄存器）；</li>
+<li><strong>PEC</strong>：<strong>错帧校验（PEC）计算 + PEC 寄存器</strong>——硬件 CRC 校验（本课程不用，了解）；</li>
+<li><strong>时钟</strong>：SCL ↔ <strong>时钟控制</strong> ↔ <strong>时钟控制寄存器（CCR）</strong>——确定 SCL 时钟频率与占空比；</li>
+<li><strong>寄存器与控制</strong>：<strong>控制寄存器（CR1&amp;CR2）</strong>、<strong>状态寄存器（SR1&amp;SR2）</strong> → <strong>控制逻辑电路</strong>（黑盒）→ <strong>中断</strong>、<strong>DMA 请求与响应</strong>；</li>
+<li><strong>主机发送/接收时真正要关注的</strong>：<strong>数据寄存器 DR + 数据移位寄存器</strong>这一段，以及 CR（控制）与 SR（状态）。</li>
+</ul>
+<h3 id="4-1-数据收发-dr-移位寄存器两级">4.1 数据收发：DR + 移位寄存器两级</h3>
+<ul>
+<li><strong>发送</strong>：字节写到 <strong>DR</strong>，当<strong>移位寄存器没有数据在移位</strong>时，DR 的值<strong>转入移位寄存器</strong>，逐位输出到 SDA；移位过程中可以往 DR 写下一个字节，<strong>移位完成就能无缝衔接</strong>——<strong>数据由 DR 转到移位寄存器时置 <code>TxE</code>（发送寄存器空）</strong>；</li>
+<li><strong>接收</strong>：从 SDA 逐位<strong>移入移位寄存器</strong>，移完一个字节后<strong>整体转到 DR</strong>——<strong>置 <code>RxNE</code>（接收寄存器非空）</strong>；</li>
+<li><strong>与串口的结构类似</strong>（串口也是 DR + 移位寄存器两级）。</li>
+</ul>
+<h3 id="4-2-简化基本结构">4.2 简化基本结构</h3>
+<p>把图 242 中本课程用不到的部分（比较器/自身地址/双地址/PEC/SMBALERT）去掉，就得到简化结构：</p>
+<ul>
+<li><strong>时钟控制器 → GPIO → SCL</strong>（一主多从模型下时钟只画输出方向）；</li>
+<li><strong>数据控制器 + 数据寄存器 DR ↔ 移位寄存器 → GPIO（双向）→ SDA</strong>；</li>
+<li><strong>右下「开关控制」= <code>I2C_Cmd</code> 使能外设</strong>；</li>
+<li><strong>移位寄存器「向左移位」</strong>：因为 <strong>I2C 是高位先行</strong>，发送时<strong>最高位移出</strong>、然后次高位……一个 SCL 时钟移一位，就把数据由高位到低位依次放到 SDA 上；</li>
+<li><strong>GPIO 必须用「复用开漏输出」</strong>：看图 17 复用功能配置——<strong>输出驱动器的 P-MOS 上管不存在</strong>（只有 N-MOS），<strong>输出低电平＝拉低、输出高电平＝释放浮空</strong>；<strong>输入部分仍经 TTL 肖特基触发器读回</strong>，所以「开漏」同时能当输入用；外设的输出接在「复用功能输出」、输入接在「复用功能输入」。</li>
+</ul>
+<p><img src="../assets/images/stm32-34/05-block-diagram.jpg" alt="图 5：PPT「I2C框图」——图242 I²C 的功能框图：左侧 SDA/SCL/SMBALERT；数据控制 ↔ 数据移位寄存器 ↔ DATA REGISTER；数据移位寄存器 ↔ 比较器 ↔ 自身地址寄存器/双地址寄存器；错帧校验(PEC)计算/寄存器；SCL ↔ 时钟控制 ↔ 时钟控制寄存器(CCR)；控制寄存器(CR1&amp;CR2)、状态寄存器(SR1&amp;SR2) → 控制逻辑电路 → 中断、DMA 请求与响应；字幕「当我们需要发送数据时」"></p>
+<p><em>图 5：PPT「I2C框图」——图242 I²C 的功能框图：左侧 SDA/SCL/SMBALERT；数据控制 ↔ 数据移位寄存器 ↔ DATA REGISTER；数据移位寄存器 ↔ 比较器 ↔ 自身地址寄存器/双地址寄存器；错帧校验(PEC)计算/寄存器；SCL ↔ 时钟控制 ↔ 时钟控制寄存器(CCR)；控制寄存器(CR1&amp;CR2)、状态寄存器(SR1&amp;SR2) → 控制逻辑电路 → 中断、DMA 请求与响应；字幕「当我们需要发送数据时」</em></p>
+<p><img src="../assets/images/stm32-34/06-slave-addr-marked.jpg" alt="图 6：同一框图上的红笔——圈住「比较器」「自身地址寄存器/双地址寄存器」「错帧校验(PEC)计算」，并画箭头连到控制逻辑；字幕「那STM32就作为从机，响应外部主机的召唤」"></p>
+<p><em>图 6：同一框图上的红笔——圈住「比较器」「自身地址寄存器/双地址寄存器」「错帧校验(PEC)计算」，并画箭头连到控制逻辑；字幕「那STM32就作为从机，响应外部主机的召唤」</em></p>
+<p><img src="../assets/images/stm32-34/07-basic-structure.jpg" alt="图 7：PPT「I2C基本结构」——左侧「数据控制器」与右侧「时钟控制器」；中间 &lt;&lt;移位寄存器&lt;&lt;（红圈红箭头）与下方「数据寄存器DR」双向；时钟控制器 → GPIO → SCL（输出），移位寄存器 ↔ GPIO（双向）→ SDA；右下「开关控制」；字幕「然后是次高位，等等」"></p>
+<p><em>图 7：PPT「I2C基本结构」——左侧「数据控制器」与右侧「时钟控制器」；中间 <code>&lt;&lt;移位寄存器&lt;&lt;</code>（红圈红箭头）与下方「数据寄存器DR」双向；时钟控制器 → GPIO → SCL（输出），移位寄存器 ↔ GPIO（双向）→ SDA；右下「开关控制」；字幕「然后是次高位，等等」</em></p>
+<p><img src="../assets/images/stm32-34/08-gpio-af-od.jpg" alt="图 8：PPT「复用开漏/推挽输出」——图17 复用功能配置：进入片上外设的「复用功能输入/复用功能输出」、读出/写入、位设置清除寄存器、输入/输出数据寄存器、TTL 肖特基触发器、输入驱动器、输出驱动器（P-MOS 被红笔划掉、只剩 N-MOS）、保护二极管、I/O 引脚、VDD/VSS；字幕「是拉低到低电平」"></p>
+<p><em>图 8：PPT「复用开漏/推挽输出」——图17 复用功能配置：进入片上外设的「复用功能输入/复用功能输出」、读出/写入、位设置清除寄存器、输入/输出数据寄存器、TTL 肖特基触发器、输入驱动器、输出驱动器（<strong>P-MOS 被红笔划掉、只剩 N-MOS</strong>）、保护二极管、I/O 引脚、VDD/VSS；字幕「是拉低到低电平」</em></p>
+<h2 id="5-引脚映射">5. 引脚映射</h2>
+<p>查引脚定义表的「复用功能」栏：</p>
+<table>
+<thead>
+<tr>
+<th>外设</th>
+<th>SCL</th>
+<th>SDA</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>I2C1</strong></td>
+<td><strong>PB6</strong></td>
+<td><strong>PB7</strong></td>
+<td><strong>可重映射到 PB8/PB9</strong></td>
+</tr>
+<tr>
+<td><strong>I2C2</strong></td>
+<td><strong>PB10</strong></td>
+<td><strong>PB11</strong></td>
+<td>无重映射</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>硬件 I2C 的引脚在芯片内部已经连接好</strong>，所以<strong>只能使用指定引脚</strong>，<strong>不能像软件 I2C 那样任意指定</strong>——硬件 I2C 对引脚限制较大；</li>
+<li><strong>与上一集的对应关系</strong>：上一集<strong>软件 I2C 用的是 PB10/PB11</strong>，正好就是 <strong>I2C2 的 SCL/SDA</strong>——如果改用<strong>硬件 I2C2</strong>，接线可以完全不变；若要改用 I2C1 则要接到 <strong>PB6/PB7</strong>。</li>
+</ul>
+<h2 id="6-主机发送流程-手册图245">6. 主机发送流程（手册图245）</h2>
+<p>前提：初始化后<strong>总线空闲、STM32 默认处于从模式</strong>。</p>
+<ol>
+<li><strong>写 CR1 的 <code>START = 1</code></strong>：硬件<strong>自动产生起始条件</strong>，并从从模式<strong>切换到主模式</strong>（多主机模型下「STM32 有数据要发，就跳出来当主机」）；</li>
+<li><strong>等待 <code>EV5</code> 事件</strong>：<strong><code>SB = 1</code></strong>（起始条件已发送），<strong>读 SR1 后把从机地址写入 DR</strong> 即可清除该事件；</li>
+<li><strong>硬件自动把「地址 + 写」发送到总线上</strong>，然后从机应答（没有应答则硬件置应答失败的标志位）；</li>
+<li><strong>等待 <code>EV6</code> 事件</strong>：<strong><code>ADDR = 1</code></strong>（主模式下表示<strong>地址发送结束</strong>），<strong>读 SR1 再读 SR2</strong> 清除；</li>
+<li><strong><code>EV8_1</code></strong>：<strong><code>TxE = 1</code> 且移位寄存器空、DR 空</strong>——表示可以写数据了；</li>
+<li><strong>把第一个数据写入 DR</strong> → 硬件转入移位寄存器发送 → 状态变成<strong>移位寄存器非空</strong>，即 <strong><code>EV8</code></strong>（<code>TxE = 1</code>、移位寄存器非空、DR 空，<strong>写入 DR 清除该事件</strong>）；</li>
+<li><strong>逐字节重复</strong>：写 DR → EV8 消失 → 数据移位完成 → 又产生 EV8……</li>
+<li>数据全部写完后，<strong>最后一个字节移位完成</strong> → <strong><code>EV8_2</code></strong>：<strong><code>TxE = 1</code> 且 <code>BTF = 1</code></strong>（DR 空、移位寄存器也空，代表「不想再发了」）→ <strong>写 CR1 的 <code>STOP = 1</code></strong> 产生<strong>停止条件</strong>（硬件在当前字节传输完成后产生）。</li>
+</ol>
+<blockquote>
+<p><strong>EV 事件的本质</strong>：<strong>把一个或多个标志位组合起来叫「EVx 事件」</strong>；按正常流程读写对应寄存器会<strong>自动清除</strong>标志，<strong>不需要手动清</strong>。</p>
+</blockquote>
+<p><img src="../assets/images/stm32-34/09-master-tx-245.jpg" alt="图 9：手册图245「主发送器传送序列图」——7 位主发送：S→地址 A→数据1 A→数据2 A→…→数据N A→P，下方 EV5、EV6、EV8_1、EV8、EV8、EV8_2；10 位主发送：S→帧头 A→地址 A→数据1 A→…→P，EV5、EV9、EV6、EV8_1…；说明：S=Start、Sr=重复起始、P=Stop、A=响应、NA=非响应、EVx=事件（ITEVFEN=1 时产生中断）；EV5：SB=1，读 SR1 后将地址写入 DR 清除；EV6：ADDR=1，读 SR1 再读 SR2；EV8_1：TxE=1，移位寄存器空，数据寄存器空，写 DR；EV8：TxE=1，移位寄存器非空，数据寄存器空，写入 DR 清除；EV8_2：TxE=1、BTF=1，请求设置停止位，TxE 与 BTF 由硬件在产生停止条件时清除；EV9：ADDR10=1；注：EV5/EV6/EV9/EV8_1/EV8_2 会拉长 SCL 低电平时间、EV8 的软件序列必须在本字节传输结束之前完成；字幕「数据2为指定寄存器地址下的数据」"></p>
+<p><em>图 9：手册图245「主发送器传送序列图」——<strong>7 位主发送</strong>：<code>S</code>→地址 A→数据1 A→数据2 A→…→数据N A→<code>P</code>，下方 EV5、EV6、EV8_1、EV8、EV8、EV8_2；<strong>10 位主发送</strong>：<code>S</code>→帧头 A→地址 A→数据1 A→…→<code>P</code>，EV5、EV9、EV6、EV8_1…；说明：<code>S</code>=Start、<code>Sr</code>=重复起始、<code>P</code>=Stop、<code>A</code>=响应、<code>NA</code>=非响应、<code>EVx</code>=事件（ITEVFEN=1 时产生中断）；<strong>EV5：SB=1，读 SR1 后将地址写入 DR 清除</strong>；<strong>EV6：ADDR=1，读 SR1 再读 SR2</strong>；<strong>EV8_1：TxE=1，移位寄存器空，数据寄存器空，写 DR</strong>；<strong>EV8：TxE=1，移位寄存器非空，数据寄存器空，写入 DR 清除</strong>；<strong>EV8_2：TxE=1、BTF=1，请求设置停止位，TxE 与 BTF 由硬件在产生停止条件时清除</strong>；<strong>EV9：ADDR10=1</strong>；注：EV5/EV6/EV9/EV8_1/EV8_2 会拉长 SCL 低电平时间、EV8 的软件序列必须在本字节传输结束之前完成；字幕「数据2为指定寄存器地址下的数据」</em></p>
+<p><img src="../assets/images/stm32-34/10-dr-shift-marked.jpg" alt="图 10：同一页上的红笔——写「DR → &lt;&lt;」并画箭头：把要发送的字节写入 DR，硬件再把它送到移位寄存器、逐位发到 I2C 总线上；字幕「再把这一个字节发送到I2C总线上」"></p>
+<p><em>图 10：同一页上的红笔——写「DR → &lt;&lt;」并画箭头：把要发送的字节写入 DR，硬件再把它送到移位寄存器、逐位发到 I2C 总线上；字幕「再把这一个字节发送到I2C总线上」</em></p>
+<h2 id="7-主机接收流程-手册图246">7. 主机接收流程（手册图246）</h2>
+<ol>
+<li><strong>写 CR1 <code>START = 1</code></strong> → 等待 <strong>EV5</strong>（<code>SB = 1</code>）；</li>
+<li><strong>写「地址 + 读」到 DR</strong> → 硬件发地址 → 等待 <strong>EV6</strong>（<code>ADDR = 1</code>，读 SR1 再读 SR2 清除）；</li>
+<li>清 ADDR 后<strong>自动进入接收数据阶段</strong> → 每次收到一字节产生 <strong><code>EV7</code></strong>（<strong><code>RxNE = 1</code></strong>，<strong>读 DR 清除</strong>）；</li>
+<li><strong>读 DR 拿走数据</strong> → EV7 消失 → 下一个字节移入移位寄存器 → 再产生 EV7……循环；</li>
+<li><strong>当不想再接收时</strong>（最后一个字节移位时）：<strong>提前把 CR1 的 <code>ACK</code> 置 0（非应答），并设置 STOP 请求</strong>；</li>
+<li>最后一个字节接收完成 → <strong><code>EV7_1</code></strong>（<strong><code>RxNE = 1</code> 且 <code>ACK = 0</code></strong>）→ 之后由硬件产生停止条件；</li>
+<li><strong>只接收 1 个字节</strong>时用 <strong><code>EV6_1</code></strong>：它<strong>没有对应的事件标志</strong>，<strong>只适合接收 1 个字节的情况</strong>——恰好在 EV6 之后（清 ADDR 之后），要<strong>清除响应和停止条件的产生位</strong>。</li>
+</ol>
+<blockquote>
+<p><strong>注意</strong>：图246 里的「7 位主接收」时序是<strong>当前地址读</strong>的形式（<code>S</code>→地址+读→数据…）；如果要实现<strong>指定地址读</strong>，需要把「指定地址写（不发数据）」和「读」组合起来（重复起始），这正是上一集软件 I2C 的复合格式，本集只讲外设的流程、具体组合在 [10-5] 的代码里。</p>
+</blockquote>
+<p><img src="../assets/images/stm32-34/11-master-rx-246.jpg" alt="图 11：手册图246「主接收器传送序列图」——7 位主接收：S→地址 A→数据1 A→数据2 A→…→数据N NA→P，下方 EV5、EV6、EV6_1、EV7、EV7、EV7_1、EV7；10 位主接收：S→帧头 A→地址 A→Sr→帧头 A→数据1 A→…；说明：EV5（SB=1）、EV6（ADDR=1，10 位主接收时该事件后应设 CR2 的 START=1）、EV6_1（没有对应事件标志，只适于接收 1 个字节）、EV7（RxNE=1，读 DR 清除）、EV7_1（RxNE=1，读 DR 清除，设置 ACK=0 和 STOP 请求）、EV9；字幕「因为发送读的指令之后，必须要立刻转入读的时序」"></p>
+<p><em>图 11：手册图246「主接收器传送序列图」——<strong>7 位主接收</strong>：<code>S</code>→地址 A→数据1 A→数据2 A→…→数据N NA→<code>P</code>，下方 EV5、EV6、EV6_1、EV7、EV7、EV7_1、EV7；<strong>10 位主接收</strong>：<code>S</code>→帧头 A→地址 A→<code>Sr</code>→帧头 A→数据1 A→…；说明：<strong>EV5</strong>（SB=1）、<strong>EV6</strong>（ADDR=1，10 位主接收时该事件后应设 CR2 的 START=1）、<strong>EV6_1</strong>（没有对应事件标志，只适于接收 1 个字节）、<strong>EV7</strong>（RxNE=1，读 DR 清除）、<strong>EV7_1</strong>（RxNE=1，读 DR 清除，<strong>设置 ACK=0 和 STOP 请求</strong>）、<strong>EV9</strong>；字幕「因为发送读的指令之后，必须要立刻转入读的时序」</em></p>
+<p><img src="../assets/images/stm32-34/12-rxne-marked.jpg" alt="图 12：同一页上的红笔——写「DR」并用箭头指向「数据1」处（对应 EV7），红圈标出 EV6_1/数据1 区域；字幕「下面解释是，RxNE=1，数据寄存器非空」"></p>
+<p><em>图 12：同一页上的红笔——写「DR」并用箭头指向「数据1」处（对应 EV7），红圈标出 EV6_1/数据1 区域；字幕「下面解释是，RxNE=1，数据寄存器非空」</em></p>
+<h2 id="8-软件-硬件波形对比">8. 软件 / 硬件波形对比</h2>
+<ul>
+<li>上下两张波形：<strong>上面是软件 I2C、下面是硬件 I2C</strong>（都是指定地址读的时序），<strong>两种方式传的数据完全一样</strong>；</li>
+<li><strong>硬件 I2C 的波形更规整</strong>：<strong>SDA 的电平变化紧贴 SCL 的下降沿</strong>（可以理解为「<strong>SCL 下降沿写、上升沿读</strong>」），应答结束时也是「从机释放 SDA 的同时、主机立刻拉低 SDA」这种紧贴下降沿的动作；</li>
+<li><strong>软件模拟的波形不规整</strong>：<code>Delay</code> 加得有时多有时少，所以 SCL 周期不均、SDA 变化也不一定紧贴下降沿；</li>
+<li><strong>但完全不影响通信</strong>——因为 <strong>I2C 是同步时序</strong>，只要在 SCL 高电平期间数据保持稳定就能被正确读取，这正是同步时序的好处（本段作为扩展了解）。</li>
+</ul>
+<p><img src="../assets/images/stm32-34/13-waveform-compare.jpg" alt="图 13：PPT「软件/硬件波形对比」——上半是软件 I2C 波形、下半是硬件 I2C 波形（都是指定地址读时序），两侧都标注了 Send Byte 0xD0、Send Byte 0x19、Send Byte 0xD1、RA 0、Receive Byte、P 等段落"></p>
+<p><em>图 13：PPT「软件/硬件波形对比」——上半是软件 I2C 波形、下半是硬件 I2C 波形（都是指定地址读时序），两侧都标注了 <code>Send Byte 0xD0</code>、<code>Send Byte 0x19</code>、<code>Send Byte 0xD1</code>、<code>RA 0</code>、<code>Receive Byte</code>、<code>P</code> 等段落</em></p>
+<h2 id="9-参考手册第-24-章要点">9. 参考手册第 24 章要点</h2>
+<h3 id="9-1-功能描述与-4-种模式">9.1 功能描述与 4 种模式</h3>
+<ul>
+<li><strong>24.3 功能描述</strong>：I2C 模块接收和发送数据、<strong>串行/并行互相转换</strong>；通过 <strong>SDA（数据）+ SCL（时钟）</strong> 接总线；<strong>允许连接到标准（高达 100kHz）或快速（高达 400kHz）的 I2C 总线</strong>；支持中断/DMA；</li>
+<li><strong>24.3.1 模式选择——4 种模式</strong>：<ul>
+<li><strong>从发送器模式</strong>、<strong>从接收器模式</strong>、<strong>主发送器模式</strong>、<strong>主接收器模式</strong>；</li>
+<li><strong>默认从模式</strong>；<strong>产生起始条件后自动从从模式切换到主模式</strong>；<strong>仲裁丢失或产生停止信号时，从主模式切换回从模式</strong>（支持多主机功能）。</li>
+</ul>
+</li>
+</ul>
+<h3 id="9-2-主模式操作顺序与起始条件">9.2 主模式操作顺序与起始条件</h3>
+<ul>
+<li><strong>操作顺序</strong>：<strong>① 在 CR2 中设定输入时钟 FREQ（以产生正确时序）② 配置时钟控制寄存器 ③ 配置上升时间寄存器 ④ 编程 CR1 启动外设 ⑤ 置 CR1 的 START=1 产生起始条件</strong>；</li>
+<li><strong>输入时钟要求</strong>：<strong>标准模式 ≥ 2MHz、快速模式 ≥ 4MHz</strong>（低于这个值不能保证时序正确）；</li>
+<li><strong>起始条件</strong>：<strong>BUSY = 0 时置 START = 1</strong>，接口产生开始条件并<strong>切换到主模式（M/SL 位置位）</strong>；SR1 的 <strong>SB 位</strong>被硬件置位（若 ITEVFEN 置位则产生中断）；随后<strong>主设备等待读 SR1，紧接着把地址写入 DR</strong>（即图245/246 的 EV5）；</li>
+<li><strong>注</strong>：主模式下再次设置 START 位，会在<strong>当前字节传输完成后</strong>由硬件产生一个<strong>重开始条件（Sr）</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-34/14-manual-modes.jpg" alt="图 14：参考手册 24.3 功能描述与 24.3.1 模式选择——「接口可以下述 4 种模式中的一种运行：从发送器模式、从接收器模式、主发送器模式、主接收器模式」「该模块默认地工作于从模式。接口在生成起始条件后自动地从从模式切换到主模式；当仲裁丢失或产生停止信号时，则从主模式切换到从模式」；上方还有主要特点尾部（25ms 超时、带 ACK 控制的硬件 PEC、ARP、兼容 SMBus）；字幕「之后就是模式选择」"></p>
+<p><em>图 14：参考手册 24.3 功能描述与 <strong>24.3.1 模式选择</strong>——「接口可以下述 4 种模式中的一种运行：从发送器模式、从接收器模式、主发送器模式、主接收器模式」「该模块默认地工作于从模式。接口在生成起始条件后自动地从从模式切换到主模式；当仲裁丢失或产生停止信号时，则从主模式切换到从模式」；上方还有主要特点尾部（25ms 超时、带 ACK 控制的硬件 PEC、ARP、兼容 SMBus）；字幕「之后就是模式选择」</em></p>
+<p><img src="../assets/images/stm32-34/15-manual-master-mode.jpg" alt="图 15：参考手册 24.3.3 I²C主模式——主模式下 I2C 启动数据传输并产生时钟；操作顺序：在 CR2 设定输入时钟 → 配置时钟控制寄存器 → 配置上升时间寄存器 → 编程 CR1 启动外设 → 置 CR1 的 START 位为 1 产生起始条件；I2C 模块输入时钟频率必须至少：标准模式 2MHz、快速模式 4MHz；起始条件：BUSY=0 时设 START=1，接口产生开始条件并切换到主模式；SB 位置位、等待读 SR1 后把地址写入 DR（图245/246 的 EV5）；从地址通过内部移位寄存器送到 SDA 线上"></p>
+<p><em>图 15：参考手册 <strong>24.3.3 I²C主模式</strong>——主模式下 I2C 启动数据传输并产生时钟；操作顺序：在 CR2 设定输入时钟 → 配置时钟控制寄存器 → 配置上升时间寄存器 → 编程 CR1 启动外设 → 置 CR1 的 START 位为 1 产生起始条件；<strong>I2C 模块输入时钟频率必须至少：标准模式 2MHz、快速模式 4MHz</strong>；起始条件：BUSY=0 时设 START=1，接口产生开始条件并切换到主模式；SB 位置位、等待读 SR1 后把地址写入 DR（图245/246 的 EV5）；从地址通过内部移位寄存器送到 SDA 线上</em></p>
+<h3 id="9-3-寄存器一览">9.3 寄存器一览</h3>
+<table>
+<thead>
+<tr>
+<th>寄存器</th>
+<th>作用</th>
+<th>关键位/说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>CR1</strong></td>
+<td>控制寄存器 1</td>
+<td><strong>PE</strong>（使能）、<strong>START</strong>、<strong>STOP</strong>、<strong>ACK</strong>、<strong>ENGC</strong>（广播呼叫使能）、<strong>ENPEC</strong>、<strong>POS</strong>、<strong>NOSTRETCH</strong> 等</td>
+</tr>
+<tr>
+<td><strong>CR2</strong></td>
+<td>控制寄存器 2</td>
+<td><strong>FREQ[5:0]</strong>（输入时钟频率）、<strong>ITBUFEN/ITEVTEN/ITERREN</strong>（中断使能）、<strong>DMAEN</strong>、<strong>LAST</strong></td>
+</tr>
+<tr>
+<td><strong>OAR1</strong></td>
+<td>自身地址寄存器 1</td>
+<td>从机模式下 STM32 自己的地址（本课程不用）</td>
+</tr>
+<tr>
+<td><strong>OAR2</strong></td>
+<td>自身地址寄存器 2</td>
+<td>第二个从机地址（<strong>双地址</strong>，本课程不用）</td>
+</tr>
+<tr>
+<td><strong>DR</strong></td>
+<td>数据寄存器</td>
+<td>发送写这里、接收读这里（数据收发核心）</td>
+</tr>
+<tr>
+<td><strong>SR1 / SR2</strong></td>
+<td>状态寄存器 1/2</td>
+<td>各种<strong>事件与错误标志</strong>（SB、ADDR、TxE、RxNE、BTF、AF 等）</td>
+</tr>
+<tr>
+<td><strong>CCR</strong></td>
+<td>时钟控制寄存器</td>
+<td><strong>SCL 时钟频率</strong>: 分频系数 + 占空比；<strong>例：FREQR=08 时 TPCLK1=125ns，产生 100kHz 需 CCR=0x28（40×125ns=5000ns）</strong></td>
+</tr>
+<tr>
+<td><strong>TRISE</strong></td>
+<td>上升时间寄存器</td>
+<td>最大上升时间；<strong>偏移 0x20、复位值 0x0002</strong>（有库函数，公式不用记）</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>有库函数时这些公式不需要自己算</strong>（<code>I2C_Init</code> 里给个时钟频率就行），本集只需<strong>了解寄存器结构和作用</strong>；</li>
+<li><strong>单片机实验时用到的就是这些寄存器</strong>，写代码时（[10-5]）会按「配 CR2 时钟 → 配 CCR → CR1 使能 → START → 等 EV 事件 → 读写 DR」这条流程走。</li>
+</ul>
+<p><img src="../assets/images/stm32-34/16-register-map.jpg" alt="图 16：参考手册「24.6.10 I²C寄存器地址映像」表174——偏移 0x00 I2C_CR1（SMBUS、ALERT、PEC、POS、ACK、STOP、START、NOSTRETCH、ENGC、ENPEC、ENARP、SMBTYPE、PE 等位）、0x04 I2C_CR2（LAST、DMAEN、ITBUFEN、ITEVTEN、ITERREN、FREQ 的 5:0 位）、0x08 I2C_OAR1（ADDMODE、ADD 的 9:8 位、ADD 的 7:1 位、ADD0）、0x0C I2C_OAR2（ADD2 的 7:1 位、ENDUAL）；字幕「好，那到这里，我们本小节的内容就全部结束了」"></p>
+<p><em>图 16：参考手册「24.6.10 I²C寄存器地址映像」表174——偏移 <strong>0x00 I2C_CR1</strong>（SMBUS、ALERT、PEC、POS、ACK、STOP、START、NOSTRETCH、ENGC、ENPEC、ENARP、SMBTYPE、PE 等位）、<strong>0x04 I2C_CR2</strong>（LAST、DMAEN、ITBUFEN、ITEVTEN、ITERREN、FREQ 的 5:0 位）、<strong>0x08 I2C_OAR1</strong>（ADDMODE、ADD 的 9:8 位、ADD 的 7:1 位、ADD0）、<strong>0x0C I2C_OAR2</strong>（ADD2 的 7:1 位、ENDUAL）；字幕「好，那到这里，我们本小节的内容就全部结束了」</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>硬件 I2C 引脚固定</strong>：I2C1 = PB6/PB7（可重映射 PB8/PB9）、I2C2 = PB10/PB11，不能像软件 I2C 任意指定。</li>
+<li><strong>GPIO 要配「复用开漏输出」</strong>：不是普通推挽；开漏下 P-MOS 不存在，输出高电平＝释放。</li>
+<li><strong>STM32 默认从模式</strong>：写 START=1 才切到主模式；写完 STOP 又回到从模式。</li>
+<li><strong>主机发送必须按事件顺序</strong>：START → <strong>EV5</strong> → 地址 → <strong>EV6</strong> → <strong>EV8_1</strong> → 写 DR → <strong>EV8</strong> → … → <strong>EV8_2</strong> → STOP；<strong>跳步会卡死</strong>。</li>
+<li><strong>EV5/EV6 的清除方式不同</strong>：EV5 读 SR1 后<strong>写 DR</strong> 清除；EV6 要<strong>读 SR1 再读 SR2</strong>；EV8 写入 DR 清除。（按正常流程读写就会自动清，不要手动去「清标志」）</li>
+<li><strong>EV8 的软件序列必须在本字节传输结束前完成</strong>；EV5/EV6/EV9/EV8_1/EV8_2 会<strong>拉长 SCL 低电平时间</strong>（硬件自动等待）。</li>
+<li><strong>接收最后一字节前要「提前」设 ACK=0 + STOP 请求</strong>，收到后是 <strong>EV7_1</strong>；顺序反了会多收一个字节或停不下来。</li>
+<li><strong>只收 1 个字节用 EV6_1</strong>（没有事件标志位）；收多字节则用 EV7 循环。</li>
+<li><strong>输入时钟要求</strong>：标准模式 ≥2MHz、快速模式 ≥4MHz——<strong>时钟太低时序不准</strong>。</li>
+<li><strong>CCR/TRISE 公式不用背</strong>：有库函数；本集只举例 CCR=0x28 → 100kHz（FREQR=08）。</li>
+<li><strong>100kHz/400kHz 是上限</strong>：设备声称快速 I2C 就是最大 400kHz。</li>
+<li><strong>SMBALERT、PEC、双地址寄存器、10 位地址</strong>都属于「了解即可」，本课程真正要掌握的只有<strong>7 位地址 + 主发送/主接收</strong>。</li>
+<li><strong>上集软件 I2C 用 PB10/PB11</strong>，正好是 <strong>I2C2</strong> 的引脚——换硬件 I2C2 时接线不用改；用 I2C1 则要改到 PB6/PB7。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>本小节继续学习 I2C 通信</td>
+</tr>
+<tr>
+<td>0:14</td>
+<td>前面已了解协议规定，并用 GPIO 模拟 I2C 读写 MPU6050</td>
+</tr>
+<tr>
+<td>0:44</td>
+<td>之前课程用的是软件 I2C，手动拉低或释放时钟线</td>
+</tr>
+<tr>
+<td>0:56</td>
+<td>因为 I2C 是同步时序，位持续时间要求不严格</td>
+</tr>
+<tr>
+<td>1:10</td>
+<td>所以软件模拟 I2C 非常常见</td>
+</tr>
+<tr>
+<td>1:12</td>
+<td>而 I2C 也可以有硬件收发电路，就像串口</td>
+</tr>
+<tr>
+<td>1:29</td>
+<td>串口是异步时序，位时间要求很严格</td>
+</tr>
+<tr>
+<td>1:50</td>
+<td>但串口软件模拟困难，所以基本都用硬件</td>
+</tr>
+<tr>
+<td>2:01</td>
+<td>硬件外设使用流程：配置外设、写 DR、等标志位</td>
+</tr>
+<tr>
+<td>2:20</td>
+<td>I2C 有软件模拟和硬件收发两种实现方式</td>
+</tr>
+<tr>
+<td>2:45</td>
+<td>异步时序软件模拟麻烦，同步时序则简单灵活</td>
+</tr>
+<tr>
+<td>3:00</td>
+<td>硬件 I2C 效率高、省软件资源、波形规整、速率快</td>
+</tr>
+<tr>
+<td>3:07</td>
+<td>简单应用选软件 I2C，性能要求高选硬件 I2C</td>
+</tr>
+<tr>
+<td>3:34</td>
+<td>程序现象和上一集一样，这里就不演示了</td>
+</tr>
+<tr>
+<td>3:36</td>
+<td>直接看 I2C 外设简介</td>
+</tr>
+<tr>
+<td>3:40</td>
+<td>STM32 内部集成了硬件 I2C 收发电路</td>
+</tr>
+<tr>
+<td>4:04</td>
+<td>应答位收发、数据收发都由硬件自动翻转引脚电平</td>
+</tr>
+<tr>
+<td>4:07</td>
+<td>只需写控制寄存器 CR 和数据寄存器 DR</td>
+</tr>
+<tr>
+<td>4:16</td>
+<td>再读状态寄存器 SR 了解当前状态</td>
+</tr>
+<tr>
+<td>4:27</td>
+<td>写 CR 像控制汽车运行，读 SR 像看仪表盘</td>
+</tr>
+<tr>
+<td>4:39</td>
+<td>有库函数封装后操作更简单</td>
+</tr>
+<tr>
+<td>4:52</td>
+<td>硬件自动实现时序可减轻 CPU 负担、提高效率</td>
+</tr>
+<tr>
+<td>5:05</td>
+<td>这就是 I2C 外设存在的意义</td>
+</tr>
+<tr>
+<td>5:18</td>
+<td>硬件 I2C 功能：支持 7 位/10 位地址</td>
+</tr>
+<tr>
+<td>5:23</td>
+<td>支持标准速度 100kHz、快速 400kHz</td>
+</tr>
+<tr>
+<td>5:29</td>
+<td>支持 DMA，兼容 SMBus 协议</td>
+</tr>
+<tr>
+<td>5:38</td>
+<td>这些内容了解即可，协议本身比较庞大</td>
+</tr>
+<tr>
+<td>5:50</td>
+<td>实际应用往往只需要最简单的一主多从、7 位地址</td>
+</tr>
+<tr>
+<td>6:55</td>
+<td>I2C 通信分主机和从机，主机有主动控制权</td>
+</tr>
+<tr>
+<td>8:03</td>
+<td>多主机模型：固定多主机，多个老师同时说话就要仲裁</td>
+</tr>
+<tr>
+<td>9:22</td>
+<td>可变多主机：没有固定主机，谁想说谁跳出来</td>
+</tr>
+<tr>
+<td>9:30</td>
+<td>STM32 的 I2C 用的是可变多主机模型</td>
+</tr>
+<tr>
+<td>9:36</td>
+<td>实际没人跟它抢主机，但操作要按这个模型来</td>
+</tr>
+<tr>
+<td>9:45</td>
+<td>接下来看 7 位和 10 位地址模式</td>
+</tr>
+<tr>
+<td>10:00</td>
+<td>7 位地址最简单最常见，一共 128 种</td>
+</tr>
+<tr>
+<td>10:13</td>
+<td>设备很多时 7 位地址会不够用</td>
+</tr>
+<tr>
+<td>11:14</td>
+<td>10 位地址：起始后两个字节都作寻址</td>
+</tr>
+<tr>
+<td>11:17</td>
+<td>第一字节有 7 个空位，多出来的 5 位当标志位</td>
+</tr>
+<tr>
+<td>11:43</td>
+<td>标志位就是 11110，后面的两位加第二字节构成 10 位</td>
+</tr>
+<tr>
+<td>12:17</td>
+<td>11110 开头的地址不会在 7 位模式中出现</td>
+</tr>
+<tr>
+<td>12:28</td>
+<td>支持不同通讯速度：标准 100kHz、快速 400kHz</td>
+</tr>
+<tr>
+<td>12:48</td>
+<td>这是协议规定的最大频率，不超过即可</td>
+</tr>
+<tr>
+<td>12:57</td>
+<td>支持 DMA，多字节传输时可提高效率</td>
+</tr>
+<tr>
+<td>13:33</td>
+<td>兼容 SMBus 协议，用于电源管理系统，了解即可</td>
+</tr>
+<tr>
+<td>13:48</td>
+<td>C8T6 的硬件 I2C 资源有两个：I2C1、I2C2</td>
+</tr>
+<tr>
+<td>14:04</td>
+<td>硬件 I2C 必须有硬件电路，资源有限</td>
+</tr>
+<tr>
+<td>14:26</td>
+<td>软件 I2C 只要代码存得下，想开几路开几路</td>
+</tr>
+<tr>
+<td>14:30</td>
+<td>这就是硬件 I2C 和软件 I2C 的资源差异</td>
+</tr>
+<tr>
+<td>14:40</td>
+<td>接下来看 I2C 外设的框图</td>
+</tr>
+<tr>
+<td>14:50</td>
+<td>左边是通信引脚 SDA 和 SCL</td>
+</tr>
+<tr>
+<td>14:57</td>
+<td>SMBALERT 是 SMBus 用的，I2C 用不到</td>
+</tr>
+<tr>
+<td>15:13</td>
+<td>引脚具体复用在哪，查引脚定义表复用功能栏</td>
+</tr>
+<tr>
+<td>15:24</td>
+<td>I2C2 的 SCL/SDA 复用在 PB10 和 PB11</td>
+</tr>
+<tr>
+<td>15:30</td>
+<td>I2C1 的 SCL/SDA 复用在 PB6 和 PB7</td>
+</tr>
+<tr>
+<td>15:40</td>
+<td>I2C1 的两个引脚还有重映射到 PB8/PB9 的机会</td>
+</tr>
+<tr>
+<td>16:00</td>
+<td>硬件 I2C 引脚是固定的，不能任意指定</td>
+</tr>
+<tr>
+<td>16:19</td>
+<td>接着看内部电路：数据寄存器和移位寄存器</td>
+</tr>
+<tr>
+<td>16:25</td>
+<td>发送时把数据写到 DR，移位寄存器空时转入</td>
+</tr>
+<tr>
+<td>16:46</td>
+<td>数据由 DR 转到移位寄存器时置 TxE</td>
+</tr>
+<tr>
+<td>17:03</td>
+<td>接收时从引脚移入移位寄存器，再整体转到 DR</td>
+</tr>
+<tr>
+<td>17:12</td>
+<td>接收寄存器非空即 RxNE</td>
+</tr>
+<tr>
+<td>17:29</td>
+<td>与串口的数据收发结构类似</td>
+</tr>
+<tr>
+<td>17:34</td>
+<td>数据收和发是分开的，靠控制寄存器决定方向</td>
+</tr>
+<tr>
+<td>18:31</td>
+<td>往上还有比较器和地址寄存器，这是从机模式用的</td>
+</tr>
+<tr>
+<td>19:03</td>
+<td>从机地址判断用的比较器与自身地址寄存器</td>
+</tr>
+<tr>
+<td>19:12</td>
+<td>STM32 支持同时响应两个从机地址（双地址寄存器）</td>
+</tr>
+<tr>
+<td>20:24</td>
+<td>右边是 PEC 错帧校验，硬件 CRC，了解即可</td>
+</tr>
+<tr>
+<td>20:32</td>
+<td>下面是 SCL 时钟控制部分</td>
+</tr>
+<tr>
+<td>20:51</td>
+<td>控制逻辑电路是黑盒，输出中断与 DMA 请求</td>
+</tr>
+<tr>
+<td>21:34</td>
+<td>简化结构：去掉用不到的部分</td>
+</tr>
+<tr>
+<td>21:48</td>
+<td>移位寄存器向左移位，因为 I2C 高位先行</td>
+</tr>
+<tr>
+<td>22:45</td>
+<td>GPIO 口也可以输入，复用开漏仍可读回电平</td>
+</tr>
+<tr>
+<td>23:00</td>
+<td>SCL 一主多从下只画输出方向</td>
+</tr>
+<tr>
+<td>23:20</td>
+<td>数据经 GPIO 输出到引脚，输入从引脚回到外设</td>
+</tr>
+<tr>
+<td>23:43</td>
+<td>输出驱动器里 P-MOS 不存在，只用 N-MOS 控制拉低或释放</td>
+</tr>
+<tr>
+<td>24:14</td>
+<td>GPIO 使用复用开漏输出，P-MOS 没有</td>
+</tr>
+<tr>
+<td>24:31</td>
+<td>输出接复用输出、输入接复用输入，开关控制使能外设</td>
+</tr>
+<tr>
+<td>24:37</td>
+<td>接下来看硬件 I2C 的操作流程</td>
+</tr>
+<tr>
+<td>25:09</td>
+<td>主发送和主接收流程图告诉我们何时做什么</td>
+</tr>
+<tr>
+<td>25:53</td>
+<td>10 位地址时两个字节都作寻址，本集主要看 7 位</td>
+</tr>
+<tr>
+<td>26:46</td>
+<td>初始化后总线空闲，STM32 默认从模式</td>
+</tr>
+<tr>
+<td>27:06</td>
+<td>写 CR1 的 START=1，硬件产生起始条件</td>
+</tr>
+<tr>
+<td>28:16</td>
+<td>起始后产生 EV5 事件，SB=1</td>
+</tr>
+<tr>
+<td>29:07</td>
+<td>读 SR1 后把从机地址写入 DR 清除 EV5</td>
+</tr>
+<tr>
+<td>29:13</td>
+<td>硬件把地址发送到总线上</td>
+</tr>
+<tr>
+<td>29:30</td>
+<td>从机应答后产生 EV6 事件，ADDR=1</td>
+</tr>
+<tr>
+<td>29:37</td>
+<td>读 SR1 再读 SR2 清除 ADDR</td>
+</tr>
+<tr>
+<td>29:47</td>
+<td>EV8_1：TxE=1、移位寄存器空，可以写 DR</td>
+</tr>
+<tr>
+<td>30:37</td>
+<td>写入数据后产生 EV8：移位寄存器非空</td>
+</tr>
+<tr>
+<td>30:45</td>
+<td>写入 DR 清除 EV8，逐字节重复</td>
+</tr>
+<tr>
+<td>31:40</td>
+<td>数据发完、移位完成时产生 EV8_2（TxE+BTF）</td>
+</tr>
+<tr>
+<td>32:51</td>
+<td>写 CR1 的 STOP=1 产生停止条件</td>
+</tr>
+<tr>
+<td>33:26</td>
+<td>按流程写 CR/DR、再等待事件，就能实现时序</td>
+</tr>
+<tr>
+<td>33:43</td>
+<td>有库函数时不需要直接配置寄存器，过程比想象简单</td>
+</tr>
+<tr>
+<td>33:51</td>
+<td>先有个印象即可，这就是主机发送的流程</td>
+</tr>
+<tr>
+<td>34:03</td>
+<td>接着看主机接收流程，有 7 位和 10 位两种</td>
+</tr>
+<tr>
+<td>34:15</td>
+<td>7 位主接收：地址+读、接收数据、发应答</td>
+</tr>
+<tr>
+<td>34:45</td>
+<td>最后给非应答；这其实是当前地址读的时序</td>
+</tr>
+<tr>
+<td>35:08</td>
+<td>指定地址读的复合格式需要自己组合</td>
+</tr>
+<tr>
+<td>35:16</td>
+<td>10 位主接收：帧头读写位、第二字节 8 位地址</td>
+</tr>
+<tr>
+<td>35:31</td>
+<td>事件本质是若干标志位的组合</td>
+</tr>
+<tr>
+<td>35:54</td>
+<td>按正常流程读写寄存器会自动清标志</td>
+</tr>
+<tr>
+<td>35:55</td>
+<td>主机接收流程：START → EV5 → 地址+读 → EV6</td>
+</tr>
+<tr>
+<td>36:55</td>
+<td>之后进入接收，每收一字节产生 EV7（RxNE=1）</td>
+</tr>
+<tr>
+<td>36:58</td>
+<td>读 DR 清除 EV7，循环接收</td>
+</tr>
+<tr>
+<td>37:09</td>
+<td>最后一字节前把 ACK 置 0 并设置停止请求</td>
+</tr>
+<tr>
+<td>37:21</td>
+<td>收完最后一字节产生 EV7_1（RxNE=1、ACK=0）</td>
+</tr>
+<tr>
+<td>37:48</td>
+<td>只收 1 个字节的情况用 EV6_1，没有事件标志</td>
+</tr>
+<tr>
+<td>38:42</td>
+<td>软件与硬件波形对比：数据一样，硬件波形更规整</td>
+</tr>
+<tr>
+<td>40:24</td>
+<td>硬件 SDA 变化紧贴 SCL 下降沿，软件则周期不均</td>
+</tr>
+<tr>
+<td>40:33</td>
+<td>因为 I2C 是同步时序，不标准波形也不影响通信</td>
+</tr>
+<tr>
+<td>40:39</td>
+<td>这也是同步时序的好处，作为扩展了解</td>
+</tr>
+<tr>
+<td>40:59</td>
+<td>最后看参考手册第 24 章</td>
+</tr>
+<tr>
+<td>41:09</td>
+<td>24.3.1 模式选择：4 种模式，默认从模式</td>
+</tr>
+<tr>
+<td>42:02</td>
+<td>起始后自动转主模式，仲裁丢失/停止后转回从模式</td>
+</tr>
+<tr>
+<td>42:09</td>
+<td>24.3.3 主模式操作顺序：CR2 设时钟、配 CCR、配 TRISE</td>
+</tr>
+<tr>
+<td>42:10</td>
+<td>CR1 启动外设、START=1 产生起始条件</td>
+</tr>
+<tr>
+<td>42:39</td>
+<td>输入时钟标准模式≥2MHz、快速模式≥4MHz</td>
+</tr>
+<tr>
+<td>42:45</td>
+<td>起始条件：BUSY=0 时置 START=1</td>
+</tr>
+<tr>
+<td>43:19</td>
+<td>SB 置位后可产生中断，等读 SR1 后写地址到 DR</td>
+</tr>
+<tr>
+<td>43:35</td>
+<td>主模式下再次置 START 会在当前字节后产生重开始条件</td>
+</tr>
+<tr>
+<td>43:44</td>
+<td>之后是寄存器：CR1 控制启动/停止/应答等</td>
+</tr>
+<tr>
+<td>43:45</td>
+<td>CR2 设 FREQ 与中断/DMA 使能</td>
+</tr>
+<tr>
+<td>43:46</td>
+<td>OAR1/OAR2 是自身地址（从机用）</td>
+</tr>
+<tr>
+<td>44:04</td>
+<td>DR 是数据收发核心</td>
+</tr>
+<tr>
+<td>44:22</td>
+<td>SR1/SR2 存各种标志位</td>
+</tr>
+<tr>
+<td>44:31</td>
+<td>CCR 确定 SCL 频率，含分频系数与占空比</td>
+</tr>
+<tr>
+<td>44:37</td>
+<td>例：FREQR=08 时 100kHz 需 CCR=0x28</td>
+</tr>
+<tr>
+<td>44:41</td>
+<td>TRISE 是最大上升时间，偏移 0x20</td>
+</tr>
+<tr>
+<td>44:45</td>
+<td>有库函数，这些公式不用自己算</td>
+</tr>
+<tr>
+<td>44:54</td>
+<td>最后是寄存器地址映像表</td>
+</tr>
+<tr>
+<td>45:01</td>
+<td>本节内容全部结束，硬件 I2C 的代码下一节讲</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，748 段），不是 ASR。最大的错字是 <strong><code>I2C</code> → 「12C」</strong>（60 处）；另有 <code>引脚</code>→「引I脚」（1 处）、<code>寄存器</code>→「寄存哭」/「客存器」（各 1 处）、<code>地址</code>→「地机」（5 处）/「地止」（2 处）、<code>运行</code>→「云行」（1 处）/「云状态」；并混入<strong>手册页眉/水印</strong>（<code>RM0008 Reference Manual 英文第10版</code>；另 <code>请以英文原稿为准</code>、<code>CONFIDENTIAL &amp; PROPRIETARY</code> 只出现在画面手册页的水印里、未进入 OCR 文本），已按画面和上下文校正。</li>
+<li><strong>本集无代码</strong>：全程 PPT + 手册讲解；只在口述里出现一句 <strong><code>I2C_Cmd</code></strong>（使能外设），<strong><code>I2C_Init</code>/<code>I2C_SendData</code>/<code>I2C_GetFlagStatus</code> 等库函数名均未出现</strong>——本笔记<strong>没有提前写这些函数名</strong>，具体写法注明「代码在 [10-5]」。</li>
+<li><strong>10 位地址只讲思路</strong>（<code>11110</code> 帧头标志 + 两个字节寻址），<strong>未讲完整的 10 位操作流程</strong>，作者明确说「了解即可」；笔记也按「思路」写。</li>
+<li><strong>CCR/TRISE 公式不需记</strong>（有库函数）：本集只给了 <strong>FREQR=08 时 CCR=0x28 → 100kHz（40×125ns=5000ns）</strong> 一个示例，TRISE <strong>偏移 0x20、复位 0x0002</strong>——笔记照写并注明「无需记」。</li>
+<li><strong>从机模式、PEC、SMBus、双地址寄存器</strong>都是「了解即可」（作者反复强调本课程只掌握<strong>主发送/主接收 + DR/移位寄存器 + 事件标志</strong>），笔记没有展开。</li>
+<li><strong>引脚对应</strong>：I2C1=PB6/PB7（可重映射 PB8/PB9）、I2C2=PB10/PB11——<strong>与上一集软件 I2C 用的 PB10/PB11 相同</strong>（用硬件 I2C2 时接线不用改），笔记已写清。</li>
+<li><strong>事件编号保持手册原名</strong>：EV5、EV6、EV6_1、EV7、EV7_1、EV8、EV8_1、EV8_2、EV9 均按画面/手册原样保留，未做改写。</li>
+<li><strong>片尾 44:55 只有「本节结束」与「代码下一节」</strong>，无独立片尾预告画面。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-35.html"><span class="label">下一篇</span>[10-5] 硬件I2C读写MPU6050</a>
+    <a class="next" href="stm32-33.html"><span class="label">上一篇</span>[10-3] 软件I2C读写MPU6050</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-stm32-i2c-%E5%A4%96%E8%AE%BE%E5%8E%9F%E7%90%86-%E6%89%8B%E5%86%8C%E7%B2%BE%E8%AF%BB-%E4%BB%A3%E7%A0%81%E5%9C%A8-10-5">0. 本集定位：理论课（STM32 I2C 外设原理 + 手册精读），代码在 10-5</a>
+        <a class="level-2" href="#1-%E8%BD%AF%E4%BB%B6-i2c-%E4%B8%8E%E7%A1%AC%E4%BB%B6-i2c">1. 软件 I2C 与硬件 I2C</a>
+        <a class="level-2" href="#2-i2c-%E5%A4%96%E8%AE%BE%E7%AE%80%E4%BB%8B">2. I2C 外设简介</a>
+        <a class="level-2" href="#3-%E5%A4%9A%E4%B8%BB%E6%9C%BA%E6%A8%A1%E5%9E%8B%E4%B8%8E%E5%9C%B0%E5%9D%80%E6%A8%A1%E5%BC%8F">3. 多主机模型与地址模式</a>
+        <a class="level-3" href="#3-1-%E5%A4%9A%E4%B8%BB%E6%9C%BA%E6%A8%A1%E5%9E%8B">3.1 多主机模型</a>
+        <a class="level-3" href="#3-2-7-%E4%BD%8D%E4%B8%8E-10-%E4%BD%8D%E5%9C%B0%E5%9D%80%E6%A8%A1%E5%BC%8F">3.2 7 位与 10 位地址模式</a>
+        <a class="level-2" href="#4-i2c-%E6%A1%86%E5%9B%BE-%E5%9B%BE242">4. I2C 框图（图242）</a>
+        <a class="level-3" href="#4-1-%E6%95%B0%E6%8D%AE%E6%94%B6%E5%8F%91-dr-%E7%A7%BB%E4%BD%8D%E5%AF%84%E5%AD%98%E5%99%A8%E4%B8%A4%E7%BA%A7">4.1 数据收发：DR + 移位寄存器两级</a>
+        <a class="level-3" href="#4-2-%E7%AE%80%E5%8C%96%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84">4.2 简化基本结构</a>
+        <a class="level-2" href="#5-%E5%BC%95%E8%84%9A%E6%98%A0%E5%B0%84">5. 引脚映射</a>
+        <a class="level-2" href="#6-%E4%B8%BB%E6%9C%BA%E5%8F%91%E9%80%81%E6%B5%81%E7%A8%8B-%E6%89%8B%E5%86%8C%E5%9B%BE245">6. 主机发送流程（手册图245）</a>
+        <a class="level-2" href="#7-%E4%B8%BB%E6%9C%BA%E6%8E%A5%E6%94%B6%E6%B5%81%E7%A8%8B-%E6%89%8B%E5%86%8C%E5%9B%BE246">7. 主机接收流程（手册图246）</a>
+        <a class="level-2" href="#8-%E8%BD%AF%E4%BB%B6-%E7%A1%AC%E4%BB%B6%E6%B3%A2%E5%BD%A2%E5%AF%B9%E6%AF%94">8. 软件 / 硬件波形对比</a>
+        <a class="level-2" href="#9-%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C%E7%AC%AC-24-%E7%AB%A0%E8%A6%81%E7%82%B9">9. 参考手册第 24 章要点</a>
+        <a class="level-3" href="#9-1-%E5%8A%9F%E8%83%BD%E6%8F%8F%E8%BF%B0%E4%B8%8E-4-%E7%A7%8D%E6%A8%A1%E5%BC%8F">9.1 功能描述与 4 种模式</a>
+        <a class="level-3" href="#9-2-%E4%B8%BB%E6%A8%A1%E5%BC%8F%E6%93%8D%E4%BD%9C%E9%A1%BA%E5%BA%8F%E4%B8%8E%E8%B5%B7%E5%A7%8B%E6%9D%A1%E4%BB%B6">9.2 主模式操作顺序与起始条件</a>
+        <a class="level-3" href="#9-3-%E5%AF%84%E5%AD%98%E5%99%A8%E4%B8%80%E8%A7%88">9.3 寄存器一览</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

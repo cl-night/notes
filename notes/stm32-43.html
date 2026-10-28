@@ -1,0 +1,2530 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[12-3] 读写备份寄存器&amp;实时时钟 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [12-3]（代码课）：①BKP：VBAT 用 ST-Link 3.3V、PWR+BKP 时钟、BackupAccessCmd、Write/ReadBackupRegister；②RTC：MyRTC 的 LSE+LSERDY、等同步/等写完、SetPrescaler(32767)、SetCounter、mktime/localtime 换算、0xA5A5 掉电保持、时区 ±8 小时。">
+  <meta property="og:title" content="[12-3] 读写备份寄存器&amp;实时时钟 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [12-3]（代码课）：①BKP：VBAT 用 ST-Link 3.3V、PWR+BKP 时钟、BackupAccessCmd、Write/ReadBackupRegister；②RTC：MyRTC 的 LSE+LSERDY、等同步/等写完、SetPrescaler(32767)、SetCounter、mktime/localtime 换算、0xA5A5 掉电保持、时区 ±8 小时。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html" class="active" aria-current="page">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>45 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">BKP</span><span class="tag">RTC</span><span class="tag">时间戳</span><span class="tag">代码</span>
+    </div>
+    <article class="prose"><h1>[12-3] 读写备份寄存器&amp;实时时钟 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=43，52:06（3126 秒）</li>
+<li>素材：240 帧关键帧（<strong>每 13 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>719 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p43/frames/</code>，站内图片在 <code>assets/images/stm32-43/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；错字主要是 <strong><code>寄存器</code> → 「奇存器」</strong>、<code>编译</code> → 「扁译」、<code>晶振</code> → 「显振」、<code>读取</code> → 「卖取」、<code>数据</code> → 「数居」、<code>电源</code> → 「由源」、<code>STM32</code> → 「SIM32/SM32」；并混入编译/下载输出（<code>Flash Load finished at …</code>）——这些<strong>不是口述内容</strong>，已剔除/校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 12 的代码课</strong>，<strong>两个独立程序</strong>（都从复制 OLED 显示屏工程起步）：<strong>① <code>12-2 读写备份寄存器</code></strong>（BKP，含 PB1 按键）、<strong>② <code>12-2 实时时钟</code></strong>（RTC，无按键，新建 <strong>MyRTC</strong> 模块放在 <strong>System</strong> 目录）。结尾 52:00 是 <strong>DIV 线性变换</strong>的扩展演示，<strong>无下集预告</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>接线</strong>：OLED 接 I2C（老演员）、<strong>PB1 接按键</strong>；<strong>板子右上角的 VBAT 引脚用飞线接 ST-Link 的 3.3V 输出</strong>——因为<strong>套件里没配纽扣电池</strong>，所以用 ST-Link 3.3V 模拟备用电池，<strong>绝不能接到 5V</strong>（VBAT 不支持 5V 供电）。RTC 的 <strong>32.768kHz 外部低速晶振板载自带</strong>，不用接线、也不用管。<strong>程序①（<code>12-2 读写备份寄存器</code>）</strong>：思路就是 PPT 里的几条——<strong>开 PWR+BKP 时钟 → 用 PWR 函数使能对 BKP/RTC 的访问 → 调用 BKP 的写/读函数</strong>。库函数：<strong><code>BKP_WriteBackupRegister(uint16_t BKP_DR, uint16_t Data)</code></strong>（<strong>第二个参数是 16 位整数</strong>，第一个参数写哪个 DR）、<strong><code>uint16_t BKP_ReadBackupRegister(uint16_t BKP_DR)</code></strong>（<strong>返回值就是该 DR 里存的值</strong>）；辅助函数 <code>BKP_DeInit</code>（恢复缺省配置，<strong>可手动清空所有 DR 数据</strong>）、<code>BKP_TamperPinLevelConfig</code>（TAMPER 有效电平）、<code>BKP_TamperPinCmd</code>（是否开启侵入检测）、<code>BKP_RTCOutputConfig</code>（时钟输出）、<code>BKP_SetRTCCalibrationValue</code>（写 RTC 校准寄存器）——后者都<strong>了解即可</strong>。<strong>PWR 侧只有一个关键函数 <code>PWR_BackupAccessCmd</code></strong>：转定义可见内部就是 <strong><code>*(__IO uint32_t *) CR_DBP_BB = (uint32_t)NewState;</code></strong>，即<strong>置 <code>PWR_CR</code> 寄存器的 DBP 位</strong>——对应 PPT 的「使能对 BKP 和 RTC 的访问」。注意 <strong>PWR 和 BKP 都是 APB1 外设</strong>，两个时钟都要开（<strong>只开 BKP 不行，必须先开 PWR 时钟</strong>）。<strong>BKP 初版代码</strong>：<code>uint16_t ArrayWrite[] = {0x1234, 0x5678};</code>、<code>OLED_Init();</code> → <strong><code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR/BKP, ENABLE)</code></strong> → <strong><code>PWR_BackupAccessCmd(ENABLE)</code></strong> → <code>BKP_WriteBackupRegister(BKP_DR1, 0x1234)</code> → <code>OLED_ShowHexNum(1, 1, BKP_ReadBackupRegister(BKP_DR1), 4)</code>。<strong>现象测试</strong>：下载后显示 <code>1234</code>；<strong>不带备用电池时上电 BKP 为 0</strong>；<strong>复位不清空</strong>；<strong>断主电源（VDD）后数据仍是 1234</strong>；<strong>把备用电源（VBAT）也拔掉 → BKP 清零</strong>——完全符合预期。<strong>BKP 完善版</strong>：OLED 显示 <code>W:</code> / <code>R:</code> 两行，加按键（<code>Key_Init()</code>、<code>Key_GetNum()</code>），主循环里 <strong><code>if (KeyNum == 1) { ArrayWrite[0]++; ArrayWrite[1]++; BKP_WriteBackupRegister(BKP_DR1, ArrayWrite[0]); BKP_WriteBackupRegister(BKP_DR2, ArrayWrite[1]); }</code></strong>，同时<strong>不停读取 DR1/DR2 刷新显示</strong>；现象：上电 <code>W</code> 空、读出 <code>00000000</code>；<strong>按键后 <code>W:1235 5679</code>、<code>R:1235 5679</code></strong>（写入前已自增，所以不是默认的 1234/5678），再按继续变化，<strong>读写始终一致</strong>。<strong>程序②（<code>12-2 实时时钟</code>）</strong>：复制 OLED 工程改名，新建 <strong>MyRTC 模块（放 System 目录）</strong>。<strong><code>MyRTC_Init</code> 八步（顺序就是核心）</strong>：<strong>① 开 PWR+BKP 时钟</strong> → <strong>② <code>PWR_BackupAccessCmd(ENABLE)</code></strong> → <strong>③ <code>RCC_LSEConfig(RCC_LSE_ON)</code></strong>（LSE <strong>为了省电默认关闭</strong>，必须手动开）→ <strong>④ <code>while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) != SET);</code></strong>（<strong>启动后必须等 LSERDY 置 1 才算就绪</strong>）→ <strong>⑤ <code>RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE)</code></strong>（选 RTCCLK 数据选择器，可选 LSE/LSI/HSE÷128）→ <strong>⑥ <code>RCC_RTCCLKCmd(ENABLE)</code></strong> → <strong>⑦ <code>RTC_WaitForSynchro()</code> + <code>RTC_WaitForLastTask()</code></strong>（两个等待函数，是<strong>安全保障</strong>，防止时钟不同步/上次写未完，不写一般也没大问题）→ <strong>⑧ <code>RTC_SetPrescaler(32768 - 1)</code> + <code>RTC_WaitForLastTask()</code></strong>、<strong><code>RTC_SetCounter(1672588795)</code> + <code>RTC_WaitForLastTask()</code></strong>。<strong>注意 RTC 没有结构体、也没有 <code>RTC_Cmd</code>——开时钟后计数器就自动运行了</strong>；<strong>进入配置模式由 <code>RTC_SetCounter</code>/<code>RTC_SetPrescaler</code> 内部自动进出</strong>（不用手动 <code>EnterConfigMode</code>），但<strong>每个写操作后都要 <code>RTC_WaitForLastTask()</code></strong>。<strong>预分频写 <code>32768-1</code></strong>（计数值含 0）；若改用 <strong>LSI 40kHz → <code>RTC_SetPrescaler(40000-1)</code></strong>，且要把时钟源换成 <code>RCC_LSICmd(ENABLE)</code> + 等 <code>RCC_FLAG_LSIRDY</code> + <code>RCC_RTCCLKSource_LSI</code>。<strong>main 初测</strong>：<code>OLED_ShowNum(1, 1, RTC_GetCounter(), 10)</code>，下载后数字按 1 秒自增即成功。<strong>坑：有些板子 RTC 晶振起振不了，程序会卡在等 LSERDY</strong>——备选方案是改用 LSI；根治起振问题得从硬件下手（改晶振/起振电容）。<strong><code>MyRTC_SetTime</code> / <code>MyRTC_ReadTime</code></strong>：全局数组 <strong><code>uint16_t MyRTC_Time[] = {2023, 01, 01, 23, 59, 55};</code></strong>（顺序是<strong>年/月/日/时/分/秒</strong>；因为 2023 超过 <code>uint8_t</code> 范围，所以整个数组用 16 位，「稍微浪费」）；<code>#include &lt;time.h&gt;</code>；<strong>SetTime</strong>：把数组填进 <code>struct tm</code>（<strong><code>tm_year = MyRTC_Time[0] - 1900</code></strong>、<strong><code>tm_mon = MyRTC_Time[1] - 1</code></strong>、<code>tm_mday/tm_hour/tm_min/tm_sec</code> 对应下标 2/3/4/5）→ <strong><code>time_cnt = mktime(&amp;time_date)</code></strong> → <strong><code>RTC_SetCounter(time_cnt)</code></strong> + <code>RTC_WaitForLastTask()</code>；<strong>ReadTime</strong> 反向：<code>time_cnt = RTC_GetCounter()</code> → <strong><code>time_date = *localtime(&amp;time_cnt)</code></strong> → 回填数组（年 <strong>+1900</strong>、月 <strong>+1</strong>）。<strong>两个 C 语言坑</strong>：<strong>① 十进制常数前面千万不要随意补 0</strong>——<strong>C 语言前导 0 表示八进制</strong>：<code>09</code> 是非法数字会<strong>报错</strong>、<code>0123</code> 实际是八进制的 123（<code>0123 != 123</code>，<code>if (123 == 0123)</code> 不成立）；作者还提到「之前 51 单片机教程里密码判断出错」就是同源问题；<strong>② 函数定义写在调用之后会报错</strong>——要么<strong>前置声明</strong>，要么<strong>调整顺序</strong>（作者把 <code>MyRTC_SetTime</code> 的定义挪到调用之前）；头文件里的<strong>全局数组要加 <code>extern</code> 声明</strong>。<strong>时区（关键收尾）</strong>：<strong>STM32 上没有系统时区概念，<code>localtime</code>/<code>gmtime</code> 都按 0 时区（伦敦）处理</strong>——所以想显示真正的北京时间，<strong>读取时要在秒数上加 <code>8*60*60</code>（28800）、写入时减去 <code>8*60*60</code></strong>（不能只在「小时」上 +8，要考虑进位）。<strong>掉电保持</strong>：之前每次复位都调用 <code>MyRTC_SetTime()</code> 会<strong>把时间重置</strong>——解决办法是用 <strong><code>BKP_DR1</code> 存一个标志 <code>0xA5A5</code></strong>：上电先 <code>BKP_ReadBackupRegister(BKP_DR1)</code> 判断，<strong>不等于标志</strong>（说明是全新上电/完全断电）才执行完整初始化并写入标志；<strong>等于标志</strong>说明「初始化过且备用电池没断过」，只调 <strong><code>RTC_WaitForSynchro()</code> + <code>RTC_WaitForLastTask()</code></strong> 即可。测试：复位时间继续走、断主电源继续走、<strong>完全断电后 DR1 清零 → 重新初始化</strong>。<strong>扩展：<code>RTC_GetDivider()</code></strong> 的 DIV 在 <strong>32767→0</strong> 自减，可用 <strong><code>(32767 - RTC_GetDivider()) / 32767 * 999</code></strong> 线性映射到 <strong>0～999</strong>（得到毫秒/厘秒级时间）。</p>
+<h2 id="0-本集定位-代码课-两个独立程序-bkp-与-rtc">0. 本集定位：代码课（两个独立程序：BKP 与 RTC）</h2>
+<ul>
+<li><strong>程序①</strong>：<code>12-2 读写备份寄存器</code>（BKP + 按键，验证掉电保持特性）；</li>
+<li><strong>程序②</strong>：<code>12-2 实时时钟</code>（RTC，新建 MyRTC 模块，含初始化/设置时间/读取时间，最后加时区偏移与掉电保持判断）；</li>
+<li>两者都<strong>从复制 OLED 显示屏工程起步</strong>，<strong>互不相干</strong>（不要混成一个）；</li>
+<li>结尾 52:00 是 <code>RTC_GetDivider()</code> 的线性变换扩展，<strong>无下集预告</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-43/01-wiring.jpg" alt="图 1：接线图 12-2 读写备份寄存器——STM32 最小系统板 + ST-Link + OLED + 按键（PB1 处红笔标注）；红框标出：板子右上角的 VBAT 引脚用飞线接到 ST-Link 的 3.3V 输出（模拟备用电池）；右下角注明 *此图为OLED下方被遮挡的接线图；字幕「然后，在板子的右上角」"></p>
+<p><em>图 1：接线图 <code>12-2 读写备份寄存器</code>——STM32 最小系统板 + ST-Link + OLED + 按键（PB1 处红笔标注）；<strong>红框标出：板子右上角的 VBAT 引脚用飞线接到 ST-Link 的 3.3V 输出</strong>（模拟备用电池）；右下角注明 <code>*此图为OLED下方被遮挡的接线图</code>；字幕「然后，在板子的右上角」</em></p>
+<h2 id="1-接线与工程准备">1. 接线与工程准备</h2>
+<ul>
+<li><strong><code>12-2 读写备份寄存器</code> 接线</strong>：OLED（I2C）、<strong>PB1 接按键</strong>、<strong>VBAT 引脚飞线接 ST-Link 的 3.3V 输出</strong>；<ul>
+<li><strong>为什么用 ST-Link 的 3.3V 模拟备用电池</strong>：<strong>套件里没配纽扣电池</strong>——实际产品一般用 <strong>3V 纽扣电池</strong>（接法见上一集 PPT 的两种参考电路）；</li>
+<li><strong>⚠ 绝不能接 5V</strong>：从引脚标号上看 ST-Link 有 3.3V 和 5.0V 两组输出，<strong>VBAT 不支持 5V 供电</strong>，一定要接 <strong>3.3V</strong> 那根；</li>
+</ul>
+</li>
+<li><strong><code>12-2 实时时钟</code> 接线</strong>：同样 <strong>VBAT 接 3.3V</strong>；<strong>不用按键</strong>；<strong>RTC 的外部 32.768kHz 晶振板载自带</strong>（晶振电路不用接线、不用管）；</li>
+<li><strong>工程</strong>：回到工程文件夹，<strong>复制 OLED 显示屏工程</strong>，改成对应名字（<code>12-2 读写备份寄存器</code> / 后面 <code>12-2 实时时钟</code>），编译。</li>
+</ul>
+<h2 id="2-程序1-读写备份寄存器-bkp">2. 程序①：读写备份寄存器（BKP）</h2>
+<h3 id="2-1-编程思路">2.1 编程思路</h3>
+<p>对照上一集 PPT 的操作注意事项，就三条：</p>
+<ol>
+<li><strong>开启 PWR 和 BKP 的时钟</strong>；</li>
+<li><strong>用 PWR 函数使能对 BKP 和 RTC 的访问</strong>；</li>
+<li><strong>调用 BKP 的写入函数 / 读取函数</strong>。</li>
+</ol>
+<h3 id="2-2-bkp-与-pwr-库函数">2.2 BKP 与 PWR 库函数</h3>
+<p><strong><code>stm32f10x_bkp.h</code> 里的函数</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>BKP_DeInit(void)</code></td>
+<td><strong>恢复缺省配置</strong>——可用来<strong>手动清空 BKP 所有数据寄存器</strong>（有备用电池时 BKP 平时不会清零，想清空就调它，或把所有 DR 全写 0）</td>
+</tr>
+<tr>
+<td><code>BKP_TamperPinLevelConfig(uint16_t BKP_TamperPinLevel)</code></td>
+<td>配置 <strong>TAMPER 引脚有效电平</strong>（高电平触发还是低电平触发）</td>
+</tr>
+<tr>
+<td><code>BKP_TamperPinCmd(FunctionalState NewState)</code></td>
+<td>是否<strong>开启侵入检测功能</strong></td>
+</tr>
+<tr>
+<td><code>BKP_ITConfig</code> / <code>BKP_GetFlagStatus</code> / <code>BKP_ClearFlag</code> / <code>BKP_GetITStatus</code> / <code>BKP_ClearITPendingBit</code></td>
+<td>中断、标志位相关</td>
+</tr>
+<tr>
+<td><code>BKP_RTCOutputConfig(uint16_t BKP_RTCOutputSource)</code></td>
+<td><strong>RTC 时钟输出</strong>功能的配置</td>
+</tr>
+<tr>
+<td><code>BKP_SetRTCCalibrationValue(uint8_t CalibrationValue)</code></td>
+<td><strong>写 RTC 校准寄存器</strong></td>
+</tr>
+<tr>
+<td><strong><code>BKP_WriteBackupRegister(uint16_t BKP_DR, uint16_t Data)</code></strong></td>
+<td><strong>写备份寄存器</strong>：第一个参数<strong>写哪个 DR</strong>，第二个参数是<strong>16 位整型数据</strong></td>
+</tr>
+<tr>
+<td><strong><code>BKP_ReadBackupRegister(uint16_t BKP_DR)</code></strong></td>
+<td><strong>读备份寄存器</strong>：<strong>返回值就是该 DR 里存的值</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong><code>BKP_DRx</code> 的 x 范围</strong>：参数可以是 <code>BKP_DR1</code>～<code>BKP_DR42</code>，<strong>但只有大容量和互联型才有 42 个 DR</strong>；<strong>中/小容量（含 F103C8T6）只有 DR1～DR10</strong>；</li>
+<li><strong><code>stm32f10x_pwr.h</code> 里只需要一个函数</strong>：<strong><code>PWR_BackupAccessCmd</code></strong>——转定义可见内部是 <strong><code>*(__IO uint32_t *) CR_DBP_BB = (uint32_t)NewState;</code></strong>，<strong>即置 <code>PWR_CR</code> 的 DBP 位</strong>（对应 PPT「使能对 BKP 和 RTC 的访问」）。</li>
+</ul>
+<p><img src="../assets/images/stm32-43/02-bkp-h.jpg" alt="图 2：stm32f10x_bkp.h 的库函数声明表——BKP_DeInit、`BKP_TamperPinLevelConfig(uint16_t BKP_TamperPinLevel)`（高亮）、BKP_TamperPinCmd、BKP_ITConfig、BKP_RTCOutputConfig、BKP_SetRTCCalibrationValue、`BKP_WriteBackupRegister(uint16_t BKP_DR, uint16_t Data)`、`uint16_t BKP_ReadBackupRegister(uint16_t BKP_DR)`、BKP_GetFlagStatus、BKP_ClearFlag、BKP_GetITStatus、BKP_ClearITPendingBit；字幕「TamperPinLevelConfig，可以配置TAMPER引脚的有效电平」"></p>
+<p><em>图 2：<code>stm32f10x_bkp.h</code> 的库函数声明表——<code>BKP_DeInit</code>、<strong><code>BKP_TamperPinLevelConfig(uint16_t BKP_TamperPinLevel)</code>（高亮）</strong>、<code>BKP_TamperPinCmd</code>、<code>BKP_ITConfig</code>、<code>BKP_RTCOutputConfig</code>、<code>BKP_SetRTCCalibrationValue</code>、<strong><code>BKP_WriteBackupRegister(uint16_t BKP_DR, uint16_t Data)</code></strong>、<strong><code>uint16_t BKP_ReadBackupRegister(uint16_t BKP_DR)</code></strong>、<code>BKP_GetFlagStatus</code>、<code>BKP_ClearFlag</code>、<code>BKP_GetITStatus</code>、<code>BKP_ClearITPendingBit</code>；字幕「TamperPinLevelConfig，可以配置TAMPER引脚的有效电平」</em></p>
+<p><img src="../assets/images/stm32-43/03-pwr-backupaccess.jpg" alt="图 3：PWR_BackupAccessCmd 源码——注释「Enables or disables access to the RTC and backup registers」，函数体 assert_param(IS_FUNCTIONAL_STATE(NewState)); *(__IO uint32_t *) CR_DBP_BB = (uint32_t)NewState;（即置 PWR_CR 的 DBP 位）；字幕「我们就调用PWR的这个函数就行了」"></p>
+<p><em>图 3：<code>PWR_BackupAccessCmd</code> 源码——注释「Enables or disables access to the RTC and backup registers」，函数体 <code>assert_param(IS_FUNCTIONAL_STATE(NewState)); *(__IO uint32_t *) CR_DBP_BB = (uint32_t)NewState;</code>（即置 PWR_CR 的 DBP 位）；字幕「我们就调用PWR的这个函数就行了」</em></p>
+<h3 id="2-3-初版代码与现象">2.3 初版代码与现象</h3>
+<pre><code class="language-c">uint16_t ArrayWrite[] = {0x1234, 0x5678};
+uint16_t ArrayRead[2];
+
+int main(void)
+{
+    OLED_Init();
+
+    /* ① 开时钟：PWR 和 BKP 都是 APB1 外设，两个都要开 */
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);
+
+    /* ② 使能对 BKP 和 RTC 的访问（置 PWR_CR 的 DBP 位） */
+    PWR_BackupAccessCmd(ENABLE);
+
+    /* ③ 写 / 读备份寄存器 */
+    // BKP_WriteBackupRegister(BKP_DR1, 0x1234);
+    OLED_ShowHexNum(1, 1, BKP_ReadBackupRegister(BKP_DR1), 4);
+
+    while (1) { }
+}
+</code></pre>
+<ul>
+<li><strong>现象测试</strong>：下载后 OLED 显示 <strong><code>1234</code></strong>；</li>
+<li><strong>不带备用电池时</strong>：上电 BKP 是 0；</li>
+<li><strong>复位</strong>：<strong>不会清空 BKP</strong>，数据仍是 1234；</li>
+<li><strong>断主电源（VDD）</strong>：数据仍是 1234；</li>
+<li><strong>把备用电源（VBAT）也拔掉</strong>：<strong>BKP 清零</strong>——「如果没有备用电源，BKP 的数据是维持不了的」，<strong>符合实验预期</strong>；</li>
+<li><strong>小结</strong>：BKP 的实验只需<strong>知道特性、会读写</strong>即可。</li>
+</ul>
+<p><img src="../assets/images/stm32-43/04-bkp-main-v1.jpg" alt="图 4：BKP main.c 初版——uint16_t ArrayWrite（） = {0x1234, 0x5678};、uint16_t ArrayRead（2）;、OLED_Init();、RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);、RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);、PWR_BackupAccessCmd(ENABLE);、注释掉的 // BKP_WriteBackupRegister(BKP_DR1, 0x1234);、OLED_ShowHexNum(1, 1, BKP_ReadBackupRegister(BKP_DR1), 4);；字幕「那在OLED初始化之后」"></p>
+<p><em>图 4：BKP main.c 初版——<code>uint16_t ArrayWrite[] = {0x1234, 0x5678};</code>、<code>uint16_t ArrayRead[2];</code>、<code>OLED_Init();</code>、<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);</code>、<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);</code>、<code>PWR_BackupAccessCmd(ENABLE);</code>、注释掉的 <code>// BKP_WriteBackupRegister(BKP_DR1, 0x1234);</code>、<code>OLED_ShowHexNum(1, 1, BKP_ReadBackupRegister(BKP_DR1), 4);</code>；字幕「那在OLED初始化之后」</em></p>
+<h3 id="2-4-完善版-按键写入-持续读取">2.4 完善版：按键写入 + 持续读取</h3>
+<pre><code class="language-c">uint8_t KeyNum;
+
+int main(void)
+{
+    OLED_Init();
+    Key_Init();
+    OLED_ShowString(1, 1, &quot;W:&quot;);      /* 写入的数据 */
+    OLED_ShowString(2, 1, &quot;R:&quot;);      /* 读取的数据 */
+
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);
+    PWR_BackupAccessCmd(ENABLE);
+
+    while (1)
+    {
+        KeyNum = Key_GetNum();
+        if (KeyNum == 1)
+        {
+            ArrayWrite[0] ++;
+            ArrayWrite[1] ++;
+            BKP_WriteBackupRegister(BKP_DR1, ArrayWrite[0]);
+            BKP_WriteBackupRegister(BKP_DR2, ArrayWrite[1]);
+            OLED_ShowHexNum(1, 3, ArrayWrite[0], 4);
+            OLED_ShowHexNum(1, 8, ArrayWrite[1], 4);
+        }
+        /* 无按键时也不断读取刷新显示 */
+        ArrayRead[0] = BKP_ReadBackupRegister(BKP_DR1);
+        ArrayRead[1] = BKP_ReadBackupRegister(BKP_DR2);
+        OLED_ShowHexNum(2, 3, ArrayRead[0], 4);
+        OLED_ShowHexNum(2, 8, ArrayRead[1], 4);
+    }
+}
+</code></pre>
+<ul>
+<li><strong>为什么两个 DR 一起写</strong>：同时写入两个 DR，<strong>说明读写多个 DR 也没问题</strong>；</li>
+<li><strong>现象</strong>：上电时 <code>W</code> 后面什么都没显示，<strong>读出的是 <code>00000000</code></strong>；<strong>按一下按键</strong> → 写入 <code>1235、5679</code>（<strong>写入前就已经自增了</strong>，所以不是数组默认的 1234/5678），<strong>读取的数据和写入一样</strong>；再按继续变化，<strong>读写始终一致</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-43/05-bkp-loop.jpg" alt="图 5：BKP main.c 主循环——while (1) { KeyNum = Key_GetNum(); if (KeyNum == 1) { ArrayWrite（0） ++; ArrayWrite（1） ++; BKP_WriteBackupRegister(BKP_DR1, ArrayWrite（0）); BKP_WriteBackupRegister(BKP_DR2, ArrayWrite（1）); OLED_ShowHexNum(1, 3, ArrayWrite（0）, 4); OLED_ShowHexNum(1, 8, ArrayWrite（1）, 4); } …；字幕「我们就直接在if外面」"></p>
+<p><em>图 5：BKP main.c 主循环——<code>while (1) { KeyNum = Key_GetNum(); if (KeyNum == 1) { ArrayWrite[0] ++; ArrayWrite[1] ++; BKP_WriteBackupRegister(BKP_DR1, ArrayWrite[0]); BKP_WriteBackupRegister(BKP_DR2, ArrayWrite[1]); OLED_ShowHexNum(1, 3, ArrayWrite[0], 4); OLED_ShowHexNum(1, 8, ArrayWrite[1], 4); } …</code>；字幕「我们就直接在if外面」</em></p>
+<p><img src="../assets/images/stm32-43/06-bkp-phenomenon.jpg" alt="图 6：BKP 现象——OLED 显示 W:1235 5679 / R:1235 5679，写入与读取完全一致；字幕「读取的数据，和写入一样，1235、5679」"></p>
+<p><em>图 6：BKP 现象——OLED 显示 <code>W:1235 5679</code> / <code>R:1235 5679</code>，写入与读取完全一致；字幕「读取的数据，和写入一样，1235、5679」</em></p>
+<h2 id="3-程序2-实时时钟-rtc">3. 程序②：实时时钟（RTC）</h2>
+<h3 id="3-1-建模块与初始化流程">3.1 建模块与初始化流程</h3>
+<ul>
+<li>复制 OLED 工程改名 <strong><code>12-2 实时时钟</code></strong>；<strong>新建 MyRTC 模块</strong>（<strong>放在 System 目录</strong>，模块名 <code>MyRTC</code>）；</li>
+<li><strong>初始化流程</strong>（对照上一集的基本结构图与注意事项）：<ol>
+<li><strong>开 PWR+BKP 时钟、使能访问</strong>；</li>
+<li><strong>启动 RTC 的时钟</strong>——计划用 <strong>LSE</strong>（<strong>LSE 为了省电默认是关闭的，需要手动开启</strong>）；</li>
+<li><strong>配置 RTCCLK 数据选择器</strong>（在 RCC 模块里）；</li>
+<li><strong>调用两个等待函数</strong>（<code>RTC_WaitForSynchro</code> 等同步、<code>RTC_WaitForLastTask</code> 等上次写完）；</li>
+<li><strong>配置预分频器 PRL</strong>，<strong>保证输出给计数器的频率是 1Hz</strong>；</li>
+<li><strong>配置 CNT 的值</strong>（初始时间）；</li>
+<li>（可选）<strong>配置闹钟/中断</strong>；</li>
+</ol>
+</li>
+<li><strong>重要特点</strong>：<strong>RTC 比较简单，库函数没有用结构体来配置，也没有 <code>RTC_Cmd</code> 这样的函数</strong>——<strong>开启时钟就能自动运行</strong>。</li>
+</ul>
+<h3 id="3-2-rcc-侧与-rtc-h-库函数">3.2 RCC 侧与 rtc.h 库函数</h3>
+<p><strong>RCC 侧（3 个函数）</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>RCC_LSEConfig(RCC_LSE_ON)</code></strong></td>
+<td><strong>配置 LSE 外部低速时钟</strong>（参数有 <code>RCC_LSE_ON</code>/<code>OFF</code>/<strong><code>BYPASS</code></strong> 三个；<strong>BYPASS＝时钟旁路</strong>，可直接从外部输入时钟信号，不接晶振也能当时钟源）</td>
+</tr>
+<tr>
+<td><strong><code>RCC_GetFlagStatus(RCC_FLAG_LSERDY)</code></strong></td>
+<td><strong>等待 LSE 启动完成</strong>——调用启动函数后<strong>必须等 LSERDY 置 1</strong>，时钟才算真正启动</td>
+</tr>
+<tr>
+<td><strong><code>RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE)</code></strong></td>
+<td><strong>选择 RTCCLK 的时钟源</strong>（LSE / LSI / HSE÷128）</td>
+</tr>
+<tr>
+<td><strong><code>RCC_RTCCLKCmd(ENABLE)</code></strong></td>
+<td><strong>使能 RTC 时钟</strong></td>
+</tr>
+</tbody></table>
+<p><strong><code>stm32f10x_rtc.h</code> 里的函数</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>RTC_ITConfig</code> / <code>RTC_GetFlagStatus</code> / <code>RTC_ClearFlag</code> / <code>RTC_GetITStatus</code> / <code>RTC_ClearITPendingBit</code></td>
+<td>中断与标志位</td>
+</tr>
+<tr>
+<td><strong><code>RTC_EnterConfigMode</code></strong> / <strong><code>RTC_ExitConfigMode</code></strong></td>
+<td><strong>置/清 <code>RTC_CRL</code> 的 CNF 位</strong>（进入/退出配置模式）——<strong>写 PRL/CNT/ALR 的函数内部自带，不用手动调</strong></td>
+</tr>
+<tr>
+<td><strong><code>RTC_GetCounter</code></strong></td>
+<td><strong>获取 CNT 计数器的值</strong>（秒数）</td>
+</tr>
+<tr>
+<td><strong><code>RTC_SetCounter(uint32_t CounterValue)</code></strong></td>
+<td><strong>写入 CNT 计数器的值</strong></td>
+</tr>
+<tr>
+<td><strong><code>RTC_SetPrescaler(uint32_t PrescalerValue)</code></strong></td>
+<td><strong>写入预分频器 PRL</strong></td>
+</tr>
+<tr>
+<td><code>RTC_SetAlarm(uint32_t AlarmValue)</code></td>
+<td>写闹钟值 ALR</td>
+</tr>
+<tr>
+<td><strong><code>RTC_GetDivider</code></strong></td>
+<td><strong>读 DIV 余数寄存器</strong>——一般用来<strong>得到更细致的时间</strong>（厘秒/毫秒）</td>
+</tr>
+<tr>
+<td><strong><code>RTC_WaitForLastTask</code></strong></td>
+<td><strong>等待上次操作完成</strong>：循环等 <strong><code>RTOFF</code>＝1</strong></td>
+</tr>
+<tr>
+<td><strong><code>RTC_WaitForSynchro</code></strong></td>
+<td><strong>等待同步</strong>：等 <strong><code>RSF</code>＝1</strong></td>
+</tr>
+</tbody></table>
+<p><img src="../assets/images/stm32-43/07-rtc-h.jpg" alt="图 7：stm32f10x_rtc.h 函数声明表——RTC_ITConfig、RTC_EnterConfigMode、RTC_ExitConfigMode、RTC_GetCounter、RTC_SetCounter、RTC_SetPrescaler、RTC_SetAlarm、`RTC_GetDivider`（高亮）、RTC_WaitForLastTask、RTC_WaitForSynchro、RTC_GetFlagStatus、RTC_ClearFlag、RTC_GetITStatus、RTC_ClearITPendingBit；字幕「获取余数寄存器的值，一般是为了得到更细致的时间」"></p>
+<p><em>图 7：<code>stm32f10x_rtc.h</code> 函数声明表——<code>RTC_ITConfig</code>、<code>RTC_EnterConfigMode</code>、<code>RTC_ExitConfigMode</code>、<code>RTC_GetCounter</code>、<code>RTC_SetCounter</code>、<code>RTC_SetPrescaler</code>、<code>RTC_SetAlarm</code>、<strong><code>RTC_GetDivider</code>（高亮）</strong>、<code>RTC_WaitForLastTask</code>、<code>RTC_WaitForSynchro</code>、<code>RTC_GetFlagStatus</code>、<code>RTC_ClearFlag</code>、<code>RTC_GetITStatus</code>、<code>RTC_ClearITPendingBit</code>；字幕「获取余数寄存器的值，一般是为了得到更细致的时间」</em></p>
+<h3 id="3-3-myrtc-init-八步-顺序就是核心">3.3 <code>MyRTC_Init</code>（八步，顺序就是核心）</h3>
+<pre><code class="language-c">void MyRTC_Init(void)
+{
+    /* ① 开 PWR / BKP 时钟，② 使能对 BKP 和 RTC 的访问 */
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);
+    RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);
+    PWR_BackupAccessCmd(ENABLE);
+
+    /* ③ 启动 LSE，④ 等待 LSE 就绪 */
+    RCC_LSEConfig(RCC_LSE_ON);
+    while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) != SET);
+
+    /* ⑤ 选择 RTCCLK 时钟源，⑥ 使能 RTC 时钟 */
+    RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);
+    RCC_RTCCLKCmd(ENABLE);
+
+    /* ⑦ 等同步 + 等上一步写完 */
+    RTC_WaitForSynchro();
+    RTC_WaitForLastTask();
+
+    /* ⑧ 预分频 32768 → 1Hz；设置初始时间（Unix 时间戳） */
+    RTC_SetPrescaler(32768 - 1);
+    RTC_WaitForLastTask();
+
+    RTC_SetCounter(1672588795);
+    RTC_WaitForLastTask();
+}
+</code></pre>
+<ul>
+<li><strong>为什么预分频写 <code>32768 - 1</code></strong>：<strong>LSE 频率 32.768kHz＝32768Hz</strong>，而<strong>分频计数值包含 0</strong>，所以写 32767 才是 <strong>32768 分频 → 1Hz</strong>；</li>
+<li><strong>每个写操作后都要 <code>RTC_WaitForLastTask()</code></strong>：写寄存器的值<strong>不会立刻生效</strong>，要等上一次写真正完成；</li>
+<li><strong>配置模式不用手动进出</strong>：<code>RTC_SetCounter</code>/<code>RTC_SetPrescaler</code> 等函数<strong>内部会自动进入并退出配置模式</strong>（置/清 CNF）；</li>
+<li><strong>初始时间 <code>RTC_SetCounter(1672588795)</code></strong> 是 PPT 里那个例子（2023-1-1 15:59:55 伦敦时间）；<strong>这一步不是必须的</strong>——不预设就当 0，<code>time.h</code> 解析出来就是 1970 年；</li>
+<li><strong>两个等待函数是「安全保障措施」</strong>：防止因时钟不同步造成 bug，<strong>正常情况下不写一般也没大问题</strong>；</li>
+<li><strong>注意 RTC 没有 <code>RTC_Cmd</code>、没有结构体</strong>——<strong>开时钟后计数器自动以 1 秒间隔走</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-43/08-myrtc-init-a.jpg" alt="图 8：MyRTC_Init 前半（MyRTC.c）——RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);、RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);、PWR_BackupAccessCmd(ENABLE);、RCC_LSEConfig(RCC_LSE_ON);、while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) != SET);、RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);、RCC_RTCCLKCmd(ENABLE);、RTC_WaitForSynchro();、RTC_WaitForLastTask();；字幕「我们转到定义看一下」"></p>
+<p><em>图 8：<code>MyRTC_Init</code> 前半（<code>MyRTC.c</code>）——<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);</code>、<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);</code>、<code>PWR_BackupAccessCmd(ENABLE);</code>、<code>RCC_LSEConfig(RCC_LSE_ON);</code>、<code>while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) != SET);</code>、<code>RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE);</code>、<code>RCC_RTCCLKCmd(ENABLE);</code>、<code>RTC_WaitForSynchro();</code>、<code>RTC_WaitForLastTask();</code>；字幕「我们转到定义看一下」</em></p>
+<p><img src="../assets/images/stm32-43/09-myrtc-init-full.jpg" alt="图 9：MyRTC_Init 完整尾部——RTC_SetPrescaler(32768 - 1);、RTC_WaitForLastTask();、RTC_SetCounter(1672588795);、RTC_WaitForLastTask();；字幕「接下来我们要做的就是」"></p>
+<p><em>图 9：<code>MyRTC_Init</code> 完整尾部——<code>RTC_SetPrescaler(32768 - 1);</code>、<code>RTC_WaitForLastTask();</code>、<code>RTC_SetCounter(1672588795);</code>、<code>RTC_WaitForLastTask();</code>；字幕「接下来我们要做的就是」</em></p>
+<h3 id="3-4-main-初测与现象">3.4 main 初测与现象</h3>
+<pre><code class="language-c">#include &quot;MyRTC.h&quot;
+
+int main(void)
+{
+    OLED_Init();
+    MyRTC_Init();
+    OLED_ShowNum(1, 1, RTC_GetCounter(), 10);   /* 1 行 1 列显示 CNT */
+    while (1) { }
+}
+</code></pre>
+<ul>
+<li><strong>现象</strong>：下载后数字<strong>按 1 秒间隔自增</strong>，说明 RTC 正常运行；</li>
+<li><strong>⚠ 常见坑</strong>：<strong>有些板子 RTC 晶振起振不了</strong>，程序会<strong>卡在 <code>while (... LSERDY ...)</code> 那里</strong>；<ul>
+<li><strong>备选方案</strong>：改用<strong>内部低速时钟 LSI</strong>：<code>RCC_LSICmd(ENABLE)</code> + 等 <strong><code>RCC_FLAG_LSIRDY</code></strong> + <strong><code>RCC_RTCCLKSource_LSI</code></strong> + <strong><code>RTC_SetPrescaler(40000 - 1)</code></strong>（LSI 是 40kHz）；</li>
+<li><strong>根治起振问题</strong>要从硬件下手（换晶振、调起振电容），有条件的话再研究。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-5-myrtc-settime-myrtc-readtime">3.5 <code>MyRTC_SetTime</code> / <code>MyRTC_ReadTime</code></h3>
+<pre><code class="language-c">uint16_t MyRTC_Time[] = {2023, 01, 01, 23, 59, 55};   /* 年 月 日 时 分 秒 */
+
+void MyRTC_SetTime(void)
+{
+    time_t time_cnt;
+    struct tm time_date;
+
+    time_date.tm_year = MyRTC_Time[0] - 1900;
+    time_date.tm_mon  = MyRTC_Time[1] - 1;
+    time_date.tm_mday = MyRTC_Time[2];
+    time_date.tm_hour = MyRTC_Time[3];
+    time_date.tm_min  = MyRTC_Time[4];
+    time_date.tm_sec  = MyRTC_Time[5];
+
+    time_cnt = mktime(&amp;time_date);      /* 日期时间 → 秒数（当地） */
+
+    RTC_SetCounter(time_cnt);
+    RTC_WaitForLastTask();
+}
+
+void MyRTC_ReadTime(void)
+{
+    time_t time_cnt;
+    struct tm time_date;
+
+    time_cnt = RTC_GetCounter();                    /* 读秒数 */
+    time_date = *localtime(&amp;time_cnt);              /* 秒数 → 日期时间 */
+
+    MyRTC_Time[0] = time_date.tm_year + 1900;
+    MyRTC_Time[1] = time_date.tm_mon + 1;
+    MyRTC_Time[2] = time_date.tm_mday;
+    MyRTC_Time[3] = time_date.tm_hour;
+    MyRTC_Time[4] = time_date.tm_min;
+    MyRTC_Time[5] = time_date.tm_sec;
+}
+</code></pre>
+<ul>
+<li><strong>数组顺序是「年/月/日/时/分/秒」</strong>；<strong>整个数组用 <code>uint16_t</code></strong>——因为<strong>年份 2023 超过了 <code>uint8_t</code> 的范围</strong>（作者说「稍微浪费」）；</li>
+<li><strong>SetTime 三步</strong>：① 把数组填进 <code>struct tm</code>（<strong>年减 1900、月减 1</strong>）② <strong><code>mktime</code> 得到秒数</strong> ③ <strong>写入 RTC 的 CNT</strong>；</li>
+<li><strong>ReadTime 是反过程</strong>：读 CNT → <code>localtime</code> → 回填数组（<strong>年加 1900、月加 1</strong>）；</li>
+<li><strong>头文件 <code>MyRTC.h</code></strong>：<code>#ifndef __MYRTC_H</code> / <code>#define __MYRTC_H</code>、<strong>全局数组声明要加 <code>extern</code></strong>、三个函数原型（<code>MyRTC_Init</code> / <code>MyRTC_SetTime</code> / <code>MyRTC_ReadTime</code>）、<code>#endif</code>；</li>
+<li><strong>如果用全局数组传参</strong>，要注意<strong>单个变量必须加 <code>extern</code></strong>，数组也要 <code>extern</code>。</li>
+</ul>
+<p><img src="../assets/images/stm32-43/10-myrtc-time-array.jpg" alt="图 10：MyRTC.c 开头的全局数组——`uint16_t MyRTC_Time（） = {2023, 01, 01, 23, 59, 55};`（回车位置有红叉，正是因为 09 这类前导 0 会报错），下方是 MyRTC_Init 前半；字幕「十进制数前面，千万不要随意补0」"></p>
+<p><em>图 10：<code>MyRTC.c</code> 开头的全局数组——<strong><code>uint16_t MyRTC_Time[] = {2023, 01, 01, 23, 59, 55};</code></strong>（回车位置有红叉，正是因为 <code>09</code> 这类前导 0 会报错），下方是 <code>MyRTC_Init</code> 前半；字幕「十进制数前面，千万不要随意补0」</em></p>
+<p><img src="../assets/images/stm32-43/11-settime.jpg" alt="图 11：MyRTC_SetTime 完整——time_t time_cnt; struct tm time_date;、time_date.tm_year = MyRTC_Time（0） - 1900;、tm_mon = MyRTC_Time（1） - 1;、tm_mday = MyRTC_Time（2）;、tm_hour = MyRTC_Time（3）;、tm_min = MyRTC_Time（4）;、tm_sec = MyRTC_Time（5）;、time_cnt = mktime(&amp;time_date);、RTC_SetCounter(time_cnt);、RTC_WaitForLastTask();；字幕「第一步，把我们数组指定的时间，填充到struct tm结构体里」"></p>
+<p><em>图 11：<code>MyRTC_SetTime</code> 完整——<code>time_t time_cnt; struct tm time_date;</code>、<code>time_date.tm_year = MyRTC_Time[0] - 1900;</code>、<code>tm_mon = MyRTC_Time[1] - 1;</code>、<code>tm_mday = MyRTC_Time[2];</code>、<code>tm_hour = MyRTC_Time[3];</code>、<code>tm_min = MyRTC_Time[4];</code>、<code>tm_sec = MyRTC_Time[5];</code>、<code>time_cnt = mktime(&amp;time_date);</code>、<code>RTC_SetCounter(time_cnt);</code>、<code>RTC_WaitForLastTask();</code>；字幕「第一步，把我们数组指定的时间，填充到struct tm结构体里」</em></p>
+<p><img src="../assets/images/stm32-43/12-myrtc-h.jpg" alt="图 12：MyRTC.h——#ifndef __MYRTC_H / #define __MYRTC_H、全局数组声明（int16_t MyRTC_Time（）;，此处还需加 extern）、void MyRTC_Init(void);、void MyRTC_SetTime(void);、void MyRTC_ReadTime(void);、#endif；字幕「然后变量声明，要加一个extern」"></p>
+<p><em>图 12：<code>MyRTC.h</code>——<code>#ifndef __MYRTC_H</code> / <code>#define __MYRTC_H</code>、全局数组声明（<code>int16_t MyRTC_Time[];</code>，此处还需加 <code>extern</code>）、<code>void MyRTC_Init(void);</code>、<code>void MyRTC_SetTime(void);</code>、<code>void MyRTC_ReadTime(void);</code>、<code>#endif</code>；字幕「然后变量声明，要加一个extern」</em></p>
+<h3 id="3-6-main-显示与现象">3.6 main 显示与现象</h3>
+<pre><code class="language-c">OLED_ShowString(1, 1, &quot;Date:XXXX-XX-XX&quot;);
+OLED_ShowString(2, 1, &quot;Time:XX:XX:XX&quot;);
+OLED_ShowString(3, 1, &quot;CNT :&quot;);
+
+while (1)
+{
+    MyRTC_ReadTime();
+    OLED_ShowNum(1, 6,  MyRTC_Time[0], 4);   /* 年 */
+    OLED_ShowNum(1, 11, MyRTC_Time[1], 2);   /* 月 */
+    OLED_ShowNum(1, 14, MyRTC_Time[2], 2);   /* 日 */
+    OLED_ShowNum(2, 6,  MyRTC_Time[3], 2);   /* 时 */
+    OLED_ShowNum(2, 9,  MyRTC_Time[4], 2);   /* 分 */
+    OLED_ShowNum(2, 12, MyRTC_Time[5], 2);   /* 秒 */
+    OLED_ShowNum(3, 6,  RTC_GetCounter(), 10);
+}
+</code></pre>
+<ul>
+<li><strong>现象</strong>：OLED 显示 <code>Date:2023-01-01</code>、<code>Time:23:59:55</code>（<strong>这是伦敦时间</strong>，因为 <code>localtime</code> 在 STM32 上默认是 0 时区）、<code>CNT:1672588795</code>；</li>
+<li><strong>注意</strong>：此时数组里的时间是<strong>没被用到的</strong>（初始化时没调用 <code>MyRTC_SetTime</code>），所以显示的是 <code>RTC_SetCounter</code> 那个初始秒数。</li>
+</ul>
+<h2 id="4-坑与修正-本集重点">4. 坑与修正（本集重点）</h2>
+<h3 id="4-1-坑1-c-语言前导-0-是八进制">4.1 坑①：C 语言前导 0 是八进制</h3>
+<ul>
+<li><strong>在数组里写 <code>{2023, 01, 01, 23, 09, 55}</code> 会报错</strong>：<strong>C 语言里以 0 开头的数字是八进制</strong>，而<strong>八进制没有 9</strong>——所以 <code>09</code> 是<strong>无效数字</strong>，编译报错；</li>
+<li><strong>即使不报错也容易出错</strong>：<code>0123</code> 实际是<strong>八进制 123（十进制 83）</strong>，所以 <code>if (123 == 0123)</code> 是<strong>不成立</strong>的；</li>
+<li><strong>作者提醒</strong>：<strong>写 C 语言程序时，十进制数前面千万不要随意补 0</strong>（想对齐好看可以补空格）；他之前 <strong>51 单片机教程里「密码判断不正确」的 bug</strong> 就是这个原因；</li>
+<li><strong>建议</strong>：想「好看」就写 <code>{2023, 1, 1, 23, 59, 55}</code>，或者干脆不加前导 0。</li>
+</ul>
+<h3 id="4-2-坑2-函数定义在调用之后会报错">4.2 坑②：函数定义在调用之后会报错</h3>
+<ul>
+<li>在 <code>MyRTC_Init</code> 里调用 <code>MyRTC_SetTime()</code>，但 <code>MyRTC_SetTime</code> 的<strong>定义写在后面</strong> → <strong>编译报错</strong>（函数未声明）；</li>
+<li><strong>两种解决办法</strong>：<strong>① 前置声明</strong> ② <strong>调整顺序</strong>（作者直接把 <code>MyRTC_SetTime</code> 的定义挪到 <code>MyRTC_Init</code> 前面）；</li>
+<li><strong>头文件里</strong>：全局数组/变量声明要加 <strong><code>extern</code></strong>，三个函数原型要写全。</li>
+</ul>
+<h3 id="4-3-时区偏移-关键收尾">4.3 时区偏移（关键收尾）</h3>
+<ul>
+<li><strong>STM32 上没有「系统时区」概念</strong>：<code>localtime</code> 和 <code>gmtime</code> <strong>都按 0 时区（伦敦）处理</strong>（<code>time()</code> 在裸机上也不能用，所以时钟没有时区信息）；</li>
+<li>所以<strong>想显示真正的北京时间</strong>，必须自己做偏移：<ul>
+<li><strong>读取时</strong>：<strong>在秒数上加 <code>8 * 60 * 60</code>（28800 秒）</strong> → <code>time_cnt = RTC_GetCounter() + 8*60*60;</code> 再 <code>localtime</code>；</li>
+<li><strong>写入时</strong>：<strong>先把秒数减 <code>8 * 60 * 60</code></strong> 再写入 CNT；</li>
+</ul>
+</li>
+<li><strong>为什么不能在「小时」上直接 +8</strong>：<strong>要考虑进位</strong>（23 点 +8 会跨天、跨月），<strong>在秒数上加减才严谨</strong>；</li>
+<li><strong>现象（时区偏移后）</strong>：OLED 显示 <code>Date:2023-01-02</code>、<code>Time:00:00:12</code>、<code>CNT:1672617615</code>——<strong>与 PPT 里「北京时间 ↔ 时间戳」的对应关系一致</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-43/13-rtc-main.jpg" alt="图 13：RTC main.c 完整——OLED_Init(); MyRTC_Init();、OLED_ShowString(1,1,&quot;Date:XXXX-XX-XX&quot;);、(2,1,&quot;Time:XX:XX:XX&quot;);、(3,1,&quot;CNT :&quot;);、while (1) { MyRTC_ReadTime(); OLED_ShowNum(1,6,MyRTC_Time（0）,4); (1,11,（1）,2); (1,14,（2）,2); (2,6,（3）,2); (2,9,（4）,2); (2,12,（5）,2); OLED_ShowNum(3,6,RTC_GetCounter(),10); }"></p>
+<p><em>图 13：RTC main.c 完整——<code>OLED_Init(); MyRTC_Init();</code>、<code>OLED_ShowString(1,1,&quot;Date:XXXX-XX-XX&quot;);</code>、<code>(2,1,&quot;Time:XX:XX:XX&quot;);</code>、<code>(3,1,&quot;CNT :&quot;);</code>、<code>while (1) { MyRTC_ReadTime(); OLED_ShowNum(1,6,MyRTC_Time[0],4); (1,11,[1],2); (1,14,[2],2); (2,6,[3],2); (2,9,[4],2); (2,12,[5],2); OLED_ShowNum(3,6,RTC_GetCounter(),10); }</code></em></p>
+<p><img src="../assets/images/stm32-43/14-phenomenon-tz.jpg" alt="图 14：现象（时区偏移后）——OLED Date:2023-01-02 / Time:00:00:12 / CNT :1672617615，与 PPT 的北京时间↔时间戳对应关系一致；字幕「也是完全没问题的」"></p>
+<p><em>图 14：现象（时区偏移后）——OLED <code>Date:2023-01-02</code> / <code>Time:00:00:12</code> / <code>CNT :1672617615</code>，与 PPT 的北京时间↔时间戳对应关系一致；字幕「也是完全没问题的」</em></p>
+<h3 id="4-4-掉电保持-用-bkp-dr1-存标志">4.4 掉电保持：用 BKP_DR1 存标志</h3>
+<ul>
+<li><strong>问题</strong>：原来每次复位都会调用 <code>MyRTC_Init</code> → 里面又调用 <code>MyRTC_SetTime()</code> → <strong>每次复位时间都被重置</strong>，这显然不行；</li>
+<li><strong>解决思路</strong>：用 <strong><code>BKP_DR1</code> 存一个标志值 <code>0xA5A5</code></strong>，根据它判断「是不是刚上电/完全断电过」；</li>
+<li><strong>做法</strong>：<ul>
+<li>上电先 <strong><code>BKP_ReadBackupRegister(BKP_DR1)</code></strong>；</li>
+<li><strong>不等于 <code>0xA5A5</code></strong>（说明是<strong>全新上电或完全断电</strong>，DR1 默认 0）→ <strong>执行完整初始化</strong>（LSE 启动、预分频、设置时间等），<strong>最后 <code>BKP_WriteBackupRegister(BKP_DR1, 0xA5A5)</code></strong> 写入标志；</li>
+<li><strong>等于 <code>0xA5A5</code></strong>（说明之前初始化过、且备用电池没断）→ <strong>不用重复初始化</strong>，只调 <strong><code>RTC_WaitForSynchro()</code> + <code>RTC_WaitForLastTask()</code></strong> 即可（RTC 一直在走）；</li>
+</ul>
+</li>
+<li><strong>验证</strong>：<strong>按复位键时间继续运行</strong>；<strong>断主电源时间继续运行</strong>；<strong>完全断电（连 VBAT 一起断）后 DR1 清零 → 重新初始化</strong>。</li>
+</ul>
+<hr>
+<p><strong>演示效果</strong>：主循环里新增 <code>OLED_ShowString(4, 1, &quot;DIV :&quot;)</code> 与 <strong><code>OLED_ShowNum(4, 6, (32767 - RTC_GetDivider()) / 32767 * 999, 10)</code></strong>——<strong>DIV 在 32767→0 之间自减</strong>，用<strong>线性变换</strong>把它映射到 <strong>0～999</strong>（相当于毫秒/厘秒）。</p>
+<ul>
+<li><strong>换算原理</strong>：<code>RTC_GetDivider()</code> 返回当前 DIV 值（<strong>32767→0 递减</strong>）；<strong><code>32767 - DIV</code></strong> 就变成「从 0 递增到 32767」；<strong>再 <code>/ 32767 * 999</code></strong> 缩放成 <strong>0～999</strong>；</li>
+<li>这样就能得到<strong>比「秒」更细致的时间</strong>（厘秒/毫秒级）。</li>
+</ul>
+<p><img src="../assets/images/stm32-43/15-init-eight-steps.jpg" alt="图 15：MyRTC_Init 全部八步集中可见（整段高亮）——PWR/BKP 时钟、PWR_BackupAccessCmd(ENABLE)、RCC_LSEConfig(RCC_LSE_ON)、while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) != SET);、RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE)、RCC_RTCCLKCmd(ENABLE)、RTC_WaitForSynchro()、RTC_WaitForLastTask()、RTC_SetPrescaler(32768 - 1)、RTC_WaitForLastTask()，最后调用 `MyRTC_SetTime();`；字幕「当系统完全断电，备用电池也断电了」"></p>
+<p>*图 15：<code>MyRTC_Init</code> 全部八步集中可见（整段高亮）——PWR/BKP 时钟、<code>PWR_BackupAccessCmd(ENABLE)</code>、<code>RCC_LSEConfig(RCC_LSE_ON)</code>、<code>while (RCC_GetFlagStatus(RCC_FLAG_LSERDY) != SET);</code>、<code>RCC_RTCCLKConfig(RCC_RTCCLKSource_LSE)</code>、<code>RCC_RTCCLKCmd(ENABLE)</code>、<code>RTC_WaitForSynchro()</code>、<code>RTC_WaitForLastTask()</code>、<code>RTC_SetPrescaler(32768 - 1)</code>、<code>RTC_WaitForLastTask()</code>，最后调用 <strong><code>MyRTC_SetTime();</code></strong>；字幕「当系统完全断电，备用电池也断电了」*</p>
+<p><img src="../assets/images/stm32-43/16-div-transform.jpg" alt="图 16：DIV 线性变换——OLED_ShowString(4, 1, &quot;DIV :&quot;); 与 `OLED_ShowNum(4, 6, (32767 - RTC_GetDivider()) / 32767 * 999, 10);`；字幕「那我们程序中，就撤销一下」"></p>
+<p>*图 16：DIV 线性变换——<code>OLED_ShowString(4, 1, &quot;DIV :&quot;);</code> 与 <strong><code>OLED_ShowNum(4, 6, (32767 - RTC_GetDivider()) / 32767 * 999, 10);</code></strong>；字幕「那我们程序中，就撤销一下」*</p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>两个程序别混</strong>：<code>12-2 读写备份寄存器</code>（BKP+按键）与 <code>12-2 实时时钟</code>（RTC，无按键）是<strong>两个独立工程</strong>。</li>
+<li><strong>VBAT 用 ST-Link 的 3.3V 模拟，绝不能接 5V</strong>（VBAT 不支持 5V）——这是实验接法，产品用 3V 纽扣电池。</li>
+<li><strong>PWR 和 BKP 时钟都要开</strong>：只开 BKP 不行，<strong><code>PWR_BackupAccessCmd</code> 依赖 PWR 时钟</strong>。</li>
+<li><strong><code>BKP_DRx</code> 只有 DR1～DR10（F103C8T6 中容量）</strong>：口述 1～42 是全部型号的上限。</li>
+<li><strong>RTC 没有结构体和 <code>RTC_Cmd</code></strong>：开 RTCCLK 后<strong>计数器自动运行</strong>。</li>
+<li><strong>LSE 默认关闭</strong>：必须 <code>RCC_LSEConfig(RCC_LSE_ON)</code> 并<strong>等 LSERDY</strong>；<strong>晶振起振不了会卡在这里</strong>（可改用 LSI + <code>40000-1</code>）。</li>
+<li><strong>预分频写 <code>32768-1</code></strong>（计数值含 0）：写 32768 就是 32769 分频了。</li>
+<li><strong>每个 RTC 写操作后都要 <code>RTC_WaitForLastTask()</code></strong>：写值不会立刻生效。</li>
+<li><strong>不用手动 Enter/ExitConfigMode</strong>：<code>RTC_SetCounter</code>/<code>SetPrescaler</code> 内部自带。</li>
+<li><strong>C 前导 0 是八进制</strong>：<code>09</code> 报错、<code>0123 != 123</code>——<strong>十进制常量别补 0</strong>。</li>
+<li><strong>函数定义在调用之后会报错</strong>：前置声明或调序；头文件里全局变量/数组要 <code>extern</code>。</li>
+<li><strong><code>MyRTC_Time[]</code> 用 <code>uint16_t</code></strong>：因为 2023 超 <code>uint8_t</code>；顺序是<strong>年/月/日/时/分/秒</strong>。</li>
+<li><strong><code>tm_year</code> 要 -1900、<code>tm_mon</code> 要 -1</strong>（写时），读回来要 <strong>+1900、+1</strong>。</li>
+<li><strong>STM32 上 <code>localtime</code>/<code>gmtime</code> 都是 0 时区</strong>：显示北京时间要<strong>在秒数上 ±8×3600</strong>（不能在小时上直接 +8，会跨进位）。</li>
+<li><strong>每次复位重置时间的问题</strong>：用 <strong><code>BKP_DR1</code> 存 <code>0xA5A5</code> 标志</strong>判断是否需要完整初始化。</li>
+<li><strong><code>RTC_GetDivider()</code> 的 DIV 是 32767→0 自减</strong>：<code>(32767-DIV)/32767*999</code> 映射到 0～999。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>本小节开始写代码，先看接线图</td>
+</tr>
+<tr>
+<td>0:06</td>
+<td>打开 12-1 的图片</td>
+</tr>
+<tr>
+<td>0:08</td>
+<td>这是读写 BKP 程序的接线</td>
+</tr>
+<tr>
+<td>0:11</td>
+<td>右下角是 OLED 显示屏</td>
+</tr>
+<tr>
+<td>0:13</td>
+<td>PB1 引脚接按键</td>
+</tr>
+<tr>
+<td>0:17</td>
+<td>在板子的右上角</td>
+</tr>
+<tr>
+<td>0:19</td>
+<td>这个 VB 或者叫 VBAT 引脚</td>
+</tr>
+<tr>
+<td>0:23</td>
+<td>是备用电池的供电脚</td>
+</tr>
+<tr>
+<td>0:26</td>
+<td>实际应用需要备用电池时</td>
+</tr>
+<tr>
+<td>0:27</td>
+<td>一般接 3V 的纽扣电池</td>
+</tr>
+<tr>
+<td>0:32</td>
+<td>PPT 里给了两种参考电路</td>
+</tr>
+<tr>
+<td>0:36</td>
+<td>我们进行实验的话</td>
+</tr>
+<tr>
+<td>0:38</td>
+<td>可以直接从 ST-Link 引出</td>
+</tr>
+<tr>
+<td>0:42</td>
+<td>接到 VBAT 引脚也可以</td>
+</tr>
+<tr>
+<td>0:44</td>
+<td>因为套件里没配纽扣电池</td>
+</tr>
+<tr>
+<td>0:48</td>
+<td>这里注意一定要从 3.3V 引脚出来</td>
+</tr>
+<tr>
+<td>0:52</td>
+<td>从引脚标号上看</td>
+</tr>
+<tr>
+<td>0:53</td>
+<td>都是 3.3V 供电</td>
+</tr>
+<tr>
+<td>0:59</td>
+<td>VBAT 是不支持 5V 供电的</td>
+</tr>
+<tr>
+<td>1:03</td>
+<td>这就是读写 BKP 程序的接线</td>
+</tr>
+<tr>
+<td>1:07</td>
+<td>RTC 程序的接线图</td>
+</tr>
+<tr>
+<td>1:14</td>
+<td>VBAT 引脚接 3.3V 备用电源</td>
+</tr>
+<tr>
+<td>1:17</td>
+<td>RTC 程序暂时没用到按键</td>
+</tr>
+<tr>
+<td>1:20</td>
+<td>RTC 的外部低速晶振</td>
+</tr>
+<tr>
+<td>1:26</td>
+<td>这个晶振电路板子上自带</td>
+</tr>
+<tr>
+<td>1:27</td>
+<td>所以 RTC 晶振部分不用管</td>
+</tr>
+<tr>
+<td>1:31</td>
+<td>这就是两个程序的接线图</td>
+</tr>
+<tr>
+<td>1:33</td>
+<td>看一下面包板，接一下线路</td>
+</tr>
+<tr>
+<td>1:36</td>
+<td>首先在 PB1 接一个按键</td>
+</tr>
+<tr>
+<td>1:44</td>
+<td>用一根公对母的杜邦线</td>
+</tr>
+<tr>
+<td>1:45</td>
+<td>一头接在板子右上角的 VBAT</td>
+</tr>
+<tr>
+<td>1:47</td>
+<td>另一头接 ST-Link 的 3.3V 输出</td>
+</tr>
+<tr>
+<td>1:52</td>
+<td>一定不要接到 5V 的供电引脚</td>
+</tr>
+<tr>
+<td>1:55</td>
+<td>硬件接线完成</td>
+</tr>
+<tr>
+<td>2:00</td>
+<td>回到工程文件夹</td>
+</tr>
+<tr>
+<td>2:03</td>
+<td>复制 OLED 显示屏的代码</td>
+</tr>
+<tr>
+<td>2:18</td>
+<td>编译一下</td>
+</tr>
+<tr>
+<td>2:24</td>
+<td>这个程序怎么写</td>
+</tr>
+<tr>
+<td>2:27</td>
+<td>就是简单的读写 BKP 功能</td>
+</tr>
+<tr>
+<td>2:31</td>
+<td>大体步骤</td>
+</tr>
+<tr>
+<td>2:41</td>
+<td>有关 BKP 的代码</td>
+</tr>
+<tr>
+<td>2:52</td>
+<td>也是非常简单的</td>
+</tr>
+<tr>
+<td>2:53</td>
+<td>看 PPT 最后的注意事项</td>
+</tr>
+<tr>
+<td>2:58</td>
+<td>就是这两行</td>
+</tr>
+<tr>
+<td>3:00</td>
+<td>开启 PWR 和 BKP 的时钟</td>
+</tr>
+<tr>
+<td>3:03</td>
+<td>函数使能对 BKP 和 RTC 的访问</td>
+</tr>
+<tr>
+<td>3:09</td>
+<td>BKP 有个写入函数</td>
+</tr>
+<tr>
+<td>3:12</td>
+<td>BKP 也有个读取函数</td>
+</tr>
+<tr>
+<td>3:15</td>
+<td>这就是大体思路</td>
+</tr>
+<tr>
+<td>3:20</td>
+<td>打开 bkp.h</td>
+</tr>
+<tr>
+<td>3:25</td>
+<td>这些是 BKP 所有的库函数</td>
+</tr>
+<tr>
+<td>3:29</td>
+<td>BKP_DeInit 恢复缺省配置</td>
+</tr>
+<tr>
+<td>3:35</td>
+<td>可以手动清空 BKP 所有数据寄存器</td>
+</tr>
+<tr>
+<td>3:39</td>
+<td>如果有备用电池，BKP 数据主电源掉电不清零</td>
+</tr>
+<tr>
+<td>3:45</td>
+<td>它就没有清零的时候</td>
+</tr>
+<tr>
+<td>3:47</td>
+<td>如果确实想清零怎么办</td>
+</tr>
+<tr>
+<td>3:50</td>
+<td>用这个函数</td>
+</tr>
+<tr>
+<td>3:52</td>
+<td>所有 BKP 数据都会变成 0</td>
+</tr>
+<tr>
+<td>4:18</td>
+<td>就是高电平触发还是低电平触发</td>
+</tr>
+<tr>
+<td>4:20</td>
+<td>就是是否开启侵入检测功能</td>
+</tr>
+<tr>
+<td>4:24</td>
+<td>如果需要侵入检测的话</td>
+</tr>
+<tr>
+<td>4:37</td>
+<td>这是时钟输出功能的配置</td>
+</tr>
+<tr>
+<td>4:55</td>
+<td>这个就是写入 RTC 校准寄存器</td>
+</tr>
+<tr>
+<td>5:01</td>
+<td>这些功能了解即可</td>
+</tr>
+<tr>
+<td>5:13</td>
+<td>你要写在哪个 DR 里</td>
+</tr>
+<tr>
+<td>5:19</td>
+<td>一个 16 位的整型数据</td>
+</tr>
+<tr>
+<td>5:24</td>
+<td>BKP_ReadBackupRegister 读备份寄存器</td>
+</tr>
+<tr>
+<td>5:29</td>
+<td>返回值就是 DR 里存的值</td>
+</tr>
+<tr>
+<td>5:38</td>
+<td>BKP 的所有函数就清楚了</td>
+</tr>
+<tr>
+<td>5:43</td>
+<td>然后还要看一下 pwr.h</td>
+</tr>
+<tr>
+<td>5:49</td>
+<td>这是 PWR 外设的库函数</td>
+</tr>
+<tr>
+<td>5:52</td>
+<td>PWR 外设下节再讲</td>
+</tr>
+<tr>
+<td>6:05</td>
+<td>这个函数的内容</td>
+</tr>
+<tr>
+<td>6:07</td>
+<td>就是设置 PWR_CR 寄存器里的 DBP 位</td>
+</tr>
+<tr>
+<td>6:11</td>
+<td>对应 PPT 这里写的使能访问</td>
+</tr>
+<tr>
+<td>6:31</td>
+<td>初始化第一步：开启 PWR 和 BKP 时钟</td>
+</tr>
+<tr>
+<td>6:38</td>
+<td>这两个都是 APB1 的设备</td>
+</tr>
+<tr>
+<td>6:53</td>
+<td>开启外设时钟，第二个参数 ENABLE</td>
+</tr>
+<tr>
+<td>7:06</td>
+<td>接下来 PPT 第二步</td>
+</tr>
+<tr>
+<td>7:09</td>
+<td>使能对 BKP 和 RTC 的访问</td>
+</tr>
+<tr>
+<td>7:14</td>
+<td>用刚才看的 PWR 备份访问控制函数</td>
+</tr>
+<tr>
+<td>7:19</td>
+<td>放到这里，给 ENABLE</td>
+</tr>
+<tr>
+<td>7:29</td>
+<td>读函数读出</td>
+</tr>
+<tr>
+<td>7:31</td>
+<td>调用写函数</td>
+</tr>
+<tr>
+<td>7:36</td>
+<td>转到定义看</td>
+</tr>
+<tr>
+<td>7:42</td>
+<td>这个参数可以是 BKP_DRx</td>
+</tr>
+<tr>
+<td>7:45</td>
+<td>其中 x 可以是 1～42 之间</td>
+</tr>
+<tr>
+<td>7:49</td>
+<td>复制这个 BKP_DRx 放到这里</td>
+</tr>
+<tr>
+<td>7:53</td>
+<td>可以替换成 1～42 之间的数字</td>
+</tr>
+<tr>
+<td>7:57</td>
+<td>只有大容量和互联型才有 42 个 DR</td>
+</tr>
+<tr>
+<td>8:02</td>
+<td>中容量 DR 的范围是 1～10</td>
+</tr>
+<tr>
+<td>8:12</td>
+<td>这是 uint16 类型的数据</td>
+</tr>
+<tr>
+<td>8:21</td>
+<td>那写入对不对呢</td>
+</tr>
+<tr>
+<td>8:23</td>
+<td>读出来看看就知道了</td>
+</tr>
+<tr>
+<td>8:24</td>
+<td>读取 BKP 用这个读取函数</td>
+</tr>
+<tr>
+<td>8:28</td>
+<td>读取哪个 DR 呢</td>
+</tr>
+<tr>
+<td>8:31</td>
+<td>读刚才写入数据的 DR1</td>
+</tr>
+<tr>
+<td>8:34</td>
+<td>读取的值作为返回值返回</td>
+</tr>
+<tr>
+<td>8:37</td>
+<td>用 OLED 显示</td>
+</tr>
+<tr>
+<td>8:54</td>
+<td>下载测试</td>
+</tr>
+<tr>
+<td>8:59</td>
+<td>OLED 显示的是 1234</td>
+</tr>
+<tr>
+<td>9:02</td>
+<td>初步测试没问题</td>
+</tr>
+<tr>
+<td>9:08</td>
+<td>由备用电池维持</td>
+</tr>
+<tr>
+<td>9:15</td>
+<td>我们不在 BKP 写入数据</td>
+</tr>
+<tr>
+<td>9:21</td>
+<td>看看现象</td>
+</tr>
+<tr>
+<td>9:28</td>
+<td>目前芯片没有掉电过</td>
+</tr>
+<tr>
+<td>9:31</td>
+<td>所以 BKP 数据保持原样</td>
+</tr>
+<tr>
+<td>9:34</td>
+<td>数据仍然是 1234</td>
+</tr>
+<tr>
+<td>9:37</td>
+<td>复位不会清空 BKP</td>
+</tr>
+<tr>
+<td>9:40</td>
+<td>之后再测试</td>
+</tr>
+<tr>
+<td>9:41</td>
+<td>把主电源断电</td>
+</tr>
+<tr>
+<td>9:44</td>
+<td>数据仍然是 1234</td>
+</tr>
+<tr>
+<td>9:49</td>
+<td>把备用电源拔掉</td>
+</tr>
+<tr>
+<td>9:55</td>
+<td>BKP 数据就清零了</td>
+</tr>
+<tr>
+<td>9:57</td>
+<td>没有备用电源就维持不了</td>
+</tr>
+<tr>
+<td>10:03</td>
+<td>符合实验预期</td>
+</tr>
+<tr>
+<td>10:05</td>
+<td>这就是对 BKP 的测试</td>
+</tr>
+<tr>
+<td>10:08</td>
+<td>最后再完善</td>
+</tr>
+<tr>
+<td>10:25</td>
+<td>数据可以随便给两个</td>
+</tr>
+<tr>
+<td>10:43</td>
+<td>在 OLED 初始化之后</td>
+</tr>
+<tr>
+<td>10:47</td>
+<td><code>OLED_ShowString(1, 1, &quot;W:&quot;);</code></td>
+</tr>
+<tr>
+<td>10:56</td>
+<td>表示后面是写入的数据</td>
+</tr>
+<tr>
+<td>11:04</td>
+<td>表示后面是读取的数据</td>
+</tr>
+<tr>
+<td>11:10</td>
+<td>这样测试才更全面</td>
+</tr>
+<tr>
+<td>11:12</td>
+<td>把按键功能也拿过来</td>
+</tr>
+<tr>
+<td>11:15</td>
+<td>看之前写好的 Key.h</td>
+</tr>
+<tr>
+<td>11:18</td>
+<td>定义存放键值的变量 KeyNum</td>
+</tr>
+<tr>
+<td>11:27</td>
+<td>Key_Init</td>
+</tr>
+<tr>
+<td>11:33</td>
+<td>在主循环里实现功能</td>
+</tr>
+<tr>
+<td>11:36</td>
+<td>按下按键变更数据</td>
+</tr>
+<tr>
+<td>11:39</td>
+<td>再写入到 BKP 中</td>
+</tr>
+<tr>
+<td>11:59</td>
+<td>变换数据就是来一个自增</td>
+</tr>
+<tr>
+<td>12:05</td>
+<td><code>ArrayWrite[0] ++</code></td>
+</tr>
+<tr>
+<td>12:13</td>
+<td>就是之前的函数</td>
+</tr>
+<tr>
+<td>12:25</td>
+<td>我们同时写入两个</td>
+</tr>
+<tr>
+<td>12:26</td>
+<td>说明读写多个 DR 也没问题</td>
+</tr>
+<tr>
+<td>12:31</td>
+<td>可以显示</td>
+</tr>
+<tr>
+<td>12:48</td>
+<td>显示写入的数据</td>
+</tr>
+<tr>
+<td>12:51</td>
+<td>那读取数据呢</td>
+</tr>
+<tr>
+<td>12:54</td>
+<td>在主循环里不断读取刷新显示</td>
+</tr>
+<tr>
+<td>13:07</td>
+<td>把它放到 ArrayRead 里</td>
+</tr>
+<tr>
+<td>13:19</td>
+<td>最后调用 OLED 显示</td>
+</tr>
+<tr>
+<td>13:28</td>
+<td>放在第二行，换成 ArrayRead</td>
+</tr>
+<tr>
+<td>13:53</td>
+<td>程序思路：如果按键按下</td>
+</tr>
+<tr>
+<td>13:57</td>
+<td>测试数据分别写入 BKP 的 DR1 和 DR2</td>
+</tr>
+<tr>
+<td>14:06</td>
+<td>没有按键按下时</td>
+</tr>
+<tr>
+<td>14:09</td>
+<td>也不断读取 DR1 和 DR2 刷新显示</td>
+</tr>
+<tr>
+<td>14:17</td>
+<td>这就是测试程序的逻辑</td>
+</tr>
+<tr>
+<td>14:20</td>
+<td>下载试一下</td>
+</tr>
+<tr>
+<td>14:24</td>
+<td>目前 W 后面什么都没显示</td>
+</tr>
+<tr>
+<td>14:29</td>
+<td>读出来是 00000000</td>
+</tr>
+<tr>
+<td>14:33</td>
+<td>按下按键</td>
+</tr>
+<tr>
+<td>14:37</td>
+<td>写入的是 1235</td>
+</tr>
+<tr>
+<td>14:41</td>
+<td>写入之前就已经自增了</td>
+</tr>
+<tr>
+<td>14:47</td>
+<td>不是数组默认的 1234</td>
+</tr>
+<tr>
+<td>15:01</td>
+<td>读取的数据和写入一样</td>
+</tr>
+<tr>
+<td>15:05</td>
+<td>继续变换数据</td>
+</tr>
+<tr>
+<td>15:07</td>
+<td>写入和读取都一样</td>
+</tr>
+<tr>
+<td>15:20</td>
+<td>这就是这个程序的现象</td>
+</tr>
+<tr>
+<td>15:23</td>
+<td>有关 BKP 的实验</td>
+</tr>
+<tr>
+<td>15:28</td>
+<td>知道 BKP 特性、会读写即可</td>
+</tr>
+<tr>
+<td>15:36</td>
+<td>回到工程文件夹</td>
+</tr>
+<tr>
+<td>15:38</td>
+<td>还是复制 OLED 的代码</td>
+</tr>
+<tr>
+<td>15:42</td>
+<td>改一下名字：12-2 实时时钟</td>
+</tr>
+<tr>
+<td>15:53</td>
+<td>编译一下</td>
+</tr>
+<tr>
+<td>15:58</td>
+<td>对于 RTC 的代码</td>
+</tr>
+<tr>
+<td>16:00</td>
+<td>把模块封装一下</td>
+</tr>
+<tr>
+<td>16:03</td>
+<td>快速建立模块</td>
+</tr>
+<tr>
+<td>16:05</td>
+<td>RTC 就放在 System 目录下</td>
+</tr>
+<tr>
+<td>16:10</td>
+<td>模块名称叫 MyRTC</td>
+</tr>
+<tr>
+<td>16:16</td>
+<td>后面的步骤快进</td>
+</tr>
+<tr>
+<td>16:27</td>
+<td>模块建好，初始化函数 <code>void MyRTC_Init(void)</code></td>
+</tr>
+<tr>
+<td>16:40</td>
+<td>先来梳理初始化流程</td>
+</tr>
+<tr>
+<td>16:42</td>
+<td>参考 PPT 的基本结构图</td>
+</tr>
+<tr>
+<td>16:46</td>
+<td>在使用 RTC 外设之前</td>
+</tr>
+<tr>
+<td>16:50</td>
+<td>同样得执行注意事项第一条</td>
+</tr>
+<tr>
+<td>16:52</td>
+<td>开启 PWR 和 BKP 的时钟</td>
+</tr>
+<tr>
+<td>17:03</td>
+<td>启动 RTC 的时钟</td>
+</tr>
+<tr>
+<td>17:04</td>
+<td>计划使用 LSE 作为时钟</td>
+</tr>
+<tr>
+<td>17:13</td>
+<td>LSE 为了省电默认是关闭的</td>
+</tr>
+<tr>
+<td>17:17</td>
+<td>所以需要手动开启</td>
+</tr>
+<tr>
+<td>17:28</td>
+<td>第三步配置 RTCCLK 数据选择器</td>
+</tr>
+<tr>
+<td>17:29</td>
+<td>也是在 RCC 模块里的</td>
+</tr>
+<tr>
+<td>17:32</td>
+<td>第四步先别急着往后看</td>
+</tr>
+<tr>
+<td>17:35</td>
+<td>看注意事项这里</td>
+</tr>
+<tr>
+<td>17:37</td>
+<td>就是调用两个等待函数</td>
+</tr>
+<tr>
+<td>17:40</td>
+<td>等待同步</td>
+</tr>
+<tr>
+<td>17:46</td>
+<td>两个函数照例调用</td>
+</tr>
+<tr>
+<td>17:51</td>
+<td>第五步配置预分频器 PRL</td>
+</tr>
+<tr>
+<td>17:56</td>
+<td>确保输出给计数器的频率是 1Hz</td>
+</tr>
+<tr>
+<td>18:01</td>
+<td>第六步配置 CNT 的值（初始时间）</td>
+</tr>
+<tr>
+<td>18:09</td>
+<td>如果需要闹钟可以配置中断</td>
+</tr>
+<tr>
+<td>18:12</td>
+<td>这就是配置 RTC 的步骤</td>
+</tr>
+<tr>
+<td>18:15</td>
+<td>可以发现 RTC 比较简单</td>
+</tr>
+<tr>
+<td>18:17</td>
+<td>库函数并没有用结构体配置</td>
+</tr>
+<tr>
+<td>18:20</td>
+<td>RTC 也没有 RTC_Cmd</td>
+</tr>
+<tr>
+<td>18:23</td>
+<td>开启时钟就能自动运行</td>
+</tr>
+<tr>
+<td>18:29</td>
+<td>流程清楚了</td>
+</tr>
+<tr>
+<td>18:33</td>
+<td>展开 Library 目录</td>
+</tr>
+<tr>
+<td>18:41</td>
+<td>在 RCC 库函数里找</td>
+</tr>
+<tr>
+<td>18:48</td>
+<td>配置 LSE 外部低速时钟用这个函数</td>
+</tr>
+<tr>
+<td>18:58</td>
+<td>配置 LSI 内部低速时钟</td>
+</tr>
+<tr>
+<td>19:10</td>
+<td><code>RCC_RTCCLKConfig</code> 选择时钟源</td>
+</tr>
+<tr>
+<td>19:47</td>
+<td>不是让它启动就能立刻启动</td>
+</tr>
+<tr>
+<td>19:48</td>
+<td>调用启动函数之后还要等待</td>
+</tr>
+<tr>
+<td>19:52</td>
+<td>等 RCC 的 LSERDY 置 1</td>
+</tr>
+<tr>
+<td>19:57</td>
+<td>这个时钟才算启动完成</td>
+</tr>
+<tr>
+<td>20:01</td>
+<td>RCC 时钟部分的函数就了解这么多</td>
+</tr>
+<tr>
+<td>20:20</td>
+<td>转到定义</td>
+</tr>
+<tr>
+<td>20:29</td>
+<td>对应 PPT 注意事项</td>
+</tr>
+<tr>
+<td>20:32</td>
+<td>必须设置 CNF 位</td>
+</tr>
+<tr>
+<td>20:43</td>
+<td><code>RTC_ExitConfigMode</code> 就是把 CNF 清零</td>
+</tr>
+<tr>
+<td>20:50</td>
+<td><code>RTC_GetCounter</code> 获取 CNT 的值</td>
+</tr>
+<tr>
+<td>21:01</td>
+<td>写入 CNT 就靠这个函数</td>
+</tr>
+<tr>
+<td>21:04</td>
+<td><code>RTC_SetPrescaler</code> 写预分频器</td>
+</tr>
+<tr>
+<td>21:15</td>
+<td><code>RTC_SetAlarm</code></td>
+</tr>
+<tr>
+<td>21:29</td>
+<td>余数寄存器一般为了得到更细致的时间</td>
+</tr>
+<tr>
+<td>21:41</td>
+<td>要厘秒毫秒就靠 DIV 余数寄存器</td>
+</tr>
+<tr>
+<td>21:45</td>
+<td><code>RTC_WaitForLastTask</code> 等待上次操作完成</td>
+</tr>
+<tr>
+<td>21:53</td>
+<td>循环直到 RTOFF 为 1</td>
+</tr>
+<tr>
+<td>22:03</td>
+<td><code>RTC_WaitForSynchro</code></td>
+</tr>
+<tr>
+<td>22:17</td>
+<td>等待 RSF 置 1</td>
+</tr>
+<tr>
+<td>22:29</td>
+<td>接下来正式写程序</td>
+</tr>
+<tr>
+<td>22:31</td>
+<td>回到 MyRTC_Init 函数</td>
+</tr>
+<tr>
+<td>22:37</td>
+<td>第一步开 PWR 和 BKP 时钟</td>
+</tr>
+<tr>
+<td>22:50</td>
+<td>第二步使能部分完成</td>
+</tr>
+<tr>
+<td>22:53</td>
+<td>并等待 LSE 启动完成</td>
+</tr>
+<tr>
+<td>23:09</td>
+<td>这里有三个参数</td>
+</tr>
+<tr>
+<td>23:10</td>
+<td>LSE_OFF 表示关闭</td>
+</tr>
+<tr>
+<td>23:14</td>
+<td>LSE_ON 表示打开</td>
+</tr>
+<tr>
+<td>23:17</td>
+<td>LSE_BYPASS 表示时钟旁路</td>
+</tr>
+<tr>
+<td>23:22</td>
+<td>旁路就是可以从外部直接输入时钟</td>
+</tr>
+<tr>
+<td>23:32</td>
+<td>我们直接接晶振</td>
+</tr>
+<tr>
+<td>23:38</td>
+<td>所以用第二个参数</td>
+</tr>
+<tr>
+<td>23:45</td>
+<td>需要等待 LSE 启动完成</td>
+</tr>
+<tr>
+<td>23:50</td>
+<td>调用 <code>RCC_GetFlagStatus</code></td>
+</tr>
+<tr>
+<td>24:01</td>
+<td>转到定义找 LSERDY</td>
+</tr>
+<tr>
+<td>24:11</td>
+<td>把标志位放到这里</td>
+</tr>
+<tr>
+<td>24:15</td>
+<td>实现等待标志位为 1</td>
+</tr>
+<tr>
+<td>24:23</td>
+<td>标志位 != SET 就死循环</td>
+</tr>
+<tr>
+<td>24:42</td>
+<td>调用 <code>RCC_RTCCLKConfig</code></td>
+</tr>
+<tr>
+<td>24:50</td>
+<td>转到定义</td>
+</tr>
+<tr>
+<td>24:53</td>
+<td>LSI、HSE/128</td>
+</tr>
+<tr>
+<td>24:58</td>
+<td>和 PPT 三个时钟源对应</td>
+</tr>
+<tr>
+<td>25:02</td>
+<td>目前使用 LSE</td>
+</tr>
+<tr>
+<td>25:04</td>
+<td>还要调用 <code>RCC_RTCCLKCmd</code></td>
+</tr>
+<tr>
+<td>25:22</td>
+<td>参数给 ENABLE</td>
+</tr>
+<tr>
+<td>25:24</td>
+<td>RTCCLK 部分就配置好了</td>
+</tr>
+<tr>
+<td>25:28</td>
+<td>根据配置步骤</td>
+</tr>
+<tr>
+<td>25:34</td>
+<td>等上次写入操作完成</td>
+</tr>
+<tr>
+<td>25:37</td>
+<td>这两个函数刚才都看过</td>
+</tr>
+<tr>
+<td>25:41</td>
+<td>先调用等待同步函数</td>
+</tr>
+<tr>
+<td>25:47</td>
+<td>再调用等待上次操作</td>
+</tr>
+<tr>
+<td>26:05</td>
+<td>这是安全保障措施</td>
+</tr>
+<tr>
+<td>26:08</td>
+<td>防止时钟不同步造成 bug</td>
+</tr>
+<tr>
+<td>26:22</td>
+<td>正常情况这两行不写也没大问题</td>
+</tr>
+<tr>
+<td>26:37</td>
+<td>用 <code>RTC_SetPrescaler</code></td>
+</tr>
+<tr>
+<td>26:42</td>
+<td>参数是分频值</td>
+</tr>
+<tr>
+<td>26:44</td>
+<td>目前分频器输入时钟是 LSE</td>
+</tr>
+<tr>
+<td>26:47</td>
+<td>LSE 频率是 32.768kHz</td>
+</tr>
+<tr>
+<td>26:57</td>
+<td>分频系数要给 32768-1</td>
+</tr>
+<tr>
+<td>27:03</td>
+<td>因为计数值包含 0</td>
+</tr>
+<tr>
+<td>27:12</td>
+<td>写操作之后值不会立刻生效</td>
+</tr>
+<tr>
+<td>27:16</td>
+<td>最好等待一下</td>
+</tr>
+<tr>
+<td>27:42</td>
+<td>然后还注意到这个注意事项</td>
+</tr>
+<tr>
+<td>27:51</td>
+<td>要不要进入配置模式</td>
+</tr>
+<tr>
+<td>27:58</td>
+<td>转到定义看一下</td>
+</tr>
+<tr>
+<td>28:09</td>
+<td>后面自带退出配置模式</td>
+</tr>
+<tr>
+<td>28:32</td>
+<td>初始化时设置初始时间</td>
+</tr>
+<tr>
+<td>28:37</td>
+<td>调用 <code>RTC_SetCounter</code></td>
+</tr>
+<tr>
+<td>28:42</td>
+<td>一个 32 位的秒计数器</td>
+</tr>
+<tr>
+<td>28:50</td>
+<td>就用 PPT 里 2023 年 1 月 1 日这个例子</td>
+</tr>
+<tr>
+<td>28:55</td>
+<td>用于设定初始时间</td>
+</tr>
+<tr>
+<td>28:58</td>
+<td>这一步不是必须的</td>
+</tr>
+<tr>
+<td>29:00</td>
+<td>不预设时间就认为是 0</td>
+</tr>
+<tr>
+<td>29:03</td>
+<td>解析出来就是 1970 年</td>
+</tr>
+<tr>
+<td>29:08</td>
+<td>写入 CNT 操作结束后</td>
+</tr>
+<tr>
+<td>29:09</td>
+<td>调用等待函数</td>
+</tr>
+<tr>
+<td>29:16</td>
+<td>初始化到这里就结束</td>
+</tr>
+<tr>
+<td>29:17</td>
+<td>就会从这个秒数开始</td>
+</tr>
+<tr>
+<td>29:34</td>
+<td>编译看没问题</td>
+</tr>
+<tr>
+<td>29:36</td>
+<td>之后到主函数里</td>
+</tr>
+<tr>
+<td>29:43</td>
+<td>先 include，然后 MyRTC_Init</td>
+</tr>
+<tr>
+<td>29:56</td>
+<td>读取 CNT 用 <code>RTC_GetCounter</code></td>
+</tr>
+<tr>
+<td>30:07</td>
+<td>直接用 OLED 显示</td>
+</tr>
+<tr>
+<td>30:19</td>
+<td>这就是初步的测试程序</td>
+</tr>
+<tr>
+<td>30:22</td>
+<td>编译下载看</td>
+</tr>
+<tr>
+<td>30:28</td>
+<td>面包板上确实显示了</td>
+</tr>
+<tr>
+<td>30:33</td>
+<td>自增的间隔</td>
+</tr>
+<tr>
+<td>30:36</td>
+<td>说明程序测试成功</td>
+</tr>
+<tr>
+<td>30:38</td>
+<td>有些板子这个现象确实有问题</td>
+</tr>
+<tr>
+<td>30:42</td>
+<td>就是 RTC 晶振起振不了</td>
+</tr>
+<tr>
+<td>30:47</td>
+<td>晶振不起振就会卡在这个位置</td>
+</tr>
+<tr>
+<td>30:59</td>
+<td>如果晶振确实起振不了</td>
+</tr>
+<tr>
+<td>31:03</td>
+<td>可以备选内部低速时钟 LSI</td>
+</tr>
+<tr>
+<td>31:08</td>
+<td>程序修改方法是改成 LSICmd</td>
+</tr>
+<tr>
+<td>31:16</td>
+<td>然后等待 LSIRDY 标志位</td>
+</tr>
+<tr>
+<td>31:20</td>
+<td>配置时钟源</td>
+</tr>
+<tr>
+<td>31:23</td>
+<td>因为 LSI 是 40kHz</td>
+</tr>
+<tr>
+<td>31:26</td>
+<td>所以预分频改成 40000</td>
+</tr>
+<tr>
+<td>31:30</td>
+<td>这样就把 RTCCLK 切换到 LSI</td>
+</tr>
+<tr>
+<td>31:40</td>
+<td>时钟也是能正常运行的</td>
+</tr>
+<tr>
+<td>31:47</td>
+<td>如果外部时钟启动不了可以这样改</td>
+</tr>
+<tr>
+<td>31:52</td>
+<td>至于如何让外部晶振启动</td>
+</tr>
+<tr>
+<td>31:55</td>
+<td>可能得从硬件上进行</td>
+</tr>
+<tr>
+<td>32:12</td>
+<td>把代码还原成 LSE</td>
+</tr>
+<tr>
+<td>32:14</td>
+<td>每次复位都会重置时间</td>
+</tr>
+<tr>
+<td>32:20</td>
+<td>现在先继续写后续部分</td>
+</tr>
+<tr>
+<td>32:24</td>
+<td>要写两个函数：设置时间、读取时间</td>
+</tr>
+<tr>
+<td>32:34</td>
+<td>把读到的秒数转换为年月日时分秒</td>
+</tr>
+<tr>
+<td>32:38</td>
+<td>把全局数组的年月日时分秒填进去</td>
+</tr>
+<tr>
+<td>32:48</td>
+<td>这样做程序便于理解</td>
+</tr>
+<tr>
+<td>33:05</td>
+<td>全局数组名叫 MyRTC_Time</td>
+</tr>
+<tr>
+<td>33:09</td>
+<td>分别存放年月日时分秒</td>
+</tr>
+<tr>
+<td>33:17</td>
+<td>年 2023、时 23、分 59、秒 55</td>
+</tr>
+<tr>
+<td>33:21</td>
+<td>年 2023 超过 uint8_t 的范围</td>
+</tr>
+<tr>
+<td>33:25</td>
+<td>所以整个数组定义成 16 位</td>
+</tr>
+<tr>
+<td>33:29</td>
+<td>稍微浪费</td>
+</tr>
+<tr>
+<td>33:31</td>
+<td>之后调用设置时间的函数</td>
+</tr>
+<tr>
+<td>33:36</td>
+<td>调用读取时间的函数</td>
+</tr>
+<tr>
+<td>33:44</td>
+<td>注意事项：这个时间值</td>
+</tr>
+<tr>
+<td>33:46</td>
+<td>最好不要在前面补 0</td>
+</tr>
+<tr>
+<td>33:53</td>
+<td>目前看着是没问题的</td>
+</tr>
+<tr>
+<td>34:05</td>
+<td>实际上是八进制的 1</td>
+</tr>
+<tr>
+<td>34:12</td>
+<td>如果你写 23 点 9 分，补 0 就成了 09</td>
+</tr>
+<tr>
+<td>34:20</td>
+<td>这就有问题了</td>
+</tr>
+<tr>
+<td>34:23</td>
+<td>它会报个错误：数字 9 是无效的</td>
+</tr>
+<tr>
+<td>34:30</td>
+<td>写 C 语言程序千万不要随意补 0</td>
+</tr>
+<tr>
+<td>34:34</td>
+<td>前面补 0 是没问题的（指空格对齐）</td>
+</tr>
+<tr>
+<td>34:49</td>
+<td>那 <code>123 == 0123</code> 会不会成立呢</td>
+</tr>
+<tr>
+<td>34:51</td>
+<td>理解了刚才的注意事项就知道不成立</td>
+</tr>
+<tr>
+<td>34:57</td>
+<td>之前 51 单片机教程里密码判断出错就是这个原因</td>
+</tr>
+<tr>
+<td>35:09</td>
+<td>回到这个程序</td>
+</tr>
+<tr>
+<td>35:15</td>
+<td><code>void MyRTC_SetTime(void)</code></td>
+</tr>
+<tr>
+<td>35:32</td>
+<td>先包含头文件 <code>#include &lt;time.h&gt;</code></td>
+</tr>
+<tr>
+<td>35:40</td>
+<td>用引号也完全没问题</td>
+</tr>
+<tr>
+<td>35:45</td>
+<td>右键打开 time.h 看看</td>
+</tr>
+<tr>
+<td>35:48</td>
+<td>这个文件和 Dev-C++ 里的有些区别</td>
+</tr>
+<tr>
+<td>35:56</td>
+<td>这里 time_t 的定义是 unsigned int</td>
+</tr>
+<tr>
+<td>36:04</td>
+<td>struct tm 里的秒范围是 0～60</td>
+</tr>
+<tr>
+<td>36:10</td>
+<td>括号里写的是允许偶尔的闰秒</td>
+</tr>
+<tr>
+<td>36:33</td>
+<td>它也不知道当前处于哪个时区</td>
+</tr>
+<tr>
+<td>36:41</td>
+<td>目前程序的做法是使用 gmtime</td>
+</tr>
+<tr>
+<td>36:49</td>
+<td>始终都是 0 时区</td>
+</tr>
+<tr>
+<td>37:10</td>
+<td>那看完这个模块就可以上手了</td>
+</tr>
+<tr>
+<td>37:13</td>
+<td>先定义两个变量</td>
+</tr>
+<tr>
+<td>37:15</td>
+<td>一个是 time_t time_cnt</td>
+</tr>
+<tr>
+<td>37:20</td>
+<td>一个是 struct tm time_date</td>
+</tr>
+<tr>
+<td>37:26</td>
+<td>填充到 time_date 里</td>
+</tr>
+<tr>
+<td>37:31</td>
+<td><code>time_date.tm_year</code></td>
+</tr>
+<tr>
+<td>37:44</td>
+<td><code>tm_mon</code> 等于第 1 个数据</td>
+</tr>
+<tr>
+<td>37:47</td>
+<td><code>tm_mday</code> 等于第 2 个数据</td>
+</tr>
+<tr>
+<td>37:50</td>
+<td><code>tm_hour</code> 等于第 3 个数据</td>
+</tr>
+<tr>
+<td>37:56</td>
+<td><code>tm_min</code> 等于第 5 个数据</td>
+</tr>
+<tr>
+<td>38:04</td>
+<td>其中年要减去 1900</td>
+</tr>
+<tr>
+<td>38:10</td>
+<td>调用 mktime 函数</td>
+</tr>
+<tr>
+<td>38:13</td>
+<td>参数是 struct tm*</td>
+</tr>
+<tr>
+<td>38:18</td>
+<td>把 time_date 的地址传进去</td>
+</tr>
+<tr>
+<td>38:23</td>
+<td>返回值是 time_t，赋值给 time_cnt</td>
+</tr>
+<tr>
+<td>38:33</td>
+<td>写入到 CNT 里</td>
+</tr>
+<tr>
+<td>38:35</td>
+<td>调用 <code>RTC_SetCounter</code></td>
+</tr>
+<tr>
+<td>38:40</td>
+<td>参数把 time_cnt 传进去</td>
+</tr>
+<tr>
+<td>38:52</td>
+<td>主要就是三步</td>
+</tr>
+<tr>
+<td>38:58</td>
+<td>第二步用 mktime 得到秒数</td>
+</tr>
+<tr>
+<td>39:01</td>
+<td>将秒数写入 RTC 的 CNT</td>
+</tr>
+<tr>
+<td>39:05</td>
+<td>这就是设置时间</td>
+</tr>
+<tr>
+<td>39:08</td>
+<td>读取时间的函数</td>
+</tr>
+<tr>
+<td>39:10</td>
+<td><code>void MyRTC_ReadTime(void)</code></td>
+</tr>
+<tr>
+<td>39:23</td>
+<td>和上面是反过来的</td>
+</tr>
+<tr>
+<td>39:31</td>
+<td>存储到 time_cnt 里</td>
+</tr>
+<tr>
+<td>39:39</td>
+<td>参数是 const time_t*</td>
+</tr>
+<tr>
+<td>39:42</td>
+<td>把 time_cnt 的地址传进去</td>
+</tr>
+<tr>
+<td>39:46</td>
+<td>返回值是 struct tm*</td>
+</tr>
+<tr>
+<td>39:51</td>
+<td>先取内容再赋值给 time_date</td>
+</tr>
+<tr>
+<td>39:59</td>
+<td>其实不转移到数组里</td>
+</tr>
+<tr>
+<td>40:06</td>
+<td>是为了降低使用难度</td>
+</tr>
+<tr>
+<td>40:12</td>
+<td>把等号左右反过来</td>
+</tr>
+<tr>
+<td>40:18</td>
+<td>年应该等于 tm_year 加 1900</td>
+</tr>
+<tr>
+<td>40:29</td>
+<td>数组第 2 个等于 tm_mday</td>
+</tr>
+<tr>
+<td>40:32</td>
+<td>数组第 3 个等于 tm_hour</td>
+</tr>
+<tr>
+<td>40:37</td>
+<td>数组第 5 个等于 tm_sec</td>
+</tr>
+<tr>
+<td>40:42</td>
+<td>现在可以进行测试</td>
+</tr>
+<tr>
+<td>40:44</td>
+<td>先把这两个函数</td>
+</tr>
+<tr>
+<td>40:50</td>
+<td>另外这个全局数组</td>
+</tr>
+<tr>
+<td>40:52</td>
+<td>声明为外部可调用</td>
+</tr>
+<tr>
+<td>40:56</td>
+<td>其实就是使用全局变量传参</td>
+</tr>
+<tr>
+<td>41:06</td>
+<td>变量声明要加 extern</td>
+</tr>
+<tr>
+<td>41:09</td>
+<td>数组的话</td>
+</tr>
+<tr>
+<td>41:12</td>
+<td>那头文件就是这些东西</td>
+</tr>
+<tr>
+<td>41:15</td>
+<td>编译一下没问题</td>
+</tr>
+<tr>
+<td>41:17</td>
+<td>到主函数测试</td>
+</tr>
+<tr>
+<td>41:20</td>
+<td>先把静态字符串显示</td>
+</tr>
+<tr>
+<td>41:22</td>
+<td><code>OLED_ShowString(1, 1, &quot;Date:XXXX-XX-XX&quot;)</code></td>
+</tr>
+<tr>
+<td>41:34</td>
+<td>复制一下</td>
+</tr>
+<tr>
+<td>41:56</td>
+<td>主循环里先调用 <code>MyRTC_ReadTime</code></td>
+</tr>
+<tr>
+<td>42:02</td>
+<td>调用之后得到 CNT 对应的时间值</td>
+</tr>
+<tr>
+<td>42:20</td>
+<td>复制一下显示年月日</td>
+</tr>
+<tr>
+<td>42:24</td>
+<td>显示 Time[1]</td>
+</tr>
+<tr>
+<td>42:48</td>
+<td>2 行 12 列显示 Time[5]，秒</td>
+</tr>
+<tr>
+<td>43:01</td>
+<td>3 行 6 列显示 CNT 的值</td>
+</tr>
+<tr>
+<td>43:10</td>
+<td>编译下载看</td>
+</tr>
+<tr>
+<td>43:18</td>
+<td>2023 年 1 月 1 日</td>
+</tr>
+<tr>
+<td>43:21</td>
+<td>第二行是时间</td>
+</tr>
+<tr>
+<td>43:23</td>
+<td>目前是 PPT 示例的这个数</td>
+</tr>
+<tr>
+<td>43:31</td>
+<td>我们调用的是 localtime</td>
+</tr>
+<tr>
+<td>43:37</td>
+<td>但它的当地时间默认是 0 时区的伦敦时间</td>
+</tr>
+<tr>
+<td>43:41</td>
+<td>也就是这里的 15 点 59 的时间</td>
+</tr>
+<tr>
+<td>43:50</td>
+<td>那回到程序</td>
+</tr>
+<tr>
+<td>43:54</td>
+<td>所以这个数组里的时间是没有用到的</td>
+</tr>
+<tr>
+<td>43:57</td>
+<td>如果想在初始化时设置时间</td>
+</tr>
+<tr>
+<td>44:02</td>
+<td>看看 SetTime 函数是否正常</td>
+</tr>
+<tr>
+<td>44:11</td>
+<td>可以在这里直接调用 <code>MyRTC_SetTime()</code></td>
+</tr>
+<tr>
+<td>44:20</td>
+<td>这里有个报错</td>
+</tr>
+<tr>
+<td>44:23</td>
+<td>是因为函数的定义在调用的后面</td>
+</tr>
+<tr>
+<td>44:29</td>
+<td>把下面这个函数放到调用的前面</td>
+</tr>
+<tr>
+<td>44:42</td>
+<td>有对应的函数定义或声明即可</td>
+</tr>
+<tr>
+<td>44:49</td>
+<td>如果程序中途想设置时间</td>
+</tr>
+<tr>
+<td>44:58</td>
+<td>再调用 SetTime 函数就行</td>
+</tr>
+<tr>
+<td>44:59</td>
+<td>看看现在的现象</td>
+</tr>
+<tr>
+<td>45:09</td>
+<td>时间日期的进位都没问题</td>
+</tr>
+<tr>
+<td>45:12</td>
+<td>计量伦敦时间的钟表</td>
+</tr>
+<tr>
+<td>45:20</td>
+<td>用这个钟表计北京时间也没问题</td>
+</tr>
+<tr>
+<td>45:25</td>
+<td>完全符合时间戳的规范</td>
+</tr>
+<tr>
+<td>45:28</td>
+<td>但真正的北京时间</td>
+</tr>
+<tr>
+<td>45:32</td>
+<td>在程序中还要进行时区偏移</td>
+</tr>
+<tr>
+<td>45:35</td>
+<td>其实也很简单</td>
+</tr>
+<tr>
+<td>45:40</td>
+<td>读取时间时秒计数器转换的是伦敦时间</td>
+</tr>
+<tr>
+<td>45:48</td>
+<td>表示东八区的北京时间</td>
+</tr>
+<tr>
+<td>45:52</td>
+<td>但直接加 8 肯定不行</td>
+</tr>
+<tr>
+<td>45:55</td>
+<td>要考虑进位问题</td>
+</tr>
+<tr>
+<td>46:06</td>
+<td>所以在秒数上加 8 个小时的秒偏移</td>
+</tr>
+<tr>
+<td>46:09</td>
+<td>8<em>60</em>60</td>
+</tr>
+<tr>
+<td>46:15</td>
+<td>我们对秒数运算</td>
+</tr>
+<tr>
+<td>46:24</td>
+<td>写入时间时要对应减去 8 个小时的秒数</td>
+</tr>
+<tr>
+<td>46:28</td>
+<td>这样就实现了时区转换</td>
+</tr>
+<tr>
+<td>46:30</td>
+<td>现在这个钟表更加严谨</td>
+</tr>
+<tr>
+<td>46:35</td>
+<td>编译下载看</td>
+</tr>
+<tr>
+<td>46:39</td>
+<td>对应秒数后面是 88795</td>
+</tr>
+<tr>
+<td>46:48</td>
+<td>和 PPT 里写的北京时间与时间戳的对应关系一致</td>
+</tr>
+<tr>
+<td>47:05</td>
+<td>有关时区偏移的部分就清楚了</td>
+</tr>
+<tr>
+<td>47:11</td>
+<td>接下来还要完成刚才遗留的问题</td>
+</tr>
+<tr>
+<td>47:12</td>
+<td>目前每次复位都会重置时间</td>
+</tr>
+<tr>
+<td>47:21</td>
+<td>时间重置的原因是每次都调用初始化函数</td>
+</tr>
+<tr>
+<td>47:28</td>
+<td>初始化代码要有判断地执行</td>
+</tr>
+<tr>
+<td>47:34</td>
+<td>系统完全断电过才执行完整初始化</td>
+</tr>
+<tr>
+<td>47:53</td>
+<td>如果上电检测到数据没清零</td>
+</tr>
+<tr>
+<td>47:58</td>
+<td>说明备用电池存在、RTC 可以继续运行</td>
+</tr>
+<tr>
+<td>48:06</td>
+<td>系统完全断电过</td>
+</tr>
+<tr>
+<td>48:12</td>
+<td>我们加个 if</td>
+</tr>
+<tr>
+<td>48:19</td>
+<td>先读出 BKP 的 DR1</td>
+</tr>
+<tr>
+<td>48:25</td>
+<td>它的数据当标志位</td>
+</tr>
+<tr>
+<td>48:41</td>
+<td>系统完全断电之后 DR1 默认是 0</td>
+</tr>
+<tr>
+<td>48:50</td>
+<td>来个 BKP 写寄存器写 0xA5A5</td>
+</tr>
+<tr>
+<td>49:02</td>
+<td>DR1 是 A5A5 就说明初始化过了</td>
+</tr>
+<tr>
+<td>49:07</td>
+<td>并且中途备用电池没断电</td>
+</tr>
+<tr>
+<td>49:10</td>
+<td>这样就不用重复初始化</td>
+</tr>
+<tr>
+<td>49:14</td>
+<td>最后加个 else</td>
+</tr>
+<tr>
+<td>49:17</td>
+<td>如果已经初始化过就不初始化</td>
+</tr>
+<tr>
+<td>49:25</td>
+<td>最好也调一下等待函数</td>
+</tr>
+<tr>
+<td>49:36</td>
+<td>再测试</td>
+</tr>
+<tr>
+<td>49:46</td>
+<td>按复位键，时间继续运行</td>
+</tr>
+<tr>
+<td>49:51</td>
+<td>断掉主电源</td>
+</tr>
+<tr>
+<td>49:57</td>
+<td>时钟仍然继续运行</td>
+</tr>
+<tr>
+<td>49:59</td>
+<td>如果完全断电</td>
+</tr>
+<tr>
+<td>50:01</td>
+<td>BKP DR1 的数据自动清零</td>
+</tr>
+<tr>
+<td>50:09</td>
+<td>这是目前程序的现象</td>
+</tr>
+<tr>
+<td>50:25</td>
+<td>用 <code>RTC_GetDivider</code></td>
+</tr>
+<tr>
+<td>50:36</td>
+<td>可以看到 DIV 正在快速自减</td>
+</tr>
+<tr>
+<td>50:40</td>
+<td>范围是 32767～0</td>
+</tr>
+<tr>
+<td>50:56</td>
+<td>如果要转换为毫秒</td>
+</tr>
+<tr>
+<td>50:59</td>
+<td>1 秒等于 1000 毫秒</td>
+</tr>
+<tr>
+<td>51:01</td>
+<td>要把 32767～0 转换到 0～999</td>
+</tr>
+<tr>
+<td>51:12</td>
+<td>先用 32767 减去 DIV</td>
+</tr>
+<tr>
+<td>51:20</td>
+<td>再除以 32767 乘以 999</td>
+</tr>
+<tr>
+<td>51:30</td>
+<td>这样就行了</td>
+</tr>
+<tr>
+<td>51:36</td>
+<td>可以看到变换范围</td>
+</tr>
+<tr>
+<td>51:39</td>
+<td>由原来的 32767～0 转换成 0～999</td>
+</tr>
+<tr>
+<td>51:45</td>
+<td>这就是获取 DIV 后进行线性变换</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，719 段），不是 ASR。错字主要是 <strong><code>寄存器</code> → 「奇存器」</strong>（2 处）、<strong><code>编译</code> → 「扁译」</strong>（2 处）、<strong><code>数据</code> → 「数居」</strong>（20 处）、<code>晶振</code> → 「显振」、<code>STM32</code> → 「SIM32/SM32」、<code>运行</code> → 「云行」（各 1～2 处）；并混入编译/下载输出（<code>Flash Load finished at …</code>）——已按画面/上下文校正。</li>
+<li><strong>本集是两个独立程序</strong>（<code>12-2 读写备份寄存器</code> 与 <code>12-2 实时时钟</code>），都从复制 OLED 工程起步——笔记分开写，没有混成一个。</li>
+<li><strong>VBAT 用 ST-Link 的 3.3V 模拟</strong>（套件无纽扣电池），<strong>绝不能接 5V</strong>；这是实验接法（产品方案是 3V 纽扣电池，见 [12-2]）。</li>
+<li><strong><code>BKP_DRx</code> 范围</strong>：口述 1～42，但<strong>只有大容量/互联型才有 42 个 DR</strong>；<strong>F103C8T6（中容量）只有 DR1～DR10</strong>。</li>
+<li><strong><code>PWR</code> 时钟必须先开</strong>：<code>PWR_BackupAccessCmd</code> 内部写 <code>CR_DBP_BB</code>，没有 PWR 时钟无法置 DBP。</li>
+<li><strong>RTC 初始化顺序是本集核心</strong>，且<strong>每个写操作后都要 <code>RTC_WaitForLastTask()</code></strong>；配置模式由 <code>RTC_SetCounter</code>/<code>RTC_SetPrescaler</code> <strong>内部</strong>进出，不用手动。</li>
+<li><strong>预分频写 <code>32768-1</code></strong>（计数值含 0）；改 <strong>LSI 则写 <code>40000-1</code></strong>。</li>
+<li><strong>晶振起振不了的备选方案（LSI）</strong> 只是作者给的临时办法，根治需从硬件下手；笔记照写并注明。</li>
+<li><strong>两个 C 语言坑</strong>已写入「坑与修正」：<strong>前导 0 是八进制</strong>（<code>09</code> 报错、<code>0123 != 123</code>）、<strong>函数定义在调用之后报错</strong>（前置声明/调序）；头文件全局数组要 <code>extern</code>。</li>
+<li><strong>时区偏移</strong>：STM32 上 <code>localtime</code>/<code>gmtime</code> 都是 <strong>0 时区</strong>，显示北京时间要<strong>在秒数上 ±<code>8*60*60</code></strong>（不能在小时字段直接加，会跨进位）；现象数值 <code>CNT:1672617615</code>、<code>Date:2023-01-02 / Time:00:00:12</code> 均来自画面。</li>
+<li><strong>掉电保持</strong>：用 <strong><code>BKP_DR1</code> 存 <code>0xA5A5</code> 标志</strong>判断是否需要完整初始化；完全断电后 DR1 归 0 → 重新初始化。</li>
+<li><strong><code>RTC_GetDivider()</code> 的 DIV 是 32767→0 自减</strong>，<code>(32767-DIV)/32767*999</code> 线性映射到 0～999（厘秒/毫秒）。</li>
+<li><strong>片尾无下集预告</strong>：52:00 后是 DIV 线性变换的扩展演示。</li>
+<li><strong>工程名 12-2 读写备份寄存器 与资料图名 12-1</strong>：Keil 标题栏与下载日志（f_00060，放大 5×）显示程序①的工程目录是 12-2 读写备份寄存器（...\STM32Project\12-2 读写备份寄存器\Project.uvprojx），而接线图/资料图的文件名是 12-1 读写备份寄存器.jpg——两者同名不同号，别混。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-44.html"><span class="label">下一篇</span>[13-1] PWR电源控制</a>
+    <a class="next" href="stm32-42.html"><span class="label">上一篇</span>[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E4%B8%A4%E4%B8%AA%E7%8B%AC%E7%AB%8B%E7%A8%8B%E5%BA%8F-bkp-%E4%B8%8E-rtc">0. 本集定位：代码课（两个独立程序：BKP 与 RTC）</a>
+        <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 接线与工程准备</a>
+        <a class="level-2" href="#2-%E7%A8%8B%E5%BA%8F1-%E8%AF%BB%E5%86%99%E5%A4%87%E4%BB%BD%E5%AF%84%E5%AD%98%E5%99%A8-bkp">2. 程序①：读写备份寄存器（BKP）</a>
+        <a class="level-3" href="#2-1-%E7%BC%96%E7%A8%8B%E6%80%9D%E8%B7%AF">2.1 编程思路</a>
+        <a class="level-3" href="#2-2-bkp-%E4%B8%8E-pwr-%E5%BA%93%E5%87%BD%E6%95%B0">2.2 BKP 与 PWR 库函数</a>
+        <a class="level-3" href="#2-3-%E5%88%9D%E7%89%88%E4%BB%A3%E7%A0%81%E4%B8%8E%E7%8E%B0%E8%B1%A1">2.3 初版代码与现象</a>
+        <a class="level-3" href="#2-4-%E5%AE%8C%E5%96%84%E7%89%88-%E6%8C%89%E9%94%AE%E5%86%99%E5%85%A5-%E6%8C%81%E7%BB%AD%E8%AF%BB%E5%8F%96">2.4 完善版：按键写入 + 持续读取</a>
+        <a class="level-2" href="#3-%E7%A8%8B%E5%BA%8F2-%E5%AE%9E%E6%97%B6%E6%97%B6%E9%92%9F-rtc">3. 程序②：实时时钟（RTC）</a>
+        <a class="level-3" href="#3-1-%E5%BB%BA%E6%A8%A1%E5%9D%97%E4%B8%8E%E5%88%9D%E5%A7%8B%E5%8C%96%E6%B5%81%E7%A8%8B">3.1 建模块与初始化流程</a>
+        <a class="level-3" href="#3-2-rcc-%E4%BE%A7%E4%B8%8E-rtc-h-%E5%BA%93%E5%87%BD%E6%95%B0">3.2 RCC 侧与 rtc.h 库函数</a>
+        <a class="level-3" href="#3-3-myrtc-init-%E5%85%AB%E6%AD%A5-%E9%A1%BA%E5%BA%8F%E5%B0%B1%E6%98%AF%E6%A0%B8%E5%BF%83">3.3 MyRTC_Init（八步，顺序就是核心）</a>
+        <a class="level-3" href="#3-4-main-%E5%88%9D%E6%B5%8B%E4%B8%8E%E7%8E%B0%E8%B1%A1">3.4 main 初测与现象</a>
+        <a class="level-3" href="#3-5-myrtc-settime-myrtc-readtime">3.5 MyRTC_SetTime / MyRTC_ReadTime</a>
+        <a class="level-3" href="#3-6-main-%E6%98%BE%E7%A4%BA%E4%B8%8E%E7%8E%B0%E8%B1%A1">3.6 main 显示与现象</a>
+        <a class="level-2" href="#4-%E5%9D%91%E4%B8%8E%E4%BF%AE%E6%AD%A3-%E6%9C%AC%E9%9B%86%E9%87%8D%E7%82%B9">4. 坑与修正（本集重点）</a>
+        <a class="level-3" href="#4-1-%E5%9D%911-c-%E8%AF%AD%E8%A8%80%E5%89%8D%E5%AF%BC-0-%E6%98%AF%E5%85%AB%E8%BF%9B%E5%88%B6">4.1 坑①：C 语言前导 0 是八进制</a>
+        <a class="level-3" href="#4-2-%E5%9D%912-%E5%87%BD%E6%95%B0%E5%AE%9A%E4%B9%89%E5%9C%A8%E8%B0%83%E7%94%A8%E4%B9%8B%E5%90%8E%E4%BC%9A%E6%8A%A5%E9%94%99">4.2 坑②：函数定义在调用之后会报错</a>
+        <a class="level-3" href="#4-3-%E6%97%B6%E5%8C%BA%E5%81%8F%E7%A7%BB-%E5%85%B3%E9%94%AE%E6%94%B6%E5%B0%BE">4.3 时区偏移（关键收尾）</a>
+        <a class="level-3" href="#4-4-%E6%8E%89%E7%94%B5%E4%BF%9D%E6%8C%81-%E7%94%A8-bkp-dr1-%E5%AD%98%E6%A0%87%E5%BF%97">4.4 掉电保持：用 BKP_DR1 存标志</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

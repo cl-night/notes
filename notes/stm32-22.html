@@ -1,0 +1,1493 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[7-2] AD单通道与AD多通道 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 第 22 集 [7-2]（代码课）：AD单通道——PA0 接电位器，AD_Init 六步（RCC+ADCCLK 12MHz、AIN、RegularChannelConfig、ADC_Init、ADC_Cmd、校准），AD_GetValue 触发+等 EOC+读 DR；AD多通道——PA0～PA3 接四路 AO，不用扫描模式，改 AD_GetValue(通道) 每次改序列 1。">
+  <meta property="og:title" content="[7-2] AD单通道与AD多通道 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 第 22 集 [7-2]（代码课）：AD单通道——PA0 接电位器，AD_Init 六步（RCC+ADCCLK 12MHz、AIN、RegularChannelConfig、ADC_Init、ADC_Cmd、校准），AD_GetValue 触发+等 EOC+读 DR；AD多通道——PA0～PA3 接四路 AO，不用扫描模式，改 AD_GetValue(通道) 每次改序列 1。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html" class="active" aria-current="page">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>42 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">ADC</span><span class="tag">模数转换</span><span class="tag">AD单通道</span><span class="tag">AD多通道</span>
+    </div>
+    <article class="prose"><h1>[7-2] AD单通道与AD多通道 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=22，49:00（2940 秒）</li>
+<li>素材：245 帧关键帧（<strong>每 12 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>812 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p22/frames/</code>，站内图片在 <code>assets/images/stm32-22/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；本集字幕里混入了大量 <strong>Keil Build Output</strong>（<code>Build Time Elapsed</code>、<code>linking...</code>、<code>&quot;..\Objects\Project.axf&quot; - 0 Error(s)</code>）和寄存器/页码噪声，这些<strong>不是老师口述内容</strong>，已剔除，错字已按画面校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 7（ADC）的代码课</strong>，写<strong>两个程序</strong>——① <code>7-1 AD单通道</code>（电位器 → PA0）② <code>7-2 AD多通道</code>（电位器 + 光敏 + 热敏 + 反射红外，4 路 → PA0～PA3）。<strong>本集不涉及 DMA、也不涉及中断和模拟看门狗</strong>；片尾 48:50「AD 转换的扫描模式和更多高级玩法我们下节再继续」——<strong>扫描模式 + DMA 在后续几集</strong>。理论（ADC 原理/框图/转换模式）全在 <strong>P21 [7-1]</strong>，本集只用结论、不重复推导。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>本集把 [7-1] 的 ADC 理论落成两个工程。<strong>程序一 <code>7-1 AD单通道</code></strong> 由 <strong>OLED 工程复制</strong>、新建 <code>AD.c/AD.h</code>，接线是<strong>电位器三端接 GND / 3.3V / 中间滑动端 → PA0</strong>（PA0～PB1 这 <strong>10 个</strong>引脚才是 ADC 通道）。<code>AD_Init</code> 按<strong>六步</strong>写：<strong>① <code>RCC_APB2PeriphClockCmd</code> 开 ADC1 与 GPIOA 时钟，并用 <code>RCC_ADCCLKConfig(RCC_PCLK2_Div6)</code> 把 ADCCLK 配成 72M/6 = 12MHz（ADC 时钟最大 14MHz）② GPIO 配 <code>GPIO_Mode_AIN</code> 模拟输入（AIN 模式会断开 GPIO，防止数字电路干扰模拟电压，是 ADC 专属模式）③ <code>ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5)</code> 把通道填进规则组序列 1（＝点菜）④ <code>ADC_Init</code> 六成员：<code>ADC_Mode_Independent</code>（独立模式）、<code>ADC_DataAlign_Right</code>（右对齐）、<code>ADC_ExternalTrigConv_None</code>（不用外部触发＝软件触发）、<code>ADC_ContinuousConvMode = DISABLE</code>（单次）、<code>ADC_ScanConvMode = DISABLE</code>（非扫描）、<code>ADC_NbrOfChannel = 1</code>（<strong>这个参数只在扫描模式下有用</strong>）⑤ <code>ADC_Cmd(ADC1, ENABLE)</code> 上电 ⑥ 校准四步（<code>ADC_ResetCalibration</code> → while 等 <code>ADC_GetResetCalibrationStatus == SET</code> → <code>ADC_StartCalibration</code> → while 等 <code>ADC_GetCalibrationStatus == SET</code>）</strong>。读值函数 <code>AD_GetValue</code>：<strong>软件触发 <code>ADC_SoftwareStartConvCmd</code> → while 等 <code>ADC_FLAG_EOC</code> 置位 → <code>ADC_GetConversionValue</code> 读 DR</strong>——这里有个常见误区：<code>ADC_GetSoftwareStartConvStatus</code> <strong>没用</strong>（它只读 SWSTART 位，转换一开始硬件就把它清零了，和「转完没转完」无关），判断结束必须看 <strong>EOC</strong>；而 EOC 按手册是「<strong>规则组或注入组</strong>转换结束都会置 1」（老师口述「EOC 只是规则组」有误，手册为准），并且<strong>读 DR 后 EOC 会自动清除</strong>，不用手动清。现象显示 <code>ADValue:xxxx</code>（0～4095），末尾几位会<strong>抖动</strong>（正常波动）——判断阈值时要用<strong>迟滞比较</strong>（双阈值）、怕跳得厉害用<strong>均值滤波</strong>（读 10/20 个取平均）或<strong>裁剪分辨率</strong>；换算电压 <code>Voltage = (float)ADValue / 4095 * 3.3</code>（<strong>必须先把 ADValue 强转 float</strong>），OLED 没有显示浮点数的函数，就用「<strong>整数位 + <code>(uint16_t)(Voltage*100)%100</code> 两位小数</strong>」拼出来。<strong>程序二 <code>7-2 AD多通道</code></strong> 由程序一复制：电位器 → PA0、<strong>光敏 AO → PA1、热敏 AO → PA2、反射红外 AO → PA3</strong>（<strong>用 AO 模拟输出，不是 DO</strong>）。<strong>关键是不用扫描模式</strong>：扫描模式下<strong>单个通道转换完成没有任何标志位/中断</strong>、要整个序列转完才产生一次 EOC，而<strong>一次 AD 转换只要几 us</strong>，手动转运根本来不及 → 必须配 DMA（下节）；间断模式要靠 Delay 猜时间、也不推荐。所以本节的多通道写法是「<strong>单次非扫描 + 每次转换前改序列 1 的通道</strong>」：把 <code>ADC_RegularChannelConfig</code> <strong>移进 <code>AD_GetValue</code></strong>，函数改成 <strong><code>uint16_t AD_GetValue(uint8_t ADC_Channel)</code></strong>，main 里分别调 <code>AD_GetValue(ADC_Channel_0)</code>～<code>(ADC_Channel_3)</code>；GPIO 初始化改成 <code>GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3</code>。现象 <code>AD0～AD3</code> 四行各自随电位器/遮挡光敏/加热热敏/靠近红外变化。</p>
+<h2 id="0-本集定位-代码课-理论全在-7-1-p21">0. 本集定位：代码课，理论全在 [7-1] P21</h2>
+<ul>
+<li><strong>本集是纯代码课</strong>：全程 Keil —— 看接线图 → 面包板接线 → 复制工程 → 新建 <code>AD</code> 模块 → 逐行写 <code>AD_Init</code> → 写 <code>AD_GetValue</code> → 编译下载 → OLED 看现象，最后复制改出第二个工程。</li>
+<li><strong>两个程序，一集写完</strong>：① <code>7-1 AD单通道</code>（0:00–39:20）；② <code>7-2 AD多通道</code>（39:20–49:00）。</li>
+<li><strong>本集不涉及</strong>：<strong>DMA</strong>（0:00 起多次出现「下节讲 DMA 再用」）、<strong>中断</strong>（<code>ADC_ITConfig</code> 只读代码不配置）、<strong>模拟看门狗</strong>（「本节暂时不用」）、<strong>扫描模式</strong>（明确说留到 DMA 之后）。片尾「扫描模式和更多高级玩法下节继续」。</li>
+<li><strong>理论引用 P21 即可</strong>：ADC 基本结构、规则组/注入组、4 种转换模式、表64 触发源、数据对齐、TCONV 公式，本笔记<strong>不再推导</strong>，详细推导看 <code>notes/stm32-21-ADC模数转换器.md</code>。</li>
+<li>编号对照：本集视频标题 <strong>[7-2]</strong>，两个工程目录叫 <code>7-1</code>/<code>7-2</code>（素材按「代码小节」编号），与前面各集一样两套编号不是一回事。</li>
+</ul>
+<h2 id="1-程序一-7-1-ad单通道">1. 程序一：<code>7-1 AD单通道</code></h2>
+<h3 id="1-1-接线-电位器-pa0">1.1 接线：电位器 → PA0</h3>
+<ul>
+<li>接线图 <code>7-1 AD单通道.jpg</code>：面包板上接一个<strong>电位器（滑动变阻器）</strong>，它有 <strong>3 个引脚</strong>，插在 3 排孔里；</li>
+<li>电位器内部结构：<strong>左边和右边的引脚接电阻的两个固定端，中间的引脚接滑动抽头</strong>；电位器外边有个十字槽可以拧，<strong>往左拧抽头往左靠、往右拧抽头往右靠</strong>；</li>
+<li><strong>外围电路</strong>：<strong>左边的固定端接负极（GND）、右边的固定端接正极（3.3V）</strong>，<strong>中间的滑动抽头就输出从负极到正极可调的电压</strong>（0～3.3V），<strong>接到 PA0</strong>；</li>
+<li>查引脚定义表：<strong>PA0 到 PB1 这 10 个引脚是 ADC 的 10 个通道</strong>，这 10 个引脚<strong>可以任意选</strong>，接哪个都行；<strong>其他引脚不是 ADC 的通道，就不能接模拟电压</strong>。</li>
+<li>面包板操作：拿出蓝色小电位器，<strong>3 个引脚的一侧朝上</strong>插在面包板上；<strong>最左侧引脚引到负极、最右侧引脚引到正极、中间输出用一根飞线引到 PA0</strong>，电路完成。</li>
+</ul>
+<p><img src="../assets/images/stm32-22/01-wiring-single.jpg" alt="图 1：接线图 7-1 AD单通道——面包板上蓝色电位器（红圈）三个引脚分别接 GND、3.3V，中间滑动端用飞线接到 STM32 的 PA0；右侧是 ST-Link 与 OLED 接线示意；字幕「这个电位器有3个引脚，分别插在这3排孔里」"></p>
+<p><em>图 1：接线图 <code>7-1 AD单通道</code>——面包板上蓝色电位器（红圈）三个引脚分别接 GND、3.3V，中间滑动端用飞线接到 STM32 的 PA0；右侧是 ST-Link 与 OLED 接线示意；字幕「这个电位器有3个引脚，分别插在这3排孔里」</em></p>
+<p><img src="../assets/images/stm32-22/02-pin-map-adc-channels.jpg" alt="图 2：同一张接线图上，红圈/红线标出 STM32 的 PA0～PB1（板上 B0、B1…A0 一排）这 10 个 ADC 通道引脚；字幕「但是其他的这些引脚，不是ADC的通道，就不能接模拟电压了」"></p>
+<p><em>图 2：同一张接线图上，红圈/红线标出 STM32 的 PA0～PB1（板上 B0、B1…A0 一排）这 10 个 ADC 通道引脚；字幕「但是其他的这些引脚，不是ADC的通道，就不能接模拟电压了」</em></p>
+<h3 id="1-2-工程准备-复制-oled-工程-新建-ad-模块">1.2 工程准备：复制 OLED 工程 + 新建 AD 模块</h3>
+<ol>
+<li>打开工程文件夹，<strong>复制一下 OLED 的工程</strong>，改名 <strong><code>7-1 AD单通道</code></strong>；</li>
+<li>把原来 main 里的代码<strong>先删掉</strong>，编译一下；</li>
+<li>老规矩，给 AD 转换<strong>建一个模块</strong>：<code>Hardware</code> 右键 → 新建 <strong><code>AD.c</code> / <code>AD.h</code></strong>（Add New Item 里 Type 选 <code>C File</code>/<code>Header File</code>，Name 填 <code>AD</code>，Location 是 <code>...\Hardware</code>）。</li>
+</ol>
+<p><img src="../assets/images/stm32-22/03-new-ad-module.jpg" alt="图 3：Keil 的 Add New Item 对话框——Type 选 Header File (.h)、Name 填 AD、Location 为工程的 Hardware 目录；左侧项目树 Hardware 分组下已有 LED.c、Key.c、OLED.c、AD.c；字幕「所以就直接加速一下」"></p>
+<p><em>图 3：Keil 的 Add New Item 对话框——Type 选 <code>Header File (.h)</code>、Name 填 <code>AD</code>、Location 为工程的 <code>Hardware</code> 目录；左侧项目树 Hardware 分组下已有 LED.c、Key.c、OLED.c、AD.c；字幕「所以就直接加速一下」</em></p>
+<h3 id="1-3-六步流程-ad-init-完整代码">1.3 六步流程：<code>AD_Init</code> 完整代码</h3>
+<p>先对着「ADC 基本结构」图理清步骤——<strong>把结构图打通、原理上让外设运转起来，怎么配置心里就有数了</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>步</th>
+<th>做什么</th>
+<th>本集要点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>①</td>
+<td><strong>开启 RCC 时钟</strong>（ADC + GPIO），并<strong>配置 ADCCLK 分频</strong></td>
+<td>ADC、GPIOA 都在 APB2</td>
+</tr>
+<tr>
+<td>②</td>
+<td><strong>配置 GPIO 为模拟输入</strong></td>
+<td><code>GPIO_Mode_AIN</code></td>
+</tr>
+<tr>
+<td>③</td>
+<td><strong>配置多路开关</strong>：把通道接入规则组列表</td>
+<td><code>ADC_RegularChannelConfig</code>（点菜）</td>
+</tr>
+<tr>
+<td>④</td>
+<td><strong>配置 ADC 转换器</strong></td>
+<td><code>ADC_Init</code> 结构体（模式/对齐/触发/连续/扫描/通道数）</td>
+</tr>
+<tr>
+<td>⑤</td>
+<td><strong>开关控制</strong>：给 ADC 上电</td>
+<td><code>ADC_Cmd</code></td>
+</tr>
+<tr>
+<td>⑥</td>
+<td><strong>校准</strong></td>
+<td>四个校准函数</td>
+</tr>
+</tbody></table>
+<ul>
+<li>模拟看门狗和中断本节<strong>暂时不用</strong>（需要时再配 <code>ADC_ITConfig</code> + NVIC）。</li>
+<li>之后<strong>软件触发转换</strong>有对应函数、<strong>读取结果</strong>也有对应函数。</li>
+</ul>
+<p>完整代码（按画面逐行；六成员顺序与最终代码一致）：</p>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+
+void AD_Init(void)
+{
+    /* ① 时钟：ADC1 与 GPIOA 都在 APB2；ADCCLK = 72MHz / 6 = 12MHz */
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
+    RCC_ADCCLKConfig(RCC_PCLK2_Div6);
+
+    /* ② GPIO：模拟输入 */
+    GPIO_InitTypeDef GPIO_InitStructure;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AIN;
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &amp;GPIO_InitStructure);
+
+    /* ③ 规则组序列 1 填通道 0，采样时间 55.5 个 ADCCLK 周期 */
+    ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5);
+
+    /* ④ ADC 转换器参数 */
+    ADC_InitTypeDef ADC_InitStructure;
+    ADC_InitStructure.ADC_Mode = ADC_Mode_Independent;
+    ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+    ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_None;
+    ADC_InitStructure.ADC_ContinuousConvMode = DISABLE;
+    ADC_InitStructure.ADC_ScanConvMode = DISABLE;
+    ADC_InitStructure.ADC_NbrOfChannel = 1;
+    ADC_Init(ADC1, &amp;ADC_InitStructure);
+
+    /* ⑤ 给 ADC 上电 */
+    ADC_Cmd(ADC1, ENABLE);
+
+    /* ⑥ 校准四步 */
+    ADC_ResetCalibration(ADC1);
+    while (ADC_GetResetCalibrationStatus(ADC1) == SET);
+    ADC_StartCalibration(ADC1);
+    while (ADC_GetCalibrationStatus(ADC1) == SET);
+}
+</code></pre>
+<p><strong>① 时钟与 ADCCLK</strong>：<code>ADC1</code> 和 <code>GPIOA</code> 都是 <strong>APB2</strong> 上的设备，所以用 <code>RCC_APB2PeriphClockCmd</code>；ADCCLK 要用 <strong><code>RCC_ADCCLKConfig</code></strong>（在 <strong>rcc.h</strong> 里，原型 <code>void RCC_ADCCLKConfig(uint32_t RCC_PCLK2)</code>），它对 <strong>APB2 的 72MHz</strong> 选择 <strong>2、4、6、8 分频</strong>——<strong>本代码选 6 分频，ADCCLK = 72MHz/6 = 12MHz</strong>（ADC 时钟最大 14MHz，2 分频 36M、4 分频 18M 都超限）。</p>
+<p><img src="../assets/images/stm32-22/05-rcc-adcclkconfig.jpg" alt="图 4：stm32f10x_rcc.h 里 void RCC_ADCCLKConfig(uint32_t RCC_PCLK2);（第 680 行，高亮）——用于配置 ADCCLK 分频器；字幕「这个函数是用来配置ADCCLK分频器的」"></p>
+<p><em>图 4：<code>stm32f10x_rcc.h</code> 里 <code>void RCC_ADCCLKConfig(uint32_t RCC_PCLK2);</code>（第 680 行，高亮）——用于配置 ADCCLK 分频器；字幕「这个函数是用来配置ADCCLK分频器的」</em></p>
+<p><strong>② GPIO 模拟输入</strong>：打开 LED.c 复制初始化代码，把模式改成 <strong><code>GPIO_Mode_AIN</code>（模拟输入）</strong>、Pin 改成 <strong><code>GPIO_Pin_0</code></strong>——<strong>在 AIN 模式下 GPIO 是无效的、断开了 GPIO，防止 GPIO 口的输入输出对模拟电压造成干扰</strong>，所以 <strong>AIN 就是 ADC 的专属模式</strong>。</p>
+<p><strong>③ 填规则组菜单</strong>：<code>ADC_RegularChannelConfig</code> 的参数依次是 —— <strong><code>ADCx</code></strong>（给 ADC1）、<strong><code>ADC_Channel</code></strong>（通道 0～17）、<strong><code>Rank</code></strong>（规则组序列器里的次序，对应 16 个序列位置）、<strong><code>ADC_SampleTime</code></strong>（该通道的采样时间）。本程序<strong>只有 PA0 一个通道、用的是非扫描模式</strong>，所以把<strong>通道 0 放在序列 1</strong>；采样时间「需要更快的转换就选小的参数、需要更稳定就选大的参数，都没要求就给 <strong>55.5 个 ADCCLK 周期</strong>」。想再填序列 2 就复制一行、把序列号改成 2、通道换成别的（每个通道可以设不同采样时间）。</p>
+<p><img src="../assets/images/stm32-22/06-ad-init-core.jpg" alt="图 5：AD.c 的 AD_Init 前段——RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1/GPIOA, ENABLE)、RCC_ADCCLKConfig(RCC_PCLK2_Div6);、GPIO_Mode_AIN、GPIO_Pin_0、GPIO_Speed_50MHz，以及 ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5);（高亮）；下面两行是演示「继续填菜单」的复制行（最终单通道只保留序列 1 一行）；字幕「这个在最后一个参数修改就是了」"></p>
+<p><em>图 5：AD.c 的 <code>AD_Init</code> 前段——<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1/GPIOA, ENABLE)</code>、<code>RCC_ADCCLKConfig(RCC_PCLK2_Div6);</code>、<code>GPIO_Mode_AIN</code>、<code>GPIO_Pin_0</code>、<code>GPIO_Speed_50MHz</code>，以及 <code>ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5);</code>（高亮）；下面两行是演示「继续填菜单」的复制行（最终单通道只保留序列 1 一行）；字幕「这个在最后一个参数修改就是了」</em></p>
+<p><strong>④ <code>ADC_Init</code> 六成员</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>成员</th>
+<th>本代码取值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ADC_Mode</code></td>
+<td><code>ADC_Mode_Independent</code></td>
+<td><strong>独立模式</strong>（ADC1、ADC2 各转各的）；其余 <code>ADC_Mode_*</code> 都是双 ADC 模式，本课不用</td>
+</tr>
+<tr>
+<td><code>ADC_DataAlign</code></td>
+<td><code>ADC_DataAlign_Right</code></td>
+<td><strong>右对齐</strong>（直接读即结果；左对齐用于取高 8 位等场合）</td>
+</tr>
+<tr>
+<td><code>ADC_ExternalTrigConv</code></td>
+<td><code>ADC_ExternalTrigConv_None</code></td>
+<td><strong>不使用外部触发</strong> → 即<strong>内部软件触发</strong></td>
+</tr>
+<tr>
+<td><code>ADC_ContinuousConvMode</code></td>
+<td><code>DISABLE</code></td>
+<td><strong>单次转换</strong>（<code>ENABLE</code> 为连续）</td>
+</tr>
+<tr>
+<td><code>ADC_ScanConvMode</code></td>
+<td><code>DISABLE</code></td>
+<td><strong>非扫描</strong>（<code>ENABLE</code> 为扫描，多通道用）</td>
+</tr>
+<tr>
+<td><code>ADC_NbrOfChannel</code></td>
+<td><code>1</code></td>
+<td><strong>只在扫描模式下才表示「扫描几个通道」</strong>；非扫描时<strong>这个参数没有用</strong>（无论写多少，只有序列 1 有效）</td>
+</tr>
+</tbody></table>
+<p><img src="../assets/images/stm32-22/07-adc-lib-functions.jpg" alt="图 6：stm32f10x_adc.h 里 ADC 库函数导出列表——ADC_DeInit、ADC_Init、ADC_StructInit、`ADC_Cmd`（高亮）、ADC_DMACmd、ADC_ITConfig、ADC_ResetCalibration、ADC_GetResetCalibrationStatus、ADC_StartCalibration、ADC_GetCalibrationStatus、ADC_SoftwareStartConvCmd、ADC_GetSoftwareStartConvStatus、ADC_DiscModeChannelCountConfig、ADC_DiscModeCmd、ADC_RegularChannelConfig 等；字幕「来找一下」"></p>
+<p><em>图 6：<code>stm32f10x_adc.h</code> 里 ADC 库函数导出列表——<code>ADC_DeInit</code>、<code>ADC_Init</code>、<code>ADC_StructInit</code>、<strong><code>ADC_Cmd</code>（高亮）</strong>、<code>ADC_DMACmd</code>、<code>ADC_ITConfig</code>、<code>ADC_ResetCalibration</code>、<code>ADC_GetResetCalibrationStatus</code>、<code>ADC_StartCalibration</code>、<code>ADC_GetCalibrationStatus</code>、<code>ADC_SoftwareStartConvCmd</code>、<code>ADC_GetSoftwareStartConvStatus</code>、<code>ADC_DiscModeChannelCountConfig</code>、<code>ADC_DiscModeCmd</code>、<code>ADC_RegularChannelConfig</code> 等；字幕「来找一下」</em></p>
+<p><strong>⑤ 上电</strong>：<code>ADC_Cmd(ADC1, ENABLE);</code> —— 对应 PPT 里的<strong>开关控制</strong>。</p>
+<p><strong>⑥ 校准四步</strong>：</p>
+<pre><code class="language-c">ADC_ResetCalibration(ADC1);                              /* 第一步：复位校准 */
+while (ADC_GetResetCalibrationStatus(ADC1) == SET);      /* 第二步：等待复位校准完成 */
+ADC_StartCalibration(ADC1);                              /* 第三步：开始校准 */
+while (ADC_GetCalibrationStatus(ADC1) == SET);           /* 第四步：等待校准完成 */
+</code></pre>
+<ul>
+<li>四个函数分别对应：<strong>复位校准、获取复位校准状态、开始校准、获取开始校准状态</strong>；初始化完成后<strong>依次调用</strong>即可，校准过程内部电路自动完成、不用管。</li>
+<li>对着手册的 <strong>ADC_CR2</strong> 看：<code>RSTCAL</code> 位「<strong>该位由软件设置并由硬件清除</strong>，在校准寄存器被初始化后该位将被清除」——所以 <code>while (... == SET)</code> 的意思是：<strong>读到 1 就一直空循环等待，硬件清 0 了才跳出</strong>；<code>== SET</code> 其实<strong>可以省略</strong>（SET 本身就是非 0，直接作为条件等价）。<code>CAL</code> 位同理。</li>
+</ul>
+<p><img src="../assets/images/stm32-22/08-reset-calibration-status.jpg" alt="图 7：ADC_GetResetCalibrationStatus 的函数定义（stm32f10x_adc.c）——内部判断 (ADCx-&gt;CR2 &amp; CR2_RSTCAL_Set) != RESET，被置位就返回 SET，否则 RESET；字幕「我们跳到函数定义」"></p>
+<p><em>图 7：<code>ADC_GetResetCalibrationStatus</code> 的函数定义（stm32f10x_adc.c）——内部判断 <code>(ADCx-&gt;CR2 &amp; CR2_RSTCAL_Set) != RESET</code>，被置位就返回 <code>SET</code>，否则 <code>RESET</code>；字幕「我们跳到函数定义」</em></p>
+<p><img src="../assets/images/stm32-22/09-manual-cr2-bits.jpg" alt="图 8：参考手册 ADC_CR2 寄存器位说明——位 11 ALIGN（0 右对齐/1 左对齐）、位 8 DMA、位 3 `RSTCAL`（复位校准，软件设置/硬件清除）、位 2 CAL（A/D 校准）、位 1 CONT（连续转换）；字幕「我们还是参考一下手册的寄存器描述」"></p>
+<p>*图 8：参考手册 ADC_CR2 寄存器位说明——位 11 <code>ALIGN</code>（0 右对齐/1 左对齐）、位 8 <code>DMA</code>、位 3 <strong><code>RSTCAL</code>（复位校准，软件设置/硬件清除）</strong>、位 2 <code>CAL</code>（A/D 校准）、位 1 <code>CONT</code>（连续转换）；字幕「我们还是参考一下手册的寄存器描述」*</p>
+<p><img src="../assets/images/stm32-22/04-ppt-adc-structure.jpg" alt="图 9：PPT「ADC基本结构」（7-1 那页（P21））——左边 GPIO(16)/温度/VREFINT → 多路开关 → AD 转换器（规则组/注入组）→ AD 数据寄存器（规则组×1、注入组×4）；触发控制给 START、RCC 给 CLOCK、模拟看门狗→NVIC、EOC、开关控制；字幕「那该怎么配置，自己心里就应该有数了」"></p>
+<p><em>图 9：PPT「ADC基本结构」（7-1 那页（P21））——左边 GPIO(16)/温度/VREFINT → 多路开关 → AD 转换器（规则组/注入组）→ AD 数据寄存器（规则组×1、注入组×4）；触发控制给 START、RCC 给 CLOCK、模拟看门狗→NVIC、EOC、开关控制；字幕「那该怎么配置，自己心里就应该有数了」</em></p>
+<h3 id="1-4-读值函数-ad-getvalue">1.4 读值函数 <code>AD_GetValue</code></h3>
+<p>初始化完成后 ADC 就处于<strong>准备就绪</strong>状态，调用下面的函数就能「启动 → 等待 → 读取」一气呵成：</p>
+<pre><code class="language-c">uint16_t AD_GetValue(void)
+{
+    ADC_SoftwareStartConvCmd(ADC1, ENABLE);                  /* 软件触发转换 */
+    while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);  /* 等待转换完成（EOC 置 1） */
+    return ADC_GetConversionValue(ADC1);                     /* 读数据寄存器 */
+}
+</code></pre>
+<ul>
+<li><strong>软件触发</strong>：<code>ADC_SoftwareStartConvCmd(ADC1, ENABLE)</code> —— 参数是 ADC1 + ENABLE。</li>
+<li><strong>等待转换完成</strong>：用 <strong><code>ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC)</code></strong> 套 while 空循环；可选的标志位有 <strong>AWD（模拟看门狗）、EOC（规则组转换完成）、JEOC（注入组转换完成）、JSTRT（注入组开始）、STRT（规则组开始）</strong>——我们判断规则组是否完成，所以用 <strong>EOC</strong>。<strong>EOC = RESET 表示转换未完成、while 空循环；转换完成硬件自动置 1，循环自动跳出</strong>。</li>
+<li><strong><code>ADC_GetSoftwareStartConvStatus</code> 是个坑，没用</strong>：它只读 <strong>CR2 的 SWSTART 位</strong>，而手册明确「<strong>该位由软件设置以启动转换，转换开始后硬件马上清除此位</strong>」——<strong>SWSTART 在转换开始瞬间就清零了，它的返回值跟「转换是否结束」毫无关系</strong>，别被名字误导。</li>
+<li><strong>EOC 的口径（重要）</strong>：手册写的是「<strong>该位由硬件在（规则或注入）通道组转换结束时设置</strong>」——<strong>EOC 不只是规则组</strong>，注入组转换结束也会置 1；老师口述「EOC 只是规则组的完成标志位」<strong>与手册不符</strong>，以手册为准。另外 <strong>EOC 可以由软件清除、也可以在读 ADC_DR 时自动清除</strong>——因为我们拿到 EOC 就去读 DR，所以<strong>不需要再手动清标志位</strong>。</li>
+<li><strong>等待多久</strong>：采样 <strong>55.5</strong> 个周期 + 转换 <strong>12.5</strong> 个周期 = <strong>68 个 ADCCLK 周期</strong>；ADCCLK = <strong>12MHz</strong>，所以 <code>1/12M × 68 ≈ 5.6us</code>——这个 while 循环<strong>大概会等 5.6us</strong>。</li>
+<li><strong>读结果</strong>：<code>ADC_GetConversionValue(ADC1)</code> 内部就是<strong>直接读 ADC 的 DR 数据寄存器</strong>，返回值就是 AD 转换结果，直接 <code>return</code> 出去。</li>
+</ul>
+<h3 id="1-5-主函数与现象">1.5 主函数与现象</h3>
+<pre><code class="language-c">#include &quot;Delay.h&quot;
+#include &quot;OLED.h&quot;
+#include &quot;AD.h&quot;
+
+uint16_t ADValue;
+
+int main(void)
+{
+    OLED_Init();
+    AD_Init();
+
+    OLED_ShowString(1, 1, &quot;ADValue:&quot;);
+
+    while (1)
+    {
+        ADValue = AD_GetValue();
+        OLED_ShowNum(1, 9, ADValue, 4);
+    }
+}
+</code></pre>
+<ul>
+<li>把 <code>AD_Init</code> 和 <code>AD_GetValue</code> 的<strong>第一行放在头文件里声明</strong>，编译没问题；main 里 <strong>include <code>AD.h</code></strong>、先调 <strong><code>AD_Init()</code></strong>，定义一个变量 <strong><code>uint16_t ADValue</code></strong> 存返回值，第 1 行第 1 列显示字符串 <code>ADValue:</code>、第 1 行第 9 列显示 4 位数字。</li>
+<li><strong>现象</strong>：OLED 上出现数据，<strong>往左拧数据减小、往右拧数据增大</strong>，范围 <strong>0～4095</strong>，功能正常（画面 <code>ADValue:1986</code>）。</li>
+</ul>
+<p><img src="../assets/images/stm32-22/10-main-single.jpg" alt="图 10：单通道 main.c——#include &quot;Delay.h&quot;/&quot;OLED.h&quot;/&quot;AD.h&quot;、uint16_t ADValue;、OLED_Init(); AD_Init();、OLED_ShowString(1, 1, &quot;ADValue:&quot;);、循环里 ADValue = AD_GetValue(); 与 OLED_ShowNum(1, 9, ADValue, 4);（第 19 行高亮、弹出补全的 ADValue）；字幕「然后在下面，OLED_ShowNum(1, 9, ADValue, 4);」"></p>
+<p><em>图 10：单通道 main.c——<code>#include &quot;Delay.h&quot;/&quot;OLED.h&quot;/&quot;AD.h&quot;</code>、<code>uint16_t ADValue;</code>、<code>OLED_Init(); AD_Init();</code>、<code>OLED_ShowString(1, 1, &quot;ADValue:&quot;);</code>、循环里 <code>ADValue = AD_GetValue();</code> 与 <code>OLED_ShowNum(1, 9, ADValue, 4);</code>（第 19 行高亮、弹出补全的 <code>ADValue</code>）；字幕「然后在下面，OLED_ShowNum(1, 9, ADValue, 4);」</em></p>
+<p><img src="../assets/images/stm32-22/11-single-phenomenon.jpg" alt="图 11：单通道现象——OLED 显示 ADValue:1986，手正在拧电位器；字幕「往右拧，数据增大」"></p>
+<p><em>图 11：单通道现象——OLED 显示 <code>ADValue:1986</code>，手正在拧电位器；字幕「往右拧，数据增大」</em></p>
+<h3 id="1-6-ad-值抖动与三种对策">1.6 AD 值抖动与三种对策</h3>
+<ul>
+<li><strong>AD 值的末尾会有些抖动，这是正常的波动</strong>；</li>
+<li>如果你要<strong>对 AD 值做判断再执行操作</strong>（例如「光线 AD 小于某值就开灯、大于某值就关灯」），<strong>光线逐渐变暗时 AD 值会在阈值附近来回跳变</strong>，输出就会跟着抖（开灯关灯开灯关灯）——三种对策：<ol>
+<li><strong>迟滞比较</strong>：<strong>设两个阈值</strong>——<strong>低于下阈值时开灯、高于上阈值时才关灯</strong>，中间留一段不动作的区间，避免输出抖动（<strong>和 GPIO 那节讲的施密特触发器是一个原理</strong>）；</li>
+<li><strong>均值滤波</strong>：读 <strong>10 个或 20 个</strong>值<strong>取平均值</strong>作为滤波后的 AD 值，数据会平滑一些；</li>
+<li><strong>裁剪分辨率</strong>：把<strong>数据的尾数去掉</strong>，也能减少波动。</li>
+</ol>
+</li>
+</ul>
+<h3 id="1-7-换算并显示实际电压">1.7 换算并显示实际电压</h3>
+<ul>
+<li>想显示实际电压，只需要对 AD 数据做一个<strong>线性变换</strong>：<code>Voltage = ADValue / 4095 * 3.3</code>，把 <strong>0～4095 映射到 0～3.3V</strong>；</li>
+<li><strong>注意必须先强转 float</strong>：<code>ADValue</code> 是整数，<strong>直接除 4095 会舍弃小数部分</strong>导致计算错误，所以写成 <strong><code>Voltage = (float)ADValue / 4095 * 3.3;</code></strong>；</li>
+<li><strong>4095 与 4096 的细节</strong>：实际上<strong>AD 值等于 4096 时才严格对应 3.3V</strong>，所以 <strong>4095 对应的电压比 3.3V 小一丢丢</strong>（受 ADC 结构限制，达不到满量程）；<strong>认为 4095 对应 3.3V、或认为 4096 对应 3.3V 都可以</strong>，只有一点点偏差，看不出来差别。</li>
+<li><strong>OLED 显示浮点数的写法</strong>：现成的 OLED 驱动<strong>还没有显示浮点数的函数</strong>（以后讲 OLED 时再安排），可以用<strong>显示整数的函数拼</strong>：</li>
+</ul>
+<pre><code class="language-c">float Voltage;
+OLED_ShowString(2, 1, &quot;Voltage:0.00V&quot;);
+Voltage = (float)ADValue / 4095 * 3.3;
+
+OLED_ShowNum(2, 9, Voltage, 1);                                /* 整数部分（小数被舍弃） */
+OLED_ShowNum(2, 11, (uint16_t)(Voltage * 100) % 100, 2);       /* 两位小数 */
+Delay_ms(100);                                                 /* 刷新慢一些 */
+</code></pre>
+<ul>
+<li>小数部分的原理：<strong>先把 Voltage 乘 100</strong>（1.23 → 123），<strong>再对 100 取余</strong>（123 % 100 = 23）就得到小数部分；<strong>浮点数不能直接取余</strong>，所以 <code>Voltage * 100</code> 要<strong>先强转成整数（uint16_t）再取余</strong>，显示长度为 <strong>2</strong>。</li>
+<li>现象：电压值显示出来，<strong>拧电位器时 AD 值和电压值一起变化</strong>。若只是做<strong>值判断、数据记录</strong>，也可以<strong>不换算、直接用原始 AD 数据</strong>。</li>
+</ul>
+<h3 id="1-8-顺带演示-连续转换-非扫描模式">1.8 顺带演示：连续转换、非扫描模式</h3>
+<ul>
+<li>回看 PPT：本代码用的是<strong>第一种（单次转换、非扫描）</strong>；还可以用<strong>第二种（连续转换、非扫描）</strong>——好处是<strong>不需要不断触发、也不需要等待转换完成</strong>；</li>
+<li>改法：<code>ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;</code>；<strong>软件触发的函数挪到初始化最后</strong>（初始化完成后触发一次即可，之后 ADC 就一次次连续转换、数据寄存器不断刷新最新结果）；<code>AD_GetValue</code> 里<strong>去掉触发和 EOC 等待，直接 <code>return ADC_GetConversionValue(ADC1);</code></strong>；</li>
+<li>现象和单次版<strong>一样</strong>；演示完<strong>改回单次模式</strong>（根据实际需求选模式）。</li>
+</ul>
+<p><img src="../assets/images/stm32-22/12-continuous-variant.jpg" alt="图 12：连续转换变体——第 22 行 ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;（此帧高亮其实在第 34 行 ADC_SoftwareStartConvCmd）、ADC_ScanConvMode = DISABLE、ADC_NbrOfChannel = 1，下面是 ADC_Cmd + 校准四步 + `ADC_SoftwareStartConvCmd(ADC1, ENABLE);`（放在初始化末尾），再往下 uint16_t AD_GetValue(void) { while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET); return ADC_GetConversionValue(ADC1); }（没有触发）；字幕「在初始化完成之后，触发一次就行了」"></p>
+<p>*图 12：连续转换变体——第 22 行 <code>ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;</code>（此帧高亮其实在第 34 行 <code>ADC_SoftwareStartConvCmd</code>）、<code>ADC_ScanConvMode = DISABLE</code>、<code>ADC_NbrOfChannel = 1</code>，下面是 <code>ADC_Cmd</code> + 校准四步 + <strong><code>ADC_SoftwareStartConvCmd(ADC1, ENABLE);</code>（放在初始化末尾）</strong>，再往下 <code>uint16_t AD_GetValue(void) { while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET); return ADC_GetConversionValue(ADC1); }</code>（没有触发）；字幕「在初始化完成之后，触发一次就行」*</p>
+<h2 id="2-程序二-7-2-ad多通道">2. 程序二：<code>7-2 AD多通道</code></h2>
+<h3 id="2-1-接线-4-路模拟量-pa0-pa3">2.1 接线：4 路模拟量 → PA0～PA3</h3>
+<ul>
+<li>接线图 <code>7-2 AD多通道.jpg</code>：<strong>使用了 4 个 AD 通道</strong>——<strong>第一个还是电位器，接在 PA0</strong>；上面又接了 <strong>3 个传感器模块：光敏传感器、热敏传感器、反射式红外传感器</strong>；</li>
+<li>三个模块的 <strong>VCC 和 GND 都接面包板的正负极</strong>；它们的 <strong>AO（模拟量输出引脚）分别接在 PA1、PA2、PA3</strong>——<strong>注意用 AO，不要接成 DO（DO 是数字输出）</strong>；</li>
+<li>加上电位器的 PA0，<strong>总共 4 个输入通道</strong>；这些 GPIO 也在 <strong>PA0～PB1</strong> 之间任意选，本程序选前 4 个。</li>
+</ul>
+<p><img src="../assets/images/stm32-22/13-wiring-multi.jpg" alt="图 13：接线图 7-2 AD多通道——面包板左上角三个传感器模块（反射式红外传感器、光敏传感器、热敏传感器，红圈）的 VCC/GND 接电源、AO 分别接 PA1/PA2/PA3，左侧电位器滑动端接 PA0；字幕「分别是光敏传感器、热敏传感器、反射式红外传感器」"></p>
+<p><em>图 13：接线图 <code>7-2 AD多通道</code>——面包板左上角三个传感器模块（反射式红外传感器、光敏传感器、热敏传感器，红圈）的 VCC/GND 接电源、AO 分别接 PA1/PA2/PA3，左侧电位器滑动端接 PA0；字幕「分别是光敏传感器、热敏传感器、反射式红外传感器」</em></p>
+<h3 id="2-2-为什么不用扫描模式">2.2 为什么不用扫描模式</h3>
+<p>多通道第一反应是用<strong>扫描模式</strong>（把 4 个通道都填进序列、触发一次转完），这确实是「一种不错的方法」，但<strong>必须解决数据覆盖问题</strong>，而本节不推荐手动转运，理由有两条：</p>
+<ol>
+<li><strong>扫描模式下单个通道转换完成没有任何标志位、也不会触发中断</strong>——<strong>只有整个序列都转换完成之后才会产生一次 EOC</strong>；等你能判断「转完了」，<strong>前面的数据早就被后面的覆盖丢失了</strong>；</li>
+<li><strong>AD 转换非常快</strong>：前面算过转换一个通道<strong>大概只有几 us</strong>——<strong>如果你不能在几 us 内把数据转运走，数据就会丢失</strong>，对手动转运的要求太高。</li>
+</ol>
+<ul>
+<li>「那手动转运真的不行吗？」——也不是完全不行，可以用<strong>间断模式</strong>：扫描时<strong>每转换一个通道就暂停一次</strong>，等你手动把数据转运走再触发下一次；但<strong>单个通道转完没有标志位</strong>，所以<strong>只能用 Delay 延时来「猜」转换完成</strong>，既不能省心也不能提高效率，<strong>作者不推荐</strong>。</li>
+<li><strong>本节的解决办法</strong>：用<strong>单次转换、非扫描模式</strong>实现多通道——<strong>每次触发转换之前，手动把序列 1 的通道号改掉</strong>：第一次写通道 0 → 触发、等待、读值；第二次先改成通道 1 → 触发、等待、读值；第三次改通道 2……依次下去，<strong>轻松实现多通道</strong>。<strong>扫描模式 + DMA 的正规做法留到下一节讲完 DMA 之后再试</strong>。</li>
+</ul>
+<h3 id="2-3-改代码-把填通道搬进-ad-getvalue-并加参数">2.3 改代码：把填通道搬进 <code>AD_GetValue</code> 并加参数</h3>
+<p>改动很小：<strong>把原来在 <code>AD_Init</code> 里「填通道」的那一行剪切出来</strong>，<strong>粘贴到触发转换之前</strong>，然后<strong>把通道号提取成 <code>AD_GetValue</code> 的参数</strong>：</p>
+<pre><code class="language-c">uint16_t AD_GetValue(uint8_t ADC_Channel)
+{
+    ADC_RegularChannelConfig(ADC1, ADC_Channel, 1, ADC_SampleTime_55Cycles5);  /* 转换前指定通道 */
+    ADC_SoftwareStartConvCmd(ADC1, ENABLE);
+    while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);
+    return ADC_GetConversionValue(ADC1);
+}
+</code></pre>
+<ul>
+<li>参数类型 <code>uint8_t</code> 就是 <code>ADC_Channel_x</code> 宏的类型（<code>ADC_RegularChannelConfig</code> 的第二个参数），<strong>原封不动往上传递</strong>即可；</li>
+<li>这样调用 <code>AD_GetValue</code> 时<strong>只要指定一个通道</strong>，返回值就是<strong>该通道</strong>的结果；</li>
+<li><strong>GPIO 初始化也要改</strong>：因为要用通道 0～3，<code>GPIO_Pin</code> 改成 <strong><code>GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3</code></strong>（把这 4 个引脚都初始化成模拟输入）；</li>
+<li><strong>头文件里 <code>AD_GetValue</code> 的声明也要同步改成带参数</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-22/14-ad-getvalue-channel.jpg" alt="图 14：多通道版 AD.c 核心——uint16_t AD_GetValue(uint8_t ADC_Channel)（高亮），函数体内依次 ADC_RegularChannelConfig(ADC1, ADC_Channel, 1, ADC_SampleTime_55Cycles5);、ADC_SoftwareStartConvCmd(ADC1, ENABLE);、while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);、return ADC_GetConversionValue(ADC1);；上方可见 ADC_ScanConvMode = DISABLE、ADC_NbrOfChannel = 1、ADC_Cmd、校准四步；字幕「这样我们再调用AD_GetValue进行转换时」"></p>
+<p><em>图 14：多通道版 AD.c 核心——<code>uint16_t AD_GetValue(uint8_t ADC_Channel)</code>（高亮），函数体内依次 <code>ADC_RegularChannelConfig(ADC1, ADC_Channel, 1, ADC_SampleTime_55Cycles5);</code>、<code>ADC_SoftwareStartConvCmd(ADC1, ENABLE);</code>、<code>while (ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC) == RESET);</code>、<code>return ADC_GetConversionValue(ADC1);</code>；上方可见 <code>ADC_ScanConvMode = DISABLE</code>、<code>ADC_NbrOfChannel = 1</code>、<code>ADC_Cmd</code>、校准四步；字幕「这样我们再调用AD_GetValue进行转换时」</em></p>
+<h3 id="2-4-多通道主函数与现象">2.4 多通道主函数与现象</h3>
+<pre><code class="language-c">#include &quot;Delay.h&quot;
+#include &quot;OLED.h&quot;
+#include &quot;AD.h&quot;
+
+uint16_t AD0, AD1, AD2, AD3;
+
+int main(void)
+{
+    OLED_Init();
+    AD_Init();
+
+    OLED_ShowString(1, 1, &quot;AD0:&quot;);
+    OLED_ShowString(2, 1, &quot;AD1:&quot;);
+    OLED_ShowString(3, 1, &quot;AD2:&quot;);
+    OLED_ShowString(4, 1, &quot;AD3:&quot;);
+
+    while (1)
+    {
+        AD0 = AD_GetValue(ADC_Channel_0);
+        AD1 = AD_GetValue(ADC_Channel_1);
+        AD2 = AD_GetValue(ADC_Channel_2);
+        AD3 = AD_GetValue(ADC_Channel_3);
+
+        OLED_ShowNum(1, 5, AD0, 4);
+        OLED_ShowNum(2, 5, AD1, 4);
+        OLED_ShowNum(3, 5, AD2, 4);
+        OLED_ShowNum(4, 5, AD3, 4);
+
+        Delay_ms(100);
+    }
+}
+</code></pre>
+<ul>
+<li><strong>现象</strong>：OLED 四行分别显示 <code>AD0</code>～<code>AD3</code>，<strong>电位器、光敏（遮挡）、热敏（加热）、反射红外（靠近）各自变化</strong>，互不影响（画面 <code>AD0:1668 / AD1:1984 / AD2:2809 / AD3:2094</code>）。</li>
+<li>这就是<strong>用「单次转换非扫描」实现 AD 多通道</strong>的方法——比较简单直观；<strong>扫描模式的正规做法等 DMA 之后再讲</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-22/15-main-multi.jpg" alt="图 15：多通道 main.c——uint16_t AD0, AD1, AD2, AD3;、OLED_Init(); AD_Init();、四行 OLED_ShowString(1..4, 1, &quot;AD0:&quot;～&quot;AD3:&quot;)（第 16 行高亮），循环里 4 次 AD_GetValue(ADC_Channel_0～3) + 4 次 OLED_ShowNum + Delay_ms(100);；字幕「2列显示AD1，3列AD2，4列AD3」"></p>
+<p><em>图 15：多通道 main.c——<code>uint16_t AD0, AD1, AD2, AD3;</code>、<code>OLED_Init(); AD_Init();</code>、四行 <code>OLED_ShowString(1..4, 1, &quot;AD0:&quot;～&quot;AD3:&quot;)</code>（第 16 行高亮），循环里 4 次 <code>AD_GetValue(ADC_Channel_0～3)</code> + 4 次 <code>OLED_ShowNum</code> + <code>Delay_ms(100);</code>；字幕「2列显示AD1，3列AD2，4列AD3」</em></p>
+<p><img src="../assets/images/stm32-22/16-multi-phenomenon.jpg" alt="图 16：多通道现象——工程 7-2 AD多通道，OLED 显示 AD0:1668、AD1:1984、AD2:2809、AD3:2094，手正靠近光敏/热敏模块；字幕「看AD2」"></p>
+<p><em>图 16：多通道现象——工程 <code>7-2 AD多通道</code>，OLED 显示 <code>AD0:1668</code>、<code>AD1:1984</code>、<code>AD2:2809</code>、<code>AD3:2094</code>，手正靠近光敏/热敏模块；字幕「看AD2」</em></p>
+<h2 id="3-两个程序对比">3. 两个程序对比</h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>① <code>7-1 AD单通道</code></th>
+<th>② <code>7-2 AD多通道</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>工程来源</td>
+<td>复制 OLED 工程</td>
+<td>复制程序一</td>
+</tr>
+<tr>
+<td>引脚</td>
+<td><strong>PA0</strong></td>
+<td><strong>PA0 / PA1 / PA2 / PA3</strong>（<code>Pin_0 | Pin_1 | Pin_2 | Pin_3</code>）</td>
+</tr>
+<tr>
+<td>传感器</td>
+<td>电位器</td>
+<td>电位器 + 光敏 + 热敏 + 反射红外（<strong>接 AO</strong>）</td>
+</tr>
+<tr>
+<td>ADCCLK</td>
+<td><code>RCC_PCLK2_Div6</code> → <strong>12MHz</strong></td>
+<td>同左</td>
+</tr>
+<tr>
+<td>转换模式</td>
+<td><strong>单次、非扫描</strong>（另演示连续非扫描）</td>
+<td><strong>单次、非扫描</strong>（<strong>不用扫描模式</strong>）</td>
+</tr>
+<tr>
+<td>填通道位置</td>
+<td><code>AD_Init</code> 里（序列 1）</td>
+<td><strong>移到 <code>AD_GetValue</code> 内</strong>，转换前指定</td>
+</tr>
+<tr>
+<td>读值函数</td>
+<td><code>uint16_t AD_GetValue(void)</code></td>
+<td><strong><code>uint16_t AD_GetValue(uint8_t ADC_Channel)</code></strong></td>
+</tr>
+<tr>
+<td>现象</td>
+<td><code>ADValue:xxxx</code>（0～4095）</td>
+<td><code>AD0</code>～<code>AD3</code> 四行</td>
+</tr>
+<tr>
+<td>DMA/扫描</td>
+<td>不用</td>
+<td><strong>不用（留到 DMA 之后）</strong></td>
+</tr>
+</tbody></table>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>只有 PA0～PB1 这 10 个引脚是 ADC 通道</strong>：其他引脚接模拟电压<strong>读不出正确值</strong>（还可能损伤引脚）。</li>
+<li><strong>GPIO 必须配 <code>GPIO_Mode_AIN</code> 模拟输入</strong>：AIN 会<strong>断开 GPIO 的数字部分</strong>、防止干扰；配成上拉/下拉/浮空都不对。</li>
+<li><strong>ADCCLK 不能超 14MHz</strong>：<code>RCC_ADCCLKConfig</code> 只有 2/4/6/8 分频，72MHz 下只能用 <strong>6 分频（12MHz）或 8 分频（9MHz）</strong>。</li>
+<li><strong><code>ADC_NbrOfChannel</code> 在非扫描模式无效</strong>：非扫描只有序列 1 有效，写多少都一样；<strong>扫描模式</strong>下它才表示「扫几个通道」。</li>
+<li><strong><code>ADC_ExternalTrigConv_None</code> = 软件触发</strong>：不是「没有触发」，而是「不用外部触发」，由 <code>ADC_SoftwareStartConvCmd</code> 手动启动。</li>
+<li><strong><code>ADC_GetSoftwareStartConvStatus</code> 不能判断转换结束</strong>：它只读 SWSTART，而 SWSTART 在<strong>转换一开始就被硬件清零</strong>——判断结束要用 <strong><code>ADC_FLAG_EOC</code></strong>。</li>
+<li><strong>EOC 不只是规则组</strong>（手册）：<strong>规则组或注入组</strong>转换结束都会置 EOC；读 DR 会自动清除 EOC，<strong>不用再手动清标志位</strong>。</li>
+<li><strong>校准不要漏</strong>：<code>ADC_Cmd</code> 上电后按手册执行<strong>校准四步</strong>（复位校准→等完成→开始校准→等完成），可以减小内部电容带来的误差。</li>
+<li><strong><code>while (status == SET)</code> 的语义</strong>：标志位 <strong>为 1 表示「校准进行中」</strong>、硬件完成自动清 0，所以条件写 <code>== SET</code>（省略 <code>== SET</code> 也等价）。</li>
+<li><strong>单次转换必须每次触发</strong>：<code>AD_GetValue</code> 里要有 <code>ADC_SoftwareStartConvCmd</code>；<strong>连续模式</strong>才把触发挪到初始化末尾、读值函数里去掉触发和等待。</li>
+<li><strong>电压换算要先强转 float</strong>：<code>(float)ADValue / 4095 * 3.3</code>，否则整数除法会丢掉小数；<strong>4095 与 4096 对应 3.3V 都可接受</strong>（差一点点）。</li>
+<li><strong>显示小数要拆开</strong>：OLED 没有显示浮点数的函数，用「<code>ShowNum(整数位)</code> + <code>ShowNum((uint16_t)(V*100)%100, 2)</code>」拼。</li>
+<li><strong>AD 值抖动是正常的</strong>：判断阈值要用<strong>迟滞比较</strong>（双阈值），或<strong>均值滤波</strong>（10/20 次平均）、<strong>裁剪分辨率</strong>。</li>
+<li><strong>扫描模式不能靠手动转运</strong>：单通道转换完成<strong>没有标志位、没有中断</strong>，只有整个序列完成才有 EOC，而且转换只要几 us——<strong>必须配 DMA</strong>（下节）。</li>
+<li><strong>多通道用「每次改序列 1」实现</strong>：<code>ADC_RegularChannelConfig</code> 要放进 <code>AD_GetValue</code> 里、在触发之前调用，参数用形参传递，别写死通道 0。</li>
+<li><strong>改多通道时别忘了 GPIO</strong>：<code>GPIO_Pin</code> 要 <code>| Pin_1 | Pin_2 | Pin_3</code>，否则 PA1～PA3 不是模拟输入，读数无效。</li>
+<li><strong>传感器模块接 AO 不是 DO</strong>：DO 是数字输出（只有高低电平），ADC 要读模拟量必须接 <strong>AO</strong>。</li>
+<li><strong>本集没有 DMA / 中断 / 扫描模式代码</strong>：这些都在后续集；本集 <code>ADC_DMACmd</code>、<code>ADC_ITConfig</code>、看门狗函数<strong>只是读了一遍库函数列表，没有配置</strong>。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>开场：本小节学习 AD 转换的代码部分</td>
+</tr>
+<tr>
+<td>0:05</td>
+<td>先看接线图</td>
+</tr>
+<tr>
+<td>0:07</td>
+<td>打开 <code>7-1 AD单通道</code> 的图片</td>
+</tr>
+<tr>
+<td>0:15</td>
+<td>接了一个电位器，它有 3 个引脚，分别插在 3 排孔里</td>
+</tr>
+<tr>
+<td>0:22</td>
+<td>电位器内部结构：左右引脚接电阻两端、中间接滑动抽头</td>
+</tr>
+<tr>
+<td>0:35</td>
+<td>往左拧抽头往左靠、往右拧往右靠</td>
+</tr>
+<tr>
+<td>0:41</td>
+<td>外围电路：左固定端接负极、右固定端接正极</td>
+</tr>
+<tr>
+<td>0:46</td>
+<td>中间可输出负极到正极可调的电压</td>
+</tr>
+<tr>
+<td>0:50</td>
+<td>把可调电压输出接到 PA0</td>
+</tr>
+<tr>
+<td>0:55</td>
+<td>引脚定义表：PA0 到 PB1 这 10 个引脚是 ADC 的 10 个通道</td>
+</tr>
+<tr>
+<td>1:02</td>
+<td>这 10 个引脚可任意选；其他引脚不是 ADC 通道，不能接模拟电压</td>
+</tr>
+<tr>
+<td>1:11</td>
+<td>看面包板，接一下电路</td>
+</tr>
+<tr>
+<td>1:14</td>
+<td>拿出蓝色小电位器，3 个引脚的一侧朝上</td>
+</tr>
+<tr>
+<td>1:30</td>
+<td>最左侧引脚引到负极</td>
+</tr>
+<tr>
+<td>1:38</td>
+<td>最右侧引脚引到正极</td>
+</tr>
+<tr>
+<td>1:46</td>
+<td>中间输出用飞线引到 PA0</td>
+</tr>
+<tr>
+<td>1:53</td>
+<td>电路完成</td>
+</tr>
+<tr>
+<td>1:59</td>
+<td>打开工程文件夹，复制 OLED 的工程</td>
+</tr>
+<tr>
+<td>2:18</td>
+<td>这些代码先删掉，编译一下</td>
+</tr>
+<tr>
+<td>2:34</td>
+<td>老规矩，给 AD 转换建一个模块</td>
+</tr>
+<tr>
+<td>2:54</td>
+<td>在 AD.c 里写一个初始化函数 AD_Init</td>
+</tr>
+<tr>
+<td>3:04</td>
+<td>对 ADC 进行初始化</td>
+</tr>
+<tr>
+<td>3:09</td>
+<td>看作者总结的结构框图，把结构打通</td>
+</tr>
+<tr>
+<td>3:20</td>
+<td>按结构理步骤，怎么配置心里就有数了</td>
+</tr>
+<tr>
+<td>3:22</td>
+<td>第一步：开启 RCC 时钟（ADC 和 GPIO）</td>
+</tr>
+<tr>
+<td>3:28</td>
+<td>另外 ADCCLK 的分频器也需要配置</td>
+</tr>
+<tr>
+<td>3:33</td>
+<td>第二步：把 GPIO 配置成模拟输入模式</td>
+</tr>
+<tr>
+<td>3:40</td>
+<td>第三步：配置多路开关，把通道接入规则组列表（点菜）</td>
+</tr>
+<tr>
+<td>3:55</td>
+<td>第四步：用结构体配置 ADC 转换器（模式/连续/扫描/通道数/触发源/对齐）</td>
+</tr>
+<tr>
+<td>4:14</td>
+<td>模拟看门狗和中断本节暂时不用</td>
+</tr>
+<tr>
+<td>4:40</td>
+<td>第五步：开关控制，调用 ADC_Cmd 开启 ADC</td>
+</tr>
+<tr>
+<td>4:50</td>
+<td>第六步：根据手册建议做校准减小误差</td>
+</tr>
+<tr>
+<td>4:59</td>
+<td>软件触发转换、读取结果都有对应函数</td>
+</tr>
+<tr>
+<td>5:15</td>
+<td>看 ADCCLK 的配置函数 RCC_ADCCLKConfig</td>
+</tr>
+<tr>
+<td>5:20</td>
+<td>在 rcc.h 里，对 APB2 的 72MHz 选 2/4/6/8 分频</td>
+</tr>
+<tr>
+<td>5:35</td>
+<td>转到定义：<code>void RCC_ADCCLKConfig(uint32_t RCC_PCLK2);</code></td>
+</tr>
+<tr>
+<td>5:56</td>
+<td>找一下 ADC 的库函数</td>
+</tr>
+<tr>
+<td>6:08</td>
+<td>ADC_DeInit/Init/StructInit，都是老朋友</td>
+</tr>
+<tr>
+<td>6:16</td>
+<td>ADC_Cmd 用于给 ADC 上电（开关控制）</td>
+</tr>
+<tr>
+<td>6:25</td>
+<td>ADC_DMACmd 用于开启 DMA 输出信号（下节用）</td>
+</tr>
+<tr>
+<td>6:38</td>
+<td>ADC_ITConfig 中断输出控制</td>
+</tr>
+<tr>
+<td>6:50</td>
+<td>校准四个函数：复位校准、获取复位校准状态、开始校准、获取开始校准状态</td>
+</tr>
+<tr>
+<td>7:01</td>
+<td>初始化完成后依次调用这四个函数即可</td>
+</tr>
+<tr>
+<td>7:05</td>
+<td>ADC 软件开始转换控制，用于软件触发</td>
+</tr>
+<tr>
+<td>7:21</td>
+<td>ADC 获取软件开始转换状态：只读 SWSTART 位</td>
+</tr>
+<tr>
+<td>7:36</td>
+<td>对照手册 CR2：SWSTART 由软件设置、转换开始后硬件马上清除</td>
+</tr>
+<tr>
+<td>7:49</td>
+<td>所以这个函数的返回值和转换是否结束毫无关系</td>
+</tr>
+<tr>
+<td>8:17</td>
+<td>这个函数其实没啥用，不要被它误导</td>
+</tr>
+<tr>
+<td>8:26</td>
+<td>判断转换结束要用 GetFlagStatus + EOC</td>
+</tr>
+<tr>
+<td>8:56</td>
+<td>下面两个函数配置间断模式（了解）</td>
+</tr>
+<tr>
+<td>9:10</td>
+<td>ADC_RegularChannelConfig 规则组通道配置，比较重要</td>
+</tr>
+<tr>
+<td>9:22</td>
+<td>作用就是给序列每个位置填写指定通道（填菜单）</td>
+</tr>
+<tr>
+<td>9:27</td>
+<td>参数：ADCx、通道、Rank 序列位置、采样时间</td>
+</tr>
+<tr>
+<td>9:51</td>
+<td>ADC 外部触发转换控制，是否允许外部触发</td>
+</tr>
+<tr>
+<td>9:56</td>
+<td>ADC 获取转换值，读取转换结果就用它</td>
+</tr>
+<tr>
+<td>10:03</td>
+<td>ADC 获取双模式转换值，双 ADC 模式用</td>
+</tr>
+<tr>
+<td>10:18</td>
+<td>以上是 ADC 基本功能和规则组配置</td>
+</tr>
+<tr>
+<td>10:22</td>
+<td>接下来一大批 Inject 函数都是注入组的（了解）</td>
+</tr>
+<tr>
+<td>10:38</td>
+<td>这个函数配置模拟看门狗</td>
+</tr>
+<tr>
+<td>10:50</td>
+<td>ADC 温度传感器、内部参考电压控制，要用得先开启</td>
+</tr>
+<tr>
+<td>11:05</td>
+<td>最后是标志位、中断相关函数</td>
+</tr>
+<tr>
+<td>11:15</td>
+<td>函数看完，开始写代码</td>
+</tr>
+<tr>
+<td>11:23</td>
+<td>第一步开启时钟：ADC1（APB2 设备）</td>
+</tr>
+<tr>
+<td>11:46</td>
+<td>用 PA0，所以再开启 GPIOA 的时钟</td>
+</tr>
+<tr>
+<td>11:57</td>
+<td>还有 ADCCLK 需要配置：RCC_ADCCLKConfig，4 个参数 2/4/6/8 分频</td>
+</tr>
+<tr>
+<td>12:18</td>
+<td>配置后 ADCCLK = PCLK2 的 2/4/6/8 分频</td>
+</tr>
+<tr>
+<td>12:34</td>
+<td>选 6 分频：ADCCLK = 72MHz/6 = 12MHz</td>
+</tr>
+<tr>
+<td>12:44</td>
+<td>第二步配置 GPIO：打开 LED.c 复制初始化代码</td>
+</tr>
+<tr>
+<td>12:55</td>
+<td>模式改成 GPIO_Mode_AIN 模拟输入</td>
+</tr>
+<tr>
+<td>13:05</td>
+<td>之前讲 GPIO 时说过：AIN 模式下 GPIO 无效、断开 GPIO 防干扰</td>
+</tr>
+<tr>
+<td>13:17</td>
+<td>所以 AIN 模式就是 ADC 的专属模式</td>
+</tr>
+<tr>
+<td>13:25</td>
+<td>Pin 改成 Pin_0，PA0 初始化为模拟输入</td>
+</tr>
+<tr>
+<td>13:36</td>
+<td>第三步选择规则组输入通道：ADC_RegularChannelConfig</td>
+</tr>
+<tr>
+<td>13:50</td>
+<td>参数一 ADCx 给 ADC1</td>
+</tr>
+<tr>
+<td>14:00</td>
+<td>参数二指定通道，可以是通道 0 到通道 17</td>
+</tr>
+<tr>
+<td>14:19</td>
+<td>参数三 Rank：规则组序列器里的次序，对应 16 个序列</td>
+</tr>
+<tr>
+<td>14:32</td>
+<td>目前只有 PA0 一个通道、非扫描模式，所以放到序列 1</td>
+</tr>
+<tr>
+<td>14:42</td>
+<td>参数四采样时间：要快选小的、要稳选大的</td>
+</tr>
+<tr>
+<td>15:07</td>
+<td>都不要求时给 55.5 个 ADCCLK 周期</td>
+</tr>
+<tr>
+<td>15:19</td>
+<td>这样输入通道就选择好了，序列 1 写入通道 0</td>
+</tr>
+<tr>
+<td>15:35</td>
+<td>想填序列 2 就复制代码改序列号和通道（每通道可不同采样时间）</td>
+</tr>
+<tr>
+<td>16:03</td>
+<td>第四步用结构体初始化 ADC：ADC_Init</td>
+</tr>
+<tr>
+<td>16:11</td>
+<td>定义结构体变量 ADC_InitStructure</td>
+</tr>
+<tr>
+<td>16:59</td>
+<td>第一个成员 ADC_Mode：独立模式，还是双 ADC 模式</td>
+</tr>
+<tr>
+<td>17:19</td>
+<td>第一个 Independent 是独立模式，其余都是双 ADC 模式（先不用）</td>
+</tr>
+<tr>
+<td>17:32</td>
+<td>所以选独立模式，复制</td>
+</tr>
+<tr>
+<td>17:43</td>
+<td>第二个成员是指定数据左对齐还是右对齐</td>
+</tr>
+<tr>
+<td>17:56</td>
+<td>上一小节讲过两种对齐，这里选右对齐</td>
+</tr>
+<tr>
+<td>18:06</td>
+<td>第三个是外部触发转换选择（触发源）</td>
+</tr>
+<tr>
+<td>18:15</td>
+<td>定义用于启动规则组转换的外部触发源</td>
+</tr>
+<tr>
+<td>18:32</td>
+<td>参数与 PPT 框图的外部触发源一一对应</td>
+</tr>
+<tr>
+<td>18:40</td>
+<td>有个 None，就是不使用外部触发＝内部软件触发</td>
+</tr>
+<tr>
+<td>18:48</td>
+<td>本节用软件触发，所以选这个参数</td>
+</tr>
+<tr>
+<td>19:00</td>
+<td>后三个成员：连续转换模式、扫描转换模式、通道数目</td>
+</tr>
+<tr>
+<td>19:12</td>
+<td>通道数目指定扫描模式下总共用几个通道</td>
+</tr>
+<tr>
+<td>19:19</td>
+<td>对应 PPT 的 4 种转换模式</td>
+</tr>
+<tr>
+<td>19:49</td>
+<td>连续转换：ENABLE 连续、DISABLE 单次</td>
+</tr>
+<tr>
+<td>20:05</td>
+<td>扫描转换：ENABLE 扫描（多通道）、DISABLE 非扫描（单通道）</td>
+</tr>
+<tr>
+<td>20:24</td>
+<td>通道数目：规则组列表里的通道个数</td>
+</tr>
+<tr>
+<td>20:36</td>
+<td>本代码是单次转换、非扫描，两个参数都给 DISABLE</td>
+</tr>
+<tr>
+<td>20:47</td>
+<td>通道数目目前一个通道，给 1</td>
+</tr>
+<tr>
+<td>20:52</td>
+<td>这个参数仅在扫描模式下才用，非扫描时写了也没用</td>
+</tr>
+<tr>
+<td>20:56</td>
+<td>非扫描模式只有序列 1 有效，所以这个参数没有用</td>
+</tr>
+<tr>
+<td>21:05</td>
+<td>ADC_Init(ADC1, &amp;ADC_InitStructure);</td>
+</tr>
+<tr>
+<td>21:09</td>
+<td>到这里 ADC 整体结构配置完成</td>
+</tr>
+<tr>
+<td>21:13</td>
+<td>中断和模拟看门狗需要的话再配，暂时不用</td>
+</tr>
+<tr>
+<td>21:20</td>
+<td>开启 ADC 的电源：ADC_Cmd(ADC1, ENABLE)</td>
+</tr>
+<tr>
+<td>21:34</td>
+<td>开启电源后按手册建议还要校准</td>
+</tr>
+<tr>
+<td>21:43</td>
+<td>校准有四个函数对应四个步骤</td>
+</tr>
+<tr>
+<td>21:55</td>
+<td>第一步复位校准，第二步等待复位校准完成</td>
+</tr>
+<tr>
+<td>22:02</td>
+<td>第三步开始校准，第四步等待校准完成</td>
+</tr>
+<tr>
+<td>22:16</td>
+<td>参数给 ADC1，就能复位校准</td>
+</tr>
+<tr>
+<td>22:35</td>
+<td>要等待复位完成还需要一个 while 循环</td>
+</tr>
+<tr>
+<td>22:54</td>
+<td>获取的标志位与是否校准完成的对应关系要参考寄存器说明</td>
+</tr>
+<tr>
+<td>23:10</td>
+<td>手册：RSTCAL 位由软件设置、由硬件清除</td>
+</tr>
+<tr>
+<td>23:19</td>
+<td>软件置 1 开始复位校准，完成后硬件自动清 0</td>
+</tr>
+<tr>
+<td>23:41</td>
+<td>所以 while 条件：等于 SET 就一直空循环，被清 0 就跳出</td>
+</tr>
+<tr>
+<td>24:21</td>
+<td>当然 <code>== SET</code> 也可以省略</td>
+</tr>
+<tr>
+<td>24:32</td>
+<td>再看开始校准：参数给 ADC1，内部电路自动校准</td>
+</tr>
+<tr>
+<td>24:47</td>
+<td>最后等待校准完成，同样用 while 套起来</td>
+</tr>
+<tr>
+<td>25:10</td>
+<td>到这里 ADC 初始化完成：单次非扫描、上电、校准</td>
+</tr>
+<tr>
+<td>25:28</td>
+<td>ADC 处于准备就绪状态，写读值函数</td>
+</tr>
+<tr>
+<td>25:31</td>
+<td>返回值 uint16_t，名字叫 AD_GetValue</td>
+</tr>
+<tr>
+<td>25:42</td>
+<td>流程：软件触发 → 等 EOC 置 1 → 读数据寄存器</td>
+</tr>
+<tr>
+<td>26:08</td>
+<td>触发用 ADC_SoftwareStartConvCmd，参数 ADC1 + ENABLE</td>
+</tr>
+<tr>
+<td>26:31</td>
+<td>转换需要时间，用 GetFlagStatus 等标志位</td>
+</tr>
+<tr>
+<td>26:47</td>
+<td>标志位有 AWD、EOC、JEOC、JSTRT、STRT</td>
+</tr>
+<tr>
+<td>27:05</td>
+<td>判断规则组是否完成，用 EOC</td>
+</tr>
+<tr>
+<td>27:16</td>
+<td>同样套一个 while 空循环等待</td>
+</tr>
+<tr>
+<td>27:27</td>
+<td>对照手册：EOC 由硬件在规则或注入通道组转换结束时设置</td>
+</tr>
+<tr>
+<td>27:51</td>
+<td>之前说「EOC 只是规则组完成标志」有点问题，这里纠正一下</td>
+</tr>
+<tr>
+<td>28:06</td>
+<td>该位由软件清除或读 ADC_DR 时清除，所以不用手动清</td>
+</tr>
+<tr>
+<td>28:36</td>
+<td>为 0 表示转换未完成、为 1 表示完成，while 自动跳出</td>
+</tr>
+<tr>
+<td>28:58</td>
+<td>采样周期 55.5、转换周期固定 12.5</td>
+</tr>
+<tr>
+<td>29:08</td>
+<td>ADCCLK 是 12MHz，12MHz 下 68 个周期约 5.6us</td>
+</tr>
+<tr>
+<td>29:38</td>
+<td>所以这个 while 循环大概会等待 5.6us</td>
+</tr>
+<tr>
+<td>29:50</td>
+<td>等待完成后读结果：ADC_GetConversionValue</td>
+</tr>
+<tr>
+<td>30:08</td>
+<td>它的返回值就是 AD 转换结果，直接 return 过去</td>
+</tr>
+<tr>
+<td>30:21</td>
+<td>内部就是读 ADC 的 DR 数据寄存器</td>
+</tr>
+<tr>
+<td>30:29</td>
+<td>读 DR 会自动清除 EOC，所以不用手动清标志位</td>
+</tr>
+<tr>
+<td>30:39</td>
+<td>启动、等待、读取写好了，和 PPT 流程对应</td>
+</tr>
+<tr>
+<td>30:44</td>
+<td>两个函数放头文件声明、编译</td>
+</tr>
+<tr>
+<td>30:57</td>
+<td>回主函数：include AD.h、调用 AD_Init</td>
+</tr>
+<tr>
+<td>31:20</td>
+<td>定义变量 ADValue 存返回值</td>
+</tr>
+<tr>
+<td>31:27</td>
+<td>ShowString(1,1,&quot;ADValue:&quot;)；ShowNum(1,9,ADValue,4)</td>
+</tr>
+<tr>
+<td>32:07</td>
+<td>下载后 OLED 上有数据了</td>
+</tr>
+<tr>
+<td>32:10</td>
+<td>往左拧数据减小</td>
+</tr>
+<tr>
+<td>32:17</td>
+<td>往右拧数据增大，功能没问题</td>
+</tr>
+<tr>
+<td>32:31</td>
+<td>AD 值末尾会有些抖动，这是正常的波动</td>
+</tr>
+<tr>
+<td>32:36</td>
+<td>要对 AD 值判断时，波动会导致输出抖动（开灯关灯）</td>
+</tr>
+<tr>
+<td>33:04</td>
+<td>对策①迟滞比较：双阈值</td>
+</tr>
+<tr>
+<td>33:15</td>
+<td>低于下阈值开灯、高于上阈值才关灯，和施密特触发器一个原理</td>
+</tr>
+<tr>
+<td>33:26</td>
+<td>对策②均值滤波：读 10 或 20 个取平均</td>
+</tr>
+<tr>
+<td>33:44</td>
+<td>对策③裁剪分辨率：把数据尾数去掉</td>
+</tr>
+<tr>
+<td>33:51</td>
+<td>想显示实际电压就做线性变换</td>
+</tr>
+<tr>
+<td>33:58</td>
+<td>定义电压变量，第 2 行显示 Voltage</td>
+</tr>
+<tr>
+<td>34:16</td>
+<td>先在 2 行 1 列显示 &quot;Voltage:0.00V&quot;</td>
+</tr>
+<tr>
+<td>34:25</td>
+<td>Voltage = ADValue / 4095 * 3.3，把 0～4095 变换到 0～3.3</td>
+</tr>
+<tr>
+<td>34:33</td>
+<td>ADValue 是整数，直接除会舍掉小数，要先强转 float</td>
+</tr>
+<tr>
+<td>34:45</td>
+<td>AD 值等于 4096 才对应 3.3V，4095 差一点点（可忽略）</td>
+</tr>
+<tr>
+<td>35:05</td>
+<td>认为 4095 或 4096 对应 3.3V 都可以</td>
+</tr>
+<tr>
+<td>35:15</td>
+<td>电压有了，用 OLED 显示</td>
+</tr>
+<tr>
+<td>35:36</td>
+<td>ShowNum(2, 9, Voltage, 1) 显示整数部分</td>
+</tr>
+<tr>
+<td>36:00</td>
+<td>再 ShowNum(2, 11, ...)：Voltage*100 后对 100 取余得两位小数</td>
+</tr>
+<tr>
+<td>36:19</td>
+<td>浮点数不能取余，要先强转 uint16_t 再取余，长度给 2</td>
+</tr>
+<tr>
+<td>36:38</td>
+<td>最后加 Delay_ms(100) 让刷新慢一些</td>
+</tr>
+<tr>
+<td>36:53</td>
+<td>电压值出来了，拧电位器 AD 和电压一起变</td>
+</tr>
+<tr>
+<td>37:08</td>
+<td>第一个程序现象完成；不换算直接用 AD 值也可以</td>
+</tr>
+<tr>
+<td>37:31</td>
+<td>回 PPT：本代码用单次非扫描，还可以用连续非扫描</td>
+</tr>
+<tr>
+<td>37:43</td>
+<td>连续非扫描好处：不用不断触发、不用等待完成</td>
+</tr>
+<tr>
+<td>37:56</td>
+<td>回 AD.c：ContinuousConvMode 改成 ENABLE</td>
+</tr>
+<tr>
+<td>38:12</td>
+<td>软件触发挪到初始化最后，触发一次就行</td>
+</tr>
+<tr>
+<td>38:38</td>
+<td>AD_GetValue 里去掉触发和等待，直接 return DR</td>
+</tr>
+<tr>
+<td>38:52</td>
+<td>现象和刚才一样</td>
+</tr>
+<tr>
+<td>39:07</td>
+<td>改回单次模式，第一个代码结束</td>
+</tr>
+<tr>
+<td>39:23</td>
+<td>看下一个代码：接线图 7-2 AD多通道</td>
+</tr>
+<tr>
+<td>39:29</td>
+<td>这里用了 4 个 AD 通道</td>
+</tr>
+<tr>
+<td>39:36</td>
+<td>第一个是电位器，接在 PA0</td>
+</tr>
+<tr>
+<td>39:43</td>
+<td>上面又接了 3 个传感器模块：光敏、热敏、反射式红外</td>
+</tr>
+<tr>
+<td>39:48</td>
+<td>VCC 和 GND 接面包板正负极</td>
+</tr>
+<tr>
+<td>39:52</td>
+<td>AO（模拟量输出）分别接 PA1、PA2、PA3</td>
+</tr>
+<tr>
+<td>39:57</td>
+<td>加上电位器共 4 个输入通道，也在 PA0～PB1 之间任选</td>
+</tr>
+<tr>
+<td>40:14</td>
+<td>看面包板：拿出光敏模块接 3 根杜邦线</td>
+</tr>
+<tr>
+<td>40:23</td>
+<td>不要接成 DO，DO 是数字输出</td>
+</tr>
+<tr>
+<td>40:28</td>
+<td>VCC/GND 接电源、AO 接 PA1</td>
+</tr>
+<tr>
+<td>40:46</td>
+<td>热敏同样接法，AO 接 PA2</td>
+</tr>
+<tr>
+<td>40:58</td>
+<td>最后反射红外：VCC/GND 接电源、AO 接 PA3</td>
+</tr>
+<tr>
+<td>41:06</td>
+<td>接线完成</td>
+</tr>
+<tr>
+<td>41:13</td>
+<td>回工程文件夹，复制上一个代码</td>
+</tr>
+<tr>
+<td>41:18</td>
+<td>改名 7-2 AD多通道</td>
+</tr>
+<tr>
+<td>41:34</td>
+<td>在这个工程里改代码，实现多通道采集</td>
+</tr>
+<tr>
+<td>41:43</td>
+<td>多通道首先想到扫描模式：把 4 个通道填进列表</td>
+</tr>
+<tr>
+<td>41:59</td>
+<td>但还有数据覆盖问题，扫描模式最好配合 DMA</td>
+</tr>
+<tr>
+<td>42:07</td>
+<td>下节讲完 DMA 之后再来试扫描模式</td>
+</tr>
+<tr>
+<td>42:12</td>
+<td>「手动把数据转运出来不就行了？为啥非要用 DMA」</td>
+</tr>
+<tr>
+<td>42:25</td>
+<td>第一个问题：扫描模式下单个通道转换完成不产生任何标志位/中断</td>
+</tr>
+<tr>
+<td>42:43</td>
+<td>只有整个列表转换完成才产生一次 EOC，这时前面的数据已被覆盖</td>
+</tr>
+<tr>
+<td>42:51</td>
+<td>第二个问题：AD 转换非常快，一个通道只有几 us</td>
+</tr>
+<tr>
+<td>43:03</td>
+<td>几 us 内没转运走数据就会丢失，手动转运要求较高</td>
+</tr>
+<tr>
+<td>43:12</td>
+<td>不过也可以用间断模式：每转一个通道暂停，转运完再触发</td>
+</tr>
+<tr>
+<td>43:30</td>
+<td>但单通道完成没有标志位，只能 Delay 延时猜时间</td>
+</tr>
+<tr>
+<td>43:42</td>
+<td>既不省心也不高效，所以暂时不推荐</td>
+</tr>
+<tr>
+<td>43:56</td>
+<td>用单次转换、非扫描模式实现多通道：每次触发前改序列 1 的通道</td>
+</tr>
+<tr>
+<td>44:07</td>
+<td>第一次写通道 0，触发、等待、读值；第二次改成通道 1……</td>
+</tr>
+<tr>
+<td>44:29</td>
+<td>回代码：把填通道的代码剪切，粘贴到触发转换之前</td>
+</tr>
+<tr>
+<td>44:43</td>
+<td>把想指定的通道提取成 AD_GetValue 的参数</td>
+</tr>
+<tr>
+<td>44:54</td>
+<td>转到定义复制参数类型，原封不动往上传递</td>
+</tr>
+<tr>
+<td>45:03</td>
+<td>这里通道 0 改成参数指定的通道</td>
+</tr>
+<tr>
+<td>45:11</td>
+<td>这样调用 AD_GetValue 指定一个通道，返回值就是该通道结果</td>
+</tr>
+<tr>
+<td>45:19</td>
+<td>GPIO 初始化别忘了：Pin 加上 Pin_1、Pin_2、Pin_3</td>
+</tr>
+<tr>
+<td>45:33</td>
+<td>头文件的函数声明也更新一下</td>
+</tr>
+<tr>
+<td>45:41</td>
+<td>回 main.c 试一下</td>
+</tr>
+<tr>
+<td>45:55</td>
+<td>定义几个变量 <code>uint16_t AD0, AD1, AD2, AD3</code></td>
+</tr>
+<tr>
+<td>46:05</td>
+<td>第 1 行 1 列显示 AD0</td>
+</tr>
+<tr>
+<td>46:12</td>
+<td>第 2 行显示 AD1，3 行 AD2、4 行 AD3</td>
+</tr>
+<tr>
+<td>46:22</td>
+<td>AD0 = AD_GetValue(ADC_Channel_0)，指定通道</td>
+</tr>
+<tr>
+<td>46:41</td>
+<td>返回值就是通道 0 的转换数据</td>
+</tr>
+<tr>
+<td>46:46</td>
+<td>同样方法复制粘贴几个</td>
+</tr>
+<tr>
+<td>47:09</td>
+<td>ShowNum 显示 AD0</td>
+</tr>
+<tr>
+<td>47:35</td>
+<td>转换之前指定了通道，每次转换完把结果存到 4 个变量</td>
+</tr>
+<tr>
+<td>47:45</td>
+<td>试一下看看</td>
+</tr>
+<tr>
+<td>48:14</td>
+<td>现象出来了</td>
+</tr>
+<tr>
+<td>48:21</td>
+<td>热敏这个值变化比较小</td>
+</tr>
+<tr>
+<td>48:43</td>
+<td>这就是第二个程序的现象</td>
+</tr>
+<tr>
+<td>48:49</td>
+<td>结尾：AD 转换的代码部分完成</td>
+</tr>
+<tr>
+<td>48:52</td>
+<td>AD 转换的扫描模式和更多高级玩法，下节再继续</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，812 段），不是 ASR。<strong>Keil 输出污染严重</strong>（<code>Build Time Elapsed: 00:00:02/*Error(s), 0 Warning(s)</code>、<code>linking...</code>、<code>&quot;..\Objects\Project.axf&quot; - 0 Error(s)</code>、<code>Flash Load finished at ...</code>），这些<strong>不是老师口述内容</strong>；另有大量行首噪声（<code>+I+</code>、<code>1dd</code>、<code>a</code>、<code>U</code>、<code>RO</code>、<code>dtsFraecta</code>、<code>bctsErasetaxf</code>、<code>21</code> 等）。典型 OCR 错字（本集实际出现）：<code>这个</code> → 「这介」、<code>转换</code> → 「转专换」、<code>任意</code> → 「低意」、<code>ADC_Init</code> → 「ADCnit/ADInit」、<code>Pin_0</code> → 「Pin_O」、<code>GPIO_Mode_AIN</code> → 「GPIOModeAIN」、<code>引脚</code> → 「引I脚」，已按画面和上下文校正。</li>
+<li><strong><code>ADC_Init</code> 六个成员没有一帧完整同屏</strong>：帧间隔 12 秒，画面只抓到后几行（<code>ADC_ScanConvMode</code>/<code>ADC_NbrOfChannel</code>，见 f_00192）；前三行（<code>ADC_Mode</code>/<code>ADC_DataAlign</code>/<code>ADC_ExternalTrigConv</code>）靠<strong>口述 16:00–18:50 + 半屏帧</strong>佐证。本笔记代码块按口述顺序写全，<strong>顺序不影响功能</strong>（老师也说过「换个次序对功能没有任何影响」）。</li>
+<li><strong>单通道版 <code>AD_GetValue</code> 没有整屏帧</strong>：f_00226 是<strong>多通道带参数版</strong>、f_00192 是<strong>连续版</strong>；单通道签名 <code>uint16_t AD_GetValue(void)</code> 依据口述（25:31 起），函数体三行由两版对比可直接确定（软件触发 + while 等 EOC + return）。</li>
+<li><strong>电压小数显示写法没有整屏帧</strong>：<code>OLED_ShowNum(2, 9, Voltage, 1)</code> 与 <code>OLED_ShowNum(2, 11, (uint16_t)(Voltage*100)%100, 2)</code> 只在口述 35:36–36:38 与半屏画面出现，本笔记按口述写，列号（9、11）以口述为准。</li>
+<li><strong>EOC 口径</strong>：老师口述「EOC 只是规则组的完成标志位」<strong>与手册不符</strong>——手册 SR 的 EOC 描述是「该位由硬件在（规则或注入）通道组转换结束时设置」；本笔记按<strong>手册</strong>写，并保留了一句「老师口述有误、以手册为准」。</li>
+<li><strong><code>ADC_GetSoftwareStartConvStatus</code> 无用</strong>：老师明确说「这个函数其实没啥用，我们一般不用」，理由是它只读 SWSTART 位、而该位在转换开始瞬间被硬件清 0。本笔记按口述记录，<strong>别被函数名误导</strong>。</li>
+<li><strong><code>ADC_NbrOfChannel</code> 在非扫描模式下无效</strong>：老师口述「非扫描模式下这个参数其实没有用，无论写多少数目，最终都是只有序列的位置有效」；扫描模式下它才表示通道数。</li>
+<li><strong>扫描模式 / 间断模式本集没有实现</strong>：只讲了「为什么不用」和「间断模式可以但靠 Delay 猜时间、不推荐」，<strong>扫描模式 + DMA 的正规做法留到后续集</strong>；片尾只说「扫描模式和更多高级玩法下节继续」，<strong>没有点名下一集的具体内容</strong>。</li>
+<li><strong>4095 与 4096 对应 3.3V</strong>：老师说「AD 值等于 4096 时才严格对应 3.3V，4095 差一点点，认为哪个对应 3.3V 都可以」——属精度细节，本笔记没有写成严格等号。</li>
+<li><strong><code>RCC_ADCCLKConfig</code> 的 12MHz 是按 72MHz/6 推算</strong>：画面只给了函数原型与 2/4/6/8 分频参数，12MHz 这个数字来自口述「6 分频 = 12MHz」。</li>
+<li><strong>片尾无下一集名称</strong>：48:52「AD 转换的扫描模式和更多高级玩法我们下节再继续」，结合内容应指 DMA / 扫描模式相关，但本集没有画面证据指向具体哪一集。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-23.html"><span class="label">下一篇</span>[8-1] DMA直接存储器存取</a>
+    <a class="next" href="stm32-21.html"><span class="label">上一篇</span>[7-1] ADC模数转换器</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E7%90%86%E8%AE%BA%E5%85%A8%E5%9C%A8-7-1-p21">0. 本集定位：代码课，理论全在 [7-1] P21</a>
+        <a class="level-2" href="#1-%E7%A8%8B%E5%BA%8F%E4%B8%80-7-1-ad%E5%8D%95%E9%80%9A%E9%81%93">1. 程序一：7-1 AD单通道</a>
+        <a class="level-3" href="#1-1-%E6%8E%A5%E7%BA%BF-%E7%94%B5%E4%BD%8D%E5%99%A8-pa0">1.1 接线：电位器 → PA0</a>
+        <a class="level-3" href="#1-2-%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87-%E5%A4%8D%E5%88%B6-oled-%E5%B7%A5%E7%A8%8B-%E6%96%B0%E5%BB%BA-ad-%E6%A8%A1%E5%9D%97">1.2 工程准备：复制 OLED 工程 + 新建 AD 模块</a>
+        <a class="level-3" href="#1-3-%E5%85%AD%E6%AD%A5%E6%B5%81%E7%A8%8B-ad-init-%E5%AE%8C%E6%95%B4%E4%BB%A3%E7%A0%81">1.3 六步流程：AD_Init 完整代码</a>
+        <a class="level-3" href="#1-4-%E8%AF%BB%E5%80%BC%E5%87%BD%E6%95%B0-ad-getvalue">1.4 读值函数 AD_GetValue</a>
+        <a class="level-3" href="#1-5-%E4%B8%BB%E5%87%BD%E6%95%B0%E4%B8%8E%E7%8E%B0%E8%B1%A1">1.5 主函数与现象</a>
+        <a class="level-3" href="#1-6-ad-%E5%80%BC%E6%8A%96%E5%8A%A8%E4%B8%8E%E4%B8%89%E7%A7%8D%E5%AF%B9%E7%AD%96">1.6 AD 值抖动与三种对策</a>
+        <a class="level-3" href="#1-7-%E6%8D%A2%E7%AE%97%E5%B9%B6%E6%98%BE%E7%A4%BA%E5%AE%9E%E9%99%85%E7%94%B5%E5%8E%8B">1.7 换算并显示实际电压</a>
+        <a class="level-3" href="#1-8-%E9%A1%BA%E5%B8%A6%E6%BC%94%E7%A4%BA-%E8%BF%9E%E7%BB%AD%E8%BD%AC%E6%8D%A2-%E9%9D%9E%E6%89%AB%E6%8F%8F%E6%A8%A1%E5%BC%8F">1.8 顺带演示：连续转换、非扫描模式</a>
+        <a class="level-2" href="#2-%E7%A8%8B%E5%BA%8F%E4%BA%8C-7-2-ad%E5%A4%9A%E9%80%9A%E9%81%93">2. 程序二：7-2 AD多通道</a>
+        <a class="level-3" href="#2-1-%E6%8E%A5%E7%BA%BF-4-%E8%B7%AF%E6%A8%A1%E6%8B%9F%E9%87%8F-pa0-pa3">2.1 接线：4 路模拟量 → PA0～PA3</a>
+        <a class="level-3" href="#2-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E7%94%A8%E6%89%AB%E6%8F%8F%E6%A8%A1%E5%BC%8F">2.2 为什么不用扫描模式</a>
+        <a class="level-3" href="#2-3-%E6%94%B9%E4%BB%A3%E7%A0%81-%E6%8A%8A%E5%A1%AB%E9%80%9A%E9%81%93%E6%90%AC%E8%BF%9B-ad-getvalue-%E5%B9%B6%E5%8A%A0%E5%8F%82%E6%95%B0">2.3 改代码：把填通道搬进 AD_GetValue 并加参数</a>
+        <a class="level-3" href="#2-4-%E5%A4%9A%E9%80%9A%E9%81%93%E4%B8%BB%E5%87%BD%E6%95%B0%E4%B8%8E%E7%8E%B0%E8%B1%A1">2.4 多通道主函数与现象</a>
+        <a class="level-2" href="#3-%E4%B8%A4%E4%B8%AA%E7%A8%8B%E5%BA%8F%E5%AF%B9%E6%AF%94">3. 两个程序对比</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

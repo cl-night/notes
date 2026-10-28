@@ -1,0 +1,1107 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[11-1] SPI通信协议 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [11-1]（理论课，代码在 11-2/11-3）：与 I2C 对比；SPI 简介（Motorola、SCK/MOSI/MISO/SS、同步全双工、一主多从、无应答）；引脚与常见器件；硬件电路三规定（推挽、未选中从机 MISO 高阻）；移位与字节交换；起始=SS 下降沿/终止=SS 上升沿；四种模式重点模式 0；W25Q64 的 0x06/0x02/0x03 实测波形。">
+  <meta property="og:title" content="[11-1] SPI通信协议 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [11-1]（理论课，代码在 11-2/11-3）：与 I2C 对比；SPI 简介（Motorola、SCK/MOSI/MISO/SS、同步全双工、一主多从、无应答）；引脚与常见器件；硬件电路三规定（推挽、未选中从机 MISO 高阻）；移位与字节交换；起始=SS 下降沿/终止=SS 上升沿；四种模式重点模式 0；W25Q64 的 0x06/0x02/0x03 实测波形。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html" class="active" aria-current="page">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>32 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">SPI</span><span class="tag">通信协议</span><span class="tag">W25Q64</span>
+    </div>
+    <article class="prose"><h1>[11-1] SPI通信协议 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=36，47:40（2860 秒）</li>
+<li>素材：238 帧关键帧（<strong>每 12 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>449 段</strong>）；关键截图 15 张随笔记收录（源图在 <code>vidsum_out/stm32_p36/frames/</code>，站内图片在 <code>assets/images/stm32-36/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；错字主要是 <strong><code>SPI</code> 被识成「SPL/SP」</strong>、<code>I2C</code> → 「12C」、<code>读写</code> → 「卖写」、<code>4 根</code> → 「4 粮」、<code>右边</code> → 「石边」、<code>运行过程</code> → 「云过程」、<code>寄存器</code> → 「奇存」、<code>引脚</code> → 「泻脚」，并混入行首符号与重复句——这些<strong>不是口述内容</strong>，已剔除/校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 11 的理论课（上）</strong>——00:00–02:50 <strong>只演示两个成品程序</strong>（<code>11-1 软件SPI读写W25Q64</code> 与硬件 SPI 读写 W25Q64，现象相同：OLED 显示 <code>MID:EF DID:4017</code> / <code>W:01 02 03 04</code> / <code>R:01 02 03 04</code>），之后全程 PPT：I2C 对比 → SPI 简介 → 引脚 → 硬件电路 → 移位示意图 → 4 种模式 → <strong>W25Q64 指令时序实测波形</strong>。<strong>本集没有写一行代码</strong>；结尾 47:38「本小节讲的是 SPI 协议的软硬件规定……下一节讲 W25Q64 芯片」——<strong>软件 SPI 代码在 [11-2]、硬件 SPI 在 [11-3]</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>先说<strong>为什么需要 SPI</strong>：I2C 用<strong>两根线</strong>就实现了收发、应答、寻址等一大堆功能，<strong>硬件电路复杂</strong>（开漏 + 上拉）<strong>但性价比高</strong>；代价是<strong>速度慢</strong>——开漏结构下高电平靠上拉电阻「弹簧」拉回、边沿缓慢，<strong>标准模式只有 100kHz、快速也只有 400kHz</strong>，后加的 3.4MHz 高速模式又不太普及。<strong>SPI 走的是另一条路</strong>：<strong>SPI（Serial Peripheral Interface）由 Motorola 开发</strong>，<strong>四根通信线 SCK / MOSI / MISO / SS</strong>，<strong>同步、全双工</strong>，<strong>支持总线挂载多设备（一主多从、不支持多主机）</strong>——<strong>功能比 I2C 少、设计简单粗暴，但速度可以很快</strong>（<strong>SPI 协议并没有严格规定最大传输速度</strong>，具体上限取决于器件）。<strong>四根线</strong>：<strong>SCK（Serial Clock）</strong> 提供时钟（<strong>对应 I2C 的 SCL</strong>，数据的输出/输入都在 SCK 的上升沿或下降沿进行，所以<strong>数据位收发的时刻是明确确定的</strong>——这就是同步时序的好处）；<strong>MOSI（Master Output Slave Input）</strong> 主机→从机；<strong>MISO（Master Input Slave Output）</strong> 从机→主机；<strong>SS（Slave Select）</strong> 从机选择，<strong>低电平有效</strong>——<strong>全双工＝两根数据线同时收发，简单高效</strong>。<strong>一主多从靠 SS 线寻址</strong>（I2C 靠设备地址 + 寻址）：<strong>每多一个从机就多一根 SS 线</strong>——好处是主机「指定从机」只需拉低对应的 SS 线（「动动手指就能完成」），<strong>坏处是费线</strong>；另外 <strong>SPI 没有应答机制</strong>——发出去就不管对方在不在、收到没有，这是和 I2C 的重要区别。<strong>常见 SPI 器件</strong>：<strong>W25Q64</strong>（Flash 存储器，本课程用）、<strong>SPI 版 OLED</strong>（引脚常写 <strong>DI/DO</strong> 而不是 MOSI/MISO）、<strong>NRF24L01</strong>（2.4G 无线模块）、<strong>MicroSD 卡</strong>（原生 SDIO，但也支持 SPI 模式）。<strong>硬件电路三条规定</strong>：<strong>① 所有 SPI 设备的 SCK、MOSI、MISO 分别连在一起 ② 主机另外引出多条 SS 控制线，分别接到各从机的 SS 引脚 ③ 输出引脚配置为推挽输出，输入引脚配置为浮空或上拉输入</strong>。<strong>推挽</strong>驱动能力强、<strong>边沿迅速</strong>（不像 I2C 开漏那样上升沿缓慢）；<strong>关键规定</strong>：<strong>从机未被选中（SS=高）时，它的 MISO 必须切换为高阻态</strong>——否则多个从机同时推挽输出会短路（这是 SPI 对「数据线可能冲突」做的规定，<strong>由从机负责，主机程序不用管</strong>）。<strong>移位与字节交换</strong>：主机和从机各有一个<strong>移位寄存器 + 波特率发生器</strong>；主机在 SCK 驱动下把数据<strong>高位先行（MSB first）<strong>从 MOSI 移出，从机同理从 MISO 移出；主机 MOSI 的输出进入</strong>从机移位寄存器的最低位</strong>、从机 MISO 的输出进入<strong>主机移位寄存器的最低位</strong>——<strong>发送和接收同时进行，形成「字节交换」</strong>。<strong>字节交换是 SPI 的基本单元</strong>：<strong>发一个字节必然会同时收一个字节</strong>——只发送时可以忽略收到的数据，<strong>只接收时要发 <code>0x00</code>（或 <code>0xFF</code>）占位</strong>去「换」回从机的数据；只发/只收时存在资源浪费，SPI 不管这个。<strong>起始与终止</strong>最简单：<strong>起始＝SS 由高电平切换到低电平</strong>（选中从机、通信开始），<strong>终止＝SS 由低电平切换到高电平</strong>，<strong>SS 低电平期间就是通信期间</strong>。<strong>时序基本单元与 4 种模式</strong>：两个可配置位——<strong>CPOL（Clock Polarity，时钟极性）＝空闲状态时 SCK 的电平</strong>（0 低 / 1 高）、<strong>CPHA（Clock Phase，时钟相位）＝在 SCK 的第 1 个还是第 2 个边沿采样（移入）</strong>（0 第一边沿 / 1 第二边沿）；组合成<strong>模式 0～3</strong>，<strong>功能一样、最常用模式 0</strong>，本课程后面全部基于<strong>模式 0</strong>：<strong>CPOL=0（空闲低）+ CPHA=0（第 1 个边沿移入数据、第 2 个边沿移出数据）</strong>——即 <strong>SCK 上升沿采样/移入、下降沿准备/移出</strong>；<strong>模式 1</strong>（CPOL=0、CPHA=1）则<strong>第 1 边沿移出、第 2 边沿移入</strong>（采样边沿变成下降沿）；<strong>模式 2 ＝ 模式 0 的 CPOL 取反（空闲高）</strong>、<strong>模式 3 ＝ 模式 1 的 CPOL 取反</strong>——4 种只是<strong>采样时刻不同</strong>，知道可配置即可。<strong>W25Q64 指令时序</strong>（本集用实测波形讲三条指令）：<strong>① <code>0x06</code> 写使能</strong>——起始后发单字节指令，MISO 无回传、呈高电平（<code>FF</code>）；<strong>② <code>0x02</code> 页编程</strong>——<code>0x02</code> + <strong>24 位地址（如 <code>0x12 0x34 0x56</code>）</strong> + 数据字节，<strong>后续字节依次写入后续存储空间</strong>；<strong>③ <code>0x03</code> 读数据</strong>——<code>0x03</code> + 24 位地址 + 主机<strong>连续发 <code>0x00</code> 占位</strong>，同时从 MISO <strong>换回从机的数据</strong>；<strong>容量大所以地址是 3 字节</strong>（小容量芯片可能用 1 字节、甚至把地址合进指令里）；其他指令「大同小异」——都是「起始 → 交换指令字节 → 交换地址/数据」。</p>
+<h2 id="0-本集定位-理论课-spi-协议全解-代码在-11-2-11-3">0. 本集定位：理论课（SPI 协议全解），代码在 11-2/11-3</h2>
+<ul>
+<li><strong>本集是纯理论课</strong>：片头 2.5 分钟只演示<strong>两个已经写好的成品程序</strong>，之后全程 PPT（I2C 对比 → SPI 简介 → 引脚 → 硬件电路 → 移位示意图 → 4 种模式 → W25Q64 实测波形），<strong>没有打开 Keil 写代码</strong>。</li>
+<li><strong>片尾 47:38</strong>：「本小节讲的是 SPI 协议的软硬件规定，并且也提前介绍了几个 W25Q64 的指令和时序……下一节讲 W25Q64 这个芯片」——<strong>软件 SPI 代码在 [11-2]、硬件 SPI 在 [11-3]</strong>。</li>
+<li><strong>本集不涉及</strong>：STM32 的 SPI 硬件外设寄存器细节（在 [11-3] 前后讲）、W25Q64 的完整指令集与地址映射（下一节）、SPI 的 LSB/MSB 配置位（只提「一般高位先行」）。</li>
+</ul>
+<p><img src="../assets/images/stm32-36/01-spi-intro.jpg" alt="图 1：PPT「SPI通信」——SPI（Serial Peripheral Interface）是由 Motorola 公司开发的一种通用数据总线；四根通信线：SCK（Serial Clock）、MOSI（Master Output Slave Input）、MISO（Master Input Slave Output）、SS（Slave Select）；同步、全双工；支持总线挂载多设备（一主多从）；下方四张器件图：W25Q64 模块、SPI OLED、NRF24L01 无线模块、MicroSD 卡；字幕「两个协议的设计目的都一样」"></p>
+<p><em>图 1：PPT「SPI通信」——SPI（Serial Peripheral Interface）是由 Motorola 公司开发的一种通用数据总线；四根通信线：SCK（Serial Clock）、MOSI（Master Output Slave Input）、MISO（Master Input Slave Output）、SS（Slave Select）；同步、全双工；支持总线挂载多设备（一主多从）；下方四张器件图：W25Q64 模块、SPI OLED、NRF24L01 无线模块、MicroSD 卡；字幕「两个协议的设计目的都一样」</em></p>
+<p><img src="../assets/images/stm32-36/02-phenomenon.jpg" alt="图 2：片头现象（工程 11-1 软件SPI读写W25Q64）——面包板上 W25Q64 模块与 STM32 由 4 根 SPI 线相连，OLED 显示 MID:EF DID:4017 / W:01 02 03 04 / R:01 02 03 04（写入与读回一致，说明读写正常）；字幕「这里的W25Q64，是一个Flash存储器芯片」"></p>
+<p><em>图 2：片头现象（工程 <code>11-1 软件SPI读写W25Q64</code>）——面包板上 W25Q64 模块与 STM32 由 4 根 SPI 线相连，OLED 显示 <code>MID:EF DID:4017</code> / <code>W:01 02 03 04</code> / <code>R:01 02 03 04</code>（写入与读回一致，说明读写正常）；字幕「这里的W25Q64，是一个Flash存储器芯片」</em></p>
+<h2 id="1-与-i2c-对比-两种协议的设计取舍">1. 与 I2C 对比：两种协议的设计取舍</h2>
+<ul>
+<li><strong>I2C 回顾</strong>：硬件电路复杂（<strong>开漏输出 + 4.7K 上拉</strong>），软件功能多（<strong>一根线兼顾收发、还有应答和寻址</strong>）；</li>
+<li><strong>I2C 的优点</strong>：在<strong>消耗最低硬件资源（2 根线）<strong>的情况下实现了</strong>最多的功能</strong>——<strong>性价比非常高</strong>；</li>
+<li><strong>I2C 的缺点</strong>：<strong>开漏结构下高电平驱动能力弱</strong>（靠上拉电阻把线「拉」回高，边沿缓慢），所以<strong>速度受限</strong>——<strong>标准模式 100kHz、快速模式 400kHz</strong>，后来改进电路做出的<strong>高速模式 3.4MHz 普及程度不高</strong>；</li>
+<li><strong>SPI 的优点</strong>：<strong>协议不严格规定最大传输速度</strong>（有的器件速率比 STM32F1 主频还高）；<strong>设计简单粗暴</strong>、实现的功能没有 I2C 多，但<strong>快很多</strong>；</li>
+<li><strong>SPI 的缺点</strong>：<strong>费线</strong>（一主多从要多根 SS）、<strong>没有应答</strong>、<strong>通信过程中经常有资源浪费</strong>（全双工下一根线空着也照发）；</li>
+<li><strong>一句话</strong>：<strong>两个协议的设计目的都一样</strong>（用少量线读写外部模块的寄存器），只是<strong>取舍不同</strong>——I2C 省线、功能全但慢，SPI 费线、功能少但快。</li>
+</ul>
+<p><img src="../assets/images/stm32-36/03-i2c-compare.jpg" alt="图 3：PPT「硬件电路」（复习 I2C 的那页）+ 右上角红笔写的「100K」「400K」——讲 I2C 开漏 + 上拉的结构决定了速度上限；图中红圈圈出上拉电阻与开漏输出的开关管；字幕「虽然I2C协议之后又通过改进电路的方式」"></p>
+<p><em>图 3：PPT「硬件电路」（复习 I2C 的那页）+ 右上角红笔写的「100K」「400K」——讲 I2C 开漏 + 上拉的结构决定了速度上限；图中红圈圈出上拉电阻与开漏输出的开关管；字幕「虽然I2C协议之后又通过改进电路的方式」</em></p>
+<h2 id="2-spi-简介与引脚含义">2. SPI 简介与引脚含义</h2>
+<ul>
+<li><strong>SPI（Serial Peripheral Interface，串行外设接口）</strong>：<strong>由 Motorola 公司开发的一种通用数据总线</strong>；</li>
+<li><strong>四根通信线</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>引脚</th>
+<th>全称</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>SCK</strong></td>
+<td>Serial Clock</td>
+<td><strong>串行时钟线</strong>，由主机提供（对应 I2C 的 SCL），数据位在边沿收发</td>
+</tr>
+<tr>
+<td><strong>MOSI</strong></td>
+<td>Master Output Slave Input</td>
+<td><strong>主机输出、从机输入</strong>（主机→从机的数据线）</td>
+</tr>
+<tr>
+<td><strong>MISO</strong></td>
+<td>Master Input Slave Output</td>
+<td><strong>主机输入、从机输出</strong>（从机→主机的数据线）</td>
+</tr>
+<tr>
+<td><strong>SS</strong></td>
+<td>Slave Select</td>
+<td><strong>从机选择</strong>，<strong>低电平有效</strong>（也叫 CS/NSS，不同芯片叫法不同）</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>SCK 的作用</strong>：提供时钟信号——<strong>数据位的输出和输入都发生在 SCK 的上升沿或下降沿</strong>，所以<strong>数据位收发的时刻是明确确定的</strong>（「这就是同步时序的好处」）；</li>
+<li><strong>全双工</strong>：<strong>MOSI 和 MISO 两根数据线同时收发</strong>——主机通过 MOSI 把数据发给所有从机，同时通过 MISO 把从机数据收回来；<strong>全双工的好处就是简单高效</strong>；</li>
+<li><strong>一主多从</strong>：<strong>SPI 支持一主多从，不支持多主机</strong>；<strong>靠 SS 线寻址</strong>（I2C 靠设备地址 + 寻址方式）：<ul>
+<li><strong>主机为每个从机单独引一根 SS 线</strong>，<strong>要跟哪个从机通信，就把那根 SS 拉低</strong>，其他从机的 SS 保持高电平不理会总线；</li>
+<li><strong>好处</strong>：指定从机「动动手指就能完成」；<strong>坏处</strong>：每多一个从机就多一根线（费线）；</li>
+</ul>
+</li>
+<li><strong>SPI 没有应答机制</strong>：<strong>把数据发出去就结束了，不管对方是不是存在、有没有收到</strong>（I2C 每个字节都有应答，这是重要区别）。</li>
+</ul>
+<h2 id="3-常见-spi-器件">3. 常见 SPI 器件</h2>
+<table>
+<thead>
+<tr>
+<th>器件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>W25Q64</strong></td>
+<td><strong>Flash 存储器芯片</strong>（本课程用它学 SPI），用于存大量数据；通过 4 根 SPI 线读写</td>
+</tr>
+<tr>
+<td><strong>SPI 版 OLED</strong></td>
+<td>引脚常写 <strong>DI/DO</strong>（而不是 MOSI/MISO）——<strong>DI 就是 MOSI、DO 就是 MISO</strong>，具体看模块手册</td>
+</tr>
+<tr>
+<td><strong>NRF24L01</strong></td>
+<td><strong>2.4G 无线通信模块</strong>，使用 SPI 协议</td>
+</tr>
+<tr>
+<td><strong>MicroSD 卡</strong></td>
+<td>原生协议是 <strong>SDIO</strong>，但也<strong>支持 SPI 模式</strong>，可用 SPI 读写</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>注意</strong>：不同芯片/模块的引脚命名不统一（MOSI 可能叫 DI、SDO、SDI，SS 可能叫 CS、NSS……），<strong>接线前一定要看手册</strong>。</li>
+</ul>
+<h2 id="4-硬件电路">4. 硬件电路</h2>
+<h3 id="4-1-三条规定">4.1 三条规定</h3>
+<ol>
+<li><strong>所有 SPI 设备的 SCK、MOSI、MISO 分别连在一起</strong>；</li>
+<li><strong>主机另外引出多条 SS 控制线，分别接到各从机的 SS 引脚</strong>；</li>
+<li><strong>输出引脚配置为推挽输出，输入引脚配置为浮空或上拉输入</strong>。</li>
+</ol>
+<ul>
+<li><strong>为什么用推挽</strong>：<strong>推挽驱动能力强、边沿迅速</strong>——不像 I2C 开漏那样上升沿缓慢（I2C 要靠上拉电阻「拉回」高电平）；所以 SPI 可以跑到很高速度；</li>
+<li><strong>主机引脚</strong>：<strong>SCK、MOSI 是输出（推挽）、MISO 是输入（浮空/上拉）、SS 是输出（推挽）</strong>；从机反过来（SCK、MOSI、SS 是输入，MISO 是输出）；</li>
+<li><strong>一个典型接线</strong>：主机引出 <strong>SCK + MOSI + MISO + 3 根 SS</strong>（挂 3 个从机）＝ <strong>6 根通信线</strong>（图中的例子），再加 VCC/GND 供电。</li>
+</ul>
+<h3 id="4-2-关键规定-未选中从机的-miso-必须高阻">4.2 关键规定：未选中从机的 MISO 必须高阻</h3>
+<ul>
+<li><strong>问题</strong>：MISO 是<strong>所有从机共用</strong>的一根线——如果某个从机没被选中（SS=高），它的 MISO 若还<strong>推挽输出</strong>，就会和另一个正在发送的从机<strong>冲突短路</strong>；</li>
+<li><strong>规定</strong>：<strong>从机未被选中（SS=高）时，它的 MISO 必须切换为高阻态（释放）</strong>——只有被选中的从机才驱动 MISO；</li>
+<li><strong>这是 SPI 对「可能冲突」做出的规定，属从机端的责任，主机程序不用管</strong>；</li>
+<li>主机端 <strong>MISO 配置为浮空输入或上拉输入</strong>：若配<strong>上拉</strong>，SS 未选中时读到的是<strong>高电平</strong>；若配<strong>浮空</strong>，电平<strong>不确定</strong>（所以一般建议上拉）。</li>
+</ul>
+<p><img src="../assets/images/stm32-36/04-hardware-circuit.jpg" alt="图 4：PPT「硬件电路」（SPI 版）——三条规定：所有 SPI 设备的 SCK、MOSI、MISO 分别连在一起；主机另外引出多条 SS 控制线，分别接到各从机的 SS 引脚（高亮）；输出引脚配置为推挽输出，输入引脚配置为浮空或上拉输入；下方示意图：SPI 主机（SS1/SS2/SS3、MISO、MOSI、SCK）分别接 3 个 SPI 从机，每台从机有 SCK/MOSI/MISO/SS；字幕「主机通过MISO输入」"></p>
+<p><em>图 4：PPT「硬件电路」（SPI 版）——三条规定：所有 SPI 设备的 SCK、MOSI、MISO 分别连在一起；主机另外引出多条 SS 控制线，分别接到各从机的 SS 引脚（高亮）；输出引脚配置为推挽输出，输入引脚配置为浮空或上拉输入；下方示意图：SPI 主机（SS1/SS2/SS3、MISO、MOSI、SCK）分别接 3 个 SPI 从机，每台从机有 SCK/MOSI/MISO/SS；字幕「主机通过MISO输入」</em></p>
+<p><img src="../assets/images/stm32-36/05-ss-select.jpg" alt="图 5：同一页上的红笔——标注 SS1/SS2/SS3 三条选择线、MISO/MOSI/SCK 的方向箭头，并在三个从机的 SS 处画叉/圈：只有被拉低 SS 的从机才参与通信；字幕「这就是SPI实现选择从机的方式」"></p>
+<p><em>图 5：同一页上的红笔——标注 SS1/SS2/SS3 三条选择线、MISO/MOSI/SCK 的方向箭头，并在三个从机的 SS 处画叉/圈：只有被拉低 SS 的从机才参与通信；字幕「这就是SPI实现选择从机的方式」</em></p>
+<h2 id="5-移位示意图与-字节交换">5. 移位示意图与「字节交换」</h2>
+<ul>
+<li><strong>结构</strong>：<strong>主机</strong>和<strong>从机</strong>各有一个<strong>移位寄存器</strong>；主机还有一个<strong>波特率发生器</strong>（产生 SCK）；</li>
+<li><strong>发送</strong>：主机在 SCK 驱动下，把数据**高位先行（MSB first）**逐位移到 MOSI 上；从机把自己的数据逐位移到 MISO 上；</li>
+<li><strong>方向</strong>：<strong>主机 MOSI 的输出进入从机移位寄存器的最低位；从机 MISO 的输出进入主机移位寄存器的最低位</strong>——所以每个 SCK 时钟，<strong>两边各移出一位、各移入一位</strong>；</li>
+<li><strong>8 个时钟之后</strong>：主机原本的 8 位数据「跑」到了从机、从机原本的 8 位数据「跑」到了主机——这就是 SPI 的<strong>字节交换</strong>；</li>
+<li><strong>字节交换是 SPI 的基本单元</strong>：<strong>只要发一个字节，就必然会同时收一个字节</strong>；</li>
+<li><strong>实用结论</strong>：<ul>
+<li><strong>只发送</strong>：发出去就行，收到的字节忽略（或者不管 MISO）；</li>
+<li><strong>只接收</strong>：主机必须<strong>发一个占位字节（<code>0x00</code> 或 <code>0xFF</code>）</strong>，用这 8 个时钟把从机的数据「换」回来；</li>
+<li>只发/只收时<strong>必然有一根数据线闲着</strong>——这就是 SPI「资源浪费」的体现，协议本身不管。</li>
+</ul>
+</li>
+</ul>
+<p><img src="../assets/images/stm32-36/06-shift-diagram.jpg" alt="图 6：PPT「移位示意图」——左侧「SPI 主机」（含移位寄存器 01010101 与波特率发生器），右侧「SPI 从机」（含移位寄存器 10101010）；主机 MOSI → 从机 MOSI，从机 MISO → 主机 MISO，主机 SCK → 从机 SCK；字幕「分别放到MOSI和MISO的通信线上」"></p>
+<p><em>图 6：PPT「移位示意图」——左侧「SPI 主机」（含移位寄存器 <code>01010101</code> 与波特率发生器），右侧「SPI 从机」（含移位寄存器 <code>10101010</code>）；主机 MOSI → 从机 MOSI，从机 MISO → 主机 MISO，主机 SCK → 从机 SCK；字幕「分别放到MOSI和MISO的通信线上」</em></p>
+<p><img src="../assets/images/stm32-36/07-byte-exchange.jpg" alt="图 7：同一示意图上的红笔——在两个移位寄存器之间画交换箭头（主机数据跑到从机、从机数据跑到主机），并标出 SCK 由主机的波特率发生器驱动；字幕「这样，主机要发送的数据，跑到从机」"></p>
+<p><em>图 7：同一示意图上的红笔——在两个移位寄存器之间画交换箭头（主机数据跑到从机、从机数据跑到主机），并标出 SCK 由主机的波特率发生器驱动；字幕「这样，主机要发送的数据，跑到从机」</em></p>
+<h2 id="6-起始与终止条件">6. 起始与终止条件</h2>
+<ul>
+<li><strong>起始条件</strong>：<strong>SS 由高电平切换到低电平</strong>——<strong>选中从机、通信开始</strong>；</li>
+<li><strong>终止条件</strong>：<strong>SS 由低电平切换到高电平</strong>——<strong>通信结束</strong>；</li>
+<li><strong>SS 低电平期间就是通信期间</strong>；起始/终止比 I2C 简单得多（I2C 要在 SCL 高电平期间做 SDA 跳变）；</li>
+<li><strong>细节</strong>：<ul>
+<li><strong>SS 未选中时 SCK 处于默认电平</strong>（模式 0 空闲为低）；</li>
+<li><strong>SS 上升沿结束通信后，从机 MISO 必须置回高阻态</strong>；</li>
+<li><strong>MOSI 空闲时的默认电平未定义</strong>，可以不管。</li>
+</ul>
+</li>
+</ul>
+<h2 id="7-时序基本单元与-4-种模式">7. 时序基本单元与 4 种模式</h2>
+<h3 id="7-1-两个配置位-cpol-与-cpha">7.1 两个配置位：CPOL 与 CPHA</h3>
+<ul>
+<li><strong>CPOL（Clock Polarity，时钟极性）</strong>：<strong>空闲状态时 SCK 的电平</strong>——0 = 低电平、1 = 高电平；</li>
+<li><strong>CPHA（Clock Phase，时钟相位）</strong>：<strong>在 SCK 的第 1 个还是第 2 个边沿采样（移入）数据</strong>——0 = 第 1 个边沿、1 = 第 2 个边沿；</li>
+<li>两者组合出 <strong>4 种模式（模式 0～3）</strong>，<strong>功能一样，只是采样时刻不同</strong>。</li>
+</ul>
+<h3 id="7-2-模式-0-最常用-本课程后续全部用它">7.2 模式 0（最常用，本课程后续全部用它）</h3>
+<ul>
+<li><strong>CPOL = 0</strong>：空闲时 SCK 为<strong>低电平</strong>；</li>
+<li><strong>CPHA = 0</strong>：<strong>SCK 的第 1 个边沿（上升沿）移入数据、第 2 个边沿（下降沿）移出数据</strong>；</li>
+<li>也就是：<strong>SS 拉低后，SCK 上升沿采样（移入）、下降沿准备（移出）下一位</strong>；</li>
+<li><strong>多字节连续交换</strong>时注意时序拼接：一个字节的 B0 之后紧跟着下一个字节的 B7。</li>
+</ul>
+<h3 id="7-3-模式-1-对比">7.3 模式 1（对比）</h3>
+<ul>
+<li><strong>CPOL = 0</strong>（空闲低）；</li>
+<li><strong>CPHA = 1</strong>：<strong>第 1 个边沿移出数据、第 2 个边沿移入数据</strong>；</li>
+<li><strong>与模式 0 的区别就在采样边沿</strong>（模式 1 在下降沿采样）。</li>
+</ul>
+<h3 id="7-4-模式-2-模式-3">7.4 模式 2 / 模式 3</h3>
+<ul>
+<li><strong>模式 2 ＝ 模式 0 的 CPOL 取反</strong>（空闲时 SCK 为高）；</li>
+<li><strong>模式 3 ＝ 模式 1 的 CPOL 取反</strong>；</li>
+<li>4 种模式功能一样，知道「可配置」即可；<strong>CPHA 不能单独决定上升/下降沿采样，必须配合 CPOL 看</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-36/08-mode0-define.jpg" alt="图 8：PPT「SPI时序基本单元」——「CPOL=0：空闲状态时，SCK为低电平」「CPHA=0：SCK第一个边沿移入数据，第二个边沿移出数据」（模式 0 的定义）；下方波形 SS/SCK/MOSI/MISO，标注 B7、B6 …… B0；字幕「分别叫作CPOL（Clock Polarity）时钟极性」"></p>
+<p><em>图 8：PPT「SPI时序基本单元」——「CPOL=0：空闲状态时，SCK为低电平」「CPHA=0：SCK第一个边沿移入数据，第二个边沿移出数据」（模式 0 的定义）；下方波形 SS/SCK/MOSI/MISO，标注 B7、B6 …… B0；字幕「分别叫作CPOL（Clock Polarity）时钟极性」</em></p>
+<p><img src="../assets/images/stm32-36/09-mode0-waveform.jpg" alt="图 9：模式 0 波形详解——「交换一个字节（模式0）」；CPOL=0（空闲低）、CPHA=0（第一个边沿移入、第二个边沿移出）；SS 拉低后 SCK 上升沿采样 B7、下降沿移出 B6……红笔标出 SS 下降沿与第一个 SCK 上升沿；字幕「之后，SCK下降沿，移出B6」"></p>
+<p><em>图 9：模式 0 波形详解——「交换一个字节（模式0）」；CPOL=0（空闲低）、CPHA=0（第一个边沿移入、第二个边沿移出）；SS 拉低后 SCK 上升沿采样 B7、下降沿移出 B6……红笔标出 SS 下降沿与第一个 SCK 上升沿；字幕「之后，SCK下降沿，移出B6」</em></p>
+<p><img src="../assets/images/stm32-36/10-mode1.jpg" alt="图 10：模式 1 波形——「交换一个字节（模式1）」；CPOL=0（空闲低）、CPHA=1：第一个边沿移出数据、第二个边沿移入数据；波形上红笔圈出采样位置（在下降沿）；字幕「然后MISO，从机必须得置回高阻态」"></p>
+<p><em>图 10：模式 1 波形——「交换一个字节（模式1）」；CPOL=0（空闲低）、<strong>CPHA=1：第一个边沿移出数据、第二个边沿移入数据</strong>；波形上红笔圈出采样位置（在下降沿）；字幕「然后MISO，从机必须得置回高阻态」</em></p>
+<h2 id="8-w25q64-的指令时序-实测波形">8. W25Q64 的指令时序（实测波形）</h2>
+<blockquote>
+<p>波形是<strong>作者用软件 SPI 抓的</strong>（所以 <strong>MOSI 的电平变化相对 SCK 有延迟</strong>，不像硬件 SPI 那样紧贴边沿），作者自己也提到这一点。</p>
+</blockquote>
+<h3 id="8-1-0x06-写使能-单字节指令">8.1 <code>0x06</code>：写使能（单字节指令）</h3>
+<ul>
+<li><strong>发送指令</strong>：向 <strong>SS 指定的设备</strong>发送指令 <code>0x06</code>；</li>
+<li>波形：SS 拉低 → SCK 打 8 个时钟 → MOSI 依次为 <code>00000110</code>（<code>0x06</code>，高位先行）→ SS 拉高；</li>
+<li><strong>MISO 全程为高电平（<code>FF</code>）</strong>——因为<strong>这条指令没有回传数据</strong>；</li>
+<li><strong>从机收到写使能指令后</strong>，会控制内部硬件<strong>允许后续的写入操作</strong>（写操作前必须先发写使能）。</li>
+</ul>
+<h3 id="8-2-0x02-页编程-指令-24-位地址-数据">8.2 <code>0x02</code>：页编程（指令 + 24 位地址 + 数据）</h3>
+<ul>
+<li><strong>时序</strong>：SS 拉低 → 发 <code>0x02</code>（页编程指令）→ 发 <strong>24 位地址</strong>（3 个字节，如 <code>0x12 0x34 0x56</code>）→ 发<strong>要写入的数据字节</strong>……</li>
+<li><strong>后续字节会自动依次写入后续的存储空间</strong>（在页内递增）；</li>
+<li>容量大的芯片（如 W25Q64，8MB）<strong>地址要 3 个字节（24 位）</strong>；容量小的芯片可能只要 1 个字节，甚至把地址合进指令里。</li>
+</ul>
+<h3 id="8-3-0x03-读数据-指令-24-位地址-占位换数据">8.3 <code>0x03</code>：读数据（指令 + 24 位地址 + 占位换数据）</h3>
+<ul>
+<li><strong>时序</strong>：SS 拉低 → 发 <code>0x03</code>（读数据指令）→ 发 <strong>24 位地址</strong> → 然后<strong>主机连续发 <code>0x00</code> 占位</strong>，<strong>同时从 MISO 读回从机的数据</strong>；</li>
+<li>因为 SPI 是「字节交换」：<strong>主机发一个字节，必然会同时收到一个字节</strong>——所以<strong>接收数据必须用占位字节去「换」</strong>；</li>
+<li><strong>指令与地址发完后，从机就开始输出数据</strong>（「主机发占位的同时，从机就会把数据送过来」）。</li>
+</ul>
+<h3 id="8-4-指令时序的共同格式">8.4 指令时序的共同格式</h3>
+<ul>
+<li><strong>所有指令都是同样的模式</strong>：<strong>起始（SS 拉低）→ 交换一个字节（指令码）→ 交换若干字节（地址/数据）→ 终止（SS 拉高）</strong>；</li>
+<li><strong>不同指令的差别只在「指令码」和「后续字节的定义」</strong>（哪个是地址、哪个是数据、要不要回传数据），<strong>时序玩法完全一样</strong>；</li>
+<li>所以 SPI 用起来非常灵活——「<strong>只要理解了字节交换，任何 SPI 器件都能控制</strong>」。</li>
+</ul>
+<p><img src="../assets/images/stm32-36/11-cmd-06-ppt.jpg" alt="图 11：PPT「SPI时序」——发送指令：向 SS 指定的设备，发送指令（0x06）；下方是实测波形（SS、SCK、MOSI、MISO，绿色竖线为逐位、红竖线分隔各段）；字幕「首先是SPI发送指令」"></p>
+<p><em>图 11：PPT「SPI时序」——发送指令：向 SS 指定的设备，发送指令（0x06）；下方是实测波形（SS、SCK、MOSI、MISO，绿色竖线为逐位、红竖线分隔各段）；字幕「首先是SPI发送指令」</em></p>
+<p><img src="../assets/images/stm32-36/12-cmd-06-waveform.jpg" alt="图 12：0x06 波形放大——SS、SCK、MOSI（位值 0 0 0 0 0 1 1 0＝0x06，红笔圈出并标 0x06，分段标注 Send Byte: 0x06 (Write Enable)）、MISO（全程高）；字幕「那从机就会控制硬件，进行写使能」"></p>
+<p><em>图 12：<code>0x06</code> 波形放大——SS、SCK、MOSI（位值 <code>0 0 0 0 0 1 1 0</code>＝<code>0x06</code>，红笔圈出并标 <code>0x06</code>，分段标注 <code>Send Byte: 0x06 (Write Enable)</code>）、MISO（全程高）；字幕「那从机就会控制硬件，进行写使能」</em></p>
+<p><img src="../assets/images/stm32-36/13-cmd-02-waveform.jpg" alt="图 13：0x02 页编程波形——分段标注 Send Byte: 0x02 (Write Command) 与 Send Byte: 0x12 0x34 0x56 (24bit Address)；红笔圈出其后连续输出的数据字节；字幕「继续发送的字节就会依次写入到后续的存储空间里」"></p>
+<p><em>图 13：<code>0x02</code> 页编程波形——分段标注 <code>Send Byte: 0x02 (Write Command)</code> 与 <code>Send Byte: 0x12 0x34 0x56 (24bit Address)</code>；红笔圈出其后连续输出的数据字节；字幕「继续发送的字节就会依次写入到后续的存储空间里」</em></p>
+<p><img src="../assets/images/stm32-36/14-cmd-03-waveform.jpg" alt="图 14：0x03 读数据波形——分段标注 Send Byte: 0x03 (Read Command)、Send Byte: 0x12 0x34 0x56 (24bit Address) 与 Receive Byte: … (Data)；MOSI 在地址后变成 0x00 占位、MISO 上出现数据；字幕「因为这是SPI模式0，所以数据变化都要提前半个周期」"></p>
+<p><em>图 14：<code>0x03</code> 读数据波形——分段标注 <code>Send Byte: 0x03 (Read Command)</code>、<code>Send Byte: 0x12 0x34 0x56 (24bit Address)</code> 与 <code>Receive Byte: … (Data)</code>；MOSI 在地址后变成 <code>0x00</code> 占位、MISO 上出现数据；字幕「因为这是SPI模式0，所以数据变化都要提前半个周期」</em></p>
+<p><img src="../assets/images/stm32-36/15-read-address-ppt.jpg" alt="图 15：PPT「SPI时序」——指定地址读：向 SS 指定的设备发送读指令（0x03），随后在指定地址（Address 的 23:0 位）下读取从机数据（Data）；下方是整帧实测波形的缩略视图；字幕「W25Q64这个芯片的知识点」"></p>
+<p><em>图 15：PPT「SPI时序」——<strong>指定地址读</strong>：向 SS 指定的设备发送读指令（<code>0x03</code>），随后在指定地址（Address 的 23:0 位）下读取从机数据（Data）；下方是整帧实测波形的缩略视图；字幕「W25Q64这个芯片的知识点」</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>SPI 没有应答</strong>：发出去就不管对方在不在——不像 I2C 每字节有 ACK，别指望它告诉你「对方没收到」。</li>
+<li><strong>一主多从靠 SS 线，不是靠地址</strong>：每个从机一根 SS，拉低哪个就跟哪个通信；从机多了线也多。</li>
+<li><strong>SS 低电平有效</strong>：拉低才是选中，别接反。</li>
+<li><strong>未选中的从机 MISO 必须高阻</strong>：这是从机端责任；主机端 MISO 建议配上拉输入（浮空输入读到的电平不确定）。</li>
+<li><strong>推挽 vs 开漏</strong>：SPI 输出用<strong>推挽</strong>（边沿快、能跑高速）；I2C 用开漏（防短路但慢）。</li>
+<li><strong>只接收时必须发占位字节</strong>：<code>0x00</code> 或 <code>0xFF</code> 都行——因为 SPI 是字节交换，不发就收不到。</li>
+<li><strong>只发送时收到的数据无意义</strong>：忽略即可（发一个字节必然同时收一个字节）。</li>
+<li><strong>模式 0 最常用</strong>：<code>CPOL=0</code>（空闲低）+ <code>CPHA=0</code>（第 1 边沿移入、第 2 边沿移出）——本课程后面全用模式 0。</li>
+<li><strong>CPHA 不能单独看</strong>：它说的是「第几个边沿」，具体是上升沿还是下降沿还要结合 CPOL。</li>
+<li><strong>起始/终止只看 SS</strong>：SS 由高→低是起始、低→高是终止，SS 低电平期间就是通信期间。</li>
+<li><strong>高位先行（MSB first）</strong>：先发最高位 B7；本集只提到「一般都高位先行」，LSB/MSB 的配置位在硬件外设部分。</li>
+<li><strong>W25Q64 写之前要先发 <code>0x06</code> 写使能</strong>：否则写入无效。</li>
+<li><strong>W25Q64 地址是 24 位（3 字节）</strong>：<code>0x12 0x34 0x56</code> 这种顺序是高位字节在前；小容量芯片地址长度可能不同。</li>
+<li><strong>软件 SPI 抓的波形有延迟</strong>：MOSI 变化相对 SCK 边沿滞后，属正常（软件翻转引脚的速度限制），不代表器件问题。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:06</td>
+<td>开场：继续 STM32 入门教程</td>
+</tr>
+<tr>
+<td>0:36</td>
+<td>先学习 SPI 协议的软硬件规定</td>
+</tr>
+<tr>
+<td>0:49</td>
+<td>再用硬件 SPI 实现同样的功能</td>
+</tr>
+<tr>
+<td>0:52</td>
+<td>先看本节课的程序现象</td>
+</tr>
+<tr>
+<td>0:55</td>
+<td>本节课主要有两个代码</td>
+</tr>
+<tr>
+<td>0:57</td>
+<td>软件 SPI 读写 W25Q64 与硬件 SPI 读写 W25Q64</td>
+</tr>
+<tr>
+<td>1:03</td>
+<td>两个代码实现的效果一样</td>
+</tr>
+<tr>
+<td>1:24</td>
+<td>W25Q64 需要存储大量数据</td>
+</tr>
+<tr>
+<td>1:29</td>
+<td>我们用 4 根 SPI 通信线</td>
+</tr>
+<tr>
+<td>1:36</td>
+<td>STM32 操作引脚电平实现读写存储器芯片</td>
+</tr>
+<tr>
+<td>1:43</td>
+<td>OLED 上可以看到测试程序现象</td>
+</tr>
+<tr>
+<td>1:47</td>
+<td>显示的是 MID，读出 0xEF</td>
+</tr>
+<tr>
+<td>1:54</td>
+<td>DID 是设备 ID，读出 0x4017</td>
+</tr>
+<tr>
+<td>2:11</td>
+<td>既然是存储器芯片，第二行是写入的数据</td>
+</tr>
+<tr>
+<td>2:32</td>
+<td>说明读写存储器芯片没问题</td>
+</tr>
+<tr>
+<td>2:43</td>
+<td>这些等写程序时再验证</td>
+</tr>
+<tr>
+<td>2:46</td>
+<td>程序现象看到这里，回到 PPT</td>
+</tr>
+<tr>
+<td>3:14</td>
+<td>I2C 和 SPI 各有优势和劣势</td>
+</tr>
+<tr>
+<td>3:26</td>
+<td>学 I2C 时硬件电路相对复杂</td>
+</tr>
+<tr>
+<td>3:33</td>
+<td>要配置成开漏外加上拉</td>
+</tr>
+<tr>
+<td>3:36</td>
+<td>软件上有很多功能和要求，一根线兼顾收发</td>
+</tr>
+<tr>
+<td>3:48</td>
+<td>所以 I2C 的性价比非常高</td>
+</tr>
+<tr>
+<td>4:27</td>
+<td>I2C 开漏加上拉的结构使高电平驱动能力弱</td>
+</tr>
+<tr>
+<td>4:34</td>
+<td>由低变高时边沿缓慢</td>
+</tr>
+<tr>
+<td>4:48</td>
+<td>只有 100kHz 的时钟频率，快速模式也只有 400kHz</td>
+</tr>
+<tr>
+<td>5:00</td>
+<td>高速模式 3.4MHz 普及程度不高</td>
+</tr>
+<tr>
+<td>5:08</td>
+<td>速度还是慢了很多</td>
+</tr>
+<tr>
+<td>5:18</td>
+<td>简单总结 SPI 相对 I2C 的优缺点</td>
+</tr>
+<tr>
+<td>5:25</td>
+<td>SPI 协议没有严格规定最大传输速度</td>
+</tr>
+<tr>
+<td>5:41</td>
+<td>有的比 STM32F1 的主频还高</td>
+</tr>
+<tr>
+<td>5:44</td>
+<td>SPI 的设计简单粗暴，功能没 I2C 多</td>
+</tr>
+<tr>
+<td>5:50</td>
+<td>SPI 比 I2C 简单很多</td>
+</tr>
+<tr>
+<td>5:59</td>
+<td>通信过程中经常有资源浪费</td>
+</tr>
+<tr>
+<td>6:19</td>
+<td>对 SPI 应该有了大体印象</td>
+</tr>
+<tr>
+<td>6:23</td>
+<td>回到 PPT 研究 SPI</td>
+</tr>
+<tr>
+<td>6:27</td>
+<td>SPI 有四根通信线</td>
+</tr>
+<tr>
+<td>6:42</td>
+<td>SS 的意思是从机选择</td>
+</tr>
+<tr>
+<td>6:46</td>
+<td>这是 SPI 典型的引脚名称</td>
+</tr>
+<tr>
+<td>7:12</td>
+<td>以 SPI 官方文档名称为准</td>
+</tr>
+<tr>
+<td>7:30</td>
+<td>SCK 用来提供时钟信号</td>
+</tr>
+<tr>
+<td>7:34</td>
+<td>数据位的输出和输入都在上升沿或下降沿进行</td>
+</tr>
+<tr>
+<td>7:39</td>
+<td>数据位的收发时刻可以明确确定</td>
+</tr>
+<tr>
+<td>7:47</td>
+<td>这就是同步时序的好处</td>
+</tr>
+<tr>
+<td>7:57</td>
+<td>SPI 是全双工协议</td>
+</tr>
+<tr>
+<td>9:10</td>
+<td>全双工的好处就是简单高效</td>
+</tr>
+<tr>
+<td>9:33</td>
+<td>一主多从，不支持多主机</td>
+</tr>
+<tr>
+<td>9:51</td>
+<td>I2C 这里要涉及分配地址和寻址</td>
+</tr>
+<tr>
+<td>10:03</td>
+<td>SPI 专门用 SS 线指定从机</td>
+</tr>
+<tr>
+<td>10:22</td>
+<td>需要找哪个从机就控制对应 SS</td>
+</tr>
+<tr>
+<td>10:29</td>
+<td>指定从机动动手指就能完成</td>
+</tr>
+<tr>
+<td>10:50</td>
+<td>SPI 没有应答机制</td>
+</tr>
+<tr>
+<td>10:52</td>
+<td>接收数据就接收，不管对面是否存在</td>
+</tr>
+<tr>
+<td>11:00</td>
+<td>下面图片是采用 SPI 通信的芯片和模块</td>
+</tr>
+<tr>
+<td>11:04</td>
+<td>本课程使用的芯片 W25Q64</td>
+</tr>
+<tr>
+<td>11:41</td>
+<td>这里的 DI 就是 MOSI</td>
+</tr>
+<tr>
+<td>11:50</td>
+<td>有的会用 DI 和 DO 简写</td>
+</tr>
+<tr>
+<td>12:15</td>
+<td>这是利用 SPI 通信的 OLED 屏幕</td>
+</tr>
+<tr>
+<td>12:19</td>
+<td>引脚不是标准名称，看手册</td>
+</tr>
+<tr>
+<td>12:27</td>
+<td>这是个 2.4G 无线通信模块 NRF24L01</td>
+</tr>
+<tr>
+<td>12:34</td>
+<td>这个芯片使用 SPI 通信协议</td>
+</tr>
+<tr>
+<td>12:44</td>
+<td>还有常见的 MicroSD 卡</td>
+</tr>
+<tr>
+<td>12:46</td>
+<td>官方协议是 SDIO，但也支持 SPI</td>
+</tr>
+<tr>
+<td>13:00</td>
+<td>接下来看 SPI 硬件和软件规定</td>
+</tr>
+<tr>
+<td>13:05</td>
+<td>典型应用电路</td>
+</tr>
+<tr>
+<td>13:28</td>
+<td>左边 SPI 主机引出了 6 根通信线</td>
+</tr>
+<tr>
+<td>13:32</td>
+<td>SS 线需要 3 根，加上 MOSI、MISO、SCK 共 6 根</td>
+</tr>
+<tr>
+<td>13:43</td>
+<td>高低电平都是相对 GND 的电压差</td>
+</tr>
+<tr>
+<td>13:54</td>
+<td>如果从机没有独立供电还要 VCC 和 GND</td>
+</tr>
+<tr>
+<td>14:09</td>
+<td>时钟线完全由主机掌控</td>
+</tr>
+<tr>
+<td>14:37</td>
+<td>所有从机通过 MOSI 输入</td>
+</tr>
+<tr>
+<td>14:53</td>
+<td>主机通过 MISO 输入</td>
+</tr>
+<tr>
+<td>15:10</td>
+<td>所有 SCK 连在一起</td>
+</tr>
+<tr>
+<td>15:12</td>
+<td>所有 MOSI 连在一起</td>
+</tr>
+<tr>
+<td>15:15</td>
+<td>所有 MISO 连在一起</td>
+</tr>
+<tr>
+<td>15:17</td>
+<td>每条线的数据传输方向都用箭头标出</td>
+</tr>
+<tr>
+<td>15:25</td>
+<td>时钟和数据传输没问题</td>
+</tr>
+<tr>
+<td>15:53</td>
+<td>SS 线要每个从机单独一根</td>
+</tr>
+<tr>
+<td>17:05</td>
+<td>三条规定讲完</td>
+</tr>
+<tr>
+<td>17:07</td>
+<td>输出引脚配推挽，输入浮空或上拉</td>
+</tr>
+<tr>
+<td>17:17</td>
+<td>推挽驱动能力强，边沿迅速</td>
+</tr>
+<tr>
+<td>17:33</td>
+<td>MISO 冲突问题：未选中从机 MISO 必须高阻</td>
+</tr>
+<tr>
+<td>18:07</td>
+<td>这是 SPI 对可能冲突做的规定</td>
+</tr>
+<tr>
+<td>18:09</td>
+<td>接下来看移位示意图</td>
+</tr>
+<tr>
+<td>18:20</td>
+<td>主机和从机各有一个移位寄存器</td>
+</tr>
+<tr>
+<td>19:13</td>
+<td>主机还有波特率发生器</td>
+</tr>
+<tr>
+<td>19:54</td>
+<td>高位先行，MSB first</td>
+</tr>
+<tr>
+<td>20:27</td>
+<td>主机数据移到 MOSI，从机数据移到 MISO</td>
+</tr>
+<tr>
+<td>20:34</td>
+<td>主机输出进入从机移位寄存器最低位</td>
+</tr>
+<tr>
+<td>21:47</td>
+<td>从机输出进入主机移位寄存器最低位</td>
+</tr>
+<tr>
+<td>22:17</td>
+<td>8 个时钟后完成字节交换</td>
+</tr>
+<tr>
+<td>22:18</td>
+<td>字节交换是 SPI 的基本单元</td>
+</tr>
+<tr>
+<td>22:30</td>
+<td>发一个字节必然同时收一个字节</td>
+</tr>
+<tr>
+<td>22:32</td>
+<td>只发送时忽略收到的数据</td>
+</tr>
+<tr>
+<td>22:33</td>
+<td>只接收时发 0x00 或 0xFF 占位</td>
+</tr>
+<tr>
+<td>22:34</td>
+<td>只发只收时会浪费一根线的资源</td>
+</tr>
+<tr>
+<td>22:35</td>
+<td>下面看时序基本单元</td>
+</tr>
+<tr>
+<td>22:36</td>
+<td>起始条件是 SS 由高变低</td>
+</tr>
+<tr>
+<td>23:20</td>
+<td>终止条件就是 SS 由低变高，一次通信结束</td>
+</tr>
+<tr>
+<td>24:10</td>
+<td>SS 低电平期间，SCK 打多少拍就交换多少位</td>
+</tr>
+<tr>
+<td>25:00</td>
+<td>数据在 SCK 边沿移出/移入，所以 SPI 是同步时序</td>
+</tr>
+<tr>
+<td>25:26</td>
+<td>终止就是 SS 由低变高，通信结束</td>
+</tr>
+<tr>
+<td>25:29</td>
+<td>SS 高电平时，从机不参与总线、MISO 高阻</td>
+</tr>
+<tr>
+<td>25:31</td>
+<td>一次通信期间，SCK 打多少拍就交换多少位</td>
+</tr>
+<tr>
+<td>25:34</td>
+<td>数据在 SCK 边沿移出/移入，所以叫同步时序</td>
+</tr>
+<tr>
+<td>25:37</td>
+<td>下面来看具体的边沿定义</td>
+</tr>
+<tr>
+<td>25:40</td>
+<td>终止条件是 SS 由低变高</td>
+</tr>
+<tr>
+<td>26:13</td>
+<td>SS 低电平期间就是通信期间</td>
+</tr>
+<tr>
+<td>26:23</td>
+<td>比 I2C 的起始终止简单</td>
+</tr>
+<tr>
+<td>26:29</td>
+<td>时序基本单元就是交换一位的完整过程</td>
+</tr>
+<tr>
+<td>26:30</td>
+<td>交换一位要看清什么时候移出、什么时候采样</td>
+</tr>
+<tr>
+<td>26:31</td>
+<td>SPI 用 SS 选中从机后，靠 SCK 边沿同步移位</td>
+</tr>
+<tr>
+<td>26:32</td>
+<td>同一个字节，采样边沿不同就是不同的模式</td>
+</tr>
+<tr>
+<td>26:36</td>
+<td>时序基本单元里有 4 种模式</td>
+</tr>
+<tr>
+<td>26:49</td>
+<td>由 CPOL 和 CPHA 两个位决定</td>
+</tr>
+<tr>
+<td>26:52</td>
+<td>CPOL 是时钟极性，决定空闲电平</td>
+</tr>
+<tr>
+<td>26:56</td>
+<td>CPHA 是时钟相位，决定第几个边沿采样</td>
+</tr>
+<tr>
+<td>27:23</td>
+<td>先看模式 0 的完整波形</td>
+</tr>
+<tr>
+<td>27:42</td>
+<td>SS 拉低后，SCK 第一个上升沿采样 B7</td>
+</tr>
+<tr>
+<td>29:30</td>
+<td>SCK 下降沿时，主机把 B6 放上 MOSI</td>
+</tr>
+<tr>
+<td>29:38</td>
+<td>从机同样在 MISO 上逐位移出数据</td>
+</tr>
+<tr>
+<td>31:09</td>
+<td>8 个边沿后一个字节交换完成</td>
+</tr>
+<tr>
+<td>31:32</td>
+<td>模式 0 是 CPOL=0、CPHA=0</td>
+</tr>
+<tr>
+<td>31:36</td>
+<td>模式 0 最常用，后面都用它</td>
+</tr>
+<tr>
+<td>31:40</td>
+<td>交换一个字节的模式 0 波形</td>
+</tr>
+<tr>
+<td>32:23</td>
+<td>空闲 SCK 为低电平</td>
+</tr>
+<tr>
+<td>32:25</td>
+<td>第一个边沿移入数据，第二个边沿移出数据</td>
+</tr>
+<tr>
+<td>32:53</td>
+<td>上升沿采样 B7，下降沿移出 B6</td>
+</tr>
+<tr>
+<td>33:37</td>
+<td>依次完成 8 位，一个字节交换完毕</td>
+</tr>
+<tr>
+<td>34:19</td>
+<td>模式 1 是 CPOL=0、CPHA=1</td>
+</tr>
+<tr>
+<td>34:25</td>
+<td>第一个边沿移出，第二个边沿移入</td>
+</tr>
+<tr>
+<td>34:39</td>
+<td>两者区别就在采样边沿</td>
+</tr>
+<tr>
+<td>34:41</td>
+<td>多字节连续交换时注意拼接</td>
+</tr>
+<tr>
+<td>34:44</td>
+<td>模式 2 是模式 0 的 CPOL 取反</td>
+</tr>
+<tr>
+<td>35:06</td>
+<td>模式 3 是模式 1 的 CPOL 取反</td>
+</tr>
+<tr>
+<td>35:18</td>
+<td>4 种模式功能一样，知道可配置即可</td>
+</tr>
+<tr>
+<td>35:54</td>
+<td>CPHA 不能单独决定上升还是下降沿采样</td>
+</tr>
+<tr>
+<td>36:04</td>
+<td>SS 未选中时，SCK 停在空闲电平</td>
+</tr>
+<tr>
+<td>36:26</td>
+<td>一次 SPI 通信可以交换任意多个字节</td>
+</tr>
+<tr>
+<td>37:07</td>
+<td>W25Q64 的指令都是先发 1 字节指令码</td>
+</tr>
+<tr>
+<td>37:32</td>
+<td>下面看 W25Q64 的指令时序模型</td>
+</tr>
+<tr>
+<td>37:55</td>
+<td>起始后第一个字节就是指令码</td>
+</tr>
+<tr>
+<td>38:00</td>
+<td>时序细节：SS 未选中时 SCK 处于默认电平（模式 0 为低）</td>
+</tr>
+<tr>
+<td>38:08</td>
+<td>先看 0x06 写使能：单字节指令</td>
+</tr>
+<tr>
+<td>38:35</td>
+<td>SS 上升沿结束通信，从机 MISO 置回高阻</td>
+</tr>
+<tr>
+<td>38:50</td>
+<td>MOSI 空闲时的默认电平未定义，可以不管</td>
+</tr>
+<tr>
+<td>39:00</td>
+<td>看波形：SS 拉低后 SCK 开始打 8 个时钟</td>
+</tr>
+<tr>
+<td>39:35</td>
+<td>软件模拟的时序，MOSI 变化相对 SCK 有延迟</td>
+</tr>
+<tr>
+<td>40:01</td>
+<td>从机收到 0x06 后控制硬件进行写使能</td>
+</tr>
+<tr>
+<td>40:22</td>
+<td>数据发完后 SS 置回高电平，通信结束</td>
+</tr>
+<tr>
+<td>40:37</td>
+<td>MISO 无回传时呈高电平（0xFF 默认高）</td>
+</tr>
+<tr>
+<td>40:48</td>
+<td>对照指令集：0x06 就是写使能（图 12 波形）</td>
+</tr>
+<tr>
+<td>41:00</td>
+<td>单字节指令看完，接着看带地址的指令</td>
+</tr>
+<tr>
+<td>41:06</td>
+<td>0x02 页编程：指定地址写</td>
+</tr>
+<tr>
+<td>41:12</td>
+<td>发送 0x02 指令</td>
+</tr>
+<tr>
+<td>41:24</td>
+<td>指令后面紧跟 24 位地址</td>
+</tr>
+<tr>
+<td>41:34</td>
+<td>地址为 0x12 0x34 0x56；SS 下降沿开始、MOSI 空闲高</td>
+</tr>
+<tr>
+<td>41:40</td>
+<td>随后发送要写入的数据字节</td>
+</tr>
+<tr>
+<td>42:10</td>
+<td>继续发送的字节会依次写入后续存储空间</td>
+</tr>
+<tr>
+<td>43:48</td>
+<td>0x02 页编程波形看完（图 13）</td>
+</tr>
+<tr>
+<td>43:50</td>
+<td>0x03 读数据：先发 0x03 指令</td>
+</tr>
+<tr>
+<td>44:10</td>
+<td>再发 24 位地址 0x12 0x34 0x56</td>
+</tr>
+<tr>
+<td>44:40</td>
+<td>地址发完后，主机发 0x00 占位</td>
+</tr>
+<tr>
+<td>45:10</td>
+<td>同时从 MISO 读回从机的数据</td>
+</tr>
+<tr>
+<td>46:20</td>
+<td>这样主机就实现了指定地址读一个字节</td>
+</tr>
+<tr>
+<td>46:48</td>
+<td>模式 0 下数据变化提前半个周期（图 14）</td>
+</tr>
+<tr>
+<td>46:55</td>
+<td>读时序讲完</td>
+</tr>
+<tr>
+<td>46:58</td>
+<td>芯片还规定了很多其他功能的时序</td>
+</tr>
+<tr>
+<td>47:03</td>
+<td>它们的格式大同小异</td>
+</tr>
+<tr>
+<td>47:07</td>
+<td>都是起始、交换、交换</td>
+</tr>
+<tr>
+<td>47:10</td>
+<td>字节的功能定义不同而已</td>
+</tr>
+<tr>
+<td>47:11</td>
+<td>其他 SPI 器件也是类似的一套指令/时序格式</td>
+</tr>
+<tr>
+<td>47:13</td>
+<td>理解了字节交换，任何 SPI 器件都能控制</td>
+</tr>
+<tr>
+<td>47:16</td>
+<td>以上就是本小节的全部内容</td>
+</tr>
+<tr>
+<td>47:28</td>
+<td>下一节讲 W25Q64 这个芯片</td>
+</tr>
+<tr>
+<td>47:38</td>
+<td>下一节再见</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，449 段），不是 ASR。错字主要是 <strong><code>SPI</code> → 「SPL」</strong>（3 处）、<strong><code>I2C</code> → 「12C」</strong>（8 处）、<code>读写</code> → 「卖写」（4 处）、<code>4根</code> → 「4粮」（1 处）、<code>右边</code> → 「石边」（2 处）、<code>运行过程</code> → 「云过程」、<code>寄存器</code> → 「奇存」、<code>引脚</code> → 「泻脚」（各 1 处），另有行首符号与重复句混入——已按画面/上下文校正。</li>
+<li><strong>本集无代码</strong>：片头只演示成品工程 <code>11-1 软件SPI读写W25Q64</code> 的现象；<strong>软件 SPI 代码在 [11-2]、硬件 SPI 在 [11-3]</strong>，本笔记未写任何代码。</li>
+<li><strong>未给出 SPI 时钟频率的具体上限</strong>：全片只说「SPI 协议并没有严格规定最大传输速度」「有的比 STM32F1 主频还高」，<strong>没有点名具体数值或器件</strong>——本笔记不编数字。</li>
+<li><strong>位序只讲「一般都是高位先行（MSB first）」</strong>：本集<strong>没有讲 STM32 SPI 的 LSB/MSB 配置位</strong>（留到硬件外设部分），笔记不补配置内容。</li>
+<li><strong>模式 2/3 只用「CPOL 取反」带过</strong>，未逐帧讲波形；本笔记按「模式 2＝模式 0 的 CPOL 取反、模式 3＝模式 1 的 CPOL 取反」写，重点写模式 0。</li>
+<li><strong>W25Q64 只讲了 <code>0x06</code> / <code>0x02</code> / <code>0x03</code> 三条指令</strong>：写使能、页编程、读数据；<strong>完整指令集与地址映射在下一节</strong>——笔记没有编造其它指令。</li>
+<li><strong>W25Q64 的 MID=<code>0xEF</code>、DID=<code>0x4017</code> 是作者实测值</strong>（OLED 画面），不是手册推导。</li>
+<li><strong>波形是软件 SPI 抓的实测图</strong>（MOSI 相对 SCK 有明显延迟，作者自己也提到），不是标准时序图；引用数值（<code>0x06</code>、<code>0x02</code>、<code>0x03</code>、<code>0x12 0x34 0x56</code>）以帧为准。</li>
+<li><strong>片尾 47:38</strong>：「下一节讲 W25Q64 这个芯片」，没有点名工程编号；按课程顺序软件 SPI 代码在 [11-2]。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-37.html"><span class="label">下一篇</span>[11-2] W25Q64简介</a>
+    <a class="next" href="stm32-35.html"><span class="label">上一篇</span>[10-5] 硬件I2C读写MPU6050</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-spi-%E5%8D%8F%E8%AE%AE%E5%85%A8%E8%A7%A3-%E4%BB%A3%E7%A0%81%E5%9C%A8-11-2-11-3">0. 本集定位：理论课（SPI 协议全解），代码在 11-2/11-3</a>
+        <a class="level-2" href="#1-%E4%B8%8E-i2c-%E5%AF%B9%E6%AF%94-%E4%B8%A4%E7%A7%8D%E5%8D%8F%E8%AE%AE%E7%9A%84%E8%AE%BE%E8%AE%A1%E5%8F%96%E8%88%8D">1. 与 I2C 对比：两种协议的设计取舍</a>
+        <a class="level-2" href="#2-spi-%E7%AE%80%E4%BB%8B%E4%B8%8E%E5%BC%95%E8%84%9A%E5%90%AB%E4%B9%89">2. SPI 简介与引脚含义</a>
+        <a class="level-2" href="#3-%E5%B8%B8%E8%A7%81-spi-%E5%99%A8%E4%BB%B6">3. 常见 SPI 器件</a>
+        <a class="level-2" href="#4-%E7%A1%AC%E4%BB%B6%E7%94%B5%E8%B7%AF">4. 硬件电路</a>
+        <a class="level-3" href="#4-1-%E4%B8%89%E6%9D%A1%E8%A7%84%E5%AE%9A">4.1 三条规定</a>
+        <a class="level-3" href="#4-2-%E5%85%B3%E9%94%AE%E8%A7%84%E5%AE%9A-%E6%9C%AA%E9%80%89%E4%B8%AD%E4%BB%8E%E6%9C%BA%E7%9A%84-miso-%E5%BF%85%E9%A1%BB%E9%AB%98%E9%98%BB">4.2 关键规定：未选中从机的 MISO 必须高阻</a>
+        <a class="level-2" href="#5-%E7%A7%BB%E4%BD%8D%E7%A4%BA%E6%84%8F%E5%9B%BE%E4%B8%8E-%E5%AD%97%E8%8A%82%E4%BA%A4%E6%8D%A2">5. 移位示意图与「字节交换」</a>
+        <a class="level-2" href="#6-%E8%B5%B7%E5%A7%8B%E4%B8%8E%E7%BB%88%E6%AD%A2%E6%9D%A1%E4%BB%B6">6. 起始与终止条件</a>
+        <a class="level-2" href="#7-%E6%97%B6%E5%BA%8F%E5%9F%BA%E6%9C%AC%E5%8D%95%E5%85%83%E4%B8%8E-4-%E7%A7%8D%E6%A8%A1%E5%BC%8F">7. 时序基本单元与 4 种模式</a>
+        <a class="level-3" href="#7-1-%E4%B8%A4%E4%B8%AA%E9%85%8D%E7%BD%AE%E4%BD%8D-cpol-%E4%B8%8E-cpha">7.1 两个配置位：CPOL 与 CPHA</a>
+        <a class="level-3" href="#7-2-%E6%A8%A1%E5%BC%8F-0-%E6%9C%80%E5%B8%B8%E7%94%A8-%E6%9C%AC%E8%AF%BE%E7%A8%8B%E5%90%8E%E7%BB%AD%E5%85%A8%E9%83%A8%E7%94%A8%E5%AE%83">7.2 模式 0（最常用，本课程后续全部用它）</a>
+        <a class="level-3" href="#7-3-%E6%A8%A1%E5%BC%8F-1-%E5%AF%B9%E6%AF%94">7.3 模式 1（对比）</a>
+        <a class="level-3" href="#7-4-%E6%A8%A1%E5%BC%8F-2-%E6%A8%A1%E5%BC%8F-3">7.4 模式 2 / 模式 3</a>
+        <a class="level-2" href="#8-w25q64-%E7%9A%84%E6%8C%87%E4%BB%A4%E6%97%B6%E5%BA%8F-%E5%AE%9E%E6%B5%8B%E6%B3%A2%E5%BD%A2">8. W25Q64 的指令时序（实测波形）</a>
+        <a class="level-3" href="#8-1-0x06-%E5%86%99%E4%BD%BF%E8%83%BD-%E5%8D%95%E5%AD%97%E8%8A%82%E6%8C%87%E4%BB%A4">8.1 0x06：写使能（单字节指令）</a>
+        <a class="level-3" href="#8-2-0x02-%E9%A1%B5%E7%BC%96%E7%A8%8B-%E6%8C%87%E4%BB%A4-24-%E4%BD%8D%E5%9C%B0%E5%9D%80-%E6%95%B0%E6%8D%AE">8.2 0x02：页编程（指令 + 24 位地址 + 数据）</a>
+        <a class="level-3" href="#8-3-0x03-%E8%AF%BB%E6%95%B0%E6%8D%AE-%E6%8C%87%E4%BB%A4-24-%E4%BD%8D%E5%9C%B0%E5%9D%80-%E5%8D%A0%E4%BD%8D%E6%8D%A2%E6%95%B0%E6%8D%AE">8.3 0x03：读数据（指令 + 24 位地址 + 占位换数据）</a>
+        <a class="level-3" href="#8-4-%E6%8C%87%E4%BB%A4%E6%97%B6%E5%BA%8F%E7%9A%84%E5%85%B1%E5%90%8C%E6%A0%BC%E5%BC%8F">8.4 指令时序的共同格式</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

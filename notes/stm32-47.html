@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[14-2] 独立看门狗&amp;窗口看门狗 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [14-2]（代码课，两程序）：①14-1 独立看门狗（复制 OLED 工程）——RCC_ClearFlag 必调、IWDG 不必开 LSI、16 分频+SetReload(2499)=1000ms 推导、临界≈1000ms；②14-2 窗口看门狗（复制 14-1）——必须开 WWDG 时钟、Enable(0x40|54) 使能即首喂、窗口 0x40|21、喂早喂晚都复位。">
+  <meta property="og:title" content="[14-2] 独立看门狗&amp;窗口看门狗 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [14-2]（代码课，两程序）：①14-1 独立看门狗（复制 OLED 工程）——RCC_ClearFlag 必调、IWDG 不必开 LSI、16 分频+SetReload(2499)=1000ms 推导、临界≈1000ms；②14-2 窗口看门狗（复制 14-1）——必须开 WWDG 时钟、Enable(0x40|54) 使能即首喂、窗口 0x40|21、喂早喂晚都复位。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html" class="active" aria-current="page">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>31 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">IWDG</span><span class="tag">WWDG</span><span class="tag">看门狗</span><span class="tag">代码</span>
+    </div>
+    <article class="prose"><h1>[14-2] 独立看门狗&amp;窗口看门狗 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=47，31:59（1919 秒）</li>
+<li>素材：240 帧关键帧（<strong>每 8 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>731 段（采集端计 695 段）</strong>）；关键截图 18 张随笔记收录（源图在 <code>vidsum_out/stm32_p47/frames/</code>，站内图片在 <code>assets/images/stm32-47/</code>）</li>
+<li>字幕情况：本集<strong>字幕自动探测失败</strong>（探测条带落在画面底部黑边，只得到 15 段噪声），采集端已用强制条带（1080p 下 y≈940～1010）重跑得到 <strong>731 段（采集端计 695 段）</strong>；文本中错字主要是 <strong><code>看门狗</code> → 「者门狗」</strong>（5 处）与 Keil 路径行的 <code>Proect</code>/<code>obects</code>/<code>ecta</code>——已按画面/上下文校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：<strong>代码课</strong>——承接上一集理论，<strong>两个程序</strong>从「复制现成工程 → 逐段写码 → 下载验证 → 实测临界值」全流程走完；结尾 31:57「看门狗的知识点到这里也就结束了，那我们下节再见」，<strong>无下节主题预告</strong>。</li>
+<li><strong>⚠ 两个工程的复制来源不同（勿混）</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>程序</th>
+<th>复制来源</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>14-1 独立看门狗</code></strong></td>
+<td><strong>复制 OLED 显示屏工程</strong></td>
+</tr>
+<tr>
+<td><strong><code>14-2 窗口看门狗</code></strong></td>
+<td><strong>复制 <code>14-1 独立看门狗</code> 工程</strong>（不是 OLED 工程）</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>接线</strong>：OLED（I2C）+ <strong>PB1 按键</strong>——在之前 OLED 工程接线基础上<strong>只多一个按键</strong>，非常简单。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>程序① <code>14-1 独立看门狗</code>（复制 OLED 工程）</strong>：先写<strong>复位源判断</strong>——<code>OLED_ShowString(1, 1, &quot;IWDG TEST&quot;)</code>，然后 <strong><code>if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) == SET)</code></strong>：是看门狗复位就在第 2 行闪 <code>IWDG RST</code> 并<strong>必须调用 <code>RCC_ClearFlag()</code> 清除标志</strong>；否则在第 3 行闪 <code>RST</code>。<strong>这是作者反复强调的坑</strong>：实测<strong>即使按下复位键，这个标志位也不会自动清 0</strong>，不清的话下次复位还会被误判成看门狗复位，<strong>现象就错了</strong>。<strong>IWDG 初始化（四步）</strong>：<strong>① <code>IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable)</code></strong>（内部向键寄存器写 <strong>0x5555</strong>，解除 PR/RLR 写保护）→ <strong>② <code>IWDG_SetPrescaler(IWDG_Prescaler_16)</code></strong>（写 PR，16 分频）→ <strong>③ <code>IWDG_SetReload(2499)</code> //1000ms</strong>（写 RLR）→ <strong>④ <code>IWDG_ReloadCounter()</code></strong>（向 KR 写 <strong>0xAAAA</strong>，启动前先喂一次）→ <strong>⑤ <code>IWDG_Enable()</code></strong>（向 KR 写 <strong>0xCCCC</strong>，启动看门狗）——之后<strong>主循环里不断 <code>IWDG_ReloadCounter()</code> 喂狗</strong>。<strong>最反直觉的一点：IWDG 不需要手动开 LSI 时钟</strong>——手册 <strong>6.2.9 看门狗时钟</strong>明确写「<strong>如果独立看门狗已经由硬件选项或软件启动，LSI 振荡器将被强制打开</strong>」，所以配置流程里「开 LSI」这一步<strong>一行代码都不用写</strong>（对照 PPT 框图从左到右：开 LSI→解保护→写 PR/RLR→启动→喂狗）。<strong><code>IWDG_SetReload(2499)</code> 的完整来历</strong>：目标超时 <strong>1000ms</strong>，公式 <code>T = 0.025ms × PR系数 × (RL+1)</code>；<strong>表83 前两档不够</strong>——/4 最长 409.6ms、/8 最长 819.2ms，<strong>都不到 1000ms 必须剔除</strong>（PPT 上被打了红叉）；<strong>/16 及以后都可选，优先选小的预分频系数</strong>——因为<strong>可以更充分地利用 12 位计数值、减小 RL 取整带来的误差</strong>；选 <strong>16 分频</strong> → <code>RL = 1000 / 0.025 / 16 − 1 = 2500 − 1 = 2499</code>（<strong>正好整除，无取整误差</strong>）→ 代码 <code>IWDG_SetPrescaler(IWDG_Prescaler_16); IWDG_SetReload(2499); //1000ms</code>。<strong>现象与临界实测</strong>：编译下载后<strong>只有第一次上电那一下是正常复位，之后不再复位</strong>（喂狗满足要求）；把喂狗间隔改大后就会<strong>不断显示 IWDG 复位</strong>；<strong>实测临界时间≈1000ms</strong>——间隔 <strong>1000ms 不复位、1010ms 就复位</strong>（LSI 本身有误差、代码执行也耗时），所以<strong>实际使用要留出时间余量，不要卡得这么死</strong>。<strong>完善程序</strong>：引入 <code>Key.h</code> / <code>Key_Init()</code>，主循环加 <code>Key_GetNum()</code>（<strong>阻塞式</strong>，按住按键不放程序就卡在这里）<strong>模拟程序卡死</strong>，再加 <code>FEED</code> 闪烁 + <code>Delay_ms(200)</code> + <code>Delay_ms(600)</code> → <strong>主循环约 800 多 ms，余量约 200ms</strong>；现象：正常时不断闪 <code>FEED</code>，<strong>按住 PB1 不放 → 看门狗复位</strong>。<strong>程序② <code>14-2 窗口看门狗</code>（复制 <code>14-1</code> 工程）</strong>：代码结构与 <code>14-1</code> 差不多，直接改——复位标志换成 <strong><code>RCC_FLAG_WWDGRST</code></strong>、显示字符串换掉。<strong><code>stm32f10x_wwdg.h</code> 共 8 个函数</strong>：<code>WWDG_DeInit</code>、<code>WWDG_SetPrescaler</code>、<code>WWDG_SetWindowValue</code>、<code>WWDG_EnableIT</code>（<strong>无参数</strong>）、<strong><code>WWDG_SetCounter(uint8_t Counter)</code></strong>（喂狗）、<strong><code>WWDG_Enable(uint8_t Counter)</code></strong>（<strong>带参数</strong>）、<code>WWDG_GetFlagStatus</code>、<code>WWDG_ClearFlag</code>。<strong><code>WWDG_Enable</code> 为什么必须带参数</strong>：手册 18.3 说递减计数器是<strong>自由运行</strong>的——使能瞬间计数值可能是任意值，<strong>很可能使能瞬间就产生复位</strong>，所以这个函数必须<strong>同时把计数器值写进去（＝使能 + 首次喂狗）</strong>；而 <code>IWDG_Enable()</code> 是无参的。<strong>配置流程（对照 WWDG 框图）</strong>：<strong>① 开启 PCLK1 时钟</strong> —— <strong><code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE)</code></strong>（<strong>不像 IWDG 会自动开，WWDG 必须手动开</strong>）→ <strong>② 配预分频与窗口值</strong> <code>WWDG_SetPrescaler(WWDG_Prescaler_8)</code>、<code>WWDG_SetWindowValue(0x40 | 21)</code>（<strong>WWDG 没有写保护，可以直接写</strong>）→ <strong>③ 写 CR 使能并首喂</strong> <strong><code>WWDG_Enable(0x40 | 54)</code></strong>（<strong>使能位 + T6 + 计数器值一起写</strong>）→ <strong>④ 主循环直接写计数器喂狗</strong> <code>WWDG_SetCounter(0x40 | 54)</code>。<strong>参数完整推导（超时 50ms + 窗口 30ms）</strong>：①<strong>只能选 WDGTB＝3（8 分频）</strong>——手册表里前三档最大只有 29.12ms（0:7.28ms、1:14.56ms、2:29.12ms），<strong>WWDG 上限是 58.25ms</strong>（除非改 PCLK1，不推荐）；②<code>50ms ÷ (1/36MHz) ÷ 4096 ÷ 8 = 54.9 → 取整 55</code> → <strong><code>T[5:0] + 1 = 55</code> → <code>T[5:0] = 54</code></strong>；③<code>30ms ÷ (1/36MHz) ÷ 4096 ÷ 8 = 32.9 → 取整 33</code> → <strong><code>T[5:0] − W[5:0] = 33</code> → <code>W[5:0] = 54 − 33 = 21</code></strong>；④<strong>T6 必须置 1</strong>：用 <strong><code>0x40 | 54</code></strong>、<strong><code>0x40 | 21</code></strong>（54 未触及次高位，<code>|</code> 与 <code>+</code> 等效）→ 代码 <code>WWDG_SetWindowValue(0x40 | 21); //30ms</code>、<code>WWDG_Enable(0x40 | 54); //50ms</code>。<strong>库内部对 CR 的操作</strong>：<code>WWDG_Enable</code> 里是 <strong><code>CR |= CR_WDGA_Set</code></strong>（<strong>0x80</strong>，最高位置 1），<code>WWDG_SetCounter</code> 里是 <strong><code>CR = Counter &amp; BIT_Mask</code></strong>（<strong>0x7F</strong>，最高位清 0）。<strong>疑问解答</strong>：喂狗时把使能位（WDGA）写 0 会不会顺手关掉看门狗？<strong>不会</strong>——<strong>看门狗开启后无法关闭</strong>，写 0 无效，所以 <code>WWDG_SetCounter</code> <strong>不需要「读-改-写」</strong>。<strong>「读-改-写」三步法</strong>顺带讲到：①读寄存器到临时变量 ②用 <code>|=</code> / <code>&amp;=</code> 只改指定位 ③写回；好处是<strong>只改某几位不影响其他位、连续改多次效率高、最终一起生效</strong>（<code>WWDG_SetPrescaler</code> 就是这样写的）。<strong>两个大坑</strong>：<strong>①使能后立刻又喂第二次 → 死循环复位</strong>——因为 <code>WWDG_Enable</code> 时已经喂过一次，若主循环第一句紧接着又喂，<strong>两次间隔 &lt; 30ms（窗口下界）→ 立即复位</strong>；<strong>修改：先延时 40ms 再喂</strong>（Delay 各 20ms），或加「首次/非首次」标志位判断。<strong>②喂狗太快、太慢都会复位</strong>——这正是窗口看门狗与独立看门狗的核心区别。<strong>实测验证</strong>：Delay 改 <strong>30ms → 不停复位</strong>；改 <strong>31ms → 不复位</strong>（窗口下界≈30ms ✓）；<strong>超时改 49ms → 不复位</strong>（上界≈50ms ✓）。</p>
+<h2 id="0-本集定位-代码课-两程序从复制工程写到实测临界值">0. 本集定位：代码课（两程序从复制工程写到实测临界值）</h2>
+<ul>
+<li><code>14-1</code> 复制 <strong>OLED 显示屏工程</strong>、<code>14-2</code> 复制 <strong><code>14-1</code></strong> 工程——<strong>两个来源不同</strong>；</li>
+<li>两个程序都是「逐段写码 + 下载 + 实测」的教学节奏，结尾无下节预告。</li>
+</ul>
+<h2 id="1-接线与工程准备">1. 接线与工程准备</h2>
+<ul>
+<li><strong>接线</strong>：OLED（I2C，老演员）+ <strong>PB1 按键</strong>；两个看门狗程序的接线<strong>完全一样、都非常简单</strong>（就是 OLED 工程接线 + 一个按键）；</li>
+<li>面包板接线已事先接好（右下角 OLED、PB1 接按键）；</li>
+<li><strong><code>14-1</code> 工程</strong>：复制 <strong>OLED 显示屏工程</strong> → 改名 <code>14-1 独立看门狗</code> → 删掉多余内容 → 编译。</li>
+</ul>
+<p><img src="../assets/images/stm32-47/01-wiring.jpg" alt="图 1：接线图 14-1 独立看门狗——STM32 最小系统板 + ST-Link + OLED 显示屏（I2C）+ PB1 处的按键（红色接插件）；右下角注明 *此图为OLED下方被遮挡的接线图；字幕「这两个看门狗代码的接线都非常简单」"></p>
+<p><em>图 1：接线图 <code>14-1 独立看门狗</code>——STM32 最小系统板 + ST-Link + OLED 显示屏（I2C）+ <strong>PB1 处的按键</strong>（红色接插件）；右下角注明 <code>*此图为OLED下方被遮挡的接线图</code>；字幕「这两个看门狗代码的接线都非常简单」</em></p>
+<h2 id="2-程序1-14-1-独立看门狗">2. 程序①：<code>14-1 独立看门狗</code></h2>
+<h3 id="2-1-配置流程-对照-ppt-框图">2.1 配置流程（对照 PPT 框图）</h3>
+<p>从左到右：<strong>① 开启 LSI 时钟</strong>（<strong>这一步不用写代码</strong>）→ <strong>② 解除写保护</strong>（键寄存器写 0x5555）→ <strong>③ 写入预分频和重装值</strong> → <strong>④ 启动独立看门狗</strong> → <strong>⑤ 主循环不断喂狗</strong>。</p>
+<ul>
+<li><strong>为什么开 LSI 不用写代码</strong>：手册 <strong>6.2.9 看门狗时钟</strong>（在 6.3 章里，位置比较深）明确写「<strong>如果独立看门狗已经由硬件选项或软件启动，LSI 振荡器将被强制打开</strong>」——启动 IWDG 时 LSI 会被硬件自动强制打开；</li>
+<li><strong>对照 PPT 的 IWDG 键寄存器表</strong>：<code>0xCCCC</code> 启用独立看门狗、<code>0xAAAA</code> 喂狗（把 RLR 重新加载到计数器）、<code>0x5555</code> 解除 IWDG_PR/IWDG_RLR 写保护、<strong>其他值启用写保护</strong>。</li>
+</ul>
+<h3 id="2-2-库函数与宏">2.2 库函数与宏</h3>
+<p><strong><code>stm32f10x_iwdg.h</code> 共 6 个函数</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>IWDG_WriteAccessCmd</code></strong></td>
+<td>写键寄存器：<code>IWDG_WriteAccess_Enable</code>（<strong>0x5555</strong> 解保护）/ <code>_Disable</code>（<strong>0x0000</strong> 启用保护）</td>
+</tr>
+<tr>
+<td><strong><code>IWDG_SetPrescaler</code></strong></td>
+<td>写 <strong>PR</strong>：<code>IWDG_Prescaler_4/8/16/32</code> = <strong>0x00/0x01/0x02/0x03</strong></td>
+</tr>
+<tr>
+<td><strong><code>IWDG_SetReload</code></strong></td>
+<td>写 <strong>RLR</strong>（12 位重装值）</td>
+</tr>
+<tr>
+<td><strong><code>IWDG_ReloadCounter</code></strong></td>
+<td>向键寄存器写 <strong>0xAAAA</strong>（喂狗）</td>
+</tr>
+<tr>
+<td><strong><code>IWDG_Enable</code></strong></td>
+<td>向键寄存器写 <strong>0xCCCC</strong>（启动）</td>
+</tr>
+<tr>
+<td><code>IWDG_GetFlagStatus</code></td>
+<td>读状态标志</td>
+</tr>
+</tbody></table>
+<p><strong>复位源判断用到 <code>rcc.h</code> 的 <code>RCC_GetFlagStatus</code></strong>，它的参数分两类：</p>
+<table>
+<thead>
+<tr>
+<th>类别</th>
+<th>参数</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>时钟 Ready 类</strong>（判断时钟好了没）</td>
+<td><code>RCC_FLAG_HSIRDY</code> / <code>HSERDY</code> / <code>PLLRDY</code> / <code>LSERDY</code> / <code>LSIRDY</code>（RTC 那节用过）</td>
+</tr>
+<tr>
+<td><strong>Reset 类</strong>（判断复位来源）</td>
+<td><code>RCC_FLAG_PINRST</code>（引脚复位）/ <code>PORRST</code>（POR/PDR 复位）/ <code>SFTRST</code>（软件复位）/ <strong><code>IWDGRST</code>（独立看门狗复位）</strong> / <strong><code>WWDGRST</code>（窗口看门狗复位）</strong> / <code>LPWRRST</code>（低功耗复位）</td>
+</tr>
+</tbody></table>
+<ul>
+<li>配套 <strong><code>RCC_ClearFlag()</code></strong>（<strong>无参数</strong>）清除标志。</li>
+</ul>
+<h3 id="2-3-复位源判断-含必写的坑">2.3 复位源判断（含必写的坑）</h3>
+<pre><code class="language-c">OLED_Init();
+OLED_ShowString(1, 1, &quot;IWDG TEST&quot;);
+
+if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) == SET)   /* 是看门狗复位？ */
+{
+    OLED_ShowString(2, 1, &quot;IWDGRST&quot;);
+    Delay_ms(500);
+    OLED_ShowString(2, 1, &quot;       &quot;);
+    Delay_ms(100);
+
+    RCC_ClearFlag();          /* 必须清！否则下次复位仍误判 */
+}
+else
+{
+    OLED_ShowString(3, 1, &quot;RST&quot;);
+    Delay_ms(500);
+    OLED_ShowString(3, 1, &quot;   &quot;);
+    Delay_ms(100);
+}
+</code></pre>
+<ul>
+<li><strong>坑（必须写）</strong>：<strong><code>RCC_ClearFlag()</code> 一定要调用</strong>——实测<strong>即使按下复位键，这个标志位也不会自动清 0</strong>；不清的话，下一次复位仍会被判成「看门狗复位」，<strong>实验现象就错了</strong>。</li>
+</ul>
+<h3 id="2-4-初始化四步与参数推导">2.4 初始化四步与参数推导</h3>
+<pre><code class="language-c">IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);   /* ① 解除 PR/RLR 写保护（KR=0x5555） */
+IWDG_SetPrescaler(IWDG_Prescaler_16);           /* ② 16 分频 */
+IWDG_SetReload(2499);                           /* ③ 重装值 → 1000ms */
+IWDG_ReloadCounter();                           /* ④ 启动前先喂一次（KR=0xAAAA） */
+IWDG_Enable();                                  /* ⑤ 启动（KR=0xCCCC） */
+</code></pre>
+<ul>
+<li><strong>写完 PR/RLR 不需要手动恢复写保护</strong>：后续写 KR 的其他值（如 0xAAAA/0xCCCC）<strong>会自动重新启用保护</strong>；</li>
+<li><strong>参数推导（目标 1000ms）</strong>：公式 <code>T = 0.025ms × PR系数 × (RL + 1)</code>；<ul>
+<li><strong>表83 前两档不够 1000ms</strong>：/4 最长 <strong>409.6ms</strong>、/8 最长 <strong>819.2ms</strong> → <strong>必须剔除</strong>（PPT 上打了红叉）；</li>
+<li><strong>/16 及以后都够，优先选小的预分频系数</strong>——能<strong>更充分利用 12 位计数值、减小 RL 取整误差</strong>；</li>
+<li>选 <strong>16 分频</strong> → <code>RL = 1000 / 0.025 / 16 − 1 = 2500 − 1 = 2499</code>（<strong>正好整除，无取整误差</strong>）；</li>
+</ul>
+</li>
+<li>最终：<strong><code>IWDG_SetPrescaler(IWDG_Prescaler_16); IWDG_SetReload(2499); //1000ms</code></strong>。</li>
+</ul>
+<h3 id="2-5-主循环喂狗-现象与临界实测">2.5 主循环喂狗、现象与临界实测</h3>
+<pre><code class="language-c">while (1)
+{
+    Key_GetNum();              /* 阻塞式：按住 PA1/PB1 按键不放，程序就卡在这里 */
+    IWDG_ReloadCounter();      /* 喂狗 */
+
+    OLED_ShowString(4, 1, &quot;FEED&quot;);
+    Delay_ms(200);
+    OLED_ShowString(4, 1, &quot;    &quot;);
+    Delay_ms(600);
+}
+</code></pre>
+<ul>
+<li><strong>现象</strong>：编译下载后<strong>只有第一次上电是正常复位，之后不再复位</strong>（喂狗满足要求）；把喂狗间隔改大后 → <strong>不断显示 IWDG 复位</strong>；</li>
+<li><strong>临界实测</strong>：喂狗间隔 <strong>1000ms 不复位、1010ms 就复位</strong> → <strong>临界≈1000ms</strong>（LSI 本身有误差、代码执行也占时间）——所以<strong>实际项目要留时间余量，别卡这么死</strong>；</li>
+<li><strong>完善版</strong>：主循环加 <code>Key_GetNum()</code>（<strong>阻塞式</strong>，按住按键不放就卡死）<strong>模拟程序卡死</strong>；<code>FEED</code> 闪烁 + 200ms + 600ms → <strong>主循环约 800ms 多，余量约 200ms</strong>；</li>
+<li><strong>演示效果</strong>：正常情况下 <code>FEED</code> 不断闪烁；<strong>按住 PB1 不放 → 程序卡在按键函数 → 不再喂狗 → 看门狗复位</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-47/02-iwdg-key-table.jpg" alt="图 2：PPT「IWDG键寄存器」表格——键寄存器本质上是控制寄存器；在可能存在干扰的情况下，一般通过在整个键寄存器写入特定值来代替控制寄存器写入一位的功能，以降低受干扰概率；表格：0xCCCC 启用独立看门狗、0xAAAA IWDG_RLR 中的值重新加载到计数器（喂狗）、0x5555 解除 IWDG_PR 和 IWDG_RLR 的写保护、0x5555 之外的其他值启用写保护；字幕「就是解除写保护」"></p>
+<p>*图 2：PPT「IWDG键寄存器」表格——键寄存器本质上是控制寄存器；<strong>在可能存在干扰的情况下，一般通过在整个键寄存器写入特定值来代替控制寄存器写入一位的功能</strong>，以降低受干扰概率；表格：<strong>0xCCCC 启用独立看门狗</strong>、<strong>0xAAAA IWDG_RLR 中的值重新加载到计数器（喂狗）</strong>、<strong>0x5555 解除 IWDG_PR 和 IWDG_RLR 的写保护</strong>、<strong>0x5555 之外的其他值启用写保护</strong>；字幕「就是解除写保护」*</p>
+<p><img src="../assets/images/stm32-47/03-iwdg-h-macros.jpg" alt="图 3：stm32f10x_iwdg.h 的宏定义——`#define IWDG_WriteAccess_Enable ((uint16_t)0x5555)`、`#define IWDG_WriteAccess_Disable ((uint16_t)0x0000)`（高亮）、IS_IWDG_WRITE_ACCESS(ACCESS)；#define IWDG_Prescaler_4 ((uint8_t)0x00)、_8 (0x01)、`_16 (0x02)`、_32 (0x03)；字幕「所以这里第一个函数，我们就清楚了」"></p>
+<p><em>图 3：<code>stm32f10x_iwdg.h</code> 的宏定义——<strong><code>#define IWDG_WriteAccess_Enable ((uint16_t)0x5555)</code></strong>、<strong><code>#define IWDG_WriteAccess_Disable ((uint16_t)0x0000)</code></strong>（高亮）、<code>IS_IWDG_WRITE_ACCESS(ACCESS)</code>；<code>#define IWDG_Prescaler_4 ((uint8_t)0x00)</code>、<code>_8 (0x01)</code>、<strong><code>_16 (0x02)</code></strong>、<code>_32 (0x03)</code>；字幕「所以这里第一个函数，我们就清楚了」</em></p>
+<p><img src="../assets/images/stm32-47/04-rcc-flag-table.jpg" alt="图 4：stm32f10x_rcc.c 里 RCC_GetFlagStatus 的参数注释——Reset 类：RCC_FLAG_IWDGRST（Independent Watchdog reset）、RCC_FLAG_WWDGRST（Window Watchdog reset）、RCC_FLAG_LPWRRST（Low Power reset）、PINRST/PORRST/SFTRST；时钟 Ready 类（蓝框高亮）：RCC_FLAG_HSIRDY/HSERDY/PLLRDY/LSERDY/LSIRDY；字幕「就是判断时钟是不是准备好了」"></p>
+<p><em>图 4：<code>stm32f10x_rcc.c</code> 里 <code>RCC_GetFlagStatus</code> 的参数注释——<strong>Reset 类</strong>：<code>RCC_FLAG_IWDGRST</code>（Independent Watchdog reset）、<code>RCC_FLAG_WWDGRST</code>（Window Watchdog reset）、<code>RCC_FLAG_LPWRRST</code>（Low Power reset）、<code>PINRST</code>/<code>PORRST</code>/<code>SFTRST</code>；<strong>时钟 Ready 类</strong>（蓝框高亮）：<code>RCC_FLAG_HSIRDY</code>/<code>HSERDY</code>/<code>PLLRDY</code>/<code>LSERDY</code>/<code>LSIRDY</code>；字幕「就是判断时钟是不是准备好了」</em></p>
+<p><img src="../assets/images/stm32-47/05-rst-judge.jpg" alt="图 5：14-1 main.c 的复位源判断框架——OLED_Init();、OLED_ShowString(1, 1, &quot;IWDG TEST&quot;);、if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) == SET) { OLED_ShowString(2,1,&quot;IWDGRST&quot;); Delay_ms(500); … Delay_ms(100); **RCC_ClearFlag();** } else { OLED_ShowString(3,1,&quot;RST&quot;); Delay_ms(500); … Delay_ms(100); } while (1)；字幕「编译」"></p>
+<p><em>图 5：<code>14-1</code> main.c 的复位源判断框架——<code>OLED_Init();</code>、<code>OLED_ShowString(1, 1, &quot;IWDG TEST&quot;);</code>、<code>if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) == SET) { OLED_ShowString(2,1,&quot;IWDGRST&quot;); Delay_ms(500); … Delay_ms(100); **RCC_ClearFlag();** } else { OLED_ShowString(3,1,&quot;RST&quot;); Delay_ms(500); … Delay_ms(100); } while (1)</code>；字幕「编译」</em></p>
+<p><img src="../assets/images/stm32-47/06-iwdg-timeout-marked.jpg" alt="图 6：PPT「IWDG超时时间」+ 表83 红笔推导——红笔写 1000ms、0.025ms；圈出 PR预分频系数 与 （RL + 1）；表83 前两行 /4、/8 被打红叉（最长 409.6ms、819.2ms 不够 1000ms），/16 及以后红圈可选；字幕「这时，如果预分频小，时钟快」"></p>
+<p><em>图 6：PPT「IWDG超时时间」+ 表83 红笔推导——红笔写 <strong>1000ms</strong>、<strong>0.025ms</strong>；圈出 <strong>PR预分频系数</strong> 与 <strong>（RL + 1）</strong>；<strong>表83 前两行 /4、/8 被打红叉</strong>（最长 409.6ms、819.2ms 不够 1000ms），<strong>/16 及以后红圈可选</strong>；字幕「这时，如果预分频小，时钟快」</em></p>
+<p><img src="../assets/images/stm32-47/07-iwdg-2499.jpg" alt="图 7：14-1 main.c 最终初始化参数——IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);、IWDG_SetPrescaler(IWDG_Prescaler_16);、`IWDG_SetReload(2499); //1000ms`（高亮）；字幕「这样超时时间就确定好了，是1000ms」"></p>
+<p><em>图 7：<code>14-1</code> main.c 最终初始化参数——<code>IWDG_WriteAccessCmd(IWDG_WriteAccess_Enable);</code>、<code>IWDG_SetPrescaler(IWDG_Prescaler_16);</code>、<strong><code>IWDG_SetReload(2499); //1000ms</code></strong>（高亮）；字幕「这样超时时间就确定好了，是1000ms」</em></p>
+<p><img src="../assets/images/stm32-47/08-iwdg-full-code.jpg" alt="图 8：14-1 完整代码（临界测试版）——四步初始化 IWDG_WriteAccessCmd(Enable)、IWDG_SetPrescaler(IWDG_Prescaler_16)、IWDG_SetReload(2499); //1000ms、IWDG_ReloadCounter()、IWDG_Enable()；主循环 while (1) { Key_GetNum(); IWDG_ReloadCounter(); Delay_ms(1010); }（1010ms 用于测临界）；字幕「然后下面再来个闪烁字符串」"></p>
+<p><em>图 8：<code>14-1</code> 完整代码（临界测试版）——四步初始化 <code>IWDG_WriteAccessCmd(Enable)</code>、<code>IWDG_SetPrescaler(IWDG_Prescaler_16)</code>、<code>IWDG_SetReload(2499); //1000ms</code>、<code>IWDG_ReloadCounter()</code>、<code>IWDG_Enable()</code>；主循环 <code>while (1) { Key_GetNum(); IWDG_ReloadCounter(); Delay_ms(1010); }</code>（<strong>1010ms 用于测临界</strong>）；字幕「然后下面再来个闪烁字符串」</em></p>
+<h2 id="3-程序2-14-2-窗口看门狗">3. 程序②：<code>14-2 窗口看门狗</code></h2>
+<h3 id="3-1-复制来源与工程切换">3.1 复制来源与工程切换</h3>
+<ul>
+<li><strong>复制 <code>14-1 独立看门狗</code> 工程</strong> → 改名 <strong><code>14-2 窗口看门狗</code></strong>（<strong>不是从 OLED 工程复制</strong>）；</li>
+<li>两个看门狗代码结构差不多，直接在这个工程上改：<strong>复位标志换成 <code>RCC_FLAG_WWDGRST</code>、显示字符串换掉</strong>。</li>
+</ul>
+<h3 id="3-2-stm32f10x-wwdg-h-的-8-个函数">3.2 <code>stm32f10x_wwdg.h</code> 的 8 个函数</h3>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>WWDG_DeInit(void)</code></td>
+<td>恢复缺省配置</td>
+</tr>
+<tr>
+<td><strong><code>WWDG_SetPrescaler(uint32_t)</code></strong></td>
+<td>写预分频（WDGTB[1:0]）</td>
+</tr>
+<tr>
+<td><strong><code>WWDG_SetWindowValue(uint8_t WindowValue)</code></strong></td>
+<td>写窗口值（W[6:0]，<strong>参数必须 &lt; 0x80</strong>）</td>
+</tr>
+<tr>
+<td><code>WWDG_EnableIT(void)</code></td>
+<td><strong>无参数</strong>，使能早期唤醒中断（EWI）</td>
+</tr>
+<tr>
+<td><strong><code>WWDG_SetCounter(uint8_t Counter)</code></strong></td>
+<td><strong>喂狗</strong>：直接写计数器</td>
+</tr>
+<tr>
+<td><strong><code>WWDG_Enable(uint8_t Counter)</code></strong></td>
+<td><strong>带参数</strong>：<strong>使能 + 首次喂狗</strong></td>
+</tr>
+<tr>
+<td><code>WWDG_GetFlagStatus</code> / <code>WWDG_ClearFlag</code></td>
+<td>标志位</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>为什么 <code>WWDG_Enable</code> 要带参数</strong>：手册 <strong>18.3</strong> 说递减计数器是<strong>自由运行</strong>的——<strong>使能时计数值可能是任意值</strong>，若刚使能时计数值已经低于 0x40（或高于窗口），<strong>使能瞬间就会产生复位</strong>，所以这个函数必须<strong>同时把计数器值写进去</strong>；</li>
+<li>对照手册 18.3 原文：「<strong>如果看门狗被启动（WWDG_CR 寄存器中的 WDGA 位被置 1），并且当 7 位（T[6:0]）递减计数器从 0x40 翻转到 0x3F（T6 位清零）时，则产生一个复位</strong>；<strong>如果软件在计数器值大于窗口寄存器中的数值时重新装载计数器，将产生一个复位</strong>」。</li>
+</ul>
+<h3 id="3-3-配置流程与参数推导">3.3 配置流程与参数推导</h3>
+<pre><code class="language-c">/* ① 必须手动开启 WWDG 的 APB1（PCLK1）时钟 */
+RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE);
+
+/* ② 配预分频与窗口值（WWDG 没有写保护，可直接写） */
+WWDG_SetPrescaler(WWDG_Prescaler_8);      /* WDGTB = 3 → 8 分频 */
+WWDG_SetWindowValue(0x40 | 21);           /* //30ms  窗口值 W[5:0] = 21 */
+
+/* ③ 使能 + 首次喂狗（T6 必须置 1） */
+WWDG_Enable(0x40 | 54);                   /* //50ms  T[5:0] = 54 */
+</code></pre>
+<ul>
+<li><strong>① 开时钟</strong>：<strong>WWDG 挂在 APB1（PCLK1）上、不像 IWDG 那样会被硬件自动开</strong>，所以<strong>必须手动 <code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE)</code></strong>；</li>
+<li><strong>参数推导（目标：超时 50ms、窗口 30ms）</strong>：<ol>
+<li><strong>超时 50ms → 只能选 WDGTB＝3（8 分频）</strong>：手册表前三档最大只有 <strong>7.28 / 14.56 / 29.12ms</strong>，<strong>都不够 50ms</strong>；WDGTB＝3 最大 <strong>58.25ms</strong>——<strong>WWDG 的超时上限就是 58.25ms</strong>（除非改 PCLK1，不推荐）；</li>
+<li><strong>超时</strong>：<code>50ms ÷ (1/36MHz) ÷ 4096 ÷ 8 = 54.9 → 取整 55</code> → 因为公式用 <strong><code>(T[5:0]+1)</code></strong>，所以 <strong><code>T[5:0] = 55 − 1 = 54</code></strong>；</li>
+<li><strong>窗口</strong>：<code>30ms ÷ (1/36MHz) ÷ 4096 ÷ 8 = 32.9 → 取整 33</code> → <code>T[5:0] − W[5:0] = 33</code> → <strong><code>W[5:0] = 54 − 33 = 21</code></strong>；</li>
+<li><strong>T6 必须置 1</strong>：所以最终写 <strong><code>0x40 | 54</code></strong> 与 <strong><code>0x40 | 21</code></strong>（54 与 21 都没触及次高位，<code>|</code> 与 <code>+</code> 等效）。</li>
+</ol>
+</li>
+</ul>
+<h3 id="3-4-库内部对-cr-的操作与-读-改-写">3.4 库内部对 CR 的操作与「读-改-写」</h3>
+<ul>
+<li><strong><code>WWDG_Enable</code></strong>：<code>CR |= CR_WDGA_Set</code>（<strong>0x80</strong>，最高位置 1）；</li>
+<li><strong><code>WWDG_SetCounter</code></strong>：<code>CR = Counter &amp; BIT_Mask</code>（<strong>0x7F</strong>，最高位清 0）；</li>
+<li><strong>疑问</strong>：喂狗会把使能位（WDGA）写 0，会不会顺手把看门狗关掉？<strong>不会</strong>——<strong>看门狗开启后无法关闭，写 0 无效</strong>；所以 <code>WWDG_SetCounter</code> <strong>不需要「读-改-写」</strong>；</li>
+<li><strong>「读-改-写」三步法</strong>（以 <code>WWDG_SetPrescaler</code> 为例）：①<code>tmpreg = WWDG-&gt;CFR &amp; CFR_WDGTB_Mask;</code>（读出并清掉 WDGTB[1:0]）②<code>tmpreg |= WWDG_Prescaler;</code>（只改这两位）③<code>WWDG-&gt;CFR = tmpreg;</code>（写回）；<ul>
+<li><strong>好处</strong>：<strong>只改指定几位、不影响其他位</strong>；连续改多次效率高；最终改动<strong>同时生效</strong>。</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-5-两个大坑与实测验证">3.5 两个大坑与实测验证</h3>
+<p><strong>坑①：使能后立刻再喂第二次 → 死循环复位</strong></p>
+<pre><code class="language-c">/* ✗ 踩坑版：喂狗在循环开头，紧贴 WWDG_Enable 之后 */
+WWDG_Enable(0x40 | 54);
+while (1)
+{
+    Key_GetNum();
+    WWDG_SetCounter(0x40 | 54);     /* ← 距上次「使能时喂狗」不到 30ms → 复位 */
+    OLED_ShowString(4, 1, &quot;FEED&quot;);
+    Delay_ms(20);
+    OLED_ShowString(4, 1, &quot;    &quot;);
+    Delay_ms(20);
+}
+</code></pre>
+<ul>
+<li><strong>原因</strong>：<code>WWDG_Enable</code> 已经喂过一次，主循环第一句紧接着又喂，<strong>两次间隔 &lt; 窗口下界 30ms</strong> → <strong>判为「喂太早」→ 复位</strong>，于是反复复位（看起来像死循环）；</li>
+<li><strong>修法 A</strong>：<strong>调整顺序，先延时 40ms 再喂</strong>（把喂狗移到两次 <code>Delay_ms(20)</code> 之后）：</li>
+</ul>
+<pre><code class="language-c">/* ✓ 修复版：喂狗在延时之后 */
+while (1)
+{
+    Key_GetNum();
+
+    OLED_ShowString(4, 1, &quot;FEED&quot;);
+    Delay_ms(20);
+    OLED_ShowString(4, 1, &quot;    &quot;);
+    Delay_ms(20);                    /* 累计 40ms 左右，进入允许窗口 */
+
+    WWDG_SetCounter(0x40 | 54);      /* 现在喂狗才合法 */
+}
+</code></pre>
+<ul>
+<li><strong>修法 B</strong>：加「首次/非首次」标志位判断，首次不喂、后续正常喂。</li>
+</ul>
+<p><strong>坑②：喂狗太快、太慢都会复位</strong>——这正是窗口看门狗与独立看门狗的核心区别（IWDG 只要不超时就行；WWDG 还要<strong>不能太早</strong>）。</p>
+<p><strong>实测验证</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>测试</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Delay 改 <strong>30ms</strong></td>
+<td><strong>不停复位</strong>（喂太早，落在窗口下界以下）</td>
+</tr>
+<tr>
+<td>Delay 改 <strong>31ms</strong></td>
+<td><strong>不复位</strong>（窗口下界≈30ms ✓）</td>
+</tr>
+<tr>
+<td>超时改 <strong>49ms</strong></td>
+<td><strong>不复位</strong>（上界≈50ms ✓）</td>
+</tr>
+</tbody></table>
+<ul>
+<li>现象：正常时 OLED 显示 <code>WWDG TEST</code>，第 4 行 <code>FEED</code> 闪烁；喂狗时机不对则显示 <code>WWDG RST</code> 并反复复位。</li>
+</ul>
+<p><img src="../assets/images/stm32-47/09-middle-state.jpg" alt="图 9：中间态帧——14-2 窗口看门狗 工程刚复制完：#include &quot;stm32f10x.h&quot;/&quot;Delay.h&quot;/&quot;OLED.h&quot;/&quot;Key.h&quot;、OLED_Init(); Key_Init(); OLED_ShowString(1, 1, &quot;IWDG TEST&quot;);、if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) == SET) { OLED_ShowString(2,1,&quot;IWDGRST&quot;); … }——字符串与复位标志还是 IWDG 的，尚未改成 WWDG（过程帧，不是最终代码）"></p>
+<p><em>图 9：<strong>中间态帧</strong>——<code>14-2 窗口看门狗</code> 工程刚复制完：<code>#include &quot;stm32f10x.h&quot;/&quot;Delay.h&quot;/&quot;OLED.h&quot;/&quot;Key.h&quot;</code>、<code>OLED_Init(); Key_Init(); OLED_ShowString(1, 1, &quot;IWDG TEST&quot;);</code>、<code>if (RCC_GetFlagStatus(RCC_FLAG_IWDGRST) == SET) { OLED_ShowString(2,1,&quot;IWDGRST&quot;); … }</code>——<strong>字符串与复位标志还是 IWDG 的</strong>，尚未改成 WWDG（过程帧，不是最终代码）</em></p>
+<p><img src="../assets/images/stm32-47/10-manual-183.jpg" alt="图 10：手册「18.3 WWDG功能描述」原文 + 图158——「如果看门狗被启动（WWDG_CR 寄存器中的 WDGA 位被置 1），并且当 7 位（T（6:0））递减计数器从 0x40 翻转到 0x3F（T6 位清零）时，则产生一个复位。如果软件在计数器值大于窗口寄存器中的数值时重新装载计数器，将产生一个复位」；左侧书签含 6.2.9 看门狗时钟、18 窗口看门狗(WWDG)；字幕「窗口看门狗(WWD…在这里，18.3」"></p>
+<p><em>图 10：手册「18.3 WWDG功能描述」原文 + 图158——「<strong>如果看门狗被启动（WWDG_CR 寄存器中的 WDGA 位被置 1），并且当 7 位（T[6:0]）递减计数器从 0x40 翻转到 0x3F（T6 位清零）时，则产生一个复位。如果软件在计数器值大于窗口寄存器中的数值时重新装载计数器，将产生一个复位</strong>」；左侧书签含 6.2.9 看门狗时钟、18 窗口看门狗(WWDG)；字幕「窗口看门狗(WWD…在这里，18.3」</em></p>
+<p><img src="../assets/images/stm32-47/11-wwdg-h-functions.jpg" alt="图 11：stm32f10x_wwdg.h 的 8 个函数声明——WWDG_DeInit(void)、WWDG_SetPrescaler(uint32_t WWDG_Prescaler)、WWDG_SetWindowValue(uint8_t WindowValue)、WWDG_EnableIT(void)、`WWDG_SetCounter(uint8_t Counter)`（高亮）、`WWDG_Enable(uint8_t Counter)`、WWDG_GetFlagStatus(void)、WWDG_ClearFlag(void)；字幕「我们调用这个函数」"></p>
+<p><em>图 11：<code>stm32f10x_wwdg.h</code> 的 8 个函数声明——<code>WWDG_DeInit(void)</code>、<code>WWDG_SetPrescaler(uint32_t WWDG_Prescaler)</code>、<code>WWDG_SetWindowValue(uint8_t WindowValue)</code>、<code>WWDG_EnableIT(void)</code>、<strong><code>WWDG_SetCounter(uint8_t Counter)</code>（高亮）</strong>、<strong><code>WWDG_Enable(uint8_t Counter)</code></strong>、<code>WWDG_GetFlagStatus(void)</code>、<code>WWDG_ClearFlag(void)</code>；字幕「我们调用这个函数」</em></p>
+<p><img src="../assets/images/stm32-47/12-wwdg-compile-error.jpg" alt="图 12：中间态帧——WWDG 初始化代码参数没填全、编译报错：RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE);、WWDG_SetPrescaler(WWDG_Prescaler_8);、`WWDG_SetWindowValue();`（红叉）、WWDG_Enable(54);；主循环里 `WWDG_SetCounter();` 报 error: too few arguments to function call, single argument &#39;Counter&#39; was not specified（过程帧，后续填入 0x40 | 21、0x40 | 54）；字幕「所以，我们把计算的54，写入到这里来」"></p>
+<p><em>图 12：<strong>中间态帧</strong>——WWDG 初始化代码参数没填全、编译报错：<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE);</code>、<code>WWDG_SetPrescaler(WWDG_Prescaler_8);</code>、<strong><code>WWDG_SetWindowValue();</code></strong>（红叉）、<code>WWDG_Enable(54);</code>；主循环里 <strong><code>WWDG_SetCounter();</code></strong> 报 <code>error: too few arguments to function call, single argument &#39;Counter&#39; was not specified</code>（过程帧，后续填入 <code>0x40 | 21</code>、<code>0x40 | 54</code>）；字幕「所以，我们把计算的54，写入到这里来」</em></p>
+<p><img src="../assets/images/stm32-47/13-wwdg-masks.jpg" alt="图 13：stm32f10x_wwdg.c 的掩码宏——/* CR register bit mask */ **#define CR_WDGA_Set ((uint32_t)0x00000080)**；/* CFR register bit mask */ #define CFR_WDGTB_Mask ((uint32_t)0xFFFFFF7F)、#define CFR_W_Mask ((uint32_t)0xFFFFFF80)；`#define BIT_Mask ((uint8_t)0x7F)`（高亮）；字幕「也就是最高位清零」"></p>
+<p><em>图 13：<code>stm32f10x_wwdg.c</code> 的掩码宏——<code>/* CR register bit mask */ **#define CR_WDGA_Set ((uint32_t)0x00000080)**</code>；<code>/* CFR register bit mask */ #define CFR_WDGTB_Mask ((uint32_t)0xFFFFFF7F)</code>、<code>#define CFR_W_Mask ((uint32_t)0xFFFFFF80)</code>；<strong><code>#define BIT_Mask ((uint8_t)0x7F)</code></strong>（高亮）；字幕「也就是最高位清零」</em></p>
+<p><img src="../assets/images/stm32-47/14-wwdg-setprescaler-src.jpg" alt="图 14：WWDG_SetPrescaler 源码（标准「读-改-写」）——uint32_t tmpreg = 0;、assert_param(IS_WWDG_PRESCALER(WWDG_Prescaler));、/* Clear WDGTB（1:0） bits */ tmpreg = WWDG-&gt;CFR &amp; CFR_WDGTB_Mask;、/* Set WDGTB（1:0） bits according to WWDG_Prescaler value */ tmpreg |= WWDG_Prescaler;、/* Store the new value */ WWDG-&gt;CFR = tmpreg;；下方 WWDG_SetWindowValue 注释「@param WindowValue: specifies the window value to be compared to the downcounter. This parameter value must be lower than 0x80.」；字幕「然后看上面这里」"></p>
+<p><em>图 14：<code>WWDG_SetPrescaler</code> 源码（标准「读-改-写」）——<code>uint32_t tmpreg = 0;</code>、<code>assert_param(IS_WWDG_PRESCALER(WWDG_Prescaler));</code>、<code>/* Clear WDGTB[1:0] bits */ tmpreg = WWDG-&gt;CFR &amp; CFR_WDGTB_Mask;</code>、<code>/* Set WDGTB[1:0] bits according to WWDG_Prescaler value */ tmpreg |= WWDG_Prescaler;</code>、<code>/* Store the new value */ WWDG-&gt;CFR = tmpreg;</code>；下方 <code>WWDG_SetWindowValue</code> 注释「@param WindowValue: specifies the window value to be compared to the downcounter. This parameter value must be lower than 0x80.」；字幕「然后看上面这里」</em></p>
+<p><img src="../assets/images/stm32-47/15-wwdg-formula.jpg" alt="图 15：PPT「WWDG超时时间」+ 手册表——T_WWDG = T_PCLK1 × 4096 × WDGTB预分频系数 × (T（5:0） + 1)、T_WIN = T_PCLK1 × 4096 × WDGTB预分频系数 × (T（5:0） − W（5:0）)；灰底高亮 W（5:0）；手册表（PCLK1=36MHz）：WDGTB 0/1/2/3 → 113µs～7.28ms / 227µs～14.56ms / 455µs～29.12ms / 910µs～58.25ms；字幕「最终计算得到窗口值W（5:0），需要给21」"></p>
+<p>*图 15：PPT「WWDG超时时间」+ 手册表——<code>T_WWDG = T_PCLK1 × 4096 × WDGTB预分频系数 × (T[5:0] + 1)</code>、<code>T_WIN = T_PCLK1 × 4096 × WDGTB预分频系数 × (T[5:0] − W[5:0])</code>；<strong>灰底高亮 W[5:0]</strong>；手册表（PCLK1=36MHz）：WDGTB 0/1/2/3 → <strong>113µs～7.28ms / 227µs～14.56ms / 455µs～29.12ms / 910µs～58.25ms</strong>；字幕「最终计算得到窗口值W[5:0]，需要给21」*</p>
+<p><img src="../assets/images/stm32-47/16-wwdg-trap-code.jpg" alt="图 16：踩坑版代码（喂狗写在循环开头）——RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE);、WWDG_SetPrescaler(WWDG_Prescaler_8);、`WWDG_SetWindowValue(0x40 | 21); //30ms`（高亮）、`WWDG_Enable(0x40 | 54); //50ms`；while (1) { Key_GetNum(); WWDG_SetCounter(0x40 | 54); OLED_ShowString(4,1,&quot;FEED&quot;); Delay_ms(20); … Delay_ms(20); }——紧随使能后再喂 → 间隔不足 30ms → 反复复位；字幕「执行到这里时」"></p>
+<p><em>图 16：<strong>踩坑版代码</strong>（喂狗写在循环开头）——<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE);</code>、<code>WWDG_SetPrescaler(WWDG_Prescaler_8);</code>、<strong><code>WWDG_SetWindowValue(0x40 | 21); //30ms</code></strong>（高亮）、<strong><code>WWDG_Enable(0x40 | 54); //50ms</code></strong>；<code>while (1) { Key_GetNum(); WWDG_SetCounter(0x40 | 54); OLED_ShowString(4,1,&quot;FEED&quot;); Delay_ms(20); … Delay_ms(20); }</code>——<strong>紧随使能后再喂 → 间隔不足 30ms → 反复复位</strong>；字幕「执行到这里时」</em></p>
+<p><img src="../assets/images/stm32-47/17-wwdg-phenomenon.jpg" alt="图 17：程序②现象——OLED 显示 WWDG TEST 与第 4 行 FEED（面包板 + ST-Link）；字幕「然后过快喂狗呢」"></p>
+<p><em>图 17：程序②现象——OLED 显示 <code>WWDG TEST</code> 与第 4 行 <code>FEED</code>（面包板 + ST-Link）；字幕「然后过快喂狗呢」</em></p>
+<p><img src="../assets/images/stm32-47/18-wwdg-fixed.jpg" alt="图 18：修复版代码（喂狗移到两次延时之后）——WWDG_SetPrescaler(WWDG_Prescaler_8);、WWDG_SetWindowValue(0x40 | 21); //30ms、WWDG_Enable(0x40 | 54); //50ms；while (1) { Key_GetNum(); OLED_ShowString(4,1,&quot;FEED&quot;); Delay_ms(20); OLED_ShowString(4,1,&quot;    &quot;); Delay_ms(20); **WWDG_SetCounter(0x40 | 54);** }；字幕「到这里也就结束了」"></p>
+<p><em>图 18：<strong>修复版代码</strong>（喂狗移到两次延时之后）——<code>WWDG_SetPrescaler(WWDG_Prescaler_8);</code>、<code>WWDG_SetWindowValue(0x40 | 21); //30ms</code>、<code>WWDG_Enable(0x40 | 54); //50ms</code>；<code>while (1) { Key_GetNum(); OLED_ShowString(4,1,&quot;FEED&quot;); Delay_ms(20); OLED_ShowString(4,1,&quot;    &quot;); Delay_ms(20); **WWDG_SetCounter(0x40 | 54);** }</code>；字幕「到这里也就结束了」</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>两个工程复制来源不同</strong>：<code>14-1</code>←<strong>OLED 显示屏工程</strong>；<code>14-2</code>←<strong>复制 <code>14-1</code></strong>（不是 OLED）。</li>
+<li><strong>IWDG 不必手动开 LSI</strong>（手册 6.2.9：启动 IWDG 后 LSI 被强制打开）；<strong>WWDG 必须手动 <code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_WWDG, ENABLE)</code></strong>。</li>
+<li><strong><code>RCC_ClearFlag()</code> 必须调用</strong>：按复位键标志位也不会自动清 0，不清会一直误判成看门狗复位。</li>
+<li><strong>IWDG 参数推导</strong>：表83 前两档（409.6/819.2ms）不够 1000ms 必须剔除；<strong>优先小预分频减小 RL 取整误差</strong>；选 /16 → <code>RL = 1000/0.025/16 − 1 = 2499</code>（整除无误差）。</li>
+<li><strong>实测 IWDG 临界≈1000ms</strong>（1000ms 不复位、1010ms 复位）——项目里<strong>要留余量</strong>。</li>
+<li><strong><code>WWDG_Enable</code> 带参数＝使能 + 首次喂狗</strong>：计数器自由运行，使能瞬间值任意，不喂就立即复位；<code>IWDG_Enable()</code> 无参。</li>
+<li><strong>WWDG 参数推导写全</strong>：超时 50ms → 只能 <strong>WDGTB=3（8 分频）</strong>（前 3 档最大 29.12ms）→ <code>50/(1/36M)/4096/8 = 54.9 → 55</code> → <strong>T[5:0]=54</strong>；窗口 30ms → <code>30/… = 32.9 → 33</code> → <strong>W = 54−33 = 21</strong>。</li>
+<li><strong>T6 必须置 1</strong>：<code>0x40 | 54</code>、<code>0x40 | 21</code>（<code>|</code> 与 <code>+</code> 在本例等效，但用 <code>|</code> 更稳）。</li>
+<li><strong>坑① 使能后立刻再喂 → 死循环复位</strong>（间隔 &lt; 30ms 下界）；<strong>先延时 40ms 再喂</strong>或加首次标志位。</li>
+<li><strong>坑② 喂狗太快、太慢都复位</strong>——WWDG 与 IWDG 的核心区别。</li>
+<li><strong><code>WWDG_SetCounter</code> 把 CR 最高位写 0，但关不掉看门狗</strong> → <strong>不需要「读-改-写」</strong>；<code>WWDG_Enable</code> 用 <code>CR |= 0x80</code>，<code>SetCounter</code> 用 <code>CR = v &amp; 0x7F</code>。</li>
+<li><strong>中间态帧别当最终代码</strong>：<code>f_00130</code>（字符串仍是 <code>IWDG TEST</code>）、<code>f_00060</code>（if/else 空壳）、<code>f_00180</code>（参数未填、编译报错）都是过程帧。</li>
+<li><strong>复位源判断的两个参数</strong>：<code>RCC_FLAG_IWDGRST</code>（IWDG）/ <code>RCC_FLAG_WWDGRST</code>（WWDG），别写混。</li>
+<li><strong><code>WWDG_SetWindowValue</code> 参数必须 &lt; 0x80</strong>（库注释明确）。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>大家好，欢迎回来</td>
+</tr>
+<tr>
+<td>0:04</td>
+<td>这一小节学习看门狗的代码部分</td>
+</tr>
+<tr>
+<td>0:05</td>
+<td>先看一下接线图</td>
+</tr>
+<tr>
+<td>0:23</td>
+<td>两个看门狗代码的接线都非常简单</td>
+</tr>
+<tr>
+<td>0:26</td>
+<td>OLED 和按键都是老演员</td>
+</tr>
+<tr>
+<td>0:27</td>
+<td>面包板接线已经接好</td>
+</tr>
+<tr>
+<td>0:36</td>
+<td>回到工程文件夹</td>
+</tr>
+<tr>
+<td>0:40</td>
+<td>复制 OLED 显示屏工程</td>
+</tr>
+<tr>
+<td>0:44</td>
+<td>改名 14-1 独立看门狗</td>
+</tr>
+<tr>
+<td>0:55</td>
+<td>编译一下</td>
+</tr>
+<tr>
+<td>1:13</td>
+<td>根据 PPT 框图确定配置流程</td>
+</tr>
+<tr>
+<td>1:26</td>
+<td>第一步开启 LSI 时钟</td>
+</tr>
+<tr>
+<td>1:30</td>
+<td>这一步不用写代码</td>
+</tr>
+<tr>
+<td>1:39</td>
+<td>手册 6.2.9 看门狗时钟</td>
+</tr>
+<tr>
+<td>2:04</td>
+<td>启动看门狗后 LSI 会被强制打开</td>
+</tr>
+<tr>
+<td>2:28</td>
+<td>第二步解除写保护</td>
+</tr>
+<tr>
+<td>2:36</td>
+<td>键寄存器写 0x5555</td>
+</tr>
+<tr>
+<td>2:38</td>
+<td>第三步写预分频和重装值</td>
+</tr>
+<tr>
+<td>3:04</td>
+<td>打开 iwdg.h 看库函数</td>
+</tr>
+<tr>
+<td>3:21</td>
+<td>第一个是写访问命令</td>
+</tr>
+<tr>
+<td>3:27</td>
+<td>它的参数就是 0x5555 和 0x0000</td>
+</tr>
+<tr>
+<td>4:10</td>
+<td>预分频有四个档位宏</td>
+</tr>
+<tr>
+<td>4:12</td>
+<td>设置重装值</td>
+</tr>
+<tr>
+<td>4:25</td>
+<td>重装计数器就是喂狗</td>
+</tr>
+<tr>
+<td>5:29</td>
+<td>使能函数写 0xCCCC</td>
+</tr>
+<tr>
+<td>5:32</td>
+<td>还有获取标志位的函数</td>
+</tr>
+<tr>
+<td>6:18</td>
+<td>接下来看 rcc.h 判断复位源</td>
+</tr>
+<tr>
+<td>6:29</td>
+<td>参数分时钟就绪和复位两类</td>
+</tr>
+<tr>
+<td>6:46</td>
+<td>复位类里有 IWDG 和 WWDG 复位</td>
+</tr>
+<tr>
+<td>7:49</td>
+<td>清除标志用 RCC_ClearFlag</td>
+</tr>
+<tr>
+<td>8:08</td>
+<td>开始写复位源判断</td>
+</tr>
+<tr>
+<td>8:22</td>
+<td>显示 IWDG TEST</td>
+</tr>
+<tr>
+<td>8:47</td>
+<td>判断是不是看门狗复位</td>
+</tr>
+<tr>
+<td>8:50</td>
+<td>是就在第二行闪烁 IWDGRST</td>
+</tr>
+<tr>
+<td>9:05</td>
+<td>一定要清除标志</td>
+</tr>
+<tr>
+<td>9:06</td>
+<td>不清除会一直误判</td>
+</tr>
+<tr>
+<td>9:08</td>
+<td>不是就显示 RST</td>
+</tr>
+<tr>
+<td>9:28</td>
+<td>编译下载看现象</td>
+</tr>
+<tr>
+<td>9:32</td>
+<td>下面写初始化代码</td>
+</tr>
+<tr>
+<td>9:42</td>
+<td>第一步解除写保护</td>
+</tr>
+<tr>
+<td>9:59</td>
+<td>第二步十六分频</td>
+</tr>
+<tr>
+<td>10:01</td>
+<td>第三步设置重装值</td>
+</tr>
+<tr>
+<td>10:31</td>
+<td>第四步先喂一次狗</td>
+</tr>
+<tr>
+<td>10:33</td>
+<td>第五步使能看门狗</td>
+</tr>
+<tr>
+<td>10:39</td>
+<td>写完不用手动恢复写保护</td>
+</tr>
+<tr>
+<td>10:41</td>
+<td>下面算超时时间参数</td>
+</tr>
+<tr>
+<td>10:50</td>
+<td>公式是 0.025ms 乘预分频乘括号</td>
+</tr>
+<tr>
+<td>10:54</td>
+<td>表83 前两档不够 1000ms</td>
+</tr>
+<tr>
+<td>10:55</td>
+<td>409.6 和 819.2 打红叉</td>
+</tr>
+<tr>
+<td>11:30</td>
+<td>十六分频及以后都可以</td>
+</tr>
+<tr>
+<td>11:39</td>
+<td>优先选小的预分频系数</td>
+</tr>
+<tr>
+<td>11:41</td>
+<td>这样计数利用率高、取整误差小</td>
+</tr>
+<tr>
+<td>12:40</td>
+<td>算出来重装值是 2499</td>
+</tr>
+<tr>
+<td>13:32</td>
+<td>正好整除没有误差</td>
+</tr>
+<tr>
+<td>14:01</td>
+<td>编译下载</td>
+</tr>
+<tr>
+<td>14:03</td>
+<td>主循环里不断喂狗</td>
+</tr>
+<tr>
+<td>14:20</td>
+<td>现象只有第一次复位</td>
+</tr>
+<tr>
+<td>14:21</td>
+<td>之后都不再复位</td>
+</tr>
+<tr>
+<td>14:25</td>
+<td>把喂狗间隔改大试试</td>
+</tr>
+<tr>
+<td>14:36</td>
+<td>不断显示 IWDG 复位</td>
+</tr>
+<tr>
+<td>14:45</td>
+<td>实测临界时间</td>
+</tr>
+<tr>
+<td>14:55</td>
+<td>1000ms 不复位</td>
+</tr>
+<tr>
+<td>15:10</td>
+<td>1010ms 就复位</td>
+</tr>
+<tr>
+<td>15:21</td>
+<td>所以临界约 1000ms</td>
+</tr>
+<tr>
+<td>15:23</td>
+<td>实际用要留余量</td>
+</tr>
+<tr>
+<td>15:30</td>
+<td>下面完善程序</td>
+</tr>
+<tr>
+<td>15:32</td>
+<td>加上按键模块</td>
+</tr>
+<tr>
+<td>15:43</td>
+<td>主循环加按键读取</td>
+</tr>
+<tr>
+<td>15:44</td>
+<td>按键是阻塞式的</td>
+</tr>
+<tr>
+<td>15:48</td>
+<td>按住不放就卡在这里</td>
+</tr>
+<tr>
+<td>15:51</td>
+<td>模拟程序卡死</td>
+</tr>
+<tr>
+<td>16:08</td>
+<td>加 FEED 闪烁和延时</td>
+</tr>
+<tr>
+<td>16:19</td>
+<td>主循环约 800ms</td>
+</tr>
+<tr>
+<td>16:23</td>
+<td>余量约 200ms</td>
+</tr>
+<tr>
+<td>16:37</td>
+<td>现象是不断闪 FEED</td>
+</tr>
+<tr>
+<td>16:40</td>
+<td>按住按键就复位</td>
+</tr>
+<tr>
+<td>17:00</td>
+<td>复制 14-1 工程</td>
+</tr>
+<tr>
+<td>17:09</td>
+<td>改名 14-2 窗口看门狗</td>
+</tr>
+<tr>
+<td>17:20</td>
+<td>打开 wwdg.h 看库函数</td>
+</tr>
+<tr>
+<td>17:35</td>
+<td>复位标志要换成 WWDG 的</td>
+</tr>
+<tr>
+<td>17:50</td>
+<td>显示字符串也要换掉</td>
+</tr>
+<tr>
+<td>18:05</td>
+<td>两个看门狗代码结构差不多</td>
+</tr>
+<tr>
+<td>18:20</td>
+<td>可以直接在这个工程上改</td>
+</tr>
+<tr>
+<td>18:40</td>
+<td>先看 wwdg.h 的函数</td>
+</tr>
+<tr>
+<td>19:06</td>
+<td>打开 wwdg.h</td>
+</tr>
+<tr>
+<td>19:11</td>
+<td>一共八个库函数</td>
+</tr>
+<tr>
+<td>19:45</td>
+<td>使能函数带参数</td>
+</tr>
+<tr>
+<td>19:48</td>
+<td>为什么带参数</td>
+</tr>
+<tr>
+<td>19:58</td>
+<td>计数器是自由运行的</td>
+</tr>
+<tr>
+<td>20:02</td>
+<td>使能时计数可能已经是任意值</td>
+</tr>
+<tr>
+<td>20:08</td>
+<td>所以使能时要同时喂一次</td>
+</tr>
+<tr>
+<td>20:36</td>
+<td>对照框图写配置流程</td>
+</tr>
+<tr>
+<td>20:44</td>
+<td>第一步开 PCLK1 时钟</td>
+</tr>
+<tr>
+<td>21:19</td>
+<td>WWDG 不像 IWDG 会自动开</td>
+</tr>
+<tr>
+<td>21:20</td>
+<td>第二步配预分频和窗口值</td>
+</tr>
+<tr>
+<td>21:22</td>
+<td>参数要填上</td>
+</tr>
+<tr>
+<td>21:38</td>
+<td>下面算超时和窗口参数</td>
+</tr>
+<tr>
+<td>21:46</td>
+<td>目标超时 50ms 窗口 30ms</td>
+</tr>
+<tr>
+<td>21:56</td>
+<td>前三档最大 29.12ms 不够</td>
+</tr>
+<tr>
+<td>21:59</td>
+<td>只能选八分频</td>
+</tr>
+<tr>
+<td>23:04</td>
+<td>算出 T 是 54.9 取 55</td>
+</tr>
+<tr>
+<td>23:20</td>
+<td>所以 T[5:0] 给 54</td>
+</tr>
+<tr>
+<td>23:50</td>
+<td>编译报错参数太少</td>
+</tr>
+<tr>
+<td>23:52</td>
+<td>把计算的 54 写进去</td>
+</tr>
+<tr>
+<td>24:07</td>
+<td>T6 必须置 1</td>
+</tr>
+<tr>
+<td>24:12</td>
+<td>所以用 0x40 或 54</td>
+</tr>
+<tr>
+<td>24:19</td>
+<td>参数确定后填进代码</td>
+</tr>
+<tr>
+<td>24:41</td>
+<td>看库函数内部对 CR 的操作</td>
+</tr>
+<tr>
+<td>24:59</td>
+<td>使能是最高位置 1</td>
+</tr>
+<tr>
+<td>25:16</td>
+<td>喂狗是最高位清零</td>
+</tr>
+<tr>
+<td>25:28</td>
+<td>喂狗会不会关掉看门狗</td>
+</tr>
+<tr>
+<td>25:49</td>
+<td>不会，开了就关不掉</td>
+</tr>
+<tr>
+<td>25:50</td>
+<td>所以不需要读改写</td>
+</tr>
+<tr>
+<td>26:42</td>
+<td>顺便讲读改写三步法</td>
+</tr>
+<tr>
+<td>27:00</td>
+<td>读改写三步法讲完</td>
+</tr>
+<tr>
+<td>27:20</td>
+<td>回到代码填参数</td>
+</tr>
+<tr>
+<td>27:40</td>
+<td>窗口值给 0x40 或 21</td>
+</tr>
+<tr>
+<td>27:41</td>
+<td>窗口 30ms 算出 32.9 取 33</td>
+</tr>
+<tr>
+<td>27:48</td>
+<td>窗口值就是 54 减 33 等于 21</td>
+</tr>
+<tr>
+<td>28:00</td>
+<td>使能时给 0x40 或 54</td>
+</tr>
+<tr>
+<td>28:20</td>
+<td>编译下载看现象</td>
+</tr>
+<tr>
+<td>28:47</td>
+<td>读出来、只改指定位、写回</td>
+</tr>
+<tr>
+<td>29:16</td>
+<td>开始讲坑</td>
+</tr>
+<tr>
+<td>29:17</td>
+<td>使能后立刻又喂一次</td>
+</tr>
+<tr>
+<td>29:28</td>
+<td>间隔小于 30ms 就复位</td>
+</tr>
+<tr>
+<td>29:46</td>
+<td>所以要先延时 40ms</td>
+</tr>
+<tr>
+<td>30:35</td>
+<td>把喂狗挪到延时之后</td>
+</tr>
+<tr>
+<td>31:15</td>
+<td>实测 30ms 复位 31ms 不复位</td>
+</tr>
+<tr>
+<td>31:38</td>
+<td>超时改 49ms 也不复位</td>
+</tr>
+<tr>
+<td>31:54</td>
+<td>看门狗知识点到这里结束</td>
+</tr>
+<tr>
+<td>31:57</td>
+<td>那我们下节再见</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li><strong>采集侧说明</strong>：本集<strong>字幕自动探测失败</strong>（条带落在底部黑边，只得 15 段 <code>HOG</code> 类噪声，原始内容留存为 <code>transcript.bad.txt</code>），采集端已用强制条带（1080p 下 y≈940～1010）重跑，selfcheck OK（<strong>731 段；采集端最初计数 695 段</strong>）。<strong>注意</strong>：曾把 transcript 误判为“乱码”——实测落盘是<strong>合法 UTF-8</strong>，<code>鍝堝柦</code> 式乱码只是 PowerShell 5.1 <code>Get-Content</code> 未加 <code>-Encoding utf8</code> 时的<strong>读取端显示伪影</strong>，<strong>采集/落盘没有编码 bug</strong>；核对时间轴时用 UTF-8 读取当前 <code>transcript.txt</code> 即可。</li>
+<li>文本错字（基于 tsv 统计）：<strong><code>看门狗</code> → 「者门狗」</strong>（5 处）、Keil 输出里的 <code>Proect</code>/<code>obects</code>/<code>ecta</code>/<code>reta</code>（应为 <code>Project</code>/<code>Objects</code>/<code>Project.axf</code>）——已按画面校正；本集 <strong>无</strong>「奇存/云行/数居/扁译」类错字。</li>
+<li><strong>两工程复制来源不同</strong>：<code>14-1</code>←<strong>OLED 显示屏工程</strong>；<code>14-2</code>←<strong>复制 <code>14-1</code></strong>（不是 OLED）。</li>
+<li><strong>IWDG 不必手动开 LSI</strong>（手册 6.2.9「若 IWDG 已由硬件选项或软件启动，LSI 将被强制打开」）；<strong>WWDG 必须手动开 APB1 时钟</strong>——这一对比是本集关键。</li>
+<li><strong><code>RCC_ClearFlag()</code> 必须调用</strong>：实测按复位键<strong>也不会</strong>自动清该标志位。</li>
+<li><strong>IWDG 参数来历</strong>：表83 前两档（/4 最长 409.6ms、/8 最长 819.2ms）<strong>不够 1000ms 必须剔除</strong>；<strong>优先小预分频以减小 RL 取整误差</strong> → /16 → <code>RL = 1000/0.025/16 − 1 = 2499</code>（整除）。<strong>实测临界≈1000ms</strong>（1000 不复位、1010 复位）。</li>
+<li><strong>WWDG 参数来历</strong>：超时 50ms → 只能 <strong>WDGTB=3（8 分频）</strong>（前三档最大 29.12ms、上限 58.25ms）→ <code>50/(1/36M)/4096/8 = 54.9 → 55</code> → <strong>T[5:0]=54</strong>；窗口 30ms → <code>32.9 → 33</code> → <strong>W=21</strong>；<strong>T6 置 1</strong>（<code>0x40|</code>）。<strong>实测</strong>：Delay 30ms 复位、<strong>31ms 不复位</strong>；超时 49ms 不复位。</li>
+<li><strong><code>WWDG_Enable</code> 带参数＝使能+首喂</strong>（计数器自由运行）；<strong><code>IWDG_Enable()</code> 无参</strong>。</li>
+<li><strong>两大坑</strong>：①使能后立刻再喂 → 死循环复位（间隔 &lt; 30ms 下界），须先延时 40ms 或用首次标志位；②喂太快/太慢都复位。</li>
+<li><strong><code>WWDG_SetCounter</code> 写 0 关不掉看门狗</strong>（不需读-改-写）；<code>WWDG_Enable</code> 用 <code>CR |= 0x80</code>、<code>SetCounter</code> 用 <code>CR = v &amp; 0x7F</code>。</li>
+<li><strong>中间态帧</strong>：<code>f_00130</code>（字符串仍 <code>IWDG TEST</code>）、<code>f_00060</code>（if/else 空壳）、<code>f_00180</code>（参数未填+编译报错）——已作为过程帧标注，最终代码见 <code>f_00120</code>/<code>f_00220</code>/<code>f_00240</code>。</li>
+<li><strong>片尾 31:57</strong>「看门狗的知识点到这里也就结束了，那我们下节再见」，<strong>无下节主题预告</strong>。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-48.html"><span class="label">下一篇</span>[15-1] FLASH闪存</a>
+    <a class="next" href="stm32-46.html"><span class="label">上一篇</span>[14-1] WDG看门狗</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E4%B8%A4%E7%A8%8B%E5%BA%8F%E4%BB%8E%E5%A4%8D%E5%88%B6%E5%B7%A5%E7%A8%8B%E5%86%99%E5%88%B0%E5%AE%9E%E6%B5%8B%E4%B8%B4%E7%95%8C%E5%80%BC">0. 本集定位：代码课（两程序从复制工程写到实测临界值）</a>
+        <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 接线与工程准备</a>
+        <a class="level-2" href="#2-%E7%A8%8B%E5%BA%8F1-14-1-%E7%8B%AC%E7%AB%8B%E7%9C%8B%E9%97%A8%E7%8B%97">2. 程序①：14-1 独立看门狗</a>
+        <a class="level-3" href="#2-1-%E9%85%8D%E7%BD%AE%E6%B5%81%E7%A8%8B-%E5%AF%B9%E7%85%A7-ppt-%E6%A1%86%E5%9B%BE">2.1 配置流程（对照 PPT 框图）</a>
+        <a class="level-3" href="#2-2-%E5%BA%93%E5%87%BD%E6%95%B0%E4%B8%8E%E5%AE%8F">2.2 库函数与宏</a>
+        <a class="level-3" href="#2-3-%E5%A4%8D%E4%BD%8D%E6%BA%90%E5%88%A4%E6%96%AD-%E5%90%AB%E5%BF%85%E5%86%99%E7%9A%84%E5%9D%91">2.3 复位源判断（含必写的坑）</a>
+        <a class="level-3" href="#2-4-%E5%88%9D%E5%A7%8B%E5%8C%96%E5%9B%9B%E6%AD%A5%E4%B8%8E%E5%8F%82%E6%95%B0%E6%8E%A8%E5%AF%BC">2.4 初始化四步与参数推导</a>
+        <a class="level-3" href="#2-5-%E4%B8%BB%E5%BE%AA%E7%8E%AF%E5%96%82%E7%8B%97-%E7%8E%B0%E8%B1%A1%E4%B8%8E%E4%B8%B4%E7%95%8C%E5%AE%9E%E6%B5%8B">2.5 主循环喂狗、现象与临界实测</a>
+        <a class="level-2" href="#3-%E7%A8%8B%E5%BA%8F2-14-2-%E7%AA%97%E5%8F%A3%E7%9C%8B%E9%97%A8%E7%8B%97">3. 程序②：14-2 窗口看门狗</a>
+        <a class="level-3" href="#3-1-%E5%A4%8D%E5%88%B6%E6%9D%A5%E6%BA%90%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%88%87%E6%8D%A2">3.1 复制来源与工程切换</a>
+        <a class="level-3" href="#3-2-stm32f10x-wwdg-h-%E7%9A%84-8-%E4%B8%AA%E5%87%BD%E6%95%B0">3.2 stm32f10x_wwdg.h 的 8 个函数</a>
+        <a class="level-3" href="#3-3-%E9%85%8D%E7%BD%AE%E6%B5%81%E7%A8%8B%E4%B8%8E%E5%8F%82%E6%95%B0%E6%8E%A8%E5%AF%BC">3.3 配置流程与参数推导</a>
+        <a class="level-3" href="#3-4-%E5%BA%93%E5%86%85%E9%83%A8%E5%AF%B9-cr-%E7%9A%84%E6%93%8D%E4%BD%9C%E4%B8%8E-%E8%AF%BB-%E6%94%B9-%E5%86%99">3.4 库内部对 CR 的操作与「读-改-写」</a>
+        <a class="level-3" href="#3-5-%E4%B8%A4%E4%B8%AA%E5%A4%A7%E5%9D%91%E4%B8%8E%E5%AE%9E%E6%B5%8B%E9%AA%8C%E8%AF%81">3.5 两个大坑与实测验证</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

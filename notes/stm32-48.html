@@ -1,0 +1,1275 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[15-1] FLASH闪存 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [15-1]（理论课，库函数零出现）：FLASH 三部分+ICP/IAP；表2（128 页×1K、C8T6 页0～63=64K、信息块、寄存器 0x40022000）；五特性；FPEC；解锁三键值与两把锁；指针与 volatile；全擦/页擦/编程流程；选项字节反码与写保护反逻辑；电子签名 F_SIZE/UID。">
+  <meta property="og:title" content="[15-1] FLASH闪存 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [15-1]（理论课，库函数零出现）：FLASH 三部分+ICP/IAP；表2（128 页×1K、C8T6 页0～63=64K、信息块、寄存器 0x40022000）；五特性；FPEC；解锁三键值与两把锁；指针与 volatile；全擦/页擦/编程流程；选项字节反码与写保护反逻辑；电子签名 F_SIZE/UID。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html" class="active" aria-current="page">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>36 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">FLASH</span><span class="tag">FPEC</span><span class="tag">选项字节</span><span class="tag">电子签名</span>
+    </div>
+    <article class="prose"><h1>[15-1] FLASH闪存 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=48，46:17（2777 秒）</li>
+<li>素材：252 帧关键帧（<strong>每 11 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>1246 段</strong>，采集端重建前计 1110 段）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p48/frames/</code>，站内图片在 <code>assets/images/stm32-48/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>，自检 <code>ratio=99.9%</code>）；错字主要是 <strong><code>存储</code> → 「存诸」</strong>（14 处）、<code>数据</code> → 「数居」（4 处）、<code>基地址</code> → 「基地」（4 处）、<code>运行</code> → 「云行」（3 处）、<code>读</code> → 「卖」（3 处）、<code>电子签名</code> → 「电字签名」（1 处）——已按画面/上下文校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：<strong>理论课</strong>——00:40–04:05 <strong>只演示两个已写好的工程的现象</strong>（<code>15-1 读写内部FLASH</code>、<code>15-2 读取芯片ID</code>），<strong>无写码过程</strong>；04:05–46:20 全部是 <strong>PPT + 手册</strong>。<strong>⚠ FLASH 库函数本集一个都没出现</strong>（<code>FLASH_Unlock</code>/<code>FLASH_ErasePage</code>/<code>FLASH_ProgramHalfWord</code> 都没有；片头代码里只有作者自定义的 <code>Store_Data()</code>/<code>Store_Clear()</code> 封装函数）——<strong>库函数详解在 [15-2]</strong>。结尾 46:12「我们下小节来学习闪存的代码部分」。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>FLASH 简介</strong>：STM32F1 系列的 FLASH 包含 <strong>程序存储器、系统存储器、选项字节</strong>三个部分，通过<strong>闪存存储器接口（外设）<strong>可以对程序存储器和选项字节进行</strong>擦除和编程</strong>；<strong>闪存是非易失性存储器</strong>（掉电不丢失），本节特指 <strong>STM32 内部闪存</strong>（就是下载程序存放的地方）。<strong>读写 FLASH 的两个用途</strong>：①<strong>利用程序存储器的剩余空间保存掉电不丢失的用户数据</strong>（<strong>C8T6 程序存储器 64K，简单程序只占前面很小一部分</strong>；<strong>选存储区域时绝不能覆盖原有程序</strong>，否则「程序自己破坏自己」——一般<strong>选最后几页</strong>）；②<strong>在程序中编程（IAP）<strong>实现程序的</strong>自我更新</strong>（相当于 OTA）。<strong>ICP 与 IAP</strong>：<strong>在线编程 ICP（In-Circuit Programming）</strong>——下载程序只需留几个引脚、不用拆芯片，用于<strong>更新程序存储器的全部内容</strong>，通过 <strong>JTAG/SWD</strong>（就是 ST-Link）或<strong>系统加载程序（Bootloader，即串口下载）</strong>；<strong>每次下载都是整体覆盖</strong>。<strong>在程序中编程 IAP（In-Application Programming）</strong>——可用微控制器支持的<strong>任一种通信接口</strong>下载程序，可做<strong>远程升级</strong>；作者自写 Bootloader 放在不被覆盖处，接收数据后写入程序正常运行的地方，再跳回/复位；比芯片自带的系统 Bootloader 灵活（后者写死、只能串口、只能靠 BOOT 引脚触发）——<strong>本课程不涉及 IAP 实现</strong>。<strong>存储器映像回顾</strong>：<strong>ROM 区</strong>（掉电不丢失，介质 FLASH）：<strong><code>0x08000000</code> 程序存储器 Flash</strong>、<strong><code>0x1FFFF000</code> 系统存储器</strong>、<strong><code>0x1FFFF800</code> 选项字节</strong>；<strong>RAM 区</strong>（掉电丢失，介质 SRAM）：<code>0x20000000</code> 运行内存 SRAM、<code>0x40000000</code> 外设寄存器、<code>0xE0000000</code> 内核外设寄存器；<strong>看起始地址就能判断属于哪个区、有什么特性</strong>。<strong>闪存模块组织（表2，中容量产品）</strong>：①<strong>主存储器</strong> <code>0x08000000</code> 起，<strong>页 0～页 127、每页 1K</strong>，共 128K——<strong>但 C8T6 只有页 0～页 63，共 64K</strong>；②<strong>信息块</strong> = <strong>启动程序代码（＝系统存储器）<code>0x1FFFF000～0x1FFFF7FF</code>，2K</strong>（<strong>原厂 Bootloader，不允许修改</strong>）＋ <strong>用户选择字节（＝选项字节）<code>0x1FFFF800～0x1FFFF80F</code>，16 字节</strong>；③<strong>闪存存储器接口寄存器</strong> <code>0x40022000</code> 起：<strong><code>FLASH_ACR</code>@2000、<code>FLASH_KEYR</code>@2004、<code>FLASH_OPTKEYR</code>@2008、<code>FLASH_SR</code>@200C、<code>FLASH_CR</code>@2010、<code>FLASH_AR</code>@2014、保留、<code>FLASH_OBR</code>@201C、<code>FLASH_WRPR</code>@2020</strong>（各 4 字节）——<strong>这组寄存器属于外设（介质 SRAM），不是闪存本体</strong>。<strong>⚠ 小/中/大容量页数不同</strong>：小容量 <strong>32 页×1K</strong>、中容量 <strong>128 页×1K</strong>、大容量 <strong>256 页×2K</strong>（<strong>要查单独的《闪存编程参考手册》，不在参考手册里</strong>）；<strong>「芯片闪存容量 64K/128K」只指主存储器</strong>，信息块不计入。<strong>页起始地址规律</strong>：<code>0x08000000</code>、<code>0x08000400</code>、<code>0x08000800</code>、<code>0x08000C00</code>、<code>0x08001000</code>…<strong>步进 0x400（1K）</strong>，直到 <code>0x0801FC00</code>——<strong>地址以 000/400/800/C00 结尾的往往就是页起始</strong>。<strong>闪存五项特性（与 W25Q64 一致）</strong>：<strong>①写入前必须先擦除 ②擦除以最小单位（页）进行 ③擦除后数据位全变为 1 ④数据只能 1 写 0，不能 0 写 1 ⑤擦除和写入后都要等待忙（BSY）</strong>。<strong>FLASH 基本结构（FPEC）</strong>：核心是 <strong>闪存存储器接口 / 闪存编程和擦除控制器（FPEC）</strong>——它负责<strong>程序存储器的擦除和编程</strong>、<strong>选项字节的擦除和编程</strong>；<strong>选项字节还能配置程序存储器的读/写保护</strong>；<strong>FPEC 不能操作系统存储器（Bootloader）</strong>。<strong>FLASH 解锁（核心）</strong>：FPEC 共<strong>三个键值</strong>——<strong>RDPRT 键 = 0x000000A5</strong>（解除读保护）、<strong>KEY1 = 0x45670123</strong>、<strong>KEY2 = 0xCDEF89AB</strong>（值可以随便定义，只要不容易被「翘锁」）；<strong>KEY = 钥匙/密钥寄存器</strong>。<strong>解锁</strong>：复位后 FPEC 被保护、<strong>不能写 <code>FLASH_CR</code></strong> → 在 <strong><code>FLASH_KEYR</code> 里先写 KEY1、再写 KEY2</strong> → 解锁（<strong>两道锁</strong>，非人为基本不可能解开）；<strong>⚠ 错误的操作序列会在下次复位前锁死 FPEC 和 FLASH_CR</strong>（想翘锁却没按顺序 → 整个模块完全锁死，除非复位）。<strong>加锁</strong>：操作完成后尽快设置 <strong><code>FLASH_CR</code> 的 LOCK 位</strong>，锁住 FPEC 和 FLASH_CR。<strong>使用指针访问存储器</strong>：读 <code>uint16_t Data = *((__IO uint16_t *)(0x08000000));</code>、写 <code>*((__IO uint16_t *)(0x08000000)) = 0x1234;</code>、<code>#define __IO volatile</code>。<strong>三步走</strong>：①写地址（<strong>地址加减必须加括号</strong>，否则运算符优先级出错）②<strong>强制类型转换</strong>（想 16 位读就 <code>uint16_t *</code>、8 位 <code>uint8_t *</code>、32 位 <code>uint32_t *</code>、浮点 <code>float *</code>/<code>double *</code>）③用 <code>*</code> 取值/赋值。<strong>读不需要解锁</strong>（只看不改、权限低，直接读）；<strong>写需要解锁 + 后续流程</strong>（<strong>闪存在程序运行时是只读的</strong>）；<strong>写 SRAM 地址（<code>0x20000000</code>）可直接写</strong>（SRAM 可读可写）。<strong>volatile 讲解</strong>：目的＝<strong>防止编译器优化</strong>；Keil 默认最低优化等级，加不加无影响；<strong>提高优化等级后会出现两类问题</strong>——①<strong>用变量计数空循环做延时会被优化掉</strong>（编译器认为「没用、白浪费时间」）②<strong>变量被缓存到寄存器</strong>，中断里改了原变量而缓存不同步 → 加 <code>volatile</code> 告诉编译器「每次都执行到位、不要用缓存优化」。<strong>读写与硬件相关的存储器时必须加 volatile</strong>。<strong>三条流程（图）</strong>：<strong>全擦除</strong>——读 <code>FLASH_CR</code> 的 LOCK→若 =1 执行解锁（<strong>库函数里没有这个判断，直接无条件解锁</strong>）→<strong>置 <code>FLASH_CR</code> 的 MER（Mass Erase）位 =1</strong>→<strong>置 <code>STRT</code> 位 =1（触发条件）</strong>→查 <code>FLASH_SR</code> 的 <strong>BSY</strong> 位循环等待→（测试程序才）读出并验证所有页数据。<strong>页擦除</strong>——读 LOCK→解锁→<strong>置 <code>FLASH_CR</code> 的 PER（Page Erase）=1</strong>→<strong>在 <code>FLASH_AR</code> 写入要擦除的页地址</strong>→<strong>置 <code>STRT</code>=1</strong>→等 BSY=0——<strong>擦除最小单位就是一页＝1K＝1024 字节</strong>。<strong>编程</strong>——读 LOCK→解锁→<strong>置 <code>FLASH_CR</code> 的 PG（Programming）=1</strong>→<strong>在指定地址写入半字</strong>（<strong>这句本身就是触发条件，不需要置 STRT</strong>）→等待忙；<strong>写入前芯片会检查该地址是否已擦除</strong>，未擦除则不编程（<strong>除非写入的全是 0，那必定没问题</strong>）；<strong>只能以半字写入</strong>：<strong>字 Word＝32 位、半字 HalfWord＝16 位、字节 Byte＝8 位</strong>；<strong>写 32 位分两次、写 8 位很麻烦</strong>——只能「<strong>整页读到 SRAM → 随意修改 → 整页擦除 → 整页写回</strong>」；写入很多数据就循环调用该流程。<strong>选项字节（表6 信息块）</strong>：地址 <code>0x1FFFF800</code>，共 <strong>16 字节</strong>，<strong>成对存储</strong>：<code>RDP/nRDP</code>、<code>USER/nUSER</code>、<code>Data0/nData0</code>、<code>Data1/nData1</code>、<code>WRP0/nWRP0</code>…<code>WRP3/nWRP3</code>——<strong>带 n 的是反码</strong>，写入时必须在对应位置写反码才算有效，<strong>芯片检测到两者不是反码关系则数据无效、功能不执行</strong>（<strong>反码由硬件自动计算</strong>，库函数已封装）。去掉带 n 的只剩 <strong>8 个字节</strong>：<strong>RDP</strong>（写入 <strong>RDPRT 键 0x000000A5</strong> → 解除读保护；否则闪存处于<strong>读保护状态、无法通过调试器读取程序</strong>，防窃取）、<strong>USER</strong>（硬件看门狗、进入停机/待机是否产生复位等零碎位）、<strong>Data0/Data1</strong>（芯片<strong>未定义功能、用户可自定义</strong>）、<strong>WRP0～WRP3</strong>（写保护：<strong>中容量每 1 位保护 4 个存储页</strong>，4 字节 32 位 → 4×32＝<strong>128 页</strong>，正好覆盖中容量最大 128 页；<strong>小容量</strong>按 32K 算；<strong>大容量每 1 位保护 2 页、4 字节不够 → 规定 WRP3 的最高位把剩下所有页保护起来</strong>）。<strong>⚠ 写保护位是反逻辑：1＝不实施保护（默认，因为擦除后全是 1）、0＝实施保护</strong>。<strong>选项字节擦除/编程流程</strong>（手册没给流程图、只有文字）：擦除——①解锁闪存 ②<strong>检查 <code>FLASH_SR</code> 的 BSY</strong>（事前确认没有其他闪存操作）③<strong>解锁 <code>FLASH_CR</code> 的 OPTWRE 位</strong>（<strong>选项字节还有一把小锁，要在 <code>FLASH_OPTKEYR</code> 里写 KEY1、KEY2</strong>）④置 <strong><code>FLASH_CR</code> 的 OPTER=1</strong> ⑤置 <strong><code>STRT</code>=1</strong> ⑥等 BSY=0。编程——检查 BSY→解小锁→置 <strong><code>FLASH_CR</code> 的 OPTPG=1</strong>→指针写入半字→等忙。<strong>FPEC 会自动计算高字节的反码</strong>；<strong>当闪存由「保护」变为「未保护」时会自动执行整片擦除</strong>。<strong>器件电子签名</strong>：存放在<strong>闪存存储器模块的系统存储区域</strong>、<strong>出厂时编写、不可更改</strong>、<strong>用指针读指定地址</strong>即可获取；<strong>闪存容量寄存器 <code>F_SIZE</code>：基地址 <code>0x1FFFF7E0</code>、大小 16 位</strong>；<strong>产品唯一身份标识寄存器（UID）：基地址 <code>0x1FFFF7E8</code>、大小 96 位</strong>——96 位<strong>每片都不同</strong>，可用于<strong>加密</strong>（程序多处加 ID 判断，非指定设备不执行 → 程序被盗到别的设备上也难运行）。<strong>手册精读要点</strong>：<strong>任何读写闪存的操作都会使 CPU 暂停</strong>，直到本次闪存编程结束（因为执行代码本身要读闪存）——<strong>后果</strong>：若中断需要频繁执行（作者举例：点阵屏用定时器中断不断扫描刷新），读写闪存时中断无法执行 → <strong>屏幕快速闪烁</strong>；<strong>结论：程序里有对时间要求严格的频繁中断时，慎用内部闪存存用户数据</strong>。另：写/擦除时<strong>必须打开 HSI 时钟</strong>（<code>SystemInit</code> 里已配好，<strong>别动它</strong>）。</p>
+<h2 id="0-本集定位-理论课-片头演示成品-ppt-手册-代码在-15-2">0. 本集定位：理论课（片头演示成品 + PPT + 手册），代码在 15-2</h2>
+<ul>
+<li><strong>00:40–04:05</strong>：只演示 <code>15-1 读写内部FLASH</code>、<code>15-2 读取芯片ID</code> 两个<strong>已写好工程</strong>的现象，<strong>无写码</strong>；</li>
+<li><strong>04:05–46:20</strong>：FLASH 简介 → 存储器映像回顾 → 闪存模块组织 → FLASH 基本结构 → 解锁 → 指针访问 → 三条流程 → 选项字节 → 器件电子签名 + 手册精读；</li>
+<li><strong>FLASH 库函数本集零出现</strong>，<strong>[15-2] 才讲代码</strong>。</li>
+</ul>
+<h2 id="1-片头两个成品程序">1. 片头两个成品程序</h2>
+<h3 id="1-1-程序1-15-1-读写内部flash">1.1 程序①：<code>15-1 读写内部FLASH</code></h3>
+<ul>
+<li>OLED 显示 <strong><code>Flag:A5A5</code></strong>（标志位，判断之前是否存储过数据，<strong>思路同 RTC 备份寄存器</strong>）与 4 个字节的 <code>Data</code>；</li>
+<li><strong>按 Key1 变换数据并存入内部 FLASH、按 Key2 全部清零</strong>；</li>
+<li><strong>断电重启、按复位键，数据都不丢</strong>——这就是「用程序存储器剩余空间存用户数据」。</li>
+</ul>
+<h3 id="1-2-程序2-15-2-读取芯片id">1.2 程序②：<code>15-2 读取芯片ID</code></h3>
+<ul>
+<li>用<strong>指针</strong>直接读指定地址，得到<strong>闪存容量</strong>（<code>0x0040</code>＝<strong>64K</strong>）与 <strong>96 位 UID</strong>（每片不同）。</li>
+</ul>
+<p><img src="../assets/images/stm32-48/01-flash-intro.jpg" alt="图 1：PPT「FLASH简介」4 条——STM32F1 系列的 FLASH 包含程序存储器、系统存储器和选项字节三个部分，通过**闪存存储器接口（外设）**可以对程序存储器和选项字节进行擦除和编程；读写 FLASH 的用途：利用程序存储器的剩余空间保存掉电不丢失的用户数据、通过在程序中编程（IAP）实现程序的自我更新；在线编程 ICP 用于更新程序存储器的全部内容，通过 JTAG、SWD 协议或系统加载程序（Bootloader）下载程序；在程序中编程 IAP 可以使用微控制器支持的任一种通信接口下载程序；字幕「哈喽，大家好」"></p>
+<p>*图 1：PPT「FLASH简介」4 条——STM32F1 系列的 FLASH 包含<strong>程序存储器、系统存储器和选项字节</strong>三个部分，通过**闪存存储器接口（外设）*<em>可以对程序存储器和选项字节进行擦除和编程；<strong>读写 FLASH 的用途</strong>：利用程序存储器的剩余空间保存掉电不丢失的用户数据、通过在程序中编程（IAP）实现程序的自我更新；<strong>在线编程 ICP</strong> 用于更新程序存储器的全部内容，通过 JTAG、SWD 协议或系统加载程序（Bootloader）下载程序；<strong>在程序中编程 IAP</strong> 可以使用微控制器支持的任一种通信接口下载程序；字幕「哈喽，大家好」</em></p>
+<p><img src="../assets/images/stm32-48/02-intro-marked.jpg" alt="图 2：同页 PPT + 第一条高亮——「STM32F1 系列的 FLASH 包含程序存储器、系统存储器和选项字节三个部分」；字幕「系统存储器和选项字节，这三个部分」"></p>
+<p><em>图 2：同页 PPT + 第一条高亮——「STM32F1 系列的 FLASH 包含<strong>程序存储器、系统存储器和选项字节</strong>三个部分」；字幕「系统存储器和选项字节，这三个部分」</em></p>
+<p><img src="../assets/images/stm32-48/03-iap-icp-marked.jpg" alt="图 3：同页 PPT + 红笔框住「利用程序存储器的剩余空间…」与「IAP 自我更新」两行——提醒选存储区域时绝不能覆盖原有程序；字幕「一定不要覆盖了原有的程序」"></p>
+<p><em>图 3：同页 PPT + 红笔框住「利用程序存储器的剩余空间…」与「IAP 自我更新」两行——提醒*<em>选存储区域时绝不能覆盖原有程序</em></em>；字幕「一定不要覆盖了原有的程序」*</p>
+<p><img src="../assets/images/stm32-48/04-bootloader-marked.jpg" alt="图 4：同页 PPT + 红圈圈住「系统加载程序（Bootloader）」并手写标注——讲 IAP 时说的是「程序正常运行的地方」，即自写 Bootloader 与用户程序的分区关系；字幕「程序正常运行的地方」"></p>
+<p><em>图 4：同页 PPT + 红圈圈住「系统加载程序（Bootloader）」并手写标注——讲 IAP 时说的是「<strong>程序正常运行的地方</strong>」，即自写 Bootloader 与用户程序的分区关系；字幕「程序正常运行的地方」</em></p>
+<p><img src="../assets/images/stm32-48/05-prog1-phenomenon.jpg" alt="图 5：程序①现象——OLED 显示 Flag:A5A5、Data:、两行 0000 0000（工程 15-1 读写内部FLASH）；按 Key1 写入后数据变化、按 Key2 清零，断电/复位都不丢"></p>
+<p><em>图 5：程序①现象——OLED 显示 <code>Flag:A5A5</code>、<code>Data:</code>、两行 <code>0000 0000</code>（工程 <code>15-1 读写内部FLASH</code>）；按 Key1 写入后数据变化、按 Key2 清零，<strong>断电/复位都不丢</strong></em></p>
+<h2 id="2-存储器映像回顾">2. 存储器映像回顾</h2>
+<table>
+<thead>
+<tr>
+<th>区域</th>
+<th>起始地址</th>
+<th>介质</th>
+<th>特性</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>ROM 区（程序存储器 Flash）</strong></td>
+<td><strong><code>0x08000000</code></strong></td>
+<td>FLASH</td>
+<td><strong>掉电不丢失</strong></td>
+</tr>
+<tr>
+<td><strong>ROM 区（系统存储器）</strong></td>
+<td><strong><code>0x1FFFF000</code></strong></td>
+<td>FLASH</td>
+<td>原厂 Bootloader，<strong>不允许修改</strong></td>
+</tr>
+<tr>
+<td><strong>ROM 区（选项字节）</strong></td>
+<td><strong><code>0x1FFFF800</code></strong></td>
+<td>FLASH</td>
+<td>配置读/写保护</td>
+</tr>
+<tr>
+<td><strong>RAM 区（运行内存 SRAM）</strong></td>
+<td><code>0x20000000</code></td>
+<td>SRAM</td>
+<td>掉电丢失、可读可写</td>
+</tr>
+<tr>
+<td><strong>RAM 区（外设寄存器）</strong></td>
+<td><code>0x40000000</code></td>
+<td>SRAM</td>
+<td>外设寄存器</td>
+</tr>
+<tr>
+<td><strong>RAM 区（内核外设寄存器）</strong></td>
+<td><code>0xE0000000</code></td>
+<td>SRAM</td>
+<td>内核外设</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>看起始地址就能判断区域与特性</strong>（<code>0x08</code> 开头是程序存储器、<code>0x20</code> 是 SRAM、<code>0x40</code> 是外设……）。</li>
+</ul>
+<h2 id="3-表2-闪存模块组织-中容量产品">3. 表2 闪存模块组织（中容量产品）</h2>
+<table>
+<thead>
+<tr>
+<th>块</th>
+<th>名称</th>
+<th>地址范围</th>
+<th>长度（字节）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>主存储器</strong></td>
+<td><strong>页 0</strong></td>
+<td><code>0x0800 0000～0x0800 03FF</code></td>
+<td><strong>1K</strong></td>
+</tr>
+<tr>
+<td>主存储器</td>
+<td>页 1</td>
+<td><code>0x0800 0400～0x0800 07FF</code></td>
+<td>1K</td>
+</tr>
+<tr>
+<td>主存储器</td>
+<td>页 2</td>
+<td><code>0x0800 0800～0x0800 0BFF</code></td>
+<td>1K</td>
+</tr>
+<tr>
+<td>主存储器</td>
+<td>页 3</td>
+<td><code>0x0800 0C00～0x0800 0FFF</code></td>
+<td>1K</td>
+</tr>
+<tr>
+<td>主存储器</td>
+<td>…</td>
+<td>…</td>
+<td>…</td>
+</tr>
+<tr>
+<td>主存储器</td>
+<td><strong>页 127</strong></td>
+<td><code>0x0801 FC00～0x0801 FFFF</code></td>
+<td>1K</td>
+</tr>
+<tr>
+<td><strong>信息块</strong></td>
+<td><strong>启动程序代码</strong>（＝系统存储器）</td>
+<td><strong><code>0x1FFF F000～0x1FFF F7FF</code></strong></td>
+<td><strong>2K</strong></td>
+</tr>
+<tr>
+<td>信息块</td>
+<td><strong>用户选择字节</strong>（＝选项字节）</td>
+<td><strong><code>0x1FFF F800～0x1FFF F80F</code></strong></td>
+<td><strong>16</strong></td>
+</tr>
+<tr>
+<td><strong>闪存存储器接口寄存器</strong></td>
+<td><strong>FLASH_ACR</strong></td>
+<td><code>0x4002 2000～0x4002 2003</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>同上</td>
+<td><strong>FLASH_KEYR</strong></td>
+<td><code>0x4002 2004～0x4002 2007</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>同上</td>
+<td><strong>FLASH_OPTKEYR</strong></td>
+<td><code>0x4002 2008～0x4002 200B</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>同上</td>
+<td><strong>FLASH_SR</strong></td>
+<td><code>0x4002 200C～0x4002 200F</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>同上</td>
+<td><strong>FLASH_CR</strong></td>
+<td><code>0x4002 2010～0x4002 2013</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>同上</td>
+<td><strong>FLASH_AR</strong></td>
+<td><code>0x4002 2014～0x4002 2017</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>同上</td>
+<td>保留</td>
+<td><code>0x4002 2018～0x4002 201B</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>同上</td>
+<td><strong>FLASH_OBR</strong></td>
+<td><code>0x4002 201C～0x4002 201F</code></td>
+<td>4</td>
+</tr>
+<tr>
+<td>同上</td>
+<td><strong>FLASH_WRPR</strong></td>
+<td><code>0x4002 2020～0x4002 2023</code></td>
+<td>4</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>中容量：128 页 × 1K ＝ 128K</strong>；<strong>但 F103C8T6 只有页 0～页 63，共 64K</strong>；</li>
+<li><strong>小容量</strong>：32 页×1K；<strong>大容量</strong>：256 页×2K——<strong>要查单独的《STM32F10xxx 闪存编程参考手册》</strong>（不在参考手册里）；</li>
+<li><strong>「芯片闪存 64K/128K」只指主存储器</strong>，信息块不计入；</li>
+<li><strong>页起始地址步进 0x400（1K）</strong>：<code>0x08000000</code>、<code>0x08000400</code>、<code>0x08000800</code>、<code>0x08000C00</code>… 直到 <code>0x0801FC00</code>——<strong>以 000/400/800/C00 结尾的多半是页起始</strong>。</li>
+</ul>
+<h3 id="3-1-闪存的五项特性-与-w25q64-一致">3.1 闪存的五项特性（与 W25Q64 一致）</h3>
+<ol>
+<li><strong>写入前必须先擦除</strong>；</li>
+<li><strong>擦除以最小单位（页）进行</strong>；</li>
+<li><strong>擦除后数据位全变为 1</strong>；</li>
+<li><strong>数据只能 1 写 0，不能 0 写 1</strong>；</li>
+<li><strong>擦除和写入后都要等待忙</strong>（查 <code>BSY</code>）。</li>
+</ol>
+<p><img src="../assets/images/stm32-48/06-table2.jpg" alt="图 6：PPT「闪存模块组织」表2（中容量产品）完整表——主存储器 页0 0x08000000～0x080003FF … 页127 0x0801FC00～0x0801FFFF（各 1K）；信息块：启动程序代码 `0x1FFFF000～0x1FFFF7FF` 2K、用户选择字节 `0x1FFFF800～0x1FFFF80F` 16；闪存存储器接口寄存器：FLASH_ACR 0x40022000～03、KEYR 2004～07、OPTKEYR 2008～0B、SR 200C～0F、CR 2010～13、AR 2014～17、保留 2018～1B、OBR 201C～1F、WRPR 2020～23；红笔圈出主存储器与信息块；字幕「某些名称，描述的其实是一个东西」"></p>
+<p><em>图 6：PPT「闪存模块组织」表2（中容量产品）完整表——主存储器 页0 <code>0x08000000～0x080003FF</code> … 页127 <code>0x0801FC00～0x0801FFFF</code>（各 1K）；信息块：<strong>启动程序代码 <code>0x1FFFF000～0x1FFFF7FF</code> 2K</strong>、<strong>用户选择字节 <code>0x1FFFF800～0x1FFFF80F</code> 16</strong>；闪存存储器接口寄存器：FLASH_ACR <code>0x40022000～03</code>、KEYR <code>2004～07</code>、OPTKEYR <code>2008～0B</code>、SR <code>200C～0F</code>、CR <code>2010～13</code>、AR <code>2014～17</code>、保留 <code>2018～1B</code>、OBR <code>201C～1F</code>、WRPR <code>2020～23</code>；红笔圈出主存储器与信息块；字幕「某些名称，描述的其实是一个东西」</em></p>
+<p><img src="../assets/images/stm32-48/07-table2-marked.jpg" alt="图 7：表2 + 红笔圈注——红圈把「用户选择字节」整行圈出、并给「FLASH_ACR」行划线，强调选项字节只有 16 字节、接口寄存器属外设；字幕未出（讲解中）"></p>
+<p><em>图 7：表2 + 红笔圈注——红圈把「<strong>用户选择字节</strong>」整行圈出、并给「<strong>FLASH_ACR</strong>」行划线，强调选项字节只有 16 字节、接口寄存器属外设；字幕未出（讲解中）</em></p>
+<h3 id="3-2-术语对照-作者专门强调-某些名称描述的是一个东西">3.2 术语对照（作者专门强调「某些名称描述的是一个东西」）</h3>
+<table>
+<thead>
+<tr>
+<th>常见叫法</th>
+<th>对应</th>
+<th>位置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>程序存储器</strong></td>
+<td><strong>主存储器</strong></td>
+<td><code>0x08000000</code></td>
+</tr>
+<tr>
+<td><strong>启动程序代码</strong></td>
+<td><strong>系统存储器</strong></td>
+<td><code>0x1FFFF000</code>（2K）</td>
+</tr>
+<tr>
+<td><strong>用户选择字节</strong></td>
+<td><strong>选项字节</strong></td>
+<td><code>0x1FFFF800</code>（16 字节）</td>
+</tr>
+</tbody></table>
+<h2 id="4-flash-基本结构与解锁">4. FLASH 基本结构与解锁</h2>
+<h3 id="4-1-flash-基本结构-fpec">4.1 FLASH 基本结构（FPEC）</h3>
+<ul>
+<li>核心绿块：<strong>闪存存储器接口 / 闪存编程和擦除控制器（FPEC）</strong>；</li>
+<li>FPEC 对<strong>程序存储器</strong>做「擦除和编程」，对<strong>选项字节</strong>做「擦除和编程」；</li>
+<li><strong>选项字节还能配置程序存储器的读/写保护</strong>（箭头「配置读写保护」）；</li>
+<li><strong>FPEC 不能操作系统存储器</strong>（Bootloader 由原厂固化）。</li>
+</ul>
+<h3 id="4-2-三个键值">4.2 三个键值</h3>
+<table>
+<thead>
+<tr>
+<th>键</th>
+<th>值</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>RDPRT 键</strong></td>
+<td><strong>0x000000A5</strong></td>
+<td><strong>解除读保护</strong>（写到 RDP 选项字节位置）</td>
+</tr>
+<tr>
+<td><strong>KEY1</strong></td>
+<td><strong>0x45670123</strong></td>
+<td>解锁第一道锁</td>
+</tr>
+<tr>
+<td><strong>KEY2</strong></td>
+<td><strong>0xCDEF89AB</strong></td>
+<td>解锁第二道锁</td>
+</tr>
+</tbody></table>
+<ul>
+<li>「KEY」直译＝<strong>钥匙/密钥寄存器</strong>；键值可以随便定义，只要<strong>不容易被「翘锁」</strong>（都是 1/0 交替的刁钻组合）。</li>
+</ul>
+<h3 id="4-3-解锁与加锁-两把锁">4.3 解锁与加锁（两把锁）</h3>
+<ul>
+<li><strong>大锁（FPEC / FLASH_CR）</strong>：复位后 FPEC 被保护、<strong>不能写 <code>FLASH_CR</code></strong>；在 <strong><code>FLASH_KEYR</code> 先写 KEY1、再写 KEY2</strong> → 解锁；<strong>⚠ 错误的操作序列会在下次复位前锁死 FPEC 和 FLASH_CR</strong>（想翘锁却没按顺序 → 模块完全锁死，只有复位能恢复）；<strong>加锁</strong>＝操作完成后尽快置 <strong><code>FLASH_CR</code> 的 LOCK 位</strong>；</li>
+<li><strong>小锁（选项字节）</strong>：选项字节<strong>另有一把小锁</strong>，要在 <strong><code>FLASH_OPTKEYR</code></strong> 里写 KEY1、KEY2，并且<strong>先置 <code>FLASH_CR</code> 的 OPTWRE 位</strong>才能擦/写选项字节；</li>
+<li><strong>读不需要解锁、写必须解锁</strong>：闪存在程序运行时<strong>只读</strong>，读取权限低可直接读；写要先解锁再走后续流程。</li>
+</ul>
+<p><img src="../assets/images/stm32-48/08-unlock.jpg" alt="图 8：PPT「FLASH解锁」——FPEC 共有三个键值：RDPRT 键 = 0x000000A5、KEY1 = 0x45670123、KEY2 = 0xCDEF89AB；解锁：复位后 FPEC 被保护、不能写入 FLASH_CR，在 `FLASH_KEYR` 先写入 KEY1、再写入 KEY2 解锁；错误的操作序列会在下次复位前锁死 FPEC 和 FLASH_CR；加锁：设置 FLASH_CR 中的 LOCK 位锁住 FPEC 和 FLASH_CR；字幕「我们可以把它叫作钥匙寄存器、密钥寄存器」"></p>
+<p>*图 8：PPT「FLASH解锁」——<strong>FPEC 共有三个键值：RDPRT 键 = 0x000000A5、KEY1 = 0x45670123、KEY2 = 0xCDEF89AB</strong>；<strong>解锁</strong>：复位后 FPEC 被保护、不能写入 <code>FLASH_CR</code>，在 <strong><code>FLASH_KEYR</code> 先写入 KEY1、再写入 KEY2</strong> 解锁；<strong>错误的操作序列会在下次复位前锁死 FPEC 和 FLASH_CR</strong>；<strong>加锁</strong>：设置 <code>FLASH_CR</code> 中的 <strong>LOCK 位</strong>锁住 FPEC 和 FLASH_CR；字幕「我们可以把它叫作钥匙寄存器、密钥寄存器」*</p>
+<p><img src="../assets/images/stm32-48/09-unlock-key1.jpg" alt="图 9：同页「FLASH解锁」+ KEY1 行高亮——强调先 KEY1 再用 KEY2 才能解开两道锁；字幕「要先用KEY1钥匙解，再用KEY2钥匙解」"></p>
+<p><em>图 9：同页「FLASH解锁」+ KEY1 行高亮——强调*<em>先 KEY1 再用 KEY2</em></em> 才能解开两道锁；字幕「要先用KEY1钥匙解，再用KEY2钥匙解」*</p>
+<h3 id="4-4-使用指针访问存储器">4.4 使用指针访问存储器</h3>
+<pre><code class="language-c">uint16_t Data = *((__IO uint16_t *)(0x08000000));      /* 读 */
+*((__IO uint16_t *)(0x08000000)) = 0x1234;             /* 写 */
+
+#define __IO volatile
+</code></pre>
+<ul>
+<li><strong>三步</strong>：①<strong>写地址</strong>（<strong>地址做加减时必须加括号</strong>，否则运算符优先级出错）②<strong>强制类型转换</strong>（16 位用 <code>uint16_t *</code>、8 位 <code>uint8_t *</code>、32 位 <code>uint32_t *</code>、浮点 <code>float *</code>/<code>double *</code>）③用 <strong><code>*</code></strong> 取值或赋值；</li>
+<li><strong>读不需要解锁</strong>（只看看、不改，权限低）；<strong>写必须解锁</strong>；</li>
+<li><strong>写 SRAM（<code>0x20000000</code>）可以直接写</strong>——SRAM 可读可写，不受 FPEC 保护。</li>
+</ul>
+<h3 id="4-5-volatile-的两个作用">4.5 volatile 的两个作用</h3>
+<ul>
+<li><strong>目的：防止编译器优化</strong>；Keil 默认最低优化等级，<strong>加不加无影响</strong>；提高优化等级后会出现两类问题：<ol>
+<li><strong>用变量计数空循环做延时会被优化掉</strong>（编译器认为「没用、白浪费时间」）；</li>
+<li><strong>变量被缓存到寄存器</strong>——中断里改了原变量，而缓存值不同步，导致判断出错；</li>
+</ol>
+</li>
+<li>加 <code>volatile</code> 就是告诉编译器「<strong>每次都执行到位、不要用缓存优化</strong>」；</li>
+<li><strong>读写与硬件相关的存储器时必须加 volatile</strong>（库函数里到处都是 <code>__IO</code>）。</li>
+</ul>
+<p><img src="../assets/images/stm32-48/10-pointer-access.jpg" alt="图 10：PPT「使用指针访问存储器」——读：uint16_t Data = *((__IO uint16_t *)(0x08000000));；写：*((__IO uint16_t *)(0x08000000)) = 0x1234;；其中 `#define __IO volatile`；字幕「我想读取这个地址下的数据」"></p>
+<p>*图 10：PPT「使用指针访问存储器」——读：<code>uint16_t Data = *((__IO uint16_t *)(0x08000000));</code>；写：<code>*((__IO uint16_t *)(0x08000000)) = 0x1234;</code>；其中 <strong><code>#define __IO volatile</code></strong>；字幕「我想读取这个地址下的数据」*</p>
+<p><img src="../assets/images/stm32-48/11-volatile-marked.jpg" alt="图 11：同页 + 红笔圈注 __IO 与 volatile、红框标出「中断函数」相关说明——讲 volatile 防止变量被缓存到寄存器；字幕「比如中断函数」"></p>
+<p><em>图 11：同页 + 红笔圈注 <code>__IO</code> 与 <code>volatile</code>、红框标出「中断函数」相关说明——讲 volatile 防止变量被缓存到寄存器；字幕「比如中断函数」</em></p>
+<h2 id="5-三条流程图">5. 三条流程图</h2>
+<h3 id="5-1-程序存储器全擦除">5.1 程序存储器全擦除</h3>
+<ol>
+<li>读 <code>FLASH_CR</code> 的 <strong>LOCK</strong> 位；</li>
+<li>若 =1，执行<strong>解锁过程</strong>（<code>FLASH_KEYR</code> 写 KEY1、KEY2）——<strong>注意：库函数里并没有这个判断，直接无条件解锁</strong>；</li>
+<li><strong>置 <code>FLASH_CR</code> 的 MER（Mass Erase）位 =1</strong>；</li>
+<li><strong>置 <code>STRT</code> 位 =1</strong>（<strong>这是触发条件</strong>）；</li>
+<li>内部电路自动执行全擦除；</li>
+<li><strong>查 <code>FLASH_SR</code> 的 BSY 位循环等待</strong>（BSY=1 表示忙，直到 =0）；</li>
+<li>「读出并验证所有页的数据」——<strong>测试程序才做，正常认为成功即可</strong>。</li>
+</ol>
+<h3 id="5-2-程序存储器页擦除">5.2 程序存储器页擦除</h3>
+<ol>
+<li>读 <code>FLASH_CR</code> 的 LOCK；</li>
+<li>解锁；</li>
+<li><strong>置 <code>FLASH_CR</code> 的 PER（Page Erase）位 =1</strong>；</li>
+<li><strong>在 <code>FLASH_AR</code>（Address Register）中写入要擦除的页地址</strong>；</li>
+<li><strong>置 <code>STRT</code> 位 =1</strong>；</li>
+<li>等待 <strong>BSY=0</strong>。</li>
+</ol>
+<ul>
+<li><strong>擦除最小单位就是一页＝1K＝1024 字节</strong>。</li>
+</ul>
+<h3 id="5-3-程序存储器编程">5.3 程序存储器编程</h3>
+<ol>
+<li>读 <code>FLASH_CR</code> 的 LOCK；</li>
+<li>解锁；</li>
+<li><strong>置 <code>FLASH_CR</code> 的 PG（Programming）位 =1</strong>；</li>
+<li><strong>在指定地址写入半字</strong>——<strong>这一句本身就是触发条件，不需要置 STRT</strong>；</li>
+<li>等待忙。</li>
+</ol>
+<ul>
+<li><strong>写入前芯片会检查该地址是否已擦除</strong>：未擦除则不执行编程（<strong>除非写入的全是 0，那必定没问题</strong>）；</li>
+<li><strong>只能以半字（16 位）写入</strong>：<strong>字 Word＝32 位、半字 HalfWord＝16 位、字节 Byte＝8 位</strong>；</li>
+<li><strong>写 32 位分两次</strong>；<strong>写 8 位很麻烦</strong>——只能「<strong>整页读到 SRAM → 随意修改 → 整页擦除 → 整页写回</strong>」；</li>
+<li>写入大量数据就<strong>循环调用</strong>该流程。</li>
+</ul>
+<p><img src="../assets/images/stm32-48/12-page-erase-flow.jpg" alt="图 12：PPT「程序存储器页擦除」图二 闪存页擦除过程（红笔标注版）——读 FLASH_CR 的 LOCK 位 → 若 =1 执行解锁过程 → 置 `FLASH_CR（PER）=1`、在 `FLASH_AR` 写入要擦除的页、置 `FLASH_CR（STRT）=1` → 查 FLASH_SR 的 BSY 位循环 → 读出并验证被擦除页的数据；字幕「这样芯片就会把我们指定的一页，给擦除掉」"></p>
+<p>*图 12：PPT「程序存储器页擦除」图二 闪存页擦除过程（红笔标注版）——读 <code>FLASH_CR</code> 的 LOCK 位 → 若 =1 执行解锁过程 → <strong>置 <code>FLASH_CR[PER]=1</code></strong>、<strong>在 <code>FLASH_AR</code> 写入要擦除的页</strong>、<strong>置 <code>FLASH_CR[STRT]=1</code></strong> → 查 <code>FLASH_SR</code> 的 BSY 位循环 → 读出并验证被擦除页的数据；字幕「这样芯片就会把我们指定的一页，给擦除掉」*</p>
+<h2 id="6-选项字节">6. 选项字节</h2>
+<ul>
+<li>地址 <strong><code>0x1FFFF800</code></strong>，共 <strong>16 字节</strong>，<strong>成对存储</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>字节对</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>RDP / nRDP</code></strong></td>
+<td>读保护（写入 RDPRT 键 0x000000A5 解除）</td>
+</tr>
+<tr>
+<td><code>USER / nUSER</code></td>
+<td>硬件看门狗、停机/待机是否产生复位等零碎位</td>
+</tr>
+<tr>
+<td><code>Data0 / nData0</code></td>
+<td><strong>芯片未定义功能，用户可自定义</strong></td>
+</tr>
+<tr>
+<td><code>Data1 / nData1</code></td>
+<td>同上</td>
+</tr>
+<tr>
+<td><strong><code>WRP0 / nWRP0</code> … <code>WRP3 / nWRP3</code></strong></td>
+<td>写保护</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>带 n 的必须是反码</strong>：写入时要在对应位置写反码才有效，<strong>芯片检测到两者不是反码关系则数据无效、对应功能不执行</strong>；<strong>反码由 FPEC 硬件自动计算</strong>（库函数已封装）；</li>
+<li>去掉带 n 的只剩 <strong>8 个字节</strong>：RDP、USER、Data0、Data1、WRP0～WRP3；</li>
+<li><strong>读保护</strong>：不解除 RDPRT 时闪存处于<strong>读保护状态</strong>，<strong>无法通过调试器读取程序</strong>（防窃取）；</li>
+<li><strong>写保护粒度</strong>（手册 2.5 选择字节说明）：<ul>
+<li><strong>中容量</strong>：<strong>每 1 位保护 4 个存储页</strong>，4 字节 32 位 → 4×32＝<strong>128 页</strong>，正好覆盖中容量最大 128 页（WRP0 管页 0～31、WRP1 页 32～63、WRP2 页 64～95、WRP3 页 96～127）；</li>
+<li><strong>小容量</strong>：每 1 位保护 4 页（1K/页）→ WRP0 一位管 4 页，4 位共保护 <strong>32K</strong>（WRP0 管第 0～31 页）；</li>
+<li><strong>大容量</strong>：每 1 位保护 <strong>2 页（2K/页）</strong>，4 字节不够用 → <strong>规定 WRP3 的位 7 保护剩余所有页</strong>（第 62～255 页），四位共保护 <strong>512K</strong>；</li>
+</ul>
+</li>
+<li><strong>⚠ 写保护位是反逻辑</strong>：<strong><code>0</code> ＝实施写保护、<code>1</code> ＝不实施写保护</strong>（<strong>默认是 1，因为擦除后全是 1</strong>）。</li>
+<li><strong>选项字节擦除/编程</strong>（手册只给文字流程）：擦除——①解锁闪存 ②<strong>检查 <code>FLASH_SR</code> 的 BSY</strong>（确认没有其他闪存操作）③<strong>解锁 <code>FLASH_CR</code> 的 OPTWRE 位</strong>（在 <code>FLASH_OPTKEYR</code> 写 KEY1、KEY2，解小锁）④置 <strong><code>FLASH_CR</code> 的 OPTER=1</strong> ⑤置 <strong><code>STRT</code>=1</strong> ⑥等 BSY=0；编程——检查 BSY → 解小锁 → 置 <strong><code>FLASH_CR</code> 的 OPTPG=1</strong> → 指针写入半字 → 等待忙。</li>
+<li><strong>FPEC 会自动计算高字节的反码</strong>；<strong>当闪存由「保护」变为「未保护」时会自动执行整片擦除</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-48/13-wrpx-manual.jpg" alt="图 13：手册《STM32F10xxx闪存编程参考手册》2.5 选择字节说明 WRPx——小容量：每比特位保护主存储器中 4 个存储页（1K/页），0＝实施写保护、1＝不实施写保护，WRP0 保护第 0～31 页（共 32K）；中容量：四位保护 128K（WRP0 页 0～31、WRP1 页 32～63、WRP2 页 64～95、WRP3 页 96～127）；大容量：每比特位保护 2 页（2K/页）、WRP3 位 7 保护第 62～255 页，共 512K；字幕「所以只需要一个字节 WRP0 就行，4×8=32」"></p>
+<p>*图 13：手册《STM32F10xxx闪存编程参考手册》2.5 选择字节说明 WRPx——<strong>小容量</strong>：每比特位保护主存储器中 <strong>4 个存储页（1K/页）</strong>，<strong>0＝实施写保护、1＝不实施写保护</strong>，WRP0 保护第 0～31 页（共 32K）；<strong>中容量</strong>：四位保护 <strong>128K</strong>（WRP0 页 0～31、WRP1 页 32～63、WRP2 页 64～95、WRP3 页 96～127）；<strong>大容量</strong>：每比特位保护 <strong>2 页（2K/页）</strong>、<strong>WRP3 位 7 保护第 62～255 页</strong>，共 <strong>512K</strong>；字幕「所以只需要一个字节 WRP0 就行，4×8=32」*</p>
+<h2 id="7-器件电子签名">7. 器件电子签名</h2>
+<ul>
+<li>存放在<strong>闪存存储器模块的系统存储区域</strong>、<strong>出厂时编写、不可更改</strong>、<strong>用指针读指定地址</strong>即可获取；</li>
+<li><strong>闪存容量寄存器 <code>F_SIZE</code></strong>：<strong>基地址 <code>0x1FFFF7E0</code>，大小 16 位</strong>（以 K 字节为单位，例 <code>0x0080</code> ＝ 128K 字节；<code>0x0040</code> ＝ 64K）；</li>
+<li><strong>产品唯一身份标识寄存器（UID）</strong>：<strong>基地址 <code>0x1FFFF7E8</code>，大小 96 位</strong>；<ul>
+<li>用途：<strong>序列号</strong>（USB 字符串序列号等终端应用）、<strong>密码</strong>（与加密算法结合提高代码安全性）、<strong>激活带安全机制的自举过程</strong>；</li>
+<li><strong>任何情况下唯一、不能修改</strong>；<strong>可按字节（8 位）/半字（16 位）/全字（32 位）读取</strong>，偏移 <code>0x00</code>；</li>
+<li><strong>96 位每片都不同</strong> → 可用于<strong>加密</strong>：程序多处加 ID 判断，非指定设备不执行 → <strong>程序被盗到别的设备上也难运行</strong>。</li>
+</ul>
+</li>
+</ul>
+<p><img src="../assets/images/stm32-48/14-flash-structure.jpg" alt="图 14：PPT「FLASH基本结构」（作者自绘）——左侧绿块 闪存存储器接口 / 闪存编程和擦除控制器（FPEC）；右侧 程序存储器（C8T6-64K）：0x0800 0000 页0(1K)、0x0800 0400 页1、0x0800 0800 页2、0x0800 0C00 页3…0x0800 F400 页61、0x0800 F800 页62、0x0800 FC00 页63；下方 系统存储器 `0x1FFF F000 Bootloader(2K)`、选项字节 `0x1FFF F800 选项字节(16)`；箭头「程序存储器的擦除和编程」「选项字节的擦除和编程」「配置读写保护」；字幕「看一下这里」"></p>
+<p>*图 14：PPT「FLASH基本结构」（作者自绘）——左侧绿块 <strong>闪存存储器接口 / 闪存编程和擦除控制器（FPEC）</strong>；右侧 <strong>程序存储器（C8T6-64K）</strong>：<code>0x0800 0000 页0(1K)</code>、<code>0x0800 0400 页1</code>、<code>0x0800 0800 页2</code>、<code>0x0800 0C00 页3</code>…<code>0x0800 F400 页61</code>、<code>0x0800 F800 页62</code>、<code>0x0800 FC00 页63</code>；下方 <strong>系统存储器 <code>0x1FFF F000 Bootloader(2K)</code></strong>、<strong>选项字节 <code>0x1FFF F800 选项字节(16)</code></strong>；箭头「程序存储器的擦除和编程」「选项字节的擦除和编程」「配置读写保护」；字幕「看一下这里」*</p>
+<p><img src="../assets/images/stm32-48/15-e-signature.jpg" alt="图 15：PPT「器件电子签名」——电子签名存放在闪存存储器模块的系统存储区域，包含的芯片识别信息在出厂时编写、不可更改，使用指针读指定地址即可获取；闪存容量寄存器：基地址 `0x1FFFF7E0`、大小 16 位；产品唯一身份标识寄存器：基地址 `0x1FFFF7E8`、大小 96 位；字幕「总共就是这么多内容，非常简单」"></p>
+<p><em>图 15：PPT「器件电子签名」——电子签名存放在*<em>闪存存储器模块的系统存储区域</em></em>，包含的芯片识别信息<strong>在出厂时编写、不可更改</strong>，使用指针读指定地址即可获取；<strong>闪存容量寄存器：基地址 <code>0x1FFFF7E0</code>、大小 16 位</strong>；<strong>产品唯一身份标识寄存器：基地址 <code>0x1FFFF7E8</code>、大小 96 位</strong>；字幕「总共就是这么多内容，非常简单」*</p>
+<p><img src="../assets/images/stm32-48/16-manual-uid.jpg" alt="图 16：参考手册「28.2 产品唯一身份标识寄存器（96 位）」——位 15:0 为 F_SIZE（31:16 保留；以 K 字节为单位，例 0x0080＝128K 字节）；96 位 UID 用途：序列号、密码（与加密算法结合提高代码安全性）、激活带安全机制的自举过程；任何情况下唯一、不可修改；可按字节（8 位）/半字（16 位）/全字（32 位）读取；基地址 `0x1FFFF7E8`、偏移 0x00、只读出厂编写；字幕「然后产品唯一身份标识寄存器」"></p>
+<p><em>图 16：参考手册「28.2 产品唯一身份标识寄存器（96 位）」——位 15:0 为 <code>F_SIZE</code>（31:16 保留；以 K 字节为单位，例 <code>0x0080</code>＝128K 字节）；96 位 UID 用途：序列号、密码（与加密算法结合提高代码安全性）、激活带安全机制的自举过程；<strong>任何情况下唯一、不可修改</strong>；<strong>可按字节（8 位）/半字（16 位）/全字（32 位）读取</strong>；<strong>基地址 <code>0x1FFFF7E8</code>、偏移 0x00、只读出厂编写</strong>；字幕「然后产品唯一身份标识寄存器」</em></p>
+<h2 id="8-手册精读要点与两个行为坑">8. 手册精读要点与两个行为坑</h2>
+<h3 id="8-1-手册结构">8.1 手册结构</h3>
+<ul>
+<li><strong>《STM32F10xxx 闪存编程》PM0042</strong>：ICP/IAP 简介、2.3.1 小/中/大容量、2.3.2 Code 接口、<strong>2.3.3 预取缓冲区</strong>、<strong>2.4.1 FPEC</strong>、<strong>2.4.2 主闪存编程</strong>；</li>
+<li><strong>寄存器章节</strong>：<code>FLASH_ACR</code>（与内核执行代码有关，不用深究）、<code>FLASH_KEYR</code>（闪存锁）、<code>FLASH_OPTKEYR</code>（选项字节小锁）、<code>FLASH_SR</code>（重点 <strong>BSY</strong>）、<code>FLASH_CR</code>（重点 <strong>LOCK/STRT/OPTER/OPTPG/MER/PER/PG</strong>）、<code>FLASH_AR</code>（配合页擦除指定页）、<code>FLASH_OBR</code>（把选项字节内容加载进来）、<code>FLASH_WRPR</code>（写保护）。</li>
+</ul>
+<h3 id="8-2-坑1-任何读写闪存都会让-cpu-暂停">8.2 坑①：任何读写闪存都会让 CPU 暂停</h3>
+<ul>
+<li><strong>原因</strong>：<strong>执行代码本身要读闪存</strong>，闪存忙时 CPU 无法运行 → <strong>任何读写闪存的操作都会使 CPU 暂停，直到本次编程结束</strong>；</li>
+<li><strong>后果</strong>：<strong>对时间敏感的频繁中断会卡顿/闪烁</strong>——作者举例：<strong>点阵屏用定时器中断不断扫描刷新</strong>，读写闪存时中断无法执行 → <strong>屏幕快速闪烁</strong>（作者自己踩过这个坑）；</li>
+<li><strong>结论</strong>：<strong>程序里有对时间要求严格的频繁中断时，慎用内部闪存存用户数据</strong>。</li>
+</ul>
+<h3 id="8-3-坑2-由保护变未保护会自动整片擦除">8.3 坑②：由保护变未保护会自动整片擦除</h3>
+<ul>
+<li><strong>当闪存由「保护」变为「未保护」时，会自动执行整片擦除</strong>——解除读保护要小心数据全丢；</li>
+<li>另：<strong>写/擦除时必须打开 HSI 时钟</strong>（<code>SystemInit</code> 里已经配好，<strong>不要动它</strong>）。</li>
+</ul>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>纯理论课</strong>：片头只演示两个成品工程，<strong>FLASH 库函数零出现</strong>；代码在 [15-2]；片头代码里 <code>Store_Data()</code>/<code>Store_Clear()</code> 是<strong>作者自定义封装</strong>，不是标准库函数。</li>
+<li><strong>四个地址别写串</strong>：主存 <strong><code>0x08000000</code></strong> ｜ 系统存储器 <strong><code>0x1FFFF000</code>（2K）</strong> ｜ 选项字节 <strong><code>0x1FFFF800</code>（16 字节）</strong> ｜ <strong>接口寄存器 <code>0x40022000</code>（属外设，不是闪存本体）</strong>。</li>
+<li><strong>容量口径</strong>：中容量 <strong>128 页×1K＝128K</strong>，<strong>C8T6 只有页 0～63＝64K</strong>；小容量 32 页×1K；大容量 256 页×2K；<strong>「芯片 64K/128K」只指主存储器</strong>。</li>
+<li><strong>三个键值</strong>：<strong>KEY1=0x45670123、KEY2=0xCDEF89AB</strong>（写 <code>FLASH_KEYR</code>，<strong>先 KEY1 后 KEY2</strong>，顺序错会锁死到复位）；<strong>RDPRT=0x000000A5</strong>（解除读保护）。</li>
+<li><strong>两把锁</strong>：<strong>大锁</strong> <code>FLASH_KEYR</code> 管 FPEC/<code>FLASH_CR</code>；<strong>小锁</strong> <code>FLASH_OPTKEYR</code> 管选项字节，且要先置 <strong>OPTWRE</strong>。</li>
+<li><strong>触发方式差异</strong>：<strong>全擦除/页擦除＝置位后还要置 <code>STRT</code></strong>；<strong>编程＝写半字本身就是触发，不需要 STRT</strong>。</li>
+<li><strong>三条写限制</strong>：<strong>先擦后写</strong>、<strong>只能半字写</strong>、<strong>只能 1 写 0</strong>；<strong>写 8 位极麻烦</strong>（整页读 SRAM→改→整页擦→整页写回）；<strong>写全 0 例外可绕过擦除检查</strong>。</li>
+<li><strong>术语对照</strong>：<strong>字 Word=32 位、半字=16 位、字节=8 位</strong>；<strong>程序存储器=主存储器、启动程序代码=系统存储器、用户选择字节=选项字节</strong>。</li>
+<li><strong>选项字节反码+反逻辑</strong>：16 字节成对（带 n 的是反码、硬件自动算）；<strong>写保护 0=保护、1=不保护（默认）</strong>。</li>
+<li><strong>读不解锁、写必解锁</strong>；闪存在程序运行时是<strong>只读</strong>的；<strong>SRAM 可直接写</strong>。</li>
+<li><strong><code>volatile</code></strong>：防止空循环延时被优化掉、防止变量被缓存到寄存器与中断不同步——<strong>读写硬件相关存储器必须加</strong>。</li>
+<li><strong>任何读写闪存都会让 CPU 暂停</strong>（对时间敏感的频繁中断会卡顿/闪烁）→ <strong>慎用内部闪存存用户数据</strong>。</li>
+<li><strong>闪存由保护→未保护会自动整片擦除</strong>。</li>
+<li><strong>写/擦除需开 HSI 时钟</strong>（<code>SystemInit</code> 已配好，别动）。</li>
+<li><strong>器件电子签名</strong>：<code>F_SIZE</code>@<code>0x1FFFF7E0</code>（16 位）、<code>UID</code>@<code>0x1FFFF7E8</code>（96 位，每片唯一，可加密）。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:05</td>
+<td>FLASH 简介 PPT</td>
+</tr>
+<tr>
+<td>0:08</td>
+<td>STM32F1 的 FLASH 分三部分</td>
+</tr>
+<tr>
+<td>0:17</td>
+<td>程序存储器、系统存储器、选项字节</td>
+</tr>
+<tr>
+<td>0:24</td>
+<td>通过闪存存储器接口擦除和编程</td>
+</tr>
+<tr>
+<td>0:34</td>
+<td>先看两个程序现象</td>
+</tr>
+<tr>
+<td>0:57</td>
+<td>第一个是读写内部 FLASH</td>
+</tr>
+<tr>
+<td>1:45</td>
+<td>OLED 显示 Flag 标志位</td>
+</tr>
+<tr>
+<td>1:53</td>
+<td>显示 A5A5 说明存过数据</td>
+</tr>
+<tr>
+<td>1:57</td>
+<td>按 Key1 变换数据并存储</td>
+</tr>
+<tr>
+<td>2:10</td>
+<td>按 Key2 全部清零</td>
+</tr>
+<tr>
+<td>2:33</td>
+<td>断电重启数据不丢</td>
+</tr>
+<tr>
+<td>3:11</td>
+<td>第二个程序读取芯片 ID</td>
+</tr>
+<tr>
+<td>3:22</td>
+<td>用指针读指定地址</td>
+</tr>
+<tr>
+<td>3:40</td>
+<td>得到闪存容量 64K</td>
+</tr>
+<tr>
+<td>4:03</td>
+<td>回到 PPT 讲简介</td>
+</tr>
+<tr>
+<td>4:30</td>
+<td>闪存是非易失性存储器</td>
+</tr>
+<tr>
+<td>4:32</td>
+<td>回顾存储器映像</td>
+</tr>
+<tr>
+<td>4:41</td>
+<td>ROM 区掉电不丢失</td>
+</tr>
+<tr>
+<td>4:55</td>
+<td>本节特指 STM32 内部闪存</td>
+</tr>
+<tr>
+<td>5:04</td>
+<td>程序存储器 0x08000000</td>
+</tr>
+<tr>
+<td>5:09</td>
+<td>系统存储器 0x1FFFF000</td>
+</tr>
+<tr>
+<td>5:16</td>
+<td>选项字节 0x1FFFF800</td>
+</tr>
+<tr>
+<td>5:20</td>
+<td>通过闪存存储器接口擦除和编程</td>
+</tr>
+<tr>
+<td>5:50</td>
+<td>三个部分分别是什么</td>
+</tr>
+<tr>
+<td>6:10</td>
+<td>接口只能操作程序存储器和选项字节</td>
+</tr>
+<tr>
+<td>6:27</td>
+<td>三个部分的具体含义</td>
+</tr>
+<tr>
+<td>6:37</td>
+<td>读写 FLASH 的两个用途</td>
+</tr>
+<tr>
+<td>6:45</td>
+<td>用剩余空间存用户数据</td>
+</tr>
+<tr>
+<td>6:53</td>
+<td>C8T6 程序存储器 64K</td>
+</tr>
+<tr>
+<td>6:58</td>
+<td>简单程序只占前面很小一部分</td>
+</tr>
+<tr>
+<td>7:14</td>
+<td>一定不要覆盖原有程序</td>
+</tr>
+<tr>
+<td>7:22</td>
+<td>一般选最后几页</td>
+</tr>
+<tr>
+<td>7:31</td>
+<td>第二个用途是 IAP 自我更新</td>
+</tr>
+<tr>
+<td>8:08</td>
+<td>红笔圈出 IAP 和 ICP</td>
+</tr>
+<tr>
+<td>8:19</td>
+<td>先介绍 ICP</td>
+</tr>
+<tr>
+<td>8:34</td>
+<td>在线编程不用拆芯片</td>
+</tr>
+<tr>
+<td>8:36</td>
+<td>更新程序存储器的全部内容</td>
+</tr>
+<tr>
+<td>8:39</td>
+<td>通过 JTAG 或 SWD 下载</td>
+</tr>
+<tr>
+<td>8:42</td>
+<td>也可以用系统加载程序 Bootloader</td>
+</tr>
+<tr>
+<td>8:54</td>
+<td>每次下载都是整体覆盖</td>
+</tr>
+<tr>
+<td>9:02</td>
+<td>再介绍 IAP</td>
+</tr>
+<tr>
+<td>9:04</td>
+<td>可用任一种通信接口下载</td>
+</tr>
+<tr>
+<td>9:19</td>
+<td>可以做远程升级</td>
+</tr>
+<tr>
+<td>9:39</td>
+<td>自己写 Bootloader</td>
+</tr>
+<tr>
+<td>10:00</td>
+<td>接收数据写入正常运行的地方</td>
+</tr>
+<tr>
+<td>10:59</td>
+<td>看表2 闪存模块组织</td>
+</tr>
+<tr>
+<td>11:47</td>
+<td>主存储器页 0 到页 127</td>
+</tr>
+<tr>
+<td>11:48</td>
+<td>每页 1K</td>
+</tr>
+<tr>
+<td>11:50</td>
+<td>中容量共 128K</td>
+</tr>
+<tr>
+<td>12:30</td>
+<td>C8T6 只有页 0 到页 63</td>
+</tr>
+<tr>
+<td>12:31</td>
+<td>信息块包含启动程序代码</td>
+</tr>
+<tr>
+<td>12:32</td>
+<td>系统存储器 2K</td>
+</tr>
+<tr>
+<td>12:45</td>
+<td>用户选择字节 16 字节</td>
+</tr>
+<tr>
+<td>13:16</td>
+<td>接口寄存器是外设</td>
+</tr>
+<tr>
+<td>13:40</td>
+<td>小中大容量页数不同</td>
+</tr>
+<tr>
+<td>13:43</td>
+<td>要查闪存编程参考手册</td>
+</tr>
+<tr>
+<td>13:48</td>
+<td>红笔划启动程序代码那一行</td>
+</tr>
+<tr>
+<td>14:00</td>
+<td>主存储器从 0x08000000 开始</td>
+</tr>
+<tr>
+<td>14:30</td>
+<td>每页 1K 共 128 页</td>
+</tr>
+<tr>
+<td>15:00</td>
+<td>中容量一共 128K</td>
+</tr>
+<tr>
+<td>15:30</td>
+<td>小容量 32 页、大容量 256 页 2K</td>
+</tr>
+<tr>
+<td>16:05</td>
+<td>信息块不计入芯片容量</td>
+</tr>
+<tr>
+<td>16:30</td>
+<td>提醒某些名称描述的是一个东西</td>
+</tr>
+<tr>
+<td>16:32</td>
+<td>页起始地址规律</td>
+</tr>
+<tr>
+<td>17:07</td>
+<td>步进 0x400</td>
+</tr>
+<tr>
+<td>17:34</td>
+<td>地址以 000/400/800/C00 结尾</td>
+</tr>
+<tr>
+<td>17:49</td>
+<td>闪存五项特性</td>
+</tr>
+<tr>
+<td>17:55</td>
+<td>先擦后写</td>
+</tr>
+<tr>
+<td>17:58</td>
+<td>以页为最小单位擦除</td>
+</tr>
+<tr>
+<td>18:29</td>
+<td>擦除后全变为 1</td>
+</tr>
+<tr>
+<td>18:31</td>
+<td>看 FLASH 解锁 PPT</td>
+</tr>
+<tr>
+<td>19:12</td>
+<td>FPEC 共有三个键值</td>
+</tr>
+<tr>
+<td>19:17</td>
+<td>RDPRT 键解除读保护</td>
+</tr>
+<tr>
+<td>19:54</td>
+<td>先 KEY1 再 KEY2</td>
+</tr>
+<tr>
+<td>20:25</td>
+<td>错误序列会锁死</td>
+</tr>
+<tr>
+<td>20:59</td>
+<td>加锁用 LOCK 位</td>
+</tr>
+<tr>
+<td>21:16</td>
+<td>看指针访问存储器</td>
+</tr>
+<tr>
+<td>21:35</td>
+<td>读指定地址的存储器</td>
+</tr>
+<tr>
+<td>21:47</td>
+<td>写指定地址的存储器</td>
+</tr>
+<tr>
+<td>22:01</td>
+<td>三步：写地址、类型转换、取值</td>
+</tr>
+<tr>
+<td>22:04</td>
+<td>地址加减必须加括号</td>
+</tr>
+<tr>
+<td>22:20</td>
+<td>类型转换决定读写宽度</td>
+</tr>
+<tr>
+<td>22:57</td>
+<td>读不需要解锁</td>
+</tr>
+<tr>
+<td>22:59</td>
+<td>写必须解锁</td>
+</tr>
+<tr>
+<td>23:02</td>
+<td>写 SRAM 可以直接写</td>
+</tr>
+<tr>
+<td>23:05</td>
+<td>volatile 防止编译器优化</td>
+</tr>
+<tr>
+<td>23:21</td>
+<td>红笔圈出 __IO 和 volatile</td>
+</tr>
+<tr>
+<td>23:41</td>
+<td>空循环延时会被优化掉</td>
+</tr>
+<tr>
+<td>24:20</td>
+<td>变量被缓存到寄存器</td>
+</tr>
+<tr>
+<td>24:48</td>
+<td>中断里改了缓存不同步</td>
+</tr>
+<tr>
+<td>25:24</td>
+<td>硬件相关存储器必须加 volatile</td>
+</tr>
+<tr>
+<td>25:45</td>
+<td>提高优化等级后才会出问题</td>
+</tr>
+<tr>
+<td>26:20</td>
+<td>默认最低优化等级不加也行</td>
+</tr>
+<tr>
+<td>27:06</td>
+<td>下面看三条流程图</td>
+</tr>
+<tr>
+<td>27:26</td>
+<td>全擦除流程</td>
+</tr>
+<tr>
+<td>27:53</td>
+<td>读 LOCK 位再解锁</td>
+</tr>
+<tr>
+<td>29:25</td>
+<td>页擦除流程图</td>
+</tr>
+<tr>
+<td>29:37</td>
+<td>置 PER 位</td>
+</tr>
+<tr>
+<td>29:40</td>
+<td>在 FLASH_AR 写页地址</td>
+</tr>
+<tr>
+<td>29:48</td>
+<td>置 STRT 位触发</td>
+</tr>
+<tr>
+<td>30:13</td>
+<td>等待 BSY</td>
+</tr>
+<tr>
+<td>30:19</td>
+<td>擦除最小单位是一页</td>
+</tr>
+<tr>
+<td>30:24</td>
+<td>编程流程</td>
+</tr>
+<tr>
+<td>30:50</td>
+<td>置 PG 位</td>
+</tr>
+<tr>
+<td>30:56</td>
+<td>写半字就是触发条件</td>
+</tr>
+<tr>
+<td>30:58</td>
+<td>红笔标注页擦除流程</td>
+</tr>
+<tr>
+<td>30:59</td>
+<td>不需要置 STRT</td>
+</tr>
+<tr>
+<td>31:07</td>
+<td>写前检查是否已擦除</td>
+</tr>
+<tr>
+<td>31:08</td>
+<td>写入全 0 一定没问题</td>
+</tr>
+<tr>
+<td>31:24</td>
+<td>只能以半字写入</td>
+</tr>
+<tr>
+<td>31:32</td>
+<td>字 32 位、半字 16 位、字节 8 位</td>
+</tr>
+<tr>
+<td>31:37</td>
+<td>写 8 位很麻烦</td>
+</tr>
+<tr>
+<td>31:43</td>
+<td>整页读 SRAM 改完写回</td>
+</tr>
+<tr>
+<td>32:43</td>
+<td>表2 红圈用户选择字节</td>
+</tr>
+<tr>
+<td>32:44</td>
+<td>选项字节成对存储</td>
+</tr>
+<tr>
+<td>33:23</td>
+<td>带 n 的是反码</td>
+</tr>
+<tr>
+<td>33:38</td>
+<td>反码由硬件计算</td>
+</tr>
+<tr>
+<td>34:05</td>
+<td>RDP 读保护</td>
+</tr>
+<tr>
+<td>34:14</td>
+<td>USER 一些零碎配置</td>
+</tr>
+<tr>
+<td>34:23</td>
+<td>Data0 和 Data1 用户自定义</td>
+</tr>
+<tr>
+<td>34:34</td>
+<td>手册讲 WRPx 写保护</td>
+</tr>
+<tr>
+<td>34:44</td>
+<td>中容量一位保护 4 页</td>
+</tr>
+<tr>
+<td>34:49</td>
+<td>4 字节 32 位正好 128 页</td>
+</tr>
+<tr>
+<td>35:15</td>
+<td>大容量一位保护 2 页</td>
+</tr>
+<tr>
+<td>35:22</td>
+<td>WRP3 最高位保护剩余所有页</td>
+</tr>
+<tr>
+<td>35:26</td>
+<td>写保护是反逻辑</td>
+</tr>
+<tr>
+<td>35:39</td>
+<td>1 是不保护、0 是保护</td>
+</tr>
+<tr>
+<td>35:42</td>
+<td>默认擦除后全是 1</td>
+</tr>
+<tr>
+<td>35:53</td>
+<td>选项字节擦除流程</td>
+</tr>
+<tr>
+<td>36:21</td>
+<td>还要解小锁 OPTWRE</td>
+</tr>
+<tr>
+<td>37:35</td>
+<td>FLASH 基本结构图</td>
+</tr>
+<tr>
+<td>37:37</td>
+<td>中间是 FPEC</td>
+</tr>
+<tr>
+<td>37:40</td>
+<td>程序存储器 64K</td>
+</tr>
+<tr>
+<td>37:44</td>
+<td>器件电子签名</td>
+</tr>
+<tr>
+<td>37:58</td>
+<td>出厂时编写不可更改</td>
+</tr>
+<tr>
+<td>38:26</td>
+<td>闪存容量寄存器</td>
+</tr>
+<tr>
+<td>38:42</td>
+<td>产品唯一身份标识寄存器</td>
+</tr>
+<tr>
+<td>38:55</td>
+<td>96 位每片不同</td>
+</tr>
+<tr>
+<td>39:00</td>
+<td>可用于加密</td>
+</tr>
+<tr>
+<td>39:07</td>
+<td>程序多处加 ID 判断</td>
+</tr>
+<tr>
+<td>39:14</td>
+<td>被盗到别的设备也难运行</td>
+</tr>
+<tr>
+<td>39:29</td>
+<td>看闪存编程参考手册</td>
+</tr>
+<tr>
+<td>40:35</td>
+<td>预取缓冲区</td>
+</tr>
+<tr>
+<td>40:52</td>
+<td>FPEC 结构</td>
+</tr>
+<tr>
+<td>40:55</td>
+<td>主闪存编程</td>
+</tr>
+<tr>
+<td>41:04</td>
+<td>重要注意事项</td>
+</tr>
+<tr>
+<td>41:06</td>
+<td>任何读写闪存都会让 CPU 暂停</td>
+</tr>
+<tr>
+<td>41:20</td>
+<td>因为执行代码要读闪存</td>
+</tr>
+<tr>
+<td>41:32</td>
+<td>频繁中断会卡顿</td>
+</tr>
+<tr>
+<td>42:10</td>
+<td>点阵屏扫描会闪烁</td>
+</tr>
+<tr>
+<td>42:20</td>
+<td>作者自己踩过这个坑</td>
+</tr>
+<tr>
+<td>42:23</td>
+<td>慎用内部闪存存用户数据</td>
+</tr>
+<tr>
+<td>42:45</td>
+<td>FLASH_ACR 与内核执行代码有关</td>
+</tr>
+<tr>
+<td>43:10</td>
+<td>FLASH_SR 重点是 BSY 忙标志</td>
+</tr>
+<tr>
+<td>43:40</td>
+<td>FLASH_CR 的各个控制位</td>
+</tr>
+<tr>
+<td>44:10</td>
+<td>FLASH_AR 配合页擦除用</td>
+</tr>
+<tr>
+<td>44:40</td>
+<td>FLASH_OBR 与 FLASH_WRPR</td>
+</tr>
+<tr>
+<td>45:20</td>
+<td>手册还有器件电子签名一章</td>
+</tr>
+<tr>
+<td>45:44</td>
+<td>寄存器章节重点</td>
+</tr>
+<tr>
+<td>45:46</td>
+<td>手册 28.2 唯一身份标识</td>
+</tr>
+<tr>
+<td>45:59</td>
+<td>可按字节半字全字读取</td>
+</tr>
+<tr>
+<td>46:12</td>
+<td>下小节学闪存的代码部分</td>
+</tr>
+<tr>
+<td>46:14</td>
+<td>那我们下一小节再见</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li><strong>采集侧说明</strong>：本集 <code>transcript.txt</code> 落盘是<strong>合法 UTF-8</strong>（<code>transcript_selfcheck.py</code> 自检 OK、<code>ratio=99.9%</code>）；<strong>“乱码”是读取端按 GBK/ANSI 解码造成的</strong>（PowerShell 5.1 的 <code>Get-Content</code> 不加 <code>-Encoding utf8</code> 就会显示 <code>鍝堝柦</code> 式乱码）。本条笔记编写时按 <code>subtitle_frames.tsv</code> 重建过一次 transcript（1246 段、4.5～2776.5s），按当前版本回锚即可；<strong>不是落盘 bug，勿重复“修编码”</strong>。</li>
+<li>文本错字（基于 tsv 统计）：<strong><code>存储</code> → 「存诸」（14 处）</strong>、<code>数据</code> → 「数居」（4 处）、<code>基地址</code> → 「基地」（4 处）、<code>运行</code> → 「云行」（3 处）、<code>读</code> → 「卖」（3 处）、<code>电子签名</code> → 「电字签名」（1 处）——已按画面校正。</li>
+<li><strong>本集是纯理论课</strong>：00:40–04:05 仅演示两个成品工程（<code>15-1 读写内部FLASH</code>、<code>15-2 读取芯片ID</code>），<strong>无写码</strong>；<strong>FLASH 库函数（<code>FLASH_Unlock</code>/<code>FLASH_ErasePage</code>/<code>FLASH_ProgramHalfWord</code> 等）本集一个都没出现</strong>，留 [15-2]；片头代码里的 <code>Store_Data()</code>/<code>Store_Clear()</code> 是<strong>作者自定义封装</strong>。</li>
+<li><strong>四个地址口径</strong>：主存 <code>0x08000000</code>、系统存储器 <code>0x1FFFF000</code>（2K）、选项字节 <code>0x1FFFF800</code>（16 字节）、<strong>接口寄存器 <code>0x40022000</code>（外设，不是闪存）</strong>；电子签名 <code>F_SIZE</code>@<code>0x1FFFF7E0</code>（16 位）、<code>UID</code>@<code>0x1FFFF7E8</code>（96 位）。</li>
+<li><strong>容量口径</strong>：中容量 128 页×1K＝128K，<strong>C8T6 只有页 0～63＝64K</strong>；小容量 32 页×1K；大容量 256 页×2K；<strong>64K/128K 只指主存储器</strong>。</li>
+<li><strong>库函数触发差异</strong>：<strong>全擦除/页擦除置位后还要置 <code>STRT</code></strong>；<strong>编程写半字本身即触发、不用 STRT</strong>。</li>
+<li><strong>写 8 位极麻烦</strong>（整页读 SRAM→改→整页擦→整页写回），<strong>只能半字写</strong>；但<strong>写全 0 可以绕过擦除检查</strong>。</li>
+<li><strong>术语对照</strong>：字 Word=32 位 / 半字=16 位 / 字节=8 位；程序存储器=主存储器、启动程序代码=系统存储器、用户选择字节=选项字节。</li>
+<li><strong>选项字节</strong>：16 字节成对、带 n 的必须是反码（硬件自动算）；<strong>写保护反逻辑：1=不保护（默认）、0=保护</strong>；中容量 1 位保护 4 页、大容量 1 位保护 2 页且 WRP3 位 7 保护剩余页。</li>
+<li><strong>两个行为坑</strong>：①<strong>任何读写闪存都会让 CPU 暂停</strong>（对时间敏感的频繁中断——如点阵屏扫描——会卡顿/闪烁，作者踩过坑 → 慎用内部闪存存用户数据）②<strong>闪存由保护→未保护会自动整片擦除</strong>；另：<strong>写/擦除需开 HSI 时钟</strong>（<code>SystemInit</code> 已配，别动）。</li>
+<li><strong>片尾 46:12</strong>「我们下小节来学习闪存的代码部分」→ <strong>写码在 [15-2]</strong>。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-49.html"><span class="label">下一篇</span>[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+    <a class="next" href="stm32-47.html"><span class="label">上一篇</span>[14-2] 独立看门狗&amp;窗口看门狗</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E7%89%87%E5%A4%B4%E6%BC%94%E7%A4%BA%E6%88%90%E5%93%81-ppt-%E6%89%8B%E5%86%8C-%E4%BB%A3%E7%A0%81%E5%9C%A8-15-2">0. 本集定位：理论课（片头演示成品 + PPT + 手册），代码在 15-2</a>
+        <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E4%B8%A4%E4%B8%AA%E6%88%90%E5%93%81%E7%A8%8B%E5%BA%8F">1. 片头两个成品程序</a>
+        <a class="level-3" href="#1-1-%E7%A8%8B%E5%BA%8F1-15-1-%E8%AF%BB%E5%86%99%E5%86%85%E9%83%A8flash">1.1 程序①：15-1 读写内部FLASH</a>
+        <a class="level-3" href="#1-2-%E7%A8%8B%E5%BA%8F2-15-2-%E8%AF%BB%E5%8F%96%E8%8A%AF%E7%89%87id">1.2 程序②：15-2 读取芯片ID</a>
+        <a class="level-2" href="#2-%E5%AD%98%E5%82%A8%E5%99%A8%E6%98%A0%E5%83%8F%E5%9B%9E%E9%A1%BE">2. 存储器映像回顾</a>
+        <a class="level-2" href="#3-%E8%A1%A82-%E9%97%AA%E5%AD%98%E6%A8%A1%E5%9D%97%E7%BB%84%E7%BB%87-%E4%B8%AD%E5%AE%B9%E9%87%8F%E4%BA%A7%E5%93%81">3. 表2 闪存模块组织（中容量产品）</a>
+        <a class="level-3" href="#3-1-%E9%97%AA%E5%AD%98%E7%9A%84%E4%BA%94%E9%A1%B9%E7%89%B9%E6%80%A7-%E4%B8%8E-w25q64-%E4%B8%80%E8%87%B4">3.1 闪存的五项特性（与 W25Q64 一致）</a>
+        <a class="level-3" href="#3-2-%E6%9C%AF%E8%AF%AD%E5%AF%B9%E7%85%A7-%E4%BD%9C%E8%80%85%E4%B8%93%E9%97%A8%E5%BC%BA%E8%B0%83-%E6%9F%90%E4%BA%9B%E5%90%8D%E7%A7%B0%E6%8F%8F%E8%BF%B0%E7%9A%84%E6%98%AF%E4%B8%80%E4%B8%AA%E4%B8%9C%E8%A5%BF">3.2 术语对照（作者专门强调「某些名称描述的是一个东西」）</a>
+        <a class="level-2" href="#4-flash-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84%E4%B8%8E%E8%A7%A3%E9%94%81">4. FLASH 基本结构与解锁</a>
+        <a class="level-3" href="#4-1-flash-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84-fpec">4.1 FLASH 基本结构（FPEC）</a>
+        <a class="level-3" href="#4-2-%E4%B8%89%E4%B8%AA%E9%94%AE%E5%80%BC">4.2 三个键值</a>
+        <a class="level-3" href="#4-3-%E8%A7%A3%E9%94%81%E4%B8%8E%E5%8A%A0%E9%94%81-%E4%B8%A4%E6%8A%8A%E9%94%81">4.3 解锁与加锁（两把锁）</a>
+        <a class="level-3" href="#4-4-%E4%BD%BF%E7%94%A8%E6%8C%87%E9%92%88%E8%AE%BF%E9%97%AE%E5%AD%98%E5%82%A8%E5%99%A8">4.4 使用指针访问存储器</a>
+        <a class="level-3" href="#4-5-volatile-%E7%9A%84%E4%B8%A4%E4%B8%AA%E4%BD%9C%E7%94%A8">4.5 volatile 的两个作用</a>
+        <a class="level-2" href="#5-%E4%B8%89%E6%9D%A1%E6%B5%81%E7%A8%8B%E5%9B%BE">5. 三条流程图</a>
+        <a class="level-3" href="#5-1-%E7%A8%8B%E5%BA%8F%E5%AD%98%E5%82%A8%E5%99%A8%E5%85%A8%E6%93%A6%E9%99%A4">5.1 程序存储器全擦除</a>
+        <a class="level-3" href="#5-2-%E7%A8%8B%E5%BA%8F%E5%AD%98%E5%82%A8%E5%99%A8%E9%A1%B5%E6%93%A6%E9%99%A4">5.2 程序存储器页擦除</a>
+        <a class="level-3" href="#5-3-%E7%A8%8B%E5%BA%8F%E5%AD%98%E5%82%A8%E5%99%A8%E7%BC%96%E7%A8%8B">5.3 程序存储器编程</a>
+        <a class="level-2" href="#6-%E9%80%89%E9%A1%B9%E5%AD%97%E8%8A%82">6. 选项字节</a>
+        <a class="level-2" href="#7-%E5%99%A8%E4%BB%B6%E7%94%B5%E5%AD%90%E7%AD%BE%E5%90%8D">7. 器件电子签名</a>
+        <a class="level-2" href="#8-%E6%89%8B%E5%86%8C%E7%B2%BE%E8%AF%BB%E8%A6%81%E7%82%B9%E4%B8%8E%E4%B8%A4%E4%B8%AA%E8%A1%8C%E4%B8%BA%E5%9D%91">8. 手册精读要点与两个行为坑</a>
+        <a class="level-3" href="#8-1-%E6%89%8B%E5%86%8C%E7%BB%93%E6%9E%84">8.1 手册结构</a>
+        <a class="level-3" href="#8-2-%E5%9D%911-%E4%BB%BB%E4%BD%95%E8%AF%BB%E5%86%99%E9%97%AA%E5%AD%98%E9%83%BD%E4%BC%9A%E8%AE%A9-cpu-%E6%9A%82%E5%81%9C">8.2 坑①：任何读写闪存都会让 CPU 暂停</a>
+        <a class="level-3" href="#8-3-%E5%9D%912-%E7%94%B1%E4%BF%9D%E6%8A%A4%E5%8F%98%E6%9C%AA%E4%BF%9D%E6%8A%A4%E4%BC%9A%E8%87%AA%E5%8A%A8%E6%95%B4%E7%89%87%E6%93%A6%E9%99%A4">8.3 坑②：由保护变未保护会自动整片擦除</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

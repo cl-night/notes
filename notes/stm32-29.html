@@ -1,0 +1,987 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[9-5] 串口收发HEX数据包与文本数据包 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [9-5]（代码课）：9-3 HEX 数据包——SendPacket 拼 0xFF/0xFE、中断 static RxState/pRxPacket 三状态（必须 else if）；9-4 文本数据包——char 缓存 100、@ 与换行符包尾状态机、strcmp 判指令回 LED_ON_OK/ERROR_COMMAND；两个坑（读写冲突、RxFlag 闸门）。">
+  <meta property="og:title" content="[9-5] 串口收发HEX数据包与文本数据包 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [9-5]（代码课）：9-3 HEX 数据包——SendPacket 拼 0xFF/0xFE、中断 static RxState/pRxPacket 三状态（必须 else if）；9-4 文本数据包——char 缓存 100、@ 与换行符包尾状态机、strcmp 判指令回 LED_ON_OK/ERROR_COMMAND；两个坑（读写冲突、RxFlag 闸门）。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html" class="active" aria-current="page">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>29 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">串口</span><span class="tag">USART</span><span class="tag">数据包</span><span class="tag">状态机</span>
+    </div>
+    <article class="prose"><h1>[9-5] 串口收发HEX数据包与文本数据包 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=29，26:27（1587 秒）</li>
+<li>素材：227 帧关键帧（<strong>每 7 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>440 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p29/frames/</code>，站内图片在 <code>assets/images/stm32-29/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；字幕里混入了<strong>大量 Keil Build Output</strong>（<code>compiling ...</code>、<code>linking...</code>、<code>&quot;..\Objects\Project.axf&quot; - 0 Error(s)</code>、<code>fatal error in include chain…</code>、<code>Flash Load finished at ...</code>）与录像界面噪声，这些<strong>不是老师口述内容</strong>，已剔除，错字已按画面校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 9 的代码课（数据包实战）</strong>，把 P28 讲的数据包理论真正写成代码——<strong>程序一 <code>9-3 串口收发HEX数据包</code></strong>（复制 P27 的 9-2 工程改）、<strong>程序二 <code>9-4 串口收发文本数据包</code></strong>（复制 9-3 改）。片尾 26:20「本小节内容到这里就结束了」，<strong>没有下集预告</strong>。本集仍<strong>没有校验和/CRC、没有长度字段</strong>（协议格式同 P28：HEX 包 <code>0xFF</code>+4 字节+<code>0xFE</code>；文本包 <code>@</code>+指令+<code>\r\n</code>）。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>程序一 <code>9-3 串口收发HEX数据包</code></strong> 由 P27 的 9-2 工程复制改名：在 <code>Serial.c</code> 里加两个缓存数组 <strong><code>uint8_t Serial_TxPacket[4];</code></strong> 和 <strong><code>uint8_t Serial_RxPacket[4];</code></strong>（<code>Serial_RxFlag</code> 沿用）；<strong>发送</strong>写好封装 <strong><code>Serial_SendPacket()</code></strong>——<strong><code>Serial_SendByte(0xFF)</code> 发包头 → <code>Serial_SendArray(Serial_TxPacket, 4)</code> 发 4 字节载荷 → <code>Serial_SendByte(0xFE)</code> 发包尾</strong>；<strong>接收用状态机</strong>写在 <code>USART1_IRQHandler</code> 里：<strong><code>static uint8_t RxState = 0;</code>（静态变量，只初始化一次、函数退出后仍保留，作用域仅本函数，类似全局变量）当状态变量</strong>，再用 <strong><code>static uint8_t pRxPacket = 0;</code> 记录收到第几个数据</strong>；三状态用 <strong><code>if (RxState == 0) … else if (RxState == 1) … else if (RxState == 2)</code></strong> —— <strong>必须用 else if（或 switch-case）</strong>，因为<strong>并列的 if 在状态转移后会立刻再满足下一个条件、一次中断连续命中</strong>：<strong>S=0 等包头</strong>（<code>RxData == 0xFF</code> → <code>RxState = 1</code>）、<strong>S=1 收数据</strong>（<code>Serial_RxPacket[pRxPacket] = RxData; pRxPacket ++;</code>，收满 <code>pRxPacket &gt;= 4</code> → <code>RxState = 2</code>）、<strong>S=2 等包尾</strong>（<code>RxData == 0xFE</code> → <code>RxState = 0; pRxPacket = 0; Serial_RxFlag = 1;</code>）；中断末尾照旧 <code>USART_ClearITPendingBit(USART1, USART_IT_RXNE)</code>。<strong>main</strong> 里用 <strong>PB1 按键</strong>（<code>Key_GetNum() == 1</code>）触发：<strong>先把 TxPacket 四个字节各加一，再调 <code>Serial_SendPacket()</code></strong>（这样每按一次发一包、数据在变），OLED 上两行 <code>TxPacket</code>/<code>RxPacket</code> 显示；收到包时用 <code>Serial_GetRxFlag()</code> 判断、显示 <code>Serial_RxPacket</code> 的 4 个字节。<strong>现象</strong>：串口助手（HEX 模式）每次按键收到 <code>FF xx xx xx xx FE</code>；往 STM32 发 <code>FF 66 88 AB CD FE</code> → OLED 显示 <code>66 88 AB CD</code>；<strong>发 <code>FE FF 88 FE</code>（载荷里含 FF/FE）也不受影响</strong>——因为<strong>收载荷时根本不判断包头包尾</strong>。<strong>程序二 <code>9-4 串口收发文本数据包</code></strong> 由 9-3 复制：删掉按键与发送部分，<strong>接收缓存改成 <code>char Serial_RxPacket[100];</code></strong>（防溢出，单条指令不超过 100 字符；发送在主函数里用 <code>Serial_SendString</code>/<code>printf</code> 即可）；<strong>状态机按文本包格式改</strong>：<strong>S=0 等 <code>&#39;@&#39;</code></strong>（<code>RxState = 1; pRxPacket = 0;</code>）、<strong>S=1 收数据兼等包尾</strong>——<code>if (RxData == &#39;\r&#39;) { RxState = 2; } else { Serial_RxPacket[pRxPacket] = RxData; pRxPacket ++; }</code>（可变包长，收数据的同时监视包尾，<strong><code>\r</code> 不存进载荷</strong>）、<strong>S=2 等 <code>&#39;\n&#39;</code></strong>（<code>RxState = 0; Serial_RxFlag = 1;</code> <strong>并给字符串补 <code>&#39;\0&#39;</code></strong> 作结束符）；<strong>main</strong> 里 <code>if (Serial_GetRxFlag() == 1)</code> 后<strong>先用 16 个空格把第 4 行擦干净</strong>再显示收到的字符串，然后 <strong><code>#include &lt;string.h&gt;</code> + <code>strcmp(Serial_RxPacket, &quot;LED_ON&quot;) == 0</code></strong>（相等返回 0）判指令：<strong><code>LED_ON</code> → <code>LED1_ON()</code> + 回传 <code>LED_ON_OK</code></strong>；<strong><code>LED_OFF</code> → <code>LED1_OFF()</code> + 回传 <code>LED_OFF_OK</code></strong>；<strong>其它 → 回传 <code>ERROR_COMMAND</code></strong>。<strong>现象</strong>：发 <code>@LED_ON</code> → LED 亮、回传 <code>LED_ON_OK</code>；<code>@LED_OFF</code> → 灭、回传 <code>LED_OFF_OK</code>；乱指令 → <code>ERROR_COMMAND</code>。最后讲了<strong>两个坑</strong>：<strong>坑①（只讲没改代码）：RxPacket 在中断里写、主循环里读，读太慢会读到「一半上一包 + 一半下一包」</strong>——要么处理完一包再收下一包，要么数据连续（陀螺仪 XYZ、温湿度）就无所谓；<strong>坑②（有落地修改）：连续发包处理不及时会错位</strong>——在 <strong>S=0 的包头判断上加 <code>&amp;&amp; Serial_RxFlag == 0</code> 作闸门</strong>（上一包没被读走就不接新包），并<strong>取消 <code>Serial_GetRxFlag</code> 里的「读后自动清零」</strong>，改成<strong>主循环处理完再手动清 <code>Serial_RxFlag</code></strong>，让<strong>写数据与读数据严格分开</strong>（代价是发太快会丢包，还可以再加指令队列排队）。</p>
+<h2 id="0-本集定位-代码课-两个程序-无下集预告">0. 本集定位：代码课（两个程序），无下集预告</h2>
+<ul>
+<li><strong>本集是纯代码课</strong>：00:00 看接线图 → 面包板接线 → 复制 9-2 工程改名 <code>9-3 串口收发HEX数据包</code> → 写 <code>Serial_SendPacket</code> + 中断状态机 → 编译下载看现象 → 17:30 复制 9-3 改 <code>9-4 串口收发文本数据包</code> → 文本状态机 + <code>strcmp</code> + LED → 现象 → 最后讲两个坑。</li>
+<li><strong>两个程序</strong>：① HEX 数据包（PB1 按键控制发送）；② 文本数据包（PA1 LED 指示 + 指令交互）。</li>
+<li><strong>本集不涉及</strong>：<strong>校验和/CRC、长度字段</strong>（协议格式沿用 P28，只靠包头包尾 + 固定长度界定）、DMA 串口收发。</li>
+<li><strong>片尾 26:20</strong>「本小节内容到这里就结束了」，<strong>没有下一集预告</strong>。</li>
+<li><strong>理论引用 P28 即可</strong>：HEX/文本数据包格式、状态机设计方法，详见 <code>notes/stm32-28-USART串口数据包.md</code>。</li>
+</ul>
+<h2 id="1-接线与工程准备">1. 接线与工程准备</h2>
+<ul>
+<li><strong>串口模块接线和之前一模一样</strong>（跳线帽 VCC-3V3、RXD→PA9、TXD→PA10、GND 共地）；</li>
+<li><strong>程序①（HEX 包）</strong>：在 <strong>PB1</strong> 接一个<strong>按键</strong>，用于控制发送；</li>
+<li><strong>程序②（文本包）</strong>：在 <strong>PA1</strong> 接一个 <strong>LED</strong> 用于指示——<strong>长脚接正极、短脚接 PA1</strong>；</li>
+<li>面包板接线：串口模块 → <strong>RXD 接 PA9、TXD 接 PA10</strong>；PB1 插按键；PA1 插 LED；</li>
+<li>复制 <strong>9-2</strong> 工程，改名 <strong><code>9-3 串口收发HEX数据包</code></strong>；<strong>先编译一下</strong>（后面写代码时有提示框会好用一些）。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/01-wiring-text.jpg" alt="图 1：接线图 9-4 串口收发文本数据包——串口模块接到 PA9/PA10、STM32 最小系统板、OLED，以及接在 PA1 的红色 LED；字幕「之后就是，收发文本数据包的接线图」"></p>
+<p><em>图 1：接线图 <code>9-4 串口收发文本数据包</code>——串口模块（红绿蓝黄线接到 STM32 的 PA9/PA10）、STM32 最小系统板、OLED，以及上方*<em>接在 PA1 的红色 LED</em></em>（长脚接正极、短脚接 PA1）；字幕「之后就是，收发文本数据包的接线图」*</p>
+<h2 id="2-程序一-hex-数据包收发">2. 程序一：HEX 数据包收发</h2>
+<h3 id="2-1-定义缓存数组-清理旧代码">2.1 定义缓存数组、清理旧代码</h3>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+#include &lt;stdio.h&gt;
+#include &lt;stdarg.h&gt;
+
+uint8_t Serial_TxPacket[4];   /* 发送缓存：4 字节载荷 */
+uint8_t Serial_RxPacket[4];   /* 接收缓存：4 字节载荷 */
+uint8_t Serial_RxFlag;        /* 收到一包的标志（沿用 9-2） */
+</code></pre>
+<ul>
+<li><strong>两个缓存数组</strong>：<code>uint8_t Serial_TxPacket[4];</code>、<code>uint8_t Serial_RxPacket[4];</code>——<strong>个数都是 4</strong>（和 P28 定的「固定 4 字节载荷」对应）；</li>
+<li><strong><code>Serial_RxFlag</code> 沿用</strong>：<strong>收到一个数据包时就置 RxFlag</strong>；</li>
+<li><strong>初始化的代码都不需要更改</strong>（P27 的 <code>Serial_Init</code> 直接可用）；</li>
+<li><strong>删掉 <code>Serial_GetRxData</code> 函数</strong>（数据包不再是一个字节，改由数组承载），并把<strong>中断函数里的旧内容删掉</strong>（重写成状态机）。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/02-serial-vars.jpg" alt="图 2：Serial.c 开头——include 头文件、正在输入 uint8_t Serial_TxPacket 数组（4 个元素），下方已有 uint8_t Serial_RxFlag；字幕「第一个是uint8_t Serial_TxPacket，数据个数为4个」"></p>
+<p><em>图 2：<code>Serial.c</code> 开头——<code>#include &quot;stm32f10x.h&quot;</code>、<code>&lt;stdio.h&gt;</code>、<code>&lt;stdarg.h&gt;</code>；正在输入 <code>uint8_t Serial_TxPack</code>（即 <code>Serial_TxPacket</code> 的 4 号元素;<code>），下方已有 </code>uint8_t Serial_RxFlag;`；字幕「第一个是uint8_t Serial_TxPacket，数据个数为4个」</em></p>
+<h3 id="2-2-serial-sendpacket-拼包头包尾">2.2 <code>Serial_SendPacket</code>：拼包头包尾</h3>
+<pre><code class="language-c">void Serial_SendPacket(void)
+{
+    Serial_SendByte(0xFF);                 /* 包头 */
+    Serial_SendArray(Serial_TxPacket, 4);  /* 4 字节载荷 */
+    Serial_SendByte(0xFE);                 /* 包尾 */
+}
+</code></pre>
+<ul>
+<li><strong>效果</strong>：调用一下这个函数，<strong>TxPacket 数组的 4 个数据就会自动加上包头包尾发送出去</strong>；</li>
+<li>头文件里：<strong><code>Serial_TxPacket[4]</code>/<code>Serial_RxPacket[4]</code> 直接 <code>extern</code> 声明</strong>（作者习惯——模块里有数组要外部调用时就直接声明出去；<strong>也可以用 Set/Get 函数封装，但那样要用指针传递，作者觉得麻烦</strong>），同时声明 <code>Serial_SendPacket</code>、<code>Serial_GetRxFlag</code>，<strong>删掉 <code>Serial_GetRxData</code></strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/03-sendpacket.jpg" alt="图 3：Serial.c 的 Serial_SendPacket——Serial_SendByte(0xFF)、Serial_SendArray(Serial_TxPacket, 4)、Serial_SendByte(0xFE)（最后一行高亮），下方是 Serial_GetRxFlag；字幕「那我们现在测试一下发送是不是好使」"></p>
+<p><em>图 3：<code>Serial.c</code> 里的 <code>void Serial_SendPacket(void)</code>——<code>Serial_SendByte(0xFF);</code>、<code>Serial_SendArray(Serial_TxPacket, 4);</code>、<code>Serial_SendByte(0xFE);</code>（最后一行高亮），下方是 <code>uint8_t Serial_GetRxFlag(void)</code> 的开头；字幕「那我们现在测试一下发送是不是好使」</em></p>
+<h3 id="2-3-中断里的接收状态机">2.3 中断里的接收状态机</h3>
+<pre><code class="language-c">void USART1_IRQHandler(void)
+{
+    static uint8_t RxState = 0;    /* 状态变量：0 等包头、1 收数据、2 等包尾 */
+    static uint8_t pRxPacket = 0;  /* 表示当前收到第几个数据，最初为 0 */
+
+    if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET)
+    {
+        uint8_t RxData = USART_ReceiveData(USART1);
+
+        if (RxState == 0)                       /* 状态 0：等待包头 */
+        {
+            if (RxData == 0xFF)
+            {
+                RxState = 1;
+            }
+        }
+        else if (RxState == 1)                  /* 状态 1：接收数据 */
+        {
+            Serial_RxPacket[pRxPacket] = RxData;
+            pRxPacket ++;
+            if (pRxPacket &gt;= 4)
+            {
+                RxState = 2;
+            }
+        }
+        else if (RxState == 2)                  /* 状态 2：等待包尾 */
+        {
+            if (RxData == 0xFE)
+            {
+                RxState = 0;
+                pRxPacket = 0;                  /* 清零，为下次接收做准备 */
+                Serial_RxFlag = 1;
+            }
+        }
+
+        USART_ClearITPendingBit(USART1, USART_IT_RXNE);
+    }
+}
+</code></pre>
+<ul>
+<li><strong>状态变量用 <code>static</code></strong>：<code>static uint8_t RxState = 0;</code>——<strong>静态变量只初始化一次，函数退出后变量仍然有效</strong>（下次进中断还能记得上次的状态），<strong>作用域只在这个函数里</strong>，「类似于全局变量」；用 <code>RxState</code> 当 P28 状态机图里的 <strong>S</strong>；</li>
+<li><strong><code>pRxPacket</code> 记录收到第几个</strong>：初始为 0，每收一个数据就 <code>++</code>；</li>
+<li><strong>必须用 <code>else if</code>（或 <code>switch-case</code>）</strong>：<strong>如果写成三个并列的 <code>if</code>，在状态转移之后会立刻再满足下一个条件</strong>——比如 <code>RxState</code> 刚在第一个 <code>if</code> 里被置 1，紧接着第二个 <code>if (RxState == 1)</code> 就也成立，<strong>一次中断里连续进了两个状态</strong>，逻辑就错了；</li>
+<li><strong>S=2 里收到非 <code>0xFE</code> 就不动</strong>：仍然留在这个状态等包尾——<strong>这样即使载荷里有 FF/FE，也不会因为收载荷时的判断而错位</strong>（收载荷时根本不判断包头包尾，只在收包头/包尾时判断）；</li>
+<li>中断末尾 <code>USART_ClearITPendingBit(USART1, USART_IT_RXNE);</code> 清挂起位。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/04-irq-skeleton.jpg" alt="图 4：Serial_GetRxFlag 尾部与中断骨架——USART1_IRQHandler 开头 static uint8_t RxState = 0（高亮），GetITStatus 分支里暂时只有清挂起位；字幕「这个静态变量类似于全局变量」"></p>
+<p>*图 4：<code>Serial_GetRxFlag</code> 尾部与中断骨架——<code>void USART1_IRQHandler(void)</code> 开头写了 <strong><code>static uint8_t RxState = 0;</code></strong>（高亮），<code>if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET)</code> 里暂时只有 <code>USART_ClearITPendingBit(...)</code>；字幕「这个静态变量类似于全局变量」*</p>
+<p><img src="../assets/images/stm32-29/05-state0-state1.jpg" alt="图 5：中断里 S=0 与 S=1 开头——static RxState、正在输入 static uint8_t pRxPacket = 0（高亮）、uint8_t RxData = USART_ReceiveData(USART1)、if (RxState == 0) 判断 0xFF 转 S=1、else if (RxState == 1)；字幕「名字叫pRxPacket，指示接收到哪一个了，最开始默认为0」"></p>
+<p><em>图 5：中断里 S=0 与 S=1 的开头——<code>static uint8_t RxState = 0;</code>、正在输入 <code>static uint8_t pRxPacket = 0;</code>（高亮，行标红）、<code>uint8_t RxData = USART_ReceiveData(USART1);</code>，<code>if (RxState == 0) { if (RxData == 0xFF) { RxState = 1; } } else if (RxState == 1) {</code>；字幕「名字叫pRxPacket，指示接收到哪一个了，最开始默认为0」</em></p>
+<p><img src="../assets/images/stm32-29/06-state1-state2.jpg" alt="图 6：S=1 与 S=2 完整代码——把 RxData 存进接收缓存的第 pRxPacket 个元素、pRxPacket 自增、收满 4 个转 S=2；S=2 里判断 0xFE 则 RxState 归 0、Serial_RxFlag 置 1（高亮）；字幕「仍然在这个状态，等待包尾」"></p>
+<p><em>图 6：S=1 与 S=2 的完整代码——<code>Serial_RxPacket</code> 的 pRxPacket 号元素 = RxData;<code>、</code>pRxPacket ++;<code>、</code>if (pRxPacket &gt;= 4) { RxState = 2; }<code>；</code>else if (RxState == 2) { if (RxData == 0xFE) { RxState = 0; Serial_RxFlag = 1; } }<code>（</code>Serial_RxFlag = 1;` 一行高亮）；字幕「仍然在这个状态，等待包尾」</em></p>
+<h3 id="2-4-先测发送-再测接收">2.4 先测发送，再测接收</h3>
+<ul>
+<li><strong>发送测试</strong>：先在初始化之后把 <code>Serial_TxPacket</code> 填成 <code>0x01 0x02 0x03 0x04</code>，调用 <code>Serial_SendPacket()</code>；串口助手（<strong>发送/接收都选 HEX 模式</strong>）收到 <strong><code>FF 01 02 03 04 FE</code></strong>——「实际上就是 SendArray 加了包头包尾」；</li>
+<li><strong>接收测试</strong>：串口助手发送区发 <strong><code>FF 11 22 33 44 FE</code></strong> → <strong>OLED 显示 <code>11 22 33 44</code></strong>；</li>
+<li><strong>特殊测试</strong>：发 <strong><code>FE FF 88 FE</code></strong>（载荷里含 FF/FE）也<strong>不受影响</strong>——因为状态机<strong>收载荷时不做包头包尾判断</strong>，只在收包头/包尾时判断。</li>
+</ul>
+<h3 id="2-5-主函数-pb1-按键触发发送">2.5 主函数：PB1 按键触发发送</h3>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+#include &quot;Delay.h&quot;
+#include &quot;OLED.h&quot;
+#include &quot;Serial.h&quot;
+#include &quot;Key.h&quot;
+
+uint8_t KeyNum;
+
+int main(void)
+{
+    OLED_Init();
+    Key_Init();
+    Serial_Init();
+
+    OLED_ShowString(1, 1, &quot;TxPacket&quot;);
+    OLED_ShowString(3, 1, &quot;RxPacket&quot;);
+
+    Serial_TxPacket[0] = 0x01;
+    Serial_TxPacket[1] = 0x02;
+    Serial_TxPacket[2] = 0x03;
+    Serial_TxPacket[3] = 0x04;
+
+    while (1)
+    {
+        KeyNum = Key_GetNum();
+        if (KeyNum == 1)
+        {
+            Serial_TxPacket[0] ++;
+            Serial_TxPacket[1] ++;
+            Serial_TxPacket[2] ++;
+            Serial_TxPacket[3] ++;
+            Serial_SendPacket();
+        }
+
+        if (Serial_GetRxFlag() == 1)
+        {
+            OLED_ShowHexNum(2, 1, Serial_RxPacket[0], 2);
+            OLED_ShowHexNum(2, 4, Serial_RxPacket[1], 2);
+            OLED_ShowHexNum(2, 7, Serial_RxPacket[2], 2);
+            OLED_ShowHexNum(2, 10, Serial_RxPacket[3], 2);
+        }
+    }
+}
+</code></pre>
+<ul>
+<li><strong>发送</strong>：<strong>每次按 PB1（<code>Key_GetNum() == 1</code>）先把 TxPacket 四个字节各加一，再调 <code>Serial_SendPacket()</code></strong>——<strong>数据每发一次就变化</strong>，这样能直观看出每包都是新的（早期中间态是「初始化时固定赋 01～04、只发一次」，最终版改成按键时自增）；</li>
+<li><strong>接收</strong>：<code>if (Serial_GetRxFlag() == 1)</code> 后把 <code>Serial_RxPacket</code> 的 4 个字节显示在 <strong>第 2 行</strong>（<code>RxPacket</code> 标题在第 3 行）；</li>
+<li><strong>现象</strong>：串口助手 HEX 模式每次按键收到 <code>FF xx xx xx xx FE</code>（数据递增）；向 STM32 发 <code>FF 05 06 07 08 FE</code> → OLED 显示 <code>05 06 07 08</code>；手打 <code>FE FF 88 FE</code> 这类含包头值的载荷也不出错。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/07-main-mid.jpg" alt="图 7：main 中间态——OLED_Init/Key_Init/Serial_Init、正在输入 OLED_ShowString(1, …)、发送缓存 4 个元素赋 0x01～0x04、调用 Serial_SendPacket；字幕「OLED_ShowString(1, 1, &quot;TxPacket&quot;)」"></p>
+<p><em>图 7：main 中间态——<code>OLED_Init(); Key_Init(); Serial_Init();</code>、正在输入 <code>OLED_ShowString(1, …)</code>、<code>Serial_TxPacket</code> 的 0 号元素 = 0x01; … （3） = 0x04;<code>与</code>Serial_SendPacket();`；字幕「OLED_ShowString(1, 1, &quot;TxPacket&quot;)」</em></p>
+<p><img src="../assets/images/stm32-29/08-main-final.jpg" alt="图 8：main 最终版——OLED_ShowString(3, 1, &quot;RxPacket&quot;)、发送缓存初值 0x01～0x04，while 循环里 Key_GetNum 判断按键 1 后调用 Serial_SendPacket，再用 Serial_GetRxFlag 判断收包；字幕「先变换一下测试数据」"></p>
+<p><em>图 8：main 最终版——<code>OLED_ShowString(3, 1, &quot;RxPacket&quot;);</code>、TxPacket 初值 01～04，<code>while (1) { KeyNum = Key_GetNum(); if (KeyNum == 1) { … Serial_SendPacket(); } if (Serial_GetRxFlag() == 1) { …</code>；字幕「先变换一下测试数据」</em></p>
+<p><img src="../assets/images/stm32-29/09-hex-phenomenon.jpg" alt="图 9：程序一现象——串口助手接收区收到多包（FF 02 03 04 05 FE、FF 05 06 07 08 FE …），发送区手写 FF 05 06 07 08 FE；OLED 显示 TxPacket/RxPacket，面包板上是 PB1 蓝色按键"></p>
+<p><em>图 9：程序一现象——串口助手接收区收到多包（<code>FF 02 03 04 05 FE</code>、<code>FF 05 06 07 08 FE</code> …），发送区手写了 <code>FF 05 06 07 08 FE</code>；OLED 显示 <code>TxPacket</code>/<code>RxPacket</code>；面包板上 PB1 是蓝色按键</em></p>
+<h3 id="2-6-坑1-接收缓存的读写冲突-只讲未改代码">2.6 坑①：接收缓存的读写冲突（只讲未改代码）</h3>
+<ul>
+<li><strong>RxPacket 在中断里被写、在主循环里被读</strong>；如果<strong>主循环读得太慢</strong>（比如还在处理上一包），<strong>中断里已经把同一个数组写成下一包的前半部分</strong>——结果就会显示**「一半是上一包、一半是下一包」**的错位数据；</li>
+<li><strong>解决思路</strong>：<strong>处理完一包再接收下一包</strong>（例如加标志位做闸门、或把收到的数据先转存到另一个缓冲区再处理）；</li>
+<li><strong>但这也不是必须的</strong>：<strong>如果数据本身是连续不断发的（像陀螺仪 XYZ、温湿度传感器）</strong>，那<strong>错位就错位，无所谓</strong>——所以<strong>要根据实际需求决定</strong>；</li>
+<li><strong>本集对坑①只讲了思路、没有落地代码</strong>（与后面坑②不同）。</li>
+</ul>
+<h2 id="3-程序二-文本数据包收发">3. 程序二：文本数据包收发</h2>
+<h3 id="3-1-复制工程-改接收缓存">3.1 复制工程、改接收缓存</h3>
+<ul>
+<li>复制 <strong>9-3</strong> 工程，改名 <strong><code>9-4 串口收发文本数据包</code></strong>；</li>
+<li><strong>删掉按键相关和发送部分</strong>（文本包发送很简单，主函数里用 <code>Serial_SendString</code>/<code>printf</code> 就行）；</li>
+<li><strong>接收缓存改成 <code>char Serial_RxPacket[100];</code></strong>——<strong>字符数组，长度给 100 是为了防止溢出</strong>（单条指令一般不超过 100 个字符；也可以用宏定义）；</li>
+<li>文本包的格式同 P28：<strong><code>@</code> 包头 + 指令字符串 + <code>\r\n</code> 包尾</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/10-text-vars.jpg" alt="图 10：程序二 Serial.c 开头（工程 9-4 串口收发文本数据包）——uint8_t Serial_TxPacket 与 Serial_RxPacket 两个数组、uint8_t Serial_RxFlag，第 6 行正在把接收缓存改成 char 数组 100 字节；下方 Serial_Init 不动"></p>
+<p><em>图 10：程序二 <code>Serial.c</code> 开头（工程 <code>9-4 串口收发文本数据包</code>）——<code>uint8_t Serial_TxPacket（4）;</code>、<code>uint8_t Serial_RxPacket（4）;</code>（第 6 行正在修改，将改成 <code>char Serial_RxPacket（100）;</code>）、<code>uint8_t Serial_RxFlag;</code>；下方 <code>Serial_Init</code> 不动</em></p>
+<h3 id="3-2-文本包状态机">3.2 文本包状态机</h3>
+<pre><code class="language-c">void USART1_IRQHandler(void)
+{
+    static uint8_t RxState = 0;
+    static uint8_t pRxPacket = 0;
+
+    if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET)
+    {
+        uint8_t RxData = USART_ReceiveData(USART1);
+
+        if (RxState == 0)                       /* S=0：等待包头 &#39;@&#39; */
+        {
+            if (RxData == &#39;@&#39;)
+            {
+                RxState = 1;
+                pRxPacket = 0;
+            }
+        }
+        else if (RxState == 1)                  /* S=1：接收数据，兼等包尾 &#39;\r&#39; */
+        {
+            if (RxData == &#39;\r&#39;)
+            {
+                RxState = 2;
+            }
+            else
+            {
+                Serial_RxPacket[pRxPacket] = RxData;
+                pRxPacket ++;
+            }
+        }
+        else if (RxState == 2)                  /* S=2：等待包尾 &#39;\n&#39; */
+        {
+            if (RxData == &#39;\n&#39;)
+            {
+                RxState = 0;
+                Serial_RxPacket[pRxPacket] = &#39;\0&#39;;   /* 补字符串结束符 */
+                Serial_RxFlag = 1;
+            }
+        }
+
+        USART_ClearITPendingBit(USART1, USART_IT_RXNE);
+    }
+}
+</code></pre>
+<ul>
+<li><strong>S=0</strong>：判断是不是 <code>&#39;@&#39;</code>，是就 <strong><code>RxState = 1; pRxPacket = 0;</code></strong>（进入接收状态、计数清零）；</li>
+<li><strong>S=1</strong>：<strong>可变包长，接收数据的同时还要监视包尾</strong>——先判断是不是 <code>&#39;\r&#39;</code>：<strong>是就不把它存进载荷，直接跳 S=2</strong>；<strong>不是就正常存进 <code>Serial_RxPacket[pRxPacket]</code>、<code>pRxPacket ++</code></strong>；</li>
+<li><strong>S=2</strong>：<strong>判断是不是 <code>&#39;\n&#39;</code></strong>，是就 <strong><code>RxState = 0</code>、补 <code>&#39;\0&#39;</code>、置 <code>Serial_RxFlag = 1</code></strong>；<strong>为什么补 <code>&#39;\0&#39;</code></strong>：<strong>收到的载荷是字符串</strong>，后面要用 <code>strcmp</code> 等字符串函数比较，<strong>必须以 <code>\0</code> 结束</strong>；</li>
+<li><strong>注意：这里 S=1 里不能再有 <code>if (pRxPacket &gt;= 4)</code></strong>——那是从 HEX 版复制过来的<strong>残留</strong>（HEX 包固定 4 字节才需要），<strong>文本包是可变包长，靠包尾结束</strong>，所以要用 <code>else</code> 存数据（本集帧里能看到「先残留、后改成 else」的过程，<strong>最终代码以改成 else 的为准</strong>）。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/11-text-sm-mid.jpg" alt="图 11：文本状态机中间态——S=0 判断 @ 后 RxState 置 1、pRxPacket 清 0；S=1 仍留着 HEX 版的 if (pRxPacket &gt;= 4) 残留（else if (RxState == 1) 高亮）；字幕「因为载荷字符数量并不确定」"></p>
+<p><em>图 11：文本状态机中间态——S=0 里 <code>if (RxData == &#39;@&#39;) { RxState = 1; pRxPacket = 0; }</code>，S=1 仍留着 HEX 版的 <code>if (pRxPacket &gt;= 4) { RxState = 2; }</code>（<code>else if (RxState == 1)</code> 一行高亮）；字幕「因为载荷字符数量并不确定」</em></p>
+<p><img src="../assets/images/stm32-29/12-text-sm-final.jpg" alt="图 12：S=1 改成判断是否收到回车符 \r：是则转 S=2、不存进载荷；否则 else 里把 RxData 存进接收缓存并 pRxPacket 自增；S=2 里判断是否收到换行符 \n，是则 RxState 归 0、Serial_RxFlag 置 1（高亮）；末尾清挂起位"></p>
+<p><em>图 12：S=1 改成判断是否收到回车符 \r：是则转 S=2、不存进载荷；否则 else 里把 RxData 存进接收缓存并 pRxPacket 自增；S=2 里判断是否收到换行符 \n，是则 RxState 归 0、Serial_RxFlag 置 1（高亮）；末尾清挂起位</em></p>
+<h3 id="3-3-main-擦除显示-strcmp-判指令">3.3 main：擦除显示 + <code>strcmp</code> 判指令</h3>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+#include &quot;Delay.h&quot;
+#include &quot;OLED.h&quot;
+#include &quot;Serial.h&quot;
+#include &quot;LED.h&quot;
+#include &lt;string.h&gt;
+
+int main(void)
+{
+    OLED_Init();
+    LED_Init();
+    Serial_Init();
+
+    OLED_ShowString(1, 1, &quot;TxPacket&quot;);
+    OLED_ShowString(3, 1, &quot;RxPacket&quot;);
+
+    while (1)
+    {
+        if (Serial_GetRxFlag() == 1)
+        {
+            /* 先用 16 个空格擦干净第 4 行，再显示新内容 */
+            OLED_ShowString(4, 1, &quot;                &quot;);
+            OLED_ShowString(4, 1, Serial_RxPacket);
+
+            if (strcmp(Serial_RxPacket, &quot;LED_ON&quot;) == 0)
+            {
+                LED1_ON();
+                Serial_SendString(&quot;LED_ON_OK\r\n&quot;);
+            }
+            else if (strcmp(Serial_RxPacket, &quot;LED_OFF&quot;) == 0)
+            {
+                LED1_OFF();
+                Serial_SendString(&quot;LED_OFF_OK\r\n&quot;);
+            }
+            else
+            {
+                Serial_SendString(&quot;ERROR_COMMAND\r\n&quot;);
+            }
+        }
+    }
+}
+</code></pre>
+<ul>
+<li><strong>为什么先擦除</strong>：上一包字符串可能比新包长，<strong>直接用 <code>OLED_ShowString(4, 1, ...)</code> 重写会残留旧字符</strong>，所以<strong>先用 16 个空格（<code>&quot;                &quot;</code>）把第 4 行填满</strong>再显示；</li>
+<li><strong><code>strcmp</code> 判指令</strong>：<strong><code>#include &lt;string.h&gt;</code></strong>，<code>strcmp(a, b) == 0</code> 表示<strong>两个字符串完全相等</strong>（相等时返回 0）；</li>
+<li><strong><code>LED_ON</code></strong>：点灯 + 回传 <strong><code>LED_ON_OK\r\n</code></strong>；<strong><code>LED_OFF</code></strong>：灭灯 + 回传 <strong><code>LED_OFF_OK\r\n</code></strong>；<strong>其它</strong>：回传 <strong><code>ERROR_COMMAND\r\n</code></strong>；</li>
+<li>回传时带 <code>\r\n</code> 是为了在串口助手里<strong>一行一行显示</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/13-text-main-clear.jpg" alt="图 13：文本版 main——OLED_Init/LED_Init/Serial_Init、两行标题、while 里 if (Serial_GetRxFlag() == 1) 后先用 16 个空格擦第 4 行再 OLED_ShowString(4, 1, Serial_RxPacket)；字幕「判断字符串呢，我们可以调用C语言字符串的官方库」"></p>
+<p><em>图 13：文本版 main——<code>OLED_Init(); LED_Init(); Serial_Init();</code>、<code>OLED_ShowString(1, 1, &quot;TxPacket&quot;)</code>、<code>(3, 1, &quot;RxPacket&quot;)</code>，<code>while (1) { if (Serial_GetRxFlag() == 1) { OLED_ShowString(4, 1, &quot;                &quot;);</code>（16 个空格）<code>OLED_ShowString(4, 1, Serial_RxPacket); } }</code>；字幕「判断字符串呢，我们可以调用C语言字符串的官方库」</em></p>
+<p><img src="../assets/images/stm32-29/14-strcmp.jpg" alt="图 14：正在输入 strcmp(Serial_RxPacket, &quot;LED_ON&quot;)（第 24 行高亮），上方是擦除行与显示行；字幕「如果相等的话，函数返回0」"></p>
+<p><em>图 14：正在输入 <code>strcmp(Serial_RxPacket, &quot;LED_ON&quot;)</code>（第 24 行，高亮），上方是擦除行与新数据显示行；字幕「如果相等的话，函数返回0」</em></p>
+<h3 id="3-4-现象与坑2">3.4 现象与坑②</h3>
+<ul>
+<li><strong>现象</strong>：文本模式发 <strong><code>@LED_ON</code></strong> → <strong>LED 亮</strong>、串口助手收到 <strong><code>LED_ON_OK</code></strong>；发 <strong><code>@LED_OFF</code></strong> → <strong>LED 灭</strong>、收到 <strong><code>LED_OFF_OK</code></strong>；<strong>发乱指令（如 <code>@adfasda</code>）→ 回传 <code>ERROR_COMMAND</code></strong>。</li>
+<li><strong>坑②：连续发包处理不及时会错位</strong>（<code>Serial_RxFlag</code> 还没被主循环读走，中断又开始收下一包，把 <code>Serial_RxPacket</code> 覆盖了）；<strong>落地修改</strong>：<ol>
+<li><strong>在 S=0 的包头判断上加闸门</strong>：<code>if (RxData == &#39;@&#39; &amp;&amp; Serial_RxFlag == 0)</code>——<strong>只有上一包已被读走（RxFlag 为 0）才允许接收新包</strong>；</li>
+<li><strong>取消 <code>Serial_GetRxFlag</code> 里的「读后自动清零」</strong>：改成只判断、不清零；</li>
+<li><strong>主循环处理完再手动清</strong>：<code>if (Serial_GetRxFlag() == 1) { Serial_RxFlag = 0; …处理…}</code>；</li>
+<li>这样<strong>写数据（中断）与读数据（主循环）严格分开、不会同时进行</strong>，避免错位；</li>
+</ol>
+</li>
+<li><strong>代价</strong>：<strong>发送数据包的频率不能太快</strong>，否则<strong>会丢弃部分包</strong>；<strong>进一步方案</strong>：<strong>再定义一个指令缓存区，把收到的字符串放进去排队</strong>，处理起来更有条理。</li>
+</ul>
+<p><img src="../assets/images/stm32-29/15-text-phenomenon.jpg" alt="图 15：程序二现象——串口助手接收区依次 LED_ON_OK、LED_OFF_OK、ERROR_COMMAND，发送区 @adfasda；OLED 显示 TxPacket ERROR_COMMAND 与 RxPacket adfasda；字幕「这就是我们第二个程序的现象」"></p>
+<p><em>图 15：程序二现象——串口助手接收区依次是 <code>LED_ON_OK</code>、<code>LED_OFF_OK</code>、<code>ERROR_COMMAND</code>，发送区 <code>@adfasda</code>；OLED 显示 <code>TxPacket ERROR_COMMAND</code> 与 <code>RxPacket adfasda</code>；字幕「这就是我们第二个程序的现象」</em></p>
+<p><img src="../assets/images/stm32-29/16-rxflag-gate.jpg" alt="图 16：坑②的落地修改——中断里 static RxState、static pRxPacket，S=0 判断变成 if (RxData == 0x40 即 @ 符号 且 Serial_RxFlag == 0)（高亮）后置 S=1、pRxPacket 清 0；字幕「把接收好的字符串放在这个指令缓存区进行排队」"></p>
+<p>*图 16：坑②的落地修改——中断里 <code>static uint8_t RxState = 0; static uint8_t pRxPacket = 0;</code>，S=0 的判断变成 <strong><code>if (RxData == &#39;@&#39; &amp;&amp; Serial_RxFlag == 0)</code></strong>（高亮）→ <code>RxState = 1; pRxPacket = 0;</code>；字幕「把接收好的字符串放在这个指令缓存区进行排队」*</p>
+<h2 id="4-两个程序差异对照">4. 两个程序差异对照</h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>程序一 <code>9-3 串口收发HEX数据包</code></th>
+<th>程序二 <code>9-4 串口收发文本数据包</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>工程来源</td>
+<td>复制 9-2（P27）</td>
+<td>复制 9-3</td>
+</tr>
+<tr>
+<td>额外硬件</td>
+<td><strong>PB1 按键</strong></td>
+<td><strong>PA1 LED</strong></td>
+</tr>
+<tr>
+<td>接收缓存</td>
+<td><code>uint8_t Serial_RxPacket[4];</code></td>
+<td><strong><code>char Serial_RxPacket[100];</code></strong></td>
+</tr>
+<tr>
+<td>发送</td>
+<td><code>Serial_SendPacket()</code>（0xFF + SendArray 4 + 0xFE）</td>
+<td>主函数用 <code>Serial_SendString</code>/<code>printf</code>（回传 <code>xxx_OK\r\n</code>）</td>
+</tr>
+<tr>
+<td>包格式</td>
+<td><code>0xFF</code> + <strong>固定 4 字节</strong> + <code>0xFE</code></td>
+<td><code>@</code> + <strong>可变长字符串</strong> + <code>\r\n</code></td>
+</tr>
+<tr>
+<td>状态机</td>
+<td>3 状态：等包头 / 收 4 字节 / 等包尾</td>
+<td>3 状态：等 <code>@</code> / 收数据兼等 <code>\r</code> / 等 <code>\n</code></td>
+</tr>
+<tr>
+<td>结束条件</td>
+<td><code>pRxPacket &gt;= 4</code> 再等 <code>0xFE</code></td>
+<td>靠 <code>\r\n</code> 包尾（无长度计数）</td>
+</tr>
+<tr>
+<td>数据后处理</td>
+<td>直接按 HEX 显示 4 字节</td>
+<td><strong>补 <code>&#39;\0&#39;</code> + <code>strcmp</code> 判指令</strong></td>
+</tr>
+<tr>
+<td>坑②修改</td>
+<td>未改代码（只讲思路）</td>
+<td><strong>S=0 加 <code>&amp;&amp; Serial_RxFlag == 0</code> 闸门 + 主循环读后清零</strong></td>
+</tr>
+</tbody></table>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>状态机必须用 <code>else if</code> 或 <code>switch-case</code></strong>：三个并列 <code>if</code> 会在状态转移后立刻命中下一个条件，一次中断跑完多个状态。</li>
+<li><strong>状态变量必须 <code>static</code></strong>：否则每次进中断都重新初始化为 0，状态机永远停在 S=0。</li>
+<li><strong><code>pRxPacket</code> 要在接收新包前清零</strong>：HEX 版在 S=2 收尾时清零；文本版在 S=0 收到 <code>@</code> 时清零——<strong>忘了清就会越界写数组</strong>。</li>
+<li><strong>HEX 包收到数据要先存数组再计数、够 4 个才转 S=2</strong>：判断用 <code>&gt;= 4</code> 更稳妥。</li>
+<li><strong>收载荷时不要判断包头包尾</strong>：只在收包头/包尾时判断——这是 HEX 包能容忍载荷含 <code>FF/FE</code> 的关键。</li>
+<li><strong>文本包 S=1 里不能残留 <code>if (pRxPacket &gt;= 4)</code></strong>：那是 HEX 版逻辑；文本包可变长，靠 <code>\r</code> 转状态、靠 <code>\n</code> 结束。</li>
+<li><strong><code>\r</code> 不能存进载荷</strong>：它是包尾的一部分，收到就转状态，不写入 <code>Serial_RxPacket</code>。</li>
+<li><strong>字符串必须以 <code>&#39;\0&#39;</code> 结尾</strong>：文本包收完后要<strong>手动补 <code>&#39;\0&#39;</code></strong>，否则 <code>strcmp</code>/<code>printf</code> 会越界读。</li>
+<li><strong><code>strcmp</code> 相等返回 0</strong>：写 <code>strcmp(a, b) == 0</code> 才是「相等」，别写成 <code>== 1</code>。</li>
+<li><strong>回传要带 <code>\r\n</code></strong>：否则串口助手不会换行，多包会粘在一行。</li>
+<li><strong>OLED 重写前要擦行</strong>：上一包字符串更长时会残留旧字符——先写 16 个空格再写内容。</li>
+<li><strong>坑①（读写冲突）与坑②（RxFlag 闸门）不是一回事</strong>：坑①本集只讲思路（处理完再收 / 数据连续可不管）；<strong>坑②给了代码修改</strong>（<code>&amp;&amp; Serial_RxFlag == 0</code> + 手动清标志）。</li>
+<li><strong>坑②取消自动清零后，主循环必须手动清 <code>Serial_RxFlag</code></strong>：否则闸门永远为 1，再也收不到新包。</li>
+<li><strong>本集协议没有校验和/CRC/长度字段</strong>：别自行加；靠包头包尾 + 固定长度界定。</li>
+<li><strong>发送太快会丢包</strong>：坑②的方案是「处理完一包再收下一包」，代价就是高频发送会丢；需要时用指令队列排队。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>开场：本小节来写串口收发数据包的代码</td>
+</tr>
+<tr>
+<td>0:07</td>
+<td>两个代码的接线图之前都用过，比较简单</td>
+</tr>
+<tr>
+<td>0:13</td>
+<td>串口模块接线和之前一样，没有变化</td>
+</tr>
+<tr>
+<td>0:17</td>
+<td>收发 HEX 数据包的接线图在 PB1 接了一个按键</td>
+</tr>
+<tr>
+<td>0:24</td>
+<td>收发文本数据包的接线图在 PA1 接了一个 LED</td>
+</tr>
+<tr>
+<td>0:35</td>
+<td>把两个代码的接线一起接好</td>
+</tr>
+<tr>
+<td>0:39</td>
+<td>先接 USB 转串口模块</td>
+</tr>
+<tr>
+<td>0:45</td>
+<td>RXD 接 PA9、TXD 接 PA10，串口接线完成</td>
+</tr>
+<tr>
+<td>0:52</td>
+<td>在 PB1 口插一个按键</td>
+</tr>
+<tr>
+<td>0:57</td>
+<td>PA1 口插一个 LED，长脚接正、短脚接 PA1</td>
+</tr>
+<tr>
+<td>1:10</td>
+<td>开始写代码，回工程文件夹</td>
+</tr>
+<tr>
+<td>1:15</td>
+<td>复制 9-2 的代码，在这个基础上改</td>
+</tr>
+<tr>
+<td>1:19</td>
+<td>改名 9-3 串口收发HEX数据包</td>
+</tr>
+<tr>
+<td>1:36</td>
+<td>先编译一下，有代码提示框会好用</td>
+</tr>
+<tr>
+<td>2:01</td>
+<td>在这个文件里加收发 HEX 数据包的部分</td>
+</tr>
+<tr>
+<td>2:05</td>
+<td>HEX 数据包格式和 PPT 一样：固定包长、含包头包尾</td>
+</tr>
+<tr>
+<td>2:15</td>
+<td>包头 FF、载荷固定 4 字节、包尾 FE</td>
+</tr>
+<tr>
+<td>2:24</td>
+<td>先定义两个缓存数组</td>
+</tr>
+<tr>
+<td>2:26</td>
+<td>第一个 uint8_t Serial_TxPacket，数据个数 4</td>
+</tr>
+<tr>
+<td>2:33</td>
+<td>第二个叫 RxPacket，数据个数也是 4</td>
+</tr>
+<tr>
+<td>2:44</td>
+<td>RxFlag 留着，收到一个数据包就置 RxFlag</td>
+</tr>
+<tr>
+<td>2:52</td>
+<td>初始化代码都不需要更改</td>
+</tr>
+<tr>
+<td>2:58</td>
+<td>GetRxData 这个函数删掉</td>
+</tr>
+<tr>
+<td>3:05</td>
+<td>中断里的东西先删掉</td>
+</tr>
+<tr>
+<td>3:09</td>
+<td>先写 SendPacket 函数</td>
+</tr>
+<tr>
+<td>3:22</td>
+<td>目标：调用一次，TxPacket 的 4 个数据加上包头包尾发出去</td>
+</tr>
+<tr>
+<td>3:32</td>
+<td>第一步 SendByte 发包头 0xFF</td>
+</tr>
+<tr>
+<td>3:39</td>
+<td>第二步 SendArray，参数 Serial_TxPacket、长度 4</td>
+</tr>
+<tr>
+<td>3:51</td>
+<td>第三步再 SendByte 发包尾 0xFE</td>
+</tr>
+<tr>
+<td>4:02</td>
+<td>测试发送，函数放头文件声明</td>
+</tr>
+<tr>
+<td>4:15</td>
+<td>GetRxData 没有，删掉</td>
+</tr>
+<tr>
+<td>4:17</td>
+<td>数组在头文件声明为外部可调用</td>
+</tr>
+<tr>
+<td>4:27</td>
+<td>数组声明时数量可以不要</td>
+</tr>
+<tr>
+<td>4:30</td>
+<td>模块里有数组需要外部调用，作者习惯直接声明</td>
+</tr>
+<tr>
+<td>4:35</td>
+<td>也可以封装 Set/Get，但要用指针，太麻烦</td>
+</tr>
+<tr>
+<td>4:46</td>
+<td>初始化之后先填充发送缓存区</td>
+</tr>
+<tr>
+<td>4:51</td>
+<td>Serial_TxPacket 赋 0x01～0x04</td>
+</tr>
+<tr>
+<td>5:09</td>
+<td>调用 Serial_SendPacket</td>
+</tr>
+<tr>
+<td>5:19</td>
+<td>SendPacket 取出数组内容、加包头包尾统一发送</td>
+</tr>
+<tr>
+<td>5:36</td>
+<td>串口助手发送/接收都选 HEX 模式</td>
+</tr>
+<tr>
+<td>5:41</td>
+<td>数据包发送过来，格式是 FF + 4 个载荷 + FE</td>
+</tr>
+<tr>
+<td>5:49</td>
+<td>实际上就是 SendArray 加包头包尾</td>
+</tr>
+<tr>
+<td>6:06</td>
+<td>接下来做接收，先看中断函数</td>
+</tr>
+<tr>
+<td>6:17</td>
+<td>定义 static uint8_t RxState = 0 当状态变量 S</td>
+</tr>
+<tr>
+<td>6:31</td>
+<td>static 静态变量：只初始化一次、函数退出后仍有效</td>
+</tr>
+<tr>
+<td>6:43</td>
+<td>作用域仅本函数，类似全局变量</td>
+</tr>
+<tr>
+<td>6:50</td>
+<td>根据 RxState 的不同进入不同处理程序</td>
+</tr>
+<tr>
+<td>7:00</td>
+<td>if (RxState == 0) 写状态 0 的代码</td>
+</tr>
+<tr>
+<td>7:07</td>
+<td>再 else if (RxState == 1)、else if (RxState == 2)</td>
+</tr>
+<tr>
+<td>7:14</td>
+<td>必须用 else if，否则转移后会立刻满足下一个条件</td>
+</tr>
+<tr>
+<td>7:21</td>
+<td>也可以写成 switch-case</td>
+</tr>
+<tr>
+<td>7:30</td>
+<td>状态 0 的逻辑：等待包头，判断是不是 0xFF</td>
+</tr>
+<tr>
+<td>7:41</td>
+<td>是的话置 RxState = 1 转移到状态 1</td>
+</tr>
+<tr>
+<td>8:39</td>
+<td>不是的话可以加 else 置 RxState = 0，不写也一样</td>
+</tr>
+<tr>
+<td>9:02</td>
+<td>定义 static uint8_t pRxPacket = 0 记录收到第几个</td>
+</tr>
+<tr>
+<td>9:06</td>
+<td>状态 1：接收数据</td>
+</tr>
+<tr>
+<td>9:11</td>
+<td>Serial_RxPacket 第 pRxPacket 个 = RxData</td>
+</tr>
+<tr>
+<td>9:23</td>
+<td>然后 pRxPacket++，移动到下一个位置</td>
+</tr>
+<tr>
+<td>9:36</td>
+<td>当 pRxPacket &gt;= 4 时，置 RxState = 2</td>
+</tr>
+<tr>
+<td>9:49</td>
+<td>同时 pRxPacket 清零，为下次接收做准备</td>
+</tr>
+<tr>
+<td>9:55</td>
+<td>状态 2：等待包尾</td>
+</tr>
+<tr>
+<td>10:24</td>
+<td>判断是不是 0xFE，是就 RxState = 0 回到初始、RxFlag 置 1</td>
+</tr>
+<tr>
+<td>10:30</td>
+<td>不是就仍然留在这个状态等包尾</td>
+</tr>
+<tr>
+<td>10:45</td>
+<td>最后别忘了清中断挂起位</td>
+</tr>
+<tr>
+<td>10:53</td>
+<td>中断函数写完</td>
+</tr>
+<tr>
+<td>11:40</td>
+<td>测试接收：串口助手发 FF 11 22 33 44 FE</td>
+</tr>
+<tr>
+<td>12:04</td>
+<td>OLED 显示 11 22 33 44</td>
+</tr>
+<tr>
+<td>12:25</td>
+<td>发 FE FF 88 FE（载荷含 FF/FE）也不受影响</td>
+</tr>
+<tr>
+<td>12:26</td>
+<td>因为收载荷时不判断包头包尾</td>
+</tr>
+<tr>
+<td>12:33</td>
+<td>讲第一个坑：RxPacket 读写冲突</td>
+</tr>
+<tr>
+<td>12:37</td>
+<td>中断里写、主循环里读，读太慢会读到半包旧半包新</td>
+</tr>
+<tr>
+<td>13:20</td>
+<td>解决：处理完一包再收下一包</td>
+</tr>
+<tr>
+<td>13:33</td>
+<td>若数据连续（陀螺仪 XYZ）则错位无所谓</td>
+</tr>
+<tr>
+<td>14:00</td>
+<td>完善实验现象：main 里加按键控制发送</td>
+</tr>
+<tr>
+<td>14:51</td>
+<td>KeyNum = Key_GetNum()，等于 1 时发送</td>
+</tr>
+<tr>
+<td>15:10</td>
+<td>把 TxPacket 每个字节加一</td>
+</tr>
+<tr>
+<td>15:50</td>
+<td>现象：按键一次发一包</td>
+</tr>
+<tr>
+<td>16:13</td>
+<td>程序一内容差不多完成</td>
+</tr>
+<tr>
+<td>16:20</td>
+<td>开始程序二：复制 9-3 改 9-4 串口收发文本数据包</td>
+</tr>
+<tr>
+<td>16:40</td>
+<td>删掉按键和发送部分</td>
+</tr>
+<tr>
+<td>17:00</td>
+<td>接收缓存改成 char Serial_RxPacket[100] 防止溢出</td>
+</tr>
+<tr>
+<td>17:20</td>
+<td>发送在主函数用 SendString 或 printf 即可</td>
+</tr>
+<tr>
+<td>17:30</td>
+<td>写文本包状态机</td>
+</tr>
+<tr>
+<td>17:40</td>
+<td>S=0：判断是不是 @，是就 RxState = 1、pRxPacket = 0</td>
+</tr>
+<tr>
+<td>18:00</td>
+<td>S=1：可变包长，接收数据同时监视包尾</td>
+</tr>
+<tr>
+<td>18:05</td>
+<td>先判断是不是 \r，是就不接收、跳到状态 2</td>
+</tr>
+<tr>
+<td>18:30</td>
+<td>不是就存数据、pRxPacket++</td>
+</tr>
+<tr>
+<td>18:54</td>
+<td>S=2：判断是不是 \n，是就回状态 0、置 RxFlag</td>
+</tr>
+<tr>
+<td>19:05</td>
+<td>同时还要给字符数组补 \0 作字符串结束</td>
+</tr>
+<tr>
+<td>19:30</td>
+<td>main：OLED、LED、Serial 初始化</td>
+</tr>
+<tr>
+<td>19:40</td>
+<td>判断 RxFlag 后先擦除第 4 行再显示新字符串</td>
+</tr>
+<tr>
+<td>20:10</td>
+<td>用 strcmp 判断指令字符串是否相等</td>
+</tr>
+<tr>
+<td>20:30</td>
+<td>LED_ON 就点灯并回传 LED_ON_OK</td>
+</tr>
+<tr>
+<td>21:00</td>
+<td>LED_OFF 就灭灯并回传 LED_OFF_OK</td>
+</tr>
+<tr>
+<td>21:20</td>
+<td>其他指令回传 ERROR_COMMAND</td>
+</tr>
+<tr>
+<td>21:40</td>
+<td>编译下载看现象</td>
+</tr>
+<tr>
+<td>22:00</td>
+<td>发 @LED_ON，LED 亮、回传 LED_ON_OK</td>
+</tr>
+<tr>
+<td>22:20</td>
+<td>发 @LED_OFF，LED 灭、回传 LED_OFF_OK</td>
+</tr>
+<tr>
+<td>22:40</td>
+<td>发乱指令，回传 ERROR_COMMAND</td>
+</tr>
+<tr>
+<td>23:57</td>
+<td>讲坑②：连续发包处理不及时会错位</td>
+</tr>
+<tr>
+<td>24:18</td>
+<td>并取消 GetRxFlag 的读后自动清零</td>
+</tr>
+<tr>
+<td>24:30</td>
+<td>解决：S=0 包头判断加 &amp;&amp; Serial_RxFlag == 0 闸门</td>
+</tr>
+<tr>
+<td>25:10</td>
+<td>主循环处理完再手动清 RxFlag</td>
+</tr>
+<tr>
+<td>25:20</td>
+<td>这样写数据和读数据严格分开</td>
+</tr>
+<tr>
+<td>25:27</td>
+<td>代价：发送频率不能太快</td>
+</tr>
+<tr>
+<td>25:34</td>
+<td>进一步可以定义指令缓存区排队处理</td>
+</tr>
+<tr>
+<td>25:45</td>
+<td>数据包收发的细节很多</td>
+</tr>
+<tr>
+<td>25:50</td>
+<td>试一下修改后的代码，现象和刚才一样</td>
+</tr>
+<tr>
+<td>26:10</td>
+<td>数据包发送频率低、处理时间足够就没问题</td>
+</tr>
+<tr>
+<td>26:20</td>
+<td>本小节内容到这里就结束了</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，440 段），不是 ASR。<strong>直接进入字幕文本的 Keil/录像内容很少</strong>（只有 <code>&quot;..\Objects\Project.axf&quot; - 0 Error(s)</code> 与 <code>Application running ...</code>；<code>compiling</code>、<code>linking</code>、<code>fatal error</code>、<code>Flash Load finished</code>、<code>Build Time</code> 等只出现在画面 Keil 面板里、未进入 OCR），这些<strong>不是老师口述内容</strong>；典型 OCR 错字（本集实际出现）：<code>串口</code> → 「串回/事口」、<code>LED_ON</code> → 「LEDON」（缺下划线）、<code>Serial_SendByte</code> 等下划线漏识别，已按画面校正。</li>
+<li><strong>两个工程名都有帧证据</strong>：<code>9-3 串口收发HEX数据包</code>、<code>9-4 串口收发文本数据包</code>。</li>
+<li><strong>文本状态机 S=1 里的 <code>if (pRxPacket &gt;= 4)</code> 是 HEX 版残留</strong>：f_00156（约 18:05）还保留着，f_00163（约 18:54）已改成 <code>else</code> 存数据——<strong>本笔记按改后的最终代码写</strong>，过程见 3.2 与图 11/图 12。</li>
+<li><strong>补 <code>&#39;\0&#39;</code> 那一行只有口述依据</strong>（19:05–19:24「还需要给我们这个字符数组的最后……补上字符串结束符」），<strong>帧里没有直接拍到 <code>Serial_RxPacket[pRxPacket] = &#39;\0&#39;;</code> 这一行</strong>；逻辑明确但行级证据缺，本笔记按口述写入代码块。</li>
+<li><strong>坑①只讲未改代码</strong>（读写冲突：处理完一包再收 / 数据连续可不管，本集没有落地代码）；<strong>坑②有落地修改</strong>（f_00220：<code>if (RxData == &#39;@&#39; &amp;&amp; Serial_RxFlag == 0)</code> 闸门 + 取消自动清零 + 主循环手动清）——两者已在正文区分。</li>
+<li><strong>程序一 main 有中间态</strong>：早期版本是「初始化时把 TxPacket 赋 01～04、只发一次」（f_00124），最终版是「按键时各字节加一再发」（f_00130）；本笔记给最终版，中间态在图 7 注明。</li>
+<li><strong>本集没有校验和/CRC、没有长度字段</strong>（与 P28 一致），协议只靠包头包尾 + 固定长度界定。</li>
+<li><strong>帧间隔 7 秒</strong>，个别代码行（如 S=2 里补 <code>&#39;\0&#39;</code>、<code>Serial_GetRxFlag</code> 的最终形态）未落在帧内，引用时以<strong>口述 + 相邻帧</strong>为准。</li>
+<li><strong>片尾 26:20「本小节内容到这里就结束了」，没有下集预告</strong>。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-30.html"><span class="label">下一篇</span>[9-6] FlyMcu串口下载与STLINK Utility</a>
+    <a class="next" href="stm32-28.html"><span class="label">上一篇</span>[9-4] USART串口数据包</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E4%B8%A4%E4%B8%AA%E7%A8%8B%E5%BA%8F-%E6%97%A0%E4%B8%8B%E9%9B%86%E9%A2%84%E5%91%8A">0. 本集定位：代码课（两个程序），无下集预告</a>
+        <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 接线与工程准备</a>
+        <a class="level-2" href="#2-%E7%A8%8B%E5%BA%8F%E4%B8%80-hex-%E6%95%B0%E6%8D%AE%E5%8C%85%E6%94%B6%E5%8F%91">2. 程序一：HEX 数据包收发</a>
+        <a class="level-3" href="#2-1-%E5%AE%9A%E4%B9%89%E7%BC%93%E5%AD%98%E6%95%B0%E7%BB%84-%E6%B8%85%E7%90%86%E6%97%A7%E4%BB%A3%E7%A0%81">2.1 定义缓存数组、清理旧代码</a>
+        <a class="level-3" href="#2-2-serial-sendpacket-%E6%8B%BC%E5%8C%85%E5%A4%B4%E5%8C%85%E5%B0%BE">2.2 Serial_SendPacket：拼包头包尾</a>
+        <a class="level-3" href="#2-3-%E4%B8%AD%E6%96%AD%E9%87%8C%E7%9A%84%E6%8E%A5%E6%94%B6%E7%8A%B6%E6%80%81%E6%9C%BA">2.3 中断里的接收状态机</a>
+        <a class="level-3" href="#2-4-%E5%85%88%E6%B5%8B%E5%8F%91%E9%80%81-%E5%86%8D%E6%B5%8B%E6%8E%A5%E6%94%B6">2.4 先测发送，再测接收</a>
+        <a class="level-3" href="#2-5-%E4%B8%BB%E5%87%BD%E6%95%B0-pb1-%E6%8C%89%E9%94%AE%E8%A7%A6%E5%8F%91%E5%8F%91%E9%80%81">2.5 主函数：PB1 按键触发发送</a>
+        <a class="level-3" href="#2-6-%E5%9D%911-%E6%8E%A5%E6%94%B6%E7%BC%93%E5%AD%98%E7%9A%84%E8%AF%BB%E5%86%99%E5%86%B2%E7%AA%81-%E5%8F%AA%E8%AE%B2%E6%9C%AA%E6%94%B9%E4%BB%A3%E7%A0%81">2.6 坑①：接收缓存的读写冲突（只讲未改代码）</a>
+        <a class="level-2" href="#3-%E7%A8%8B%E5%BA%8F%E4%BA%8C-%E6%96%87%E6%9C%AC%E6%95%B0%E6%8D%AE%E5%8C%85%E6%94%B6%E5%8F%91">3. 程序二：文本数据包收发</a>
+        <a class="level-3" href="#3-1-%E5%A4%8D%E5%88%B6%E5%B7%A5%E7%A8%8B-%E6%94%B9%E6%8E%A5%E6%94%B6%E7%BC%93%E5%AD%98">3.1 复制工程、改接收缓存</a>
+        <a class="level-3" href="#3-2-%E6%96%87%E6%9C%AC%E5%8C%85%E7%8A%B6%E6%80%81%E6%9C%BA">3.2 文本包状态机</a>
+        <a class="level-3" href="#3-3-main-%E6%93%A6%E9%99%A4%E6%98%BE%E7%A4%BA-strcmp-%E5%88%A4%E6%8C%87%E4%BB%A4">3.3 main：擦除显示 + strcmp 判指令</a>
+        <a class="level-3" href="#3-4-%E7%8E%B0%E8%B1%A1%E4%B8%8E%E5%9D%912">3.4 现象与坑②</a>
+        <a class="level-2" href="#4-%E4%B8%A4%E4%B8%AA%E7%A8%8B%E5%BA%8F%E5%B7%AE%E5%BC%82%E5%AF%B9%E7%85%A7">4. 两个程序差异对照</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

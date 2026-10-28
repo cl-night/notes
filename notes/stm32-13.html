@@ -38,6 +38,25 @@
   <aside class="sidebar">
     <p class="sidebar-title">全部笔记</p>
     <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
         <a href="stm32-05.html">[3-1] GPIO输出</a>
         <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
         <a href="stm32-07.html">[3-3] GPIO输入</a>
@@ -47,6 +66,24 @@
         <a href="stm32-11.html">[5-1] EXTI外部中断</a>
         <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
         <a href="stm32-13.html" class="active" aria-current="page">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
         <a href="stm32-01.html">[1-1] 课程简介</a>
         <a href="stm32-02.html">[1-2] STM32简介</a>
         <a href="stm32-03.html">[2-1] 软件安装</a>
@@ -70,7 +107,7 @@
 <li><strong>本集定位</strong>：这是定时器部分的**「现象 + 理论」课**——片头 01:36–03:00 演示两个<strong>已经写好的</strong>工程的现象（6-1 定时器定时中断、6-2 定时器外部时钟），之后 03:00–49:37 全是 PPT 与参考手册的理论讲解，<strong>没有新建工程、没有写代码、也没有讲 TIM 库函数</strong>。视频结尾原话是「本小节的内容就全部完成了，<strong>我们下一小节来开始写定时中断和内外时钟源选择的代码</strong>」。因此本笔记<strong>不包含</strong> <code>TIM_TimeBaseInit</code> / <code>TIM_ITConfig</code> / <code>NVIC</code> 等初始化步骤和中断服务函数的写法，那些在下一集 [6-2]。</li>
 </ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>定时器（TIM = Timer）本质上就是<strong>一个计数器</strong>：给它喂一个<strong>已知频率的基准时钟</strong>，数到设定的个数就产生一次中断，数时钟的过程就是计时——72MHz 数 72 个是 1μs、数 72000 个是 1ms。STM32 的定时器用 <strong>PSC 预分频器 + CNT 计数器 + ARR 自动重装寄存器</strong>三个 16 位寄存器组成<strong>时基单元</strong>，预分频器把 72MHz 先分频（实际分频系数 = PSC+1）得到计数频率，计数器每来一个计数时钟加 1，<strong>加到等于 ARR 时产生更新事件与更新中断、计数器清零</strong>重新开始，于是溢出频率是 <code>72MHz/(PSC+1)/(ARR+1)</code>、溢出时间的倒数就是定时周期；三个 16 位寄存器都拉满时最大定时 <strong>59.65s</strong>，定时器级联还能长到离谱（两个约 8000 多年，三个约 34 万亿年）。定时器分<strong>高级 TIM1/TIM8</strong>（APB2）、<strong>通用 TIM2~TIM5</strong>、<strong>基本 TIM6/TIM7</strong>（都挂 APB1）三类且<strong>向下兼容</strong>，F103C8T6 只有 <strong>TIM1~TIM4</strong>（1 个高级 + 3 个通用、没有基本定时器）；时钟源除了内部 72MHz 还能选<strong>外部时钟模式 2（ETR 引脚）</strong>、<strong>外部时钟模式 1（TRGI：其它定时器/输入捕获通道）<strong>和</strong>编码器模式</strong>；而「为什么 APB1 只有 36MHz，定时器却还是 72MHz」的答案就在 <strong>RCC 时钟树</strong>那条「APB1 预分频系数≠1 则定时器时钟 ×2」的支路上。</p>
+<p>定时器（TIM = Timer）本质上就是<strong>一个计数器</strong>：给它喂一个<strong>已知频率的基准时钟</strong>，数到设定的个数就产生一次中断，数时钟的过程就是计时——72MHz 数 72 个是 1μs、数 72000 个是 1ms。STM32 的定时器用 <strong>PSC 预分频器 + CNT 计数器 + ARR 自动重装寄存器</strong>三个 16 位寄存器组成<strong>时基单元</strong>，预分频器把 72MHz 先分频（实际分频系数 = PSC+1）得到计数频率，计数器每来一个计数时钟加 1，<strong>加到等于 ARR 时产生更新事件与更新中断、计数器清零</strong>重新开始，于是溢出频率是 <code>72MHz/(PSC+1)/(ARR+1)</code>、溢出时间的倒数就是定时周期；三个 16 位寄存器都拉满时最大定时 <strong>59.65s</strong>，定时器级联还能长到离谱（两个约 8000 多年，三个约 34 万亿年）。定时器分<strong>高级 TIM1/TIM8</strong>（APB2）、<strong>通用 TIM2～TIM5</strong>、<strong>基本 TIM6/TIM7</strong>（都挂 APB1）三类且<strong>向下兼容</strong>，F103C8T6 只有 <strong>TIM1～TIM4</strong>（1 个高级 + 3 个通用、没有基本定时器）；时钟源除了内部 72MHz 还能选<strong>外部时钟模式 2（ETR 引脚）</strong>、<strong>外部时钟模式 1（TRGI：其它定时器/输入捕获通道）<strong>和</strong>编码器模式</strong>；而「为什么 APB1 只有 36MHz，定时器却还是 72MHz」的答案就在 <strong>RCC 时钟树</strong>那条「APB1 预分频系数≠1 则定时器时钟 ×2」的支路上。</p>
 <h2 id="0-本集定位-现象-理论-代码在下一集">0. 本集定位：现象 + 理论，代码在下一集</h2>
 <ul>
 <li>本集是定时器大节的<strong>第一部分（基本定时功能）的第 1 小节</strong>，对应 PPT 的 <code>06-TIM定时器</code>。整个定时器大节分 4 部分 8 小节：<strong>第一部分讲定时中断和内外时钟源选择</strong>（本集 [6-1] 理论 + 下一集 [6-2] 代码），第二部分讲<strong>输出比较</strong>（驱动舵机、直流电机），第三部分讲<strong>输入捕获和主从触发模式</strong>（测方波频率），第四部分讲<strong>编码器接口</strong>（更方便地读正交编码器、编码电机测速）。</li>
@@ -161,8 +198,8 @@
 <li><strong>总线要记住</strong>：<strong>高级定时器连接的是性能更高的 APB2 总线；通用定时器和基本定时器连接的是 APB1 总线</strong>——这<strong>在 RCC 开启时钟的时候要注意一下</strong>。</li>
 <li><strong>功能是向下兼容的</strong>：<strong>高级定时器拥有通用定时器的全部功能，通用定时器又有基本定时器的全部功能</strong>，所以学会了通用定时器，再看高级和基本定时器就都没问题了。</li>
 </ul>
-<p><img src="../assets/images/stm32-13/05-timer-types.jpg" alt="图 5：定时器类型 PPT——高级 TIM1/TIM8 挂 APB2（通用全部功能 + 重复计数器、死区生成、互补输出、刹车输入）；通用 TIM2TIM5、基本 TIM6/TIM7 挂 APB1；STM32F103C8T6 的资源是 TIM1TIM4"></p>
-<p><em>图 5：定时器类型 PPT——高级 TIM1/TIM8 挂 APB2（通用全部功能 + 重复计数器、死区生成、互补输出、刹车输入）；通用 TIM2<del>TIM5、基本 TIM6/TIM7 挂 APB1；STM32F103C8T6 的资源是 TIM1</del>TIM4</em></p>
+<p><img src="../assets/images/stm32-13/05-timer-types.jpg" alt="图 5：定时器类型 PPT——高级 TIM1/TIM8 挂 APB2（通用全部功能 + 重复计数器、死区生成、互补输出、刹车输入）；通用 TIM2～TIM5、基本 TIM6/TIM7 挂 APB1；STM32F103C8T6 的资源是 TIM1～TIM4"></p>
+<p><em>图 5：定时器类型 PPT——高级 TIM1/TIM8 挂 APB2（通用全部功能 + 重复计数器、死区生成、互补输出、刹车输入）；通用 TIM2～TIM5、基本 TIM6/TIM7 挂 APB1；STM32F103C8T6 的资源是 TIM1～TIM4</em></p>
 <h3 id="3-2-f103c8t6-的定时器资源">3.2 F103C8T6 的定时器资源</h3>
 <ul>
 <li>对于 <strong>STM32F103C8T6</strong> 这款芯片，它内部拥有的定时器资源是 <strong>TIM1 到 TIM4</strong>，也就是<strong>一个高级定时器和三个通用定时器，没有基本定时器</strong>。</li>
@@ -401,8 +438,8 @@
 </li>
 <li><strong>上面两个高速晶振是用来提供系统时钟的</strong>，<strong>AHB、APB2、APB1 的时钟都来源于这两个高速晶振</strong>。内部和外部都有一个 8MHz，都可以用；<strong>只是外部的石英振荡器比内部的 RC 振荡器更加稳定，所以一般都用外部晶振</strong>。但如果系统很简单、不需要那么精确的时钟，也可以使用内部 RC 振荡器，<strong>这样可以省下晶振的电路</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-13/15-rcc-clock-tree.jpg" alt="图 15：RCC 时钟树（手册图 8 时钟树）——左侧是四个振荡源 HSI 8MHz / HSE 4-16MHz / LSE 32.768kHz / LSI 40kHz 与 PLL 倍频、CSS；右侧是 SYSCLK 经 AHB/APB1/APB2 预分频分配到各外设，并单独给定时器 2~7、1 和 8 供时钟"></p>
-<p><em>图 15：RCC 时钟树（手册图 8 时钟树）——左侧是四个振荡源 HSI 8MHz / HSE 4-16MHz / LSE 32.768kHz / LSI 40kHz 与 PLL 倍频、CSS；右侧是 SYSCLK 经 AHB/APB1/APB2 预分频分配到各外设，并单独给定时器 2~7、1 和 8 供时钟</em></p>
+<p><img src="../assets/images/stm32-13/15-rcc-clock-tree.jpg" alt="图 15：RCC 时钟树（手册图 8 时钟树）——左侧是四个振荡源 HSI 8MHz / HSE 4-16MHz / LSE 32.768kHz / LSI 40kHz 与 PLL 倍频、CSS；右侧是 SYSCLK 经 AHB/APB1/APB2 预分频分配到各外设，并单独给定时器 2～7、1 和 8 供时钟"></p>
+<p><em>图 15：RCC 时钟树（手册图 8 时钟树）——左侧是四个振荡源 HSI 8MHz / HSE 4-16MHz / LSE 32.768kHz / LSI 40kHz 与 PLL 倍频、CSS；右侧是 SYSCLK 经 AHB/APB1/APB2 预分频分配到各外设，并单独给定时器 2～7、1 和 8 供时钟</em></p>
 <h3 id="9-2-systeminit-里-st-的配置流程">9.2 SystemInit 里 ST 的配置流程</h3>
 <ol>
 <li>首先<strong>启动内部时钟</strong>（HSI），<strong>选择内部 8MHz 为系统时钟</strong>，暂时以内部 8MHz 运行；</li>
@@ -422,14 +459,14 @@
 <li><strong>时钟分配电路</strong>：系统时钟 72MHz 进入 <strong>AHB 总线</strong>，AHB 总线有个预分频器，<code>SystemInit</code> 里配置的<strong>分频系数为 1</strong>，所以 <strong>AHB 时钟就是 72MHz</strong>。</li>
 <li>然后进入 <strong>APB1 总线</strong>，这里配置的<strong>分频系数是 2</strong>，所以 <strong>APB1 总线的时钟为 72MHz/2 = 36MHz</strong>。</li>
 <li>问题来了：通用定时器和基本定时器接在 APB1 上，APB1 是 36MHz，<strong>按理说它们的时钟应该是 36MHz</strong>，可前面讲定时器时一直说「所有定时器的时钟都是 72MHz」，为啥？</li>
-<li>原因就在这下面的一条支路，上面写着：<strong>「如果 APB1 预分频系数 = 1 则频率不变，否则频率 ×2」</strong>。这一路是<strong>单独为定时器 2~7 开通</strong>的：这里的预分频系数给的是 2，所以<strong>频率要再 ×2</strong>，通向定时器 2~7 的时钟<strong>又回到了 72MHz</strong>。</li>
+<li>原因就在这下面的一条支路，上面写着：<strong>「如果 APB1 预分频系数 = 1 则频率不变，否则频率 ×2」</strong>。这一路是<strong>单独为定时器 2～7 开通</strong>的：这里的预分频系数给的是 2，所以<strong>频率要再 ×2</strong>，通向定时器 2～7 的时钟<strong>又回到了 72MHz</strong>。</li>
 <li>结论：<strong>无论是高级定时器、通用定时器还是基本定时器，它们的内部基准时钟都是 72MHz</strong>。这给使用带来了方便——<strong>不用再考虑不同定时器的时钟不一样的问题</strong>，<strong>当然前提是你不乱改 <code>SystemInit</code> 里的默认配置</strong>，要是改了这些时钟还得再另行分析。</li>
 <li>再看 <strong>APB2 的时钟</strong>：这里给的分频系数为 1，所以 <strong>APB2 和 AHB 一样都是 72MHz</strong>；接在 APB2 上的<strong>高级定时器也单独升了一路</strong>，但 APB2 的预分频系数就是 1，所以<strong>频率不变，定时器 1 和 8 的时钟就是 72MHz</strong>。</li>
 <li>在这些时钟输出这里，<strong>都有一个与门进行输出控制</strong>，控制位写的是<strong>外设时钟使能</strong>。<strong>这就是我们在程序中写 <code>RCC_APB1/2PeriphClockCmd</code> 作用的地方</strong>——<strong>打开时钟，就是在这个位置写 1，让左边的时钟能够通过与门输出给外设</strong>（本集只指出作用位置，函数用法在下一集讲）。</li>
 <li>剩下的还有一些给 ADC、SDIO 等等提供时钟的电路，自己看看就行。</li>
 </ul>
-<p><img src="../assets/images/stm32-13/16-clock-72m.jpg" alt="图 16：APB1 定时器 ×2 支路——红圈标出「如果 APB1 预分频系数=1 则频率不变，否则频率×2」，这一路单独给定时器 2~7 供时钟，所以 APB1 虽然 36MHz、定时器时钟仍是 72MHz"></p>
-<p><em>图 16：APB1 定时器 ×2 支路——红圈标出「如果 APB1 预分频系数=1 则频率不变，否则频率×2」，这一路单独给定时器 2~7 供时钟，所以 APB1 虽然 36MHz、定时器时钟仍是 72MHz</em></p>
+<p><img src="../assets/images/stm32-13/16-clock-72m.jpg" alt="图 16：APB1 定时器 ×2 支路——红圈标出「如果 APB1 预分频系数=1 则频率不变，否则频率×2」，这一路单独给定时器 2～7 供时钟，所以 APB1 虽然 36MHz、定时器时钟仍是 72MHz"></p>
+<p><em>图 16：APB1 定时器 ×2 支路——红圈标出「如果 APB1 预分频系数=1 则频率不变，否则频率×2」，这一路单独给定时器 2～7 供时钟，所以 APB1 虽然 36MHz、定时器时钟仍是 72MHz</em></p>
 <h2 id="10-参考手册导读">10. 参考手册导读</h2>
 <ul>
 <li>在 STM32F10xx 参考手册里，<strong>关于定时器的介绍有 3 章</strong>：<strong>高级定时器、通用定时器、基本定时器各占一章</strong>，内容非常多。</li>
@@ -446,8 +483,8 @@
 <h2 id="11-本集小结与-6-2-的衔接">11. 本集小结与 [6-2] 的衔接</h2>
 <ol>
 <li><strong>定时器本质就是一个计数器</strong>：对已知频率的基准时钟计数就是计时；72MHz 计 72 个 = 1μs，计 72000 个 = 1ms。</li>
-<li><strong>时基单元 = PSC 预分频器 + CNT 计数器 + ARR 自动重装寄存器</strong>，都是 <strong>16 位</strong>：预分频器<strong>实际分频系数 = PSC + 1</strong>，计数器<strong>0~65535 自动回卷</strong>，<strong>CNT = ARR 时清零并产生更新中断/更新事件</strong>；最大定时 <strong>59.65s</strong>，级联（两个约 8000 多年、三个约 34 万亿年）。</li>
-<li><strong>三种类型向下兼容</strong>：高级 TIM1/TIM8（APB2，多<strong>重复计数器、死区生成、互补输出、刹车输入</strong>，面向三相无刷电机）、通用 TIM2<del>TIM5（APB1，多<strong>内外时钟源选择、输入捕获、输出比较、编码器接口、主从触发</strong>）、基本 TIM6/TIM7（APB1，只有<strong>定时中断 + 主模式触发 DAC</strong>）；**F103C8T6 只有 TIM1</del>TIM4**。</li>
+<li><strong>时基单元 = PSC 预分频器 + CNT 计数器 + ARR 自动重装寄存器</strong>，都是 <strong>16 位</strong>：预分频器<strong>实际分频系数 = PSC + 1</strong>，计数器<strong>0～65535 自动回卷</strong>，<strong>CNT = ARR 时清零并产生更新中断/更新事件</strong>；最大定时 <strong>59.65s</strong>，级联（两个约 8000 多年、三个约 34 万亿年）。</li>
+<li><strong>三种类型向下兼容</strong>：高级 TIM1/TIM8（APB2，多<strong>重复计数器、死区生成、互补输出、刹车输入</strong>，面向三相无刷电机）、通用 TIM2～TIM5（APB1，多<strong>内外时钟源选择、输入捕获、输出比较、编码器接口、主从触发</strong>）、基本 TIM6/TIM7（APB1，只有<strong>定时中断 + 主模式触发 DAC</strong>）；<strong>F103C8T6 只有 TIM1～TIM4</strong>。</li>
 <li><strong>计数模式</strong>：基本只支持<strong>向上</strong>；通用/高级支持<strong>向上、向下、中央对齐</strong>；最常用向上。</li>
 <li><strong>时钟源</strong>：内部 <strong>RCC TIMxCLK = 72MHz</strong>（最常用）；<strong>外部时钟模式 2</strong>（ETR 引脚，如 TIM2 的 ETR 在 <strong>PA0</strong>，经极性/边沿/滤波/预分频进触发控制器）；<strong>外部时钟模式 1</strong>（TRGI：<strong>ETR、ITRx 其它定时器（可级联）、TI1F_ED、TI1FP1、TI2FP2</strong>）；<strong>编码器模式</strong>。</li>
 <li><strong>定时中断结构</strong>：时钟源 → 触发控制器 → <strong>时基单元（PSC → CNT 与 ARR 比较）+ 运行控制</strong> → <strong>状态寄存器置 UIF 标志</strong> → <strong>中断输出控制（允许位）</strong> → <strong>NVIC</strong>；<strong>更新事件不触发中断</strong>，但可触发别的电路（如 <strong>TRGO 触发 DAC</strong>）。</li>
@@ -559,7 +596,7 @@
 </tr>
 <tr>
 <td>10:01</td>
-<td>三种定时器向下兼容；F103C8T6 资源 TIM1~TIM4（1 高级 + 3 通用，无基本），不同型号数量不同</td>
+<td>三种定时器向下兼容；F103C8T6 资源 TIM1～TIM4（1 高级 + 3 通用，无基本），不同型号数量不同</td>
 </tr>
 <tr>
 <td>10:54</td>
@@ -575,7 +612,7 @@
 </tr>
 <tr>
 <td>13:01</td>
-<td>计数器：计数时钟每个上升沿 +1，16 位 0~65535 自动回卷</td>
+<td>计数器：计数时钟每个上升沿 +1，16 位 0～65535 自动回卷</td>
 </tr>
 <tr>
 <td>13:26</td>
@@ -771,7 +808,7 @@
 </ul>
 </article>
     <nav class="pager">
-    <a href="stm32-01.html"><span class="label">下一篇</span>[1-1] 课程简介</a>
+    <a href="stm32-14.html"><span class="label">下一篇</span>[6-2] 定时器定时中断 / 定时器外部时钟</a>
     <a class="next" href="stm32-12.html"><span class="label">上一篇</span>[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
   </nav>
   </main>

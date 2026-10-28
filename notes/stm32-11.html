@@ -38,6 +38,25 @@
   <aside class="sidebar">
     <p class="sidebar-title">全部笔记</p>
     <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
         <a href="stm32-05.html">[3-1] GPIO输出</a>
         <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
         <a href="stm32-07.html">[3-3] GPIO输入</a>
@@ -46,6 +65,25 @@
         <a href="stm32-10.html">[4-2] OLED显示屏</a>
         <a href="stm32-11.html" class="active" aria-current="page">[5-1] EXTI外部中断</a>
         <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
         <a href="stm32-01.html">[1-1] 课程简介</a>
         <a href="stm32-02.html">[1-2] STM32简介</a>
         <a href="stm32-03.html">[2-1] 软件安装</a>
@@ -69,7 +107,7 @@
 <li><strong>本集定位</strong>：这是中断部分的<strong>纯理论课</strong>——片头只演示两个已经写好的程序的<strong>现象</strong>，全片没有写一行代码。视频结尾原话是「本小节中断系统和外部中断的理论部分我们就学到这里，<strong>下一小节我们再来学习一下外部中断的代码部分</strong>」。因此本笔记<strong>不包含</strong> EXTI 初始化步骤、库函数用法和中断服务函数实现，那些内容在 [5-2]。</li>
 </ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>这一集先把「中断」的通用概念讲透（触发条件出现 → CPU 暂停主程序 → 执行中断程序 → 返回断点，靠优先级决定先后、靠抢占优先级决定能否嵌套），再讲 STM32 的实现：<strong>68 个可屏蔽中断通道全部由 NVIC 统一管理</strong>，每个通道 16 级优先级再用 0~4 共 5 种分组切成「抢占优先级 + 响应优先级」；然后落到<strong>外部中断 EXTI</strong>——EXTI 有 <strong>20 条中断线</strong>（16 个 GPIO_Pin + PVD/RTC/USB/ETH 四个「蹭网」外设），所有 GPIO 都能用但<strong>相同 Pin 编号不能同时触发中断</strong>，由 <strong>AFIO</strong> 当数据选择器从 PA0…PG0 里挑一个接到 EXTI0；EXTI 适合处理<strong>外部驱动、快速、突发</strong>的信号（旋转编码器、红外遥控接收头），最后讲清旋转编码器的 <strong>AB 相正交波形</strong>和配套硬件电路。</p>
+<p>这一集先把「中断」的通用概念讲透（触发条件出现 → CPU 暂停主程序 → 执行中断程序 → 返回断点，靠优先级决定先后、靠抢占优先级决定能否嵌套），再讲 STM32 的实现：<strong>68 个可屏蔽中断通道全部由 NVIC 统一管理</strong>，每个通道 16 级优先级再用 0～4 共 5 种分组切成「抢占优先级 + 响应优先级」；然后落到<strong>外部中断 EXTI</strong>——EXTI 有 <strong>20 条中断线</strong>（16 个 GPIO_Pin + PVD/RTC/USB/ETH 四个「蹭网」外设），所有 GPIO 都能用但<strong>相同 Pin 编号不能同时触发中断</strong>，由 <strong>AFIO</strong> 当数据选择器从 PA0…PG0 里挑一个接到 EXTI0；EXTI 适合处理<strong>外部驱动、快速、突发</strong>的信号（旋转编码器、红外遥控接收头），最后讲清旋转编码器的 <strong>AB 相正交波形</strong>和配套硬件电路。</p>
 <h2 id="0-本集定位-纯理论课-代码在下一集">0. 本集定位：纯理论课，代码在下一集</h2>
 <ul>
 <li>本集对应 PPT 的 <code>05-EXTI外部中断</code> 部分（画面里幻灯片编号从<strong>第 41 张</strong>开始，讲到旋转编码器硬件电路，之后切到参考手册），内容是：中断系统概念 → STM32 中断资源 → NVIC → EXTI → AFIO → 旋转编码器 → 手册导读。</li>
@@ -154,14 +192,14 @@ void EXTI0_IRQHandler(void)
 <li><strong>68 个可屏蔽中断通道</strong>（中断通道就是中断源的意思）：这是 F1 系列<strong>最多</strong>的中断数量；对于具体的型号，可能没有这么多中断，<strong>以对应型号的数据手册为准</strong>。</li>
 <li>这些中断通道包含 <strong>EXTI 外部中断、TIM 定时器、ADC 模数转换器、USART 串口、SPI 通信、I2C 通信、RTC 实时时钟</strong>等多个外设——可以看出 STM32 的中断非常多，几乎所有的模块都能申请中断。</li>
 <li><strong>使用 NVIC 统一管理中断</strong>：每个中断通道都拥有 <strong>16 个可编程的优先等级</strong>，还可以对优先级进行分组，进一步设置<strong>抢占优先级</strong>和<strong>响应优先级</strong>。</li>
-<li>右侧的<strong>中断资源表</strong>：上面灰色的部分是<strong>内核的中断</strong>（复位、NMI、HardFault、MemManage 等），一般比较「高深」、用不到；下面不是灰色的部分是 <strong>STM32 外设的中断</strong>——比如窗口看门狗（程序卡死、没有及时喂狗就申请中断，可以在中断程序里做错误检查）、PVD 电源电压监测（供电电压不足时申请中断），等等。本节要学的<strong>外部中断</strong>对应表里的 <strong>EXTI0~EXTI4、EXTI9_5、EXTI15_10</strong>。</li>
+<li>右侧的<strong>中断资源表</strong>：上面灰色的部分是<strong>内核的中断</strong>（复位、NMI、HardFault、MemManage 等），一般比较「高深」、用不到；下面不是灰色的部分是 <strong>STM32 外设的中断</strong>——比如窗口看门狗（程序卡死、没有及时喂狗就申请中断，可以在中断程序里做错误检查）、PVD 电源电压监测（供电电压不足时申请中断），等等。本节要学的<strong>外部中断</strong>对应表里的 <strong>EXTI0～EXTI4、EXTI9_5、EXTI15_10</strong>。</li>
 <li>表里还有一列<strong>中断地址</strong>：因为硬件跳转受限制，中断发生后只能跳到固定地址执行程序；为了能跳转到不固定的中断函数，就需要在内存中定义一个<strong>地址列表</strong>——列表地址固定，中断发生后先跳到这个固定位置，再由编译器在这个固定位置加上一条跳转到中断函数的代码，这样中断跳转就能跳到任意位置了。这个地址列表就叫<strong>中断向量表</strong>，相当于中断跳转的「跳板」。</li>
 <li><strong>用 C 语言编程不需要管中断向量表</strong>，编译器都帮我们做好了。</li>
 </ul>
 <p><img src="../assets/images/stm32-11/06-stm32-interrupts.jpg" alt="图 6：STM32 中断 PPT——68 个可屏蔽中断通道、NVIC 统一管理、每个通道 16 个优先级；右侧为中断向量表"></p>
 <p><em>图 6：STM32 中断 PPT——68 个可屏蔽中断通道、NVIC 统一管理、每个通道 16 个优先级；右侧为中断向量表</em></p>
-<p><img src="../assets/images/stm32-11/07-interrupt-vector-table.jpg" alt="图 7：中断向量表（表 55 其它 STM32F10xxx 产品的向量表）——窗口看门狗、PVD、RTC、EXTI0~4 等中断通道及其地址"></p>
-<p><em>图 7：中断向量表（表 55 其它 STM32F10xxx 产品的向量表）——窗口看门狗、PVD、RTC、EXTI0~4 等中断通道及其地址</em></p>
+<p><img src="../assets/images/stm32-11/07-interrupt-vector-table.jpg" alt="图 7：中断向量表（表 55 其它 STM32F10xxx 产品的向量表）——窗口看门狗、PVD、RTC、EXTI0～4 等中断通道及其地址"></p>
+<p><em>图 7：中断向量表（表 55 其它 STM32F10xxx 产品的向量表）——窗口看门狗、PVD、RTC、EXTI0～4 等中断通道及其地址</em></p>
 <h2 id="5-nvic-的基本结构">5. NVIC 的基本结构</h2>
 <ul>
 <li><strong>NVIC = 嵌套向量中断控制器</strong>（Nested Vectored Interrupt Controller）。在 STM32 中，它用来<strong>统一分配中断优先级和管理中断</strong>。</li>
@@ -170,8 +208,8 @@ void EXTI0_IRQHandler(void)
 <li>结构图：左边是各个外设（EXTI、TIM、ADC、USART……），每个外设都有中断线接到 NVIC；线上的<strong>斜杠加 n</strong> 表示<strong>一个外设可能会同时占用多个中断通道</strong>，所以这里有 n 条线。NVIC 只有一个输出口，它根据每个中断的优先级分配中断的先后顺序，然后通过这一个输出口告诉 CPU「你该处理哪个中断」。<strong>对于中断先后顺序分配的任务，CPU 不需要知道。</strong></li>
 <li>医院叫号的类比：CPU 好比医生，如果医院只有医生，病人很多时医生得自己安排先看谁、后看谁，遇到紧急病人还要让他最先来，这个安排先后次序的任务很繁琐、影响看病效率；所以医院安排了一个<strong>叫号系统</strong>——病人来了统一取号、根据病人等级分配优先级，叫号系统优先叫紧急的病人，最终给医生输出一个个排好队的病人，医生专心看病。<strong>这个叫号系统在 STM32 里就是 NVIC。</strong></li>
 </ul>
-<p><img src="../assets/images/stm32-11/08-nvic-structure.jpg" alt="图 8：NVIC 基本结构——多路外设中断（EXTI/TIM/ADC/USART…）接入，NVIC 分配优先级 0~15 后单路输出给 CPU"></p>
-<p><em>图 8：NVIC 基本结构——多路外设中断（EXTI/TIM/ADC/USART…）接入，NVIC 分配优先级 0~15 后单路输出给 CPU</em></p>
+<p><img src="../assets/images/stm32-11/08-nvic-structure.jpg" alt="图 8：NVIC 基本结构——多路外设中断（EXTI/TIM/ADC/USART…）接入，NVIC 分配优先级 0～15 后单路输出给 CPU"></p>
+<p><em>图 8：NVIC 基本结构——多路外设中断（EXTI/TIM/ADC/USART…）接入，NVIC 分配优先级 0～15 后单路输出给 CPU</em></p>
 <h2 id="6-nvic-的优先级分组">6. NVIC 的优先级分组</h2>
 <h3 id="6-1-抢占优先级与响应优先级">6.1 抢占优先级与响应优先级</h3>
 <p>为了处理不同形式的优先级，STM32 的 NVIC 可以对优先级<strong>进行分组</strong>，分为<strong>抢占优先级</strong>和<strong>响应优先级</strong>。用病人叫号的例子来区分：</p>
@@ -181,12 +219,12 @@ void EXTI0_IRQHandler(void)
 </ul>
 <h3 id="6-2-优先级规则">6.2 优先级规则</h3>
 <ul>
-<li>NVIC 的中断优先级由<strong>优先级寄存器的 4 位</strong>决定：4 位二进制可以表示 0~15，对应 <strong>16 个优先级</strong>；<strong>数值越小，优先级越高</strong>（0 是最高优先级）。</li>
+<li>NVIC 的中断优先级由<strong>优先级寄存器的 4 位</strong>决定：4 位二进制可以表示 0～15，对应 <strong>16 个优先级</strong>；<strong>数值越小，优先级越高</strong>（0 是最高优先级）。</li>
 <li>这 4 位可以进行切分：<strong>高 n 位的抢占优先级 + 低 4-n 位的响应优先级</strong>。</li>
 <li>三条排队规则：<strong>抢占优先级高的可以中断嵌套</strong>；<strong>响应优先级高的可以优先排队</strong>；<strong>抢占优先级和响应优先级均相同的按中断号排队</strong>——中断号就是中断资源表里那个数字（比如 DMA1 通道 5 那一行的数字），<strong>数值小的优先响应</strong>。</li>
 <li>所以 STM32 的中断<strong>不存在先来后到</strong>的排队方式，在任何时候都是<strong>优先级高的先响应</strong>。</li>
 </ul>
-<h3 id="6-3-优先级分组表-0-4-共-5-种分组">6.3 优先级分组表（0~4 共 5 种分组）</h3>
+<h3 id="6-3-优先级分组表-0-4-共-5-种分组">6.3 优先级分组表（0～4 共 5 种分组）</h3>
 <table>
 <thead>
 <tr>
@@ -198,34 +236,34 @@ void EXTI0_IRQHandler(void)
 <tbody><tr>
 <td>分组 0</td>
 <td>0 位，取值为 0</td>
-<td>4 位，取值为 0~15</td>
+<td>4 位，取值为 0～15</td>
 </tr>
 <tr>
 <td>分组 1</td>
-<td>1 位，取值为 0~1</td>
-<td>3 位，取值为 0~7</td>
+<td>1 位，取值为 0～1</td>
+<td>3 位，取值为 0～7</td>
 </tr>
 <tr>
 <td>分组 2</td>
-<td>2 位，取值为 0~3</td>
-<td>2 位，取值为 0~3</td>
+<td>2 位，取值为 0～3</td>
+<td>2 位，取值为 0～3</td>
 </tr>
 <tr>
 <td>分组 3</td>
-<td>3 位，取值为 0~7</td>
-<td>1 位，取值为 0~1</td>
+<td>3 位，取值为 0～7</td>
+<td>1 位，取值为 0～1</td>
 </tr>
 <tr>
 <td>分组 4</td>
-<td>4 位，取值为 0~15</td>
+<td>4 位，取值为 0～15</td>
 <td>0 位，取值为 0</td>
 </tr>
 </tbody></table>
 <ul>
 <li>分组方式在程序中是<strong>我们自己来选择</strong>的；选好分组方式之后，在配置优先级的时候要注意抢占优先级和响应优先级的<strong>取值范围</strong>，不要超出表里规定的范围。</li>
 </ul>
-<p><img src="../assets/images/stm32-11/09-nvic-priority-grouping.jpg" alt="图 9：NVIC 优先级分组 PPT——4 位优先级切分为抢占/响应，以及分组 0~4 的取值表"></p>
-<p><em>图 9：NVIC 优先级分组 PPT——4 位优先级切分为抢占/响应，以及分组 0~4 的取值表</em></p>
+<p><img src="../assets/images/stm32-11/09-nvic-priority-grouping.jpg" alt="图 9：NVIC 优先级分组 PPT——4 位优先级切分为抢占/响应，以及分组 0～4 的取值表"></p>
+<p><em>图 9：NVIC 优先级分组 PPT——4 位优先级切分为抢占/响应，以及分组 0～4 的取值表</em></p>
 <h2 id="7-exti-简介">7. EXTI 简介</h2>
 <ul>
 <li><strong>EXTI = Extern Interrupt，外部中断</strong>。</li>
@@ -258,7 +296,7 @@ void EXTI0_IRQHandler(void)
 </tbody></table>
 <ul>
 <li><strong>支持的 GPIO</strong>：<strong>所有 GPIO 口</strong>都可以当作外部中断的引脚，<strong>但相同的 Pin 不能同时触发中断</strong>——比如 PA0 和 PB0 不能同时用；PA1、PB1、PC1 这种 GPIO_Pin 编号一样的端口，只能选 1 个作为中断引脚。所以如果有多个中断引脚，要选择<strong>不同 Pin 编号</strong>的引脚，比如 PA6 和 PA7、PA9 和 PB15、PB0 和 PB1 这样的都可以。</li>
-<li><strong>通道数：20 个中断线路</strong> = <strong>16 个 GPIO_Pin</strong>（对应 GPIO_Pin_0 ~ GPIO_Pin_15）+ 外加 <strong>PVD 输出、RTC 闹钟、USB 唤醒、以太网唤醒</strong> 4 个。</li>
+<li><strong>通道数：20 个中断线路</strong> = <strong>16 个 GPIO_Pin</strong>（对应 GPIO_Pin_0 ～ GPIO_Pin_15）+ 外加 <strong>PVD 输出、RTC 闹钟、USB 唤醒、以太网唤醒</strong> 4 个。</li>
 <li>这 4 个外设其实是来「蹭网」的：外部中断有个功能是<strong>从低功耗的停止模式唤醒 STM32</strong>——PVD 电源电压监测在电压过低恢复时需要借助外部中断退出停止模式；RTC 为了省电定个闹钟后让 STM32 进入停止模式、闹钟响时再唤醒，也要借助外部中断；USB 唤醒、以太网唤醒也是类似作用。本节主要学引脚的外部中断，这 4 个知道一下就行。</li>
 <li><strong>触发响应方式</strong>有两种：<ul>
 <li><strong>中断响应</strong>：就是申请中断，让 CPU 执行中断函数（正常流程）。</li>
@@ -275,7 +313,7 @@ void EXTI0_IRQHandler(void)
 <li>这就是「所有 GPIO 都能触发中断，但<strong>相同的 Pin 不能同时触发中断</strong>」的原因：PA0、PB0、PC0 这些经过 AFIO 选择之后，<strong>只有其中一个能接到 EXTI 的通道 0 上</strong>；同理 PA1、PB1、PC1 也只能有一个连接到通道 1 上。</li>
 <li>通过 AFIO 选择之后的 <strong>16 个通道</strong>接到 <strong>EXTI 边沿检测及控制电路</strong>；同时下面这 4 个「蹭网」外设（PVD、RTC、USB、ETH）也并列接进来——这些加起来就组成了 <strong>EXTI 的 20 个输入信号</strong>。</li>
 <li>经过 EXTI 电路之后分成两种输出：<ul>
-<li><strong>上面一路接到 NVIC</strong>，用来触发<strong>中断</strong>。注意：本来 20 路输入应该有 20 路中断输出，但 ST 公司可能觉得 20 个输出太多了、比较占用 NVIC 的通道资源，就把<strong>外部中断的 5<del>9 分到一个通道、10</del>15 分到一个通道</strong>——也就是说外部中断 <strong>5<del>9 会触发同一个中断函数，10</del>15 也会触发同一个中断函数</strong>；在编程时，要在这两个中断函数里<strong>再根据标志位来区分</strong>到底是哪个中断进来的。这一点要特别注意。</li>
+<li><strong>上面一路接到 NVIC</strong>，用来触发<strong>中断</strong>。注意：本来 20 路输入应该有 20 路中断输出，但 ST 公司可能觉得 20 个输出太多了、比较占用 NVIC 的通道资源，就把<strong>外部中断的 5～9 分到一个通道、10～15 分到一个通道</strong>——也就是说外部中断 <strong>5～9 会触发同一个中断函数，10～15 也会触发同一个中断函数</strong>；在编程时，要在这两个中断函数里<strong>再根据标志位来区分</strong>到底是哪个中断进来的。这一点要特别注意。</li>
 <li><strong>下面 20 条输出线路到其它外设</strong>，用来触发其它外设操作，也就是刚才说的<strong>事件响应</strong>。</li>
 </ul>
 </li>
@@ -387,7 +425,7 @@ void EXTI0_IRQHandler(void)
 <h2 id="15-本集小结与-5-2-的衔接">15. 本集小结与 [5-2] 的衔接</h2>
 <ol>
 <li>中断的本质：特定的中断触发条件（中断源）出现 → CPU 暂停主程序 → 执行中断程序 → 返回断点继续；中断能提高程序效率、避免漏掉紧急事件。</li>
-<li>优先级决定谁先被响应；<strong>抢占优先级</strong>决定能否中断嵌套，<strong>响应优先级</strong>决定排队先后；STM32 用 4 位优先级 + 0~4 共 5 种分组来切分。</li>
+<li>优先级决定谁先被响应；<strong>抢占优先级</strong>决定能否中断嵌套，<strong>响应优先级</strong>决定排队先后；STM32 用 4 位优先级 + 0～4 共 5 种分组来切分。</li>
 <li>STM32 有 <strong>68 个可屏蔽中断通道</strong>，全部由 <strong>NVIC</strong> 统一管理；<strong>中断向量表</strong>由编译器处理，用 C 语言不用管。</li>
 <li><strong>EXTI</strong> 监测引脚电平变化来申请中断；<strong>20 条中断线 = 16 个 GPIO_Pin + PVD/RTC/USB/ETH</strong>；所有 GPIO 都能用，但相同 Pin 编号不能同时触发中断。</li>
 <li><strong>AFIO</strong> 负责中断引脚选择（同时负责复用功能重映射）；EXTI 内部是「边沿检测 → 或门 → 挂起/中断屏蔽 → NVIC」与「事件屏蔽 → 脉冲发生器 → 其它外设」两路。</li>
@@ -399,10 +437,10 @@ void EXTI0_IRQHandler(void)
 <ol>
 <li><strong>相同 Pin 编号不能同时触发中断</strong>：PA0 和 PB0 不能同时用；PA1/PB1/PC1 只能选一个；要多个中断引脚就选不同 Pin 编号（如 PA6+PA7、PA9+PB15、PB0+PB1）。</li>
 <li><strong>20 条中断线 = 16 个 GPIO_Pin + 4 个「蹭网」外设</strong>（PVD/RTC/USB/ETH），不要以为 20 条都是 GPIO。</li>
-<li><strong>EXTI5<del>9 共用一个中断函数、EXTI10</del>15 共用一个中断函数</strong>：编程时要再根据标志位区分是哪个通道进来的（这是 [5-2] 写代码时的坑，先记住）。</li>
+<li><strong>EXTI5～9 共用一个中断函数、EXTI10～15 共用一个中断函数</strong>：编程时要再根据标志位区分是哪个通道进来的（这是 [5-2] 写代码时的坑，先记住）。</li>
 <li><strong>抢占优先级 vs 响应优先级 别记反</strong>：抢占优先级高的能<strong>中断嵌套</strong>；响应优先级高的能<strong>优先排队</strong>；两者都相同的才按中断号排队。</li>
 <li><strong>优先级数值越小越高</strong>：0 是最高优先级。</li>
-<li><strong>分组后取值范围别超</strong>：比如分组 1 时抢占只能 0<del>1、响应只能 0</del>7，超出表里规定的取值范围就是错的。</li>
+<li><strong>分组后取值范围别超</strong>：比如分组 1 时抢占只能 0～1、响应只能 0～7，超出表里规定的取值范围就是错的。</li>
 <li><strong>STM32 中断不是「先来后到」</strong>：任何时候都是优先级高的先响应。</li>
 <li><strong>事件响应不触发中断</strong>：事件只是触发别的外设（ADC、DMA 等），不会让 CPU 执行中断函数。</li>
 <li><strong>不推荐用外部中断读按键</strong>：抖动和松手检测不好处理；主循环轮询或定时器中断更合适。</li>
@@ -505,11 +543,11 @@ void EXTI0_IRQHandler(void)
 </tr>
 <tr>
 <td>15:16</td>
-<td>优先级由寄存器 4 位决定（0~15，数值越小越高），切分为高 n 位抢占 + 低 4-n 位响应</td>
+<td>优先级由寄存器 4 位决定（0～15，数值越小越高），切分为高 n 位抢占 + 低 4-n 位响应</td>
 </tr>
 <tr>
 <td>16:03</td>
-<td>抢占/响应均相同时按中断号排队；16:31 分组 0~4 表与取值范围</td>
+<td>抢占/响应均相同时按中断号排队；16:31 分组 0～4 表与取值范围</td>
 </tr>
 <tr>
 <td>17:19</td>
@@ -537,7 +575,7 @@ void EXTI0_IRQHandler(void)
 </tr>
 <tr>
 <td>22:17</td>
-<td>20 路输入分两路输出；EXTI5<del>9、EXTI10</del>15 各共用一个中断函数</td>
+<td>20 路输入分两路输出；EXTI5～9、EXTI10～15 各共用一个中断函数</td>
 </tr>
 <tr>
 <td>23:21</td>
@@ -613,7 +651,7 @@ void EXTI0_IRQHandler(void)
 <li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，643 段），不是 ASR。典型 OCR 错字（本集实际出现）：<code>NVIC</code> → 「NMIC」、<code>AFIO</code> → 「AFO/AFI」、<code>EXTI</code> → 「EXT」、<code>申请</code> → 「电请」、<code>串口</code> → 「串回」、<code>PA0/PB0</code> → 「PAO/PBO」、<code>Delay</code> → 「Delav」、<code>耽误</code> → 「耿误」、<code>窗口看门狗</code> → 「窗回看问狗」、<code>任意</code> → 「住意」、<code>中断通道</code> → 「中断新通道」等，已按画面和上下文校正。</li>
 <li>Keil 编译输出、手册截图等小字区域被 OCR 成乱码（如「5057可段霞TM5」「Aiainrnind at16:45:4」「广老设柯以中请中断」等），这些内容未被引用进本笔记结论。</li>
 <li>本集是<strong>纯理论课</strong>，没有代码。片头的两个程序现象来自 [5-2]（片头 Keil 标题栏里的工程目录名分别是 <code>5-1 对射式红外传感器计次</code>、<code>5-2 旋转编码器计次</code>）；所有 EXTI 初始化、中断服务函数、清中断标志等代码内容都以 [5-2] 为准。</li>
-<li>中断资源表里的<strong>中断号</strong>和中断地址来自 PPT 表格，个别行字小、受画面压缩影响，本笔记只引用了视频明确讲到的几项（窗口看门狗、PVD、RTC、EXTI0~4、EXTI9_5、EXTI15_10、DMA1 通道 5）。</li>
+<li>中断资源表里的<strong>中断号</strong>和中断地址来自 PPT 表格，个别行字小、受画面压缩影响，本笔记只引用了视频明确讲到的几项（窗口看门狗、PVD、RTC、EXTI0～4、EXTI9_5、EXTI15_10、DMA1 通道 5）。</li>
 <li>旋转编码器电路图里的元件值（R1/R2 为 10K、R3/R4 为 10K、C1/C2 为 0.1μF）按<strong>画面</strong>记录；视频口述里只明确说了「10k 上拉电阻」「R3 是输出限流电阻」「C1 是输出滤波电容」。</li>
 <li>本集对<strong>软件触发</strong>、<strong>事件响应</strong>只做了原理说明，没有演示实际效果（比如事件触发 ADC/DMA），具体用法视频未展开。</li>
 <li>中断优先级分组表里的「分组 2、3、4」视频没有逐条念，只说了「按这个规律来分配，大家自己看一下」，表中数值按 PPT 画面记录。</li>
@@ -640,7 +678,7 @@ void EXTI0_IRQHandler(void)
         <a class="level-2" href="#6-nvic-%E7%9A%84%E4%BC%98%E5%85%88%E7%BA%A7%E5%88%86%E7%BB%84">6. NVIC 的优先级分组</a>
         <a class="level-3" href="#6-1-%E6%8A%A2%E5%8D%A0%E4%BC%98%E5%85%88%E7%BA%A7%E4%B8%8E%E5%93%8D%E5%BA%94%E4%BC%98%E5%85%88%E7%BA%A7">6.1 抢占优先级与响应优先级</a>
         <a class="level-3" href="#6-2-%E4%BC%98%E5%85%88%E7%BA%A7%E8%A7%84%E5%88%99">6.2 优先级规则</a>
-        <a class="level-3" href="#6-3-%E4%BC%98%E5%85%88%E7%BA%A7%E5%88%86%E7%BB%84%E8%A1%A8-0-4-%E5%85%B1-5-%E7%A7%8D%E5%88%86%E7%BB%84">6.3 优先级分组表（0~4 共 5 种分组）</a>
+        <a class="level-3" href="#6-3-%E4%BC%98%E5%85%88%E7%BA%A7%E5%88%86%E7%BB%84%E8%A1%A8-0-4-%E5%85%B1-5-%E7%A7%8D%E5%88%86%E7%BB%84">6.3 优先级分组表（0～4 共 5 种分组）</a>
         <a class="level-2" href="#7-exti-%E7%AE%80%E4%BB%8B">7. EXTI 简介</a>
         <a class="level-2" href="#8-exti-%E7%9A%84%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84-%E6%95%B4%E4%BD%93%E6%A1%86%E5%9B%BE">8. EXTI 的基本结构（整体框图）</a>
         <a class="level-2" href="#9-afio-%E5%A4%8D%E7%94%A8-io-%E5%8F%A3%E4%B8%8E%E4%B8%AD%E6%96%AD%E5%BC%95%E8%84%9A%E9%80%89%E6%8B%A9">9. AFIO 复用 IO 口与中断引脚选择</a>

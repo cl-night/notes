@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>结课寄语与后续预告 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 入门教程最后一集（90 秒纯收尾）：标题（历时 2 年、累计写稿 48 万字、至此落下帷幕）、致谢、课程自我定位（只学了内部外设、现象只是简单测试程序、做好项目产品还远远不够）、四个后续系列预告（模块教程/编程技巧/硬件教程/专题视频）、CAN 通信说明与「我们下套视频／再见」、江协科技 logo。">
+  <meta property="og:title" content="结课寄语与后续预告 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 入门教程最后一集（90 秒纯收尾）：标题（历时 2 年、累计写稿 48 万字、至此落下帷幕）、致谢、课程自我定位（只学了内部外设、现象只是简单测试程序、做好项目产品还远远不够）、四个后续系列预告（模块教程/编程技巧/硬件教程/专题视频）、CAN 通信说明与「我们下套视频／再见」、江协科技 logo。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html" class="active" aria-current="page">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>10 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">结课</span><span class="tag">江协科技</span>
+    </div>
+    <article class="prose"><h1>结课寄语与后续预告 — 学习笔记</h1>
+<ul>
+<li><p>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</p>
+</li>
+<li><p>视频：BV1th411z7sn?p=50，<strong>01:30（90 秒）</strong></p>
+</li>
+<li><p>素材：30 帧关键帧（<strong>每 3 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>58 段</strong>）；关键截图 7 张随笔记收录（源图在 <code>vidsum_out/stm32_p50/frames/</code>，站内图片在 <code>assets/images/stm32-50/</code>）</p>
+</li>
+<li><p>字幕情况：本集是<strong>黑底滚动文字</strong>，字幕逐行浮现并上滚，OCR 常把同一句抓两遍（一对错）；<strong>写笔记一律以画面文字为准</strong>（尤其三处 OCR 整段丢失，见「存疑」）。</p>
+</li>
+</ul>
+<h2 id="0-本集定位-纯收尾集-90-秒-无-ppt-无代码-无演示">0. 本集定位：纯收尾集（90 秒，无 PPT/无代码/无演示）</h2>
+<ul>
+<li>全片只有<strong>黑底滚动文字 + 结尾 logo 页</strong>：致谢 → 课程回顾 → 后续预告 → 告别；</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>这套<strong>历时 2 年、累计写稿 48 万字</strong>的 STM32 入门教程，在这一集<strong>落下了帷幕</strong>。作者先<strong>恭喜看到此处的各位「已经完成了 STM32 入门教程的全部内容」<strong>并感谢支持；随后给课程做了</strong>最清醒的自我定位</strong>——「在这套入门教程中，我们主要学习的是 <strong>STM32 内部的各种外设</strong>，<strong>最终的现象，也只是各种简单的测试程序</strong>；但是在实践中，<strong>要想做好一个项目、一个产品，这些还远远不够</strong>」；接着预告未来会推<strong>一系列的进阶视频</strong>，分为四个系列：<strong>[模块教程]</strong>（各种外部芯片和模块）、<strong>[编程技巧]</strong>（工程架构和编写代码的技巧）、<strong>[硬件教程]</strong>（硬件和电路的相关知识）、<strong>[专题视频]</strong>（更多相关技术以及实战项目）；最后专门说明 <strong>CAN 通信</strong>——大家经常提及，但<strong>本视频最初没有计划 CAN 通信的内容、也没有相应的器件支持</strong>，所以<strong>暂时没有 CAN 通信的内容</strong>，后续会<strong>以单独的视频呈现</strong>。结尾「本套视频到这里就全部结束了／我们下套视频／再见」。</p>
+<h2 id="1-标题与致谢">1. 标题与致谢</h2>
+<ul>
+<li><strong>标题四行</strong>：「<strong>STM32入门教程</strong>／<strong>历时2年</strong>／<strong>累计写稿48万字</strong>／<strong>至此即将落下帷幕</strong>」；</li>
+<li><strong>致谢</strong>：「首先，<strong>恭喜看到此处的各位</strong>／<strong>你们已经完成了STM32入门教程的全部内容</strong>／同时，也非常感谢大家对我的支持／让我有动力完成这套教程」。</li>
+</ul>
+<p><img src="../assets/images/stm32-50/01-title.jpg" alt="图 1：标题四行——「STM32入门教程／历时2年／累计写稿48万字／至此即将落下帷幕」（黑底居中）"></p>
+<p><em>图 1：标题四行——「STM32入门教程／历时2年／累计写稿48万字／至此即将落下帷幕」（黑底居中）</em></p>
+<p><img src="../assets/images/stm32-50/02-title-thanks.jpg" alt="图 2：标题 + 致谢四行——「首先，恭喜看到此处的各位／你们已经完成了STM32入门教程的全部内容／同时，也非常感谢大家对我的支持／让我有动力完成这套教程」"></p>
+<p><em>图 2：标题 + 致谢四行——「首先，恭喜看到此处的各位／你们已经完成了STM32入门教程的全部内容／同时，也非常感谢大家对我的支持／让我有动力完成这套教程」</em></p>
+<h2 id="2-课程自我定位-全片最值得抄下来的两句">2. 课程自我定位（全片最值得抄下来的两句）</h2>
+<ul>
+<li>「当然，<strong>入门教程已经结束</strong>／<strong>我们的学习并未停止</strong>」；</li>
+<li>「在这套入门教程中／<strong>我们主要学习的是STM32内部的各种外设</strong>」；</li>
+<li><strong>「最终的现象，也只是各种简单的测试程序」</strong>；</li>
+<li>「但是在实践中／<strong>要想做好一个项目、一个产品</strong>／<strong>这些还远远不够</strong>」。</li>
+</ul>
+<blockquote>
+<p>这两句是整套教程的<strong>自我评价</strong>：入门课教的是「<strong>单个外设怎么用 + 怎么用简单程序验证</strong>」，而不是「怎么做出产品」。做产品还需要工程架构、硬件电路、外部芯片模块、调试与实战经验——这也正好对应下一节的四个预告系列。</p>
+</blockquote>
+<p><img src="../assets/images/stm32-50/03-positioning.jpg" alt="图 3：课程定位段落——「当然，入门教程已经结束／我们的学习并未停止／在这套入门教程中／我们主要学习的是STM32内部的各种外设／最终的现象，也只是各种简单的测试程序／但是在实践中／要想做好一个项目、一个产品／这些还远远不够」，并接「因此，在未来／我将计划继续推出一系列的进阶视频／针对各种各样的外部芯片和模块／会推出有［模块教程］系列视频」"></p>
+<p><em>图 3：课程定位段落——「当然，入门教程已经结束／我们的学习并未停止／在这套入门教程中／我们主要学习的是STM32内部的各种外设／<strong>最终的现象，也只是各种简单的测试程序</strong>／但是在实践中／<strong>要想做好一个项目、一个产品</strong>／<strong>这些还远远不够</strong>」，并接「因此，在未来／我将计划继续推出一系列的进阶视频／针对各种各样的外部芯片和模块／会推出有[模块教程]系列视频」</em></p>
+<h2 id="3-四个后续系列预告">3. 四个后续系列预告</h2>
+<table>
+<thead>
+<tr>
+<th>系列</th>
+<th>面向方向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>[模块教程]</strong></td>
+<td>针对<strong>各种各样的外部芯片和模块</strong></td>
+</tr>
+<tr>
+<td><strong>[编程技巧]</strong></td>
+<td>针对<strong>工程架构和编写代码的技巧</strong></td>
+</tr>
+<tr>
+<td><strong>[硬件教程]</strong></td>
+<td>针对<strong>硬件和电路的相关知识</strong></td>
+</tr>
+<tr>
+<td><strong>[专题视频]</strong></td>
+<td><strong>更多的相关技术以及实战项目</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li>原文句式：「因此，在未来／<strong>我将计划继续推出一系列的进阶视频</strong>」→ 四个方向依次展开（图中方括号为画面原文）。</li>
+</ul>
+<p><img src="../assets/images/stm32-50/04-four-series.jpg" alt="图 4：四个后续系列预告完整——「因此，在未来／我将计划继续推出一系列的进阶视频／针对各种各样的外部芯片和模块／会推出有［模块教程］系列视频／针对工程架构和编写代码的技巧／会推出有［编程技巧］系列视频／针对硬件和电路的相关知识／会推出有［硬件教程］系列视频／更多的相关技术以及实战项目／也会推出有新的［专题视频］」"></p>
+<p><em>图 4：四个后续系列预告完整——「因此，在未来／我将计划继续推出一系列的进阶视频／针对各种各样的外部芯片和模块／会推出有[模块教程]系列视频／针对工程架构和编写代码的技巧／会推出有[编程技巧]系列视频／针对硬件和电路的相关知识／会推出有[硬件教程]系列视频／更多的相关技术以及实战项目／也会推出有新的[专题视频]」</em></p>
+<h2 id="4-can-通信-唯一被点名的未覆盖项">4. CAN 通信（唯一被点名的未覆盖项）</h2>
+<ul>
+<li>「另外，在本视频中／<strong>大家经常提及的CAN通信</strong>／也会在后续<strong>以单独的视频呈现</strong>」；</li>
+<li>「<strong>鉴于本视频最初没有计划CAN通信的内容</strong>／<strong>也没有相应的器件支持</strong>／故在本视频里／<strong>暂时没有CAN通信的内容</strong>」。</li>
+</ul>
+<blockquote>
+<p>所以如果整理「本课程<strong>没有覆盖</strong>的内容」，<strong>CAN 通信</strong>是唯一被作者点名的一项；原因是<strong>最初没计划</strong> + <strong>缺少器件支持</strong>，并承诺<strong>后续单独出视频</strong>。</p>
+</blockquote>
+<p><img src="../assets/images/stm32-50/05-can-note.jpg" alt="图 5：CAN 段落与后续更新——「另外，在本视频中／大家经常提及的CAN通信／也会在后续以单独的视频呈现／鉴于本视频最初没有计划CAN通信的内容／也没有相应的器件支持／故在本视频里／暂时没有CAN通信的内容」；接「关于后续视频的更新／未来也可能会有新的计划／持续关注，了解更多动态哦」与「最后，再次感谢大家的支持」"></p>
+<p><em>图 5：CAN 段落与后续更新——「另外，在本视频中／大家经常提及的CAN通信／也会在后续以单独的视频呈现／<strong>鉴于本视频最初没有计划CAN通信的内容</strong>／<strong>也没有相应的器件支持</strong>／故在本视频里／暂时没有CAN通信的内容」；接「关于后续视频的更新／未来也可能会有新的计划／持续关注，了解更多动态哦」与「最后，再次感谢大家的支持」</em></p>
+<h2 id="5-收尾与-logo">5. 收尾与 logo</h2>
+<ul>
+<li>「关于后续视频的更新／未来也可能会有新的计划／持续关注，了解更多动态哦」；</li>
+<li>「最后，再次感谢大家的支持／<strong>本套视频到这里就全部结束了</strong>／<strong>我们下套视频</strong>／<strong>再见</strong>」；</li>
+<li>文字滚出画面后<strong>纯黑</strong>，约 <strong>01:24</strong> 起切 <strong>江协科技 logo 页</strong>（<code>jiangxiakeji.com</code>）。</li>
+</ul>
+<p><img src="../assets/images/stm32-50/06-the-end.jpg" alt="图 6：收尾四行——「最后，再次感谢大家的支持／本套视频到这里就全部结束了／我们下套视频／再见」"></p>
+<p><em>图 6：收尾四行——「最后，再次感谢大家的支持／本套视频到这里就全部结束了／我们下套视频／再见」</em></p>
+<p><img src="../assets/images/stm32-50/07-logo.jpg" alt="图 7：结尾 江协科技 logo 页（jiangxiakeji.com）"></p>
+<p><em>图 7：结尾 <strong>江协科技 logo 页</strong>（<code>jiangxiakeji.com</code>）</em></p>
+<h2 id="6-一点个人小结-以下为笔记作者的话-不是视频内容">6. 一点个人小结（<strong>以下为笔记作者的话，不是视频内容</strong>）</h2>
+<blockquote>
+<p>说明：本节是我作为学习者的<strong>个人体会</strong>，视频里并没有这些说法。</p>
+</blockquote>
+<ul>
+<li><strong>这套课的定位很清楚</strong>：它把 STM32F103 的<strong>片内外设</strong>从「读手册 → 配寄存器 / 调库函数 → 下载验证」走了一遍，<strong>每一节都有可复现的实验现象</strong>——这正是入门阶段最需要的东西；</li>
+<li><strong>它的边界也很清楚</strong>（作者自己点明）：<strong>现象就是「各种简单的测试程序」</strong>。所以学完之后，<strong>真正的差距不在「会不会配某个外设」，而在工程组织</strong>——分层封装（P49 的 <code>MyFLASH</code> / <code>Store</code> 那种思路）、状态机与通信协议、外挂芯片时序、硬件设计与调试手段；</li>
+<li><strong>建议的下一步</strong>：①挑一两个<strong>外挂模块</strong>（OLED 之外，比如传感器、无线模块）自己做驱动；②把课程里散落的代码按 P49 那样<strong>分层整理成自己的库</strong>；③做一个<strong>小项目</strong>（数据采集 + 存储 + 通信）串起来；④再回头看<strong>硬件</strong>（电源、上拉、去耦、晶振、PCB）——这四步恰好对应作者预告的四个系列；</li>
+<li><strong>最后</strong>：入门课的结束不是学习的结束——正如片尾那句「<strong>入门教程已经结束／我们的学习并未停止</strong>」。</li>
+</ul>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>本集不是知识集</strong>：90 秒纯收尾，<strong>没有外设/代码/演示</strong>——别把它当正常课时写，也别从里面找技术点。</li>
+<li><strong>引用句子以画面文字为准</strong>：滚动字幕的 OCR 有<strong>系统性重复抖动</strong>（一句两遍、一对错），且有<strong>三处整段丢失</strong>（「最终的现象」「一个产品」「一系列的进阶视频」）——直接 grep transcript 会漏。</li>
+<li><strong>四个系列名称写全</strong>：<strong>[模块教程]／[编程技巧]／[硬件教程]／[专题视频]</strong>（画面用方括号，不要写成「模块视频」之类）。</li>
+<li><strong>未覆盖项只点名 CAN</strong>：原因＝<strong>最初没计划</strong> + <strong>没有器件支持</strong>，承诺后续单独视频；别顺手把别的项也说成「未覆盖」。</li>
+<li><strong>不要把「进阶系列」当成已发布内容</strong>：视频说的是「<strong>计划</strong>继续推出」，属于预告，不是已有课程。</li>
+<li><strong>logo 页文字</strong>「江协科技／jiangxiakeji.com」不在字幕带里（是图形文字），OCR 抓不到——需按画面记录。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:00</td>
+<td>黑场起，标题逐行浮现</td>
+</tr>
+<tr>
+<td>0:06</td>
+<td>标题四行完整（入门教程/2 年/48 万字/落下帷幕）</td>
+</tr>
+<tr>
+<td>0:09</td>
+<td>致谢：恭喜看到此处的各位</td>
+</tr>
+<tr>
+<td>0:15</td>
+<td>「入门教程已经结束／我们的学习并未停止」</td>
+</tr>
+<tr>
+<td>0:18</td>
+<td>「我们主要学习的是STM32内部的各种外设」</td>
+</tr>
+<tr>
+<td>0:24</td>
+<td>「最终的现象，也只是各种简单的测试程序」</td>
+</tr>
+<tr>
+<td>0:30</td>
+<td>「要想做好一个项目、一个产品／这些还远远不够」</td>
+</tr>
+<tr>
+<td>0:33</td>
+<td>「因此，在未来／我将计划继续推出一系列的进阶视频」</td>
+</tr>
+<tr>
+<td>0:39</td>
+<td>四系列预告完整出现（模块教程/编程技巧/硬件教程/专题视频）</td>
+</tr>
+<tr>
+<td>0:45</td>
+<td>「大家经常提及的CAN通信」</td>
+</tr>
+<tr>
+<td>0:48</td>
+<td>CAN 说明：最初没计划、没有器件支持</td>
+</tr>
+<tr>
+<td>0:54</td>
+<td>「关于后续视频的更新／持续关注，了解更多动态哦」</td>
+</tr>
+<tr>
+<td>1:00</td>
+<td>「最后，再次感谢大家的支持」</td>
+</tr>
+<tr>
+<td>1:09</td>
+<td>「本套视频到这里就全部结束了／我们下套视频／再见」</td>
+</tr>
+<tr>
+<td>1:18</td>
+<td>文字滚出，纯黑屏</td>
+</tr>
+<tr>
+<td>1:24</td>
+<td>江协科技 logo 页（jiangxiakeji.com）</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li><strong>本集为纯收尾集</strong>：90 秒，全片是<strong>黑底滚动文字 + 结尾 logo 页</strong>，<strong>无 PPT、无代码、无演示</strong>；本笔记按「完结随笔」处理，不展开外设内容。</li>
+<li><strong>OCR 抖动与丢失</strong>：滚动字幕使同一句常被 OCR 抓两遍（一对错），且<strong>三处整段在 transcript 中 grep 不到</strong>——<strong>「最终的现象」、「一个产品」、「一系列的进阶视频」</strong>（画面明确有，已在图 3 / 图 4 中按画面补回）；**「江协科技」「jiangxiakeji」**也不在字幕带（logo 为图形文字）。<strong>引用一律以画面为准</strong>。</li>
+<li>典型 OCR 错字（grep 命中）：<code>视频</code>→「枕频/视顿」、<code>各位</code>→「冬位」、<code>教程</code>→「教桂/致程」、<code>帷幕</code>→「雄墓」、<code>通信</code>→「通怡」、<code>暂时</code>→「首时」、<code>系列</code>→「示列」、<code>实战项目</code>→「买战项白」等——已按画面校正。</li>
+<li><strong>四个系列名以方括号写全</strong>：<code>[模块教程]</code>、<code>[编程技巧]</code>、<code>[硬件教程]</code>、<code>[专题视频]</code>；它们是<strong>未来计划</strong>，非已发布课程。</li>
+<li><strong>CAN 是唯一被点名的未覆盖项</strong>：原因「最初没有计划」＋「没有相应的器件支持」，承诺后续单独视频；本课程<strong>暂时没有 CAN 通信内容</strong>。</li>
+<li><strong>结尾 logo 页</strong>：约 <strong>01:24</strong> 起显示「江协科技 / jiangxiakeji.com」。</li>
+<li><strong>第 6 节为笔记作者的个人小结</strong>（已明确标注），<strong>非视频内容</strong>，请勿当作作者原话引用。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-01.html"><span class="label">下一篇</span>[1-1] 课程简介</a>
+    <a class="next" href="stm32-30.html"><span class="label">上一篇</span>[9-6] FlyMcu串口下载与STLINK Utility</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%BA%AF%E6%94%B6%E5%B0%BE%E9%9B%86-90-%E7%A7%92-%E6%97%A0-ppt-%E6%97%A0%E4%BB%A3%E7%A0%81-%E6%97%A0%E6%BC%94%E7%A4%BA">0. 本集定位：纯收尾集（90 秒，无 PPT/无代码/无演示）</a>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#1-%E6%A0%87%E9%A2%98%E4%B8%8E%E8%87%B4%E8%B0%A2">1. 标题与致谢</a>
+        <a class="level-2" href="#2-%E8%AF%BE%E7%A8%8B%E8%87%AA%E6%88%91%E5%AE%9A%E4%BD%8D-%E5%85%A8%E7%89%87%E6%9C%80%E5%80%BC%E5%BE%97%E6%8A%84%E4%B8%8B%E6%9D%A5%E7%9A%84%E4%B8%A4%E5%8F%A5">2. 课程自我定位（全片最值得抄下来的两句）</a>
+        <a class="level-2" href="#3-%E5%9B%9B%E4%B8%AA%E5%90%8E%E7%BB%AD%E7%B3%BB%E5%88%97%E9%A2%84%E5%91%8A">3. 四个后续系列预告</a>
+        <a class="level-2" href="#4-can-%E9%80%9A%E4%BF%A1-%E5%94%AF%E4%B8%80%E8%A2%AB%E7%82%B9%E5%90%8D%E7%9A%84%E6%9C%AA%E8%A6%86%E7%9B%96%E9%A1%B9">4. CAN 通信（唯一被点名的未覆盖项）</a>
+        <a class="level-2" href="#5-%E6%94%B6%E5%B0%BE%E4%B8%8E-logo">5. 收尾与 logo</a>
+        <a class="level-2" href="#6-%E4%B8%80%E7%82%B9%E4%B8%AA%E4%BA%BA%E5%B0%8F%E7%BB%93-%E4%BB%A5%E4%B8%8B%E4%B8%BA%E7%AC%94%E8%AE%B0%E4%BD%9C%E8%80%85%E7%9A%84%E8%AF%9D-%E4%B8%8D%E6%98%AF%E8%A7%86%E9%A2%91%E5%86%85%E5%AE%B9">6. 一点个人小结（以下为笔记作者的话，不是视频内容）</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

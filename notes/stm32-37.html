@@ -1,0 +1,2003 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[11-2] W25Q64简介 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [11-2]（理论课，代码在 11-3/11-4）：W25Qxx 与 NOR Flash；容量与 24 位地址上限 16MB；引脚（2.7～3.6V、CS 低有效、WP、HOLD）；存储结构 128 块/16 扇区/16 页；Flash 写入 6 条与读取 1 条注意事项；手册 BUSY/WEL 与 0x06/0x05/0x02/0x20/0xD8/0x03/0x9F 指令。">
+  <meta property="og:title" content="[11-2] W25Q64简介 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [11-2]（理论课，代码在 11-3/11-4）：W25Qxx 与 NOR Flash；容量与 24 位地址上限 16MB；引脚（2.7～3.6V、CS 低有效、WP、HOLD）；存储结构 128 块/16 扇区/16 页；Flash 写入 6 条与读取 1 条注意事项；手册 BUSY/WEL 与 0x06/0x05/0x02/0x20/0xD8/0x03/0x9F 指令。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html" class="active" aria-current="page">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>46 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">SPI</span><span class="tag">W25Q64</span><span class="tag">Flash</span><span class="tag">存储器</span>
+    </div>
+    <article class="prose"><h1>[11-2] W25Q64简介 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=37，48:10（2890 秒）</li>
+<li>素材：241 帧关键帧（<strong>每 12 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>551 段</strong>）；关键截图 14 张随笔记收录（源图在 <code>vidsum_out/stm32_p37/frames/</code>，站内图片在 <code>assets/images/stm32-37/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；错字主要是 <strong><code>SPI</code> → 「SPL」</strong>（5 处）、<strong><code>W25Q</code> → 「W25O」</strong>（3 处）、<code>读取</code> → 「卖取」（2 处）、<code>读写</code> → 「卖写」、<code>查询</code> → 「香询」、<code>地址</code> → 「地批址」、<code>模式</code> → 「模贰」，并混入手册页脚/英文正文——这些<strong>不是口述内容</strong>，已剔除/校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 11 的理论课（下）</strong>——专门讲 <strong>W25Q64 这颗 Flash 存储器芯片</strong>：先看 PPT（简介、硬件电路、框图、Flash 操作注意事项），再逐页精读 <strong>W25Q64BV 英文数据手册</strong>（FEATURES、状态寄存器、指令集、时序图、电气特性）。<strong>本集没有写一行代码</strong>；结尾 48:00「这就是这个手册的内容，本小节就结束了……（下一小节）开始写代码」——<strong>软件 SPI 代码在 [11-3]、硬件 SPI 在 [11-4]</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>W25Q64 是 W25Qxx 系列里的一颗 SPI 接口 NOR Flash 存储器</strong>：<strong>低成本、小型化、使用简单、非易失性</strong>（掉电不丢失），常用于<strong>数据存储、字库存储、固件程序存储</strong>——尤其<strong>固件程序存储</strong>支持 <strong>XIP（eXecute In Place，就地执行）</strong>，就像电脑的 <strong>BIOS 固件</strong>存在这类芯片里，单片机可以直接从 Flash 取指令运行。<strong>存储介质是 NOR Flash（闪存）</strong>（闪存分 NOR 与 NAND 两类，各有优劣，本芯片是 NOR）。<strong>时钟频率</strong>：普通 SPI 的 SCK 最大 <strong>80MHz</strong>、<strong>160MHz（Dual SPI 等效）/320MHz（Quad SPI 等效）</strong>——<strong>Dual SPI 让 MOSI 和 MISO 同时收发</strong>（两根线并行）、<strong>Quad SPI 再把 WP 和 HOLD 也当数据线 IO2/IO3</strong>（4 位并行），本课程不用，但 80MHz 已经远高于 GPIO 翻转速度，所以<strong>用软件 SPI 时完全不用加延时</strong>。<strong>容量（24 位地址）</strong>：W25Q40 4Mbit/512KB、W25Q80 8Mbit/1MB、W25Q16 16Mbit/2MB、W25Q32 32Mbit/4MB、<strong>W25Q64 64Mbit/8MB</strong>、W25Q128 128Mbit/16MB、W25Q256 256Mbit/32MB——<strong>Mbit÷8＝MByte</strong>；<strong>24 位地址最多寻址 2 的 24 次方＝16MB</strong>，所以 <strong>W25Q256（32MB）用 3 字节地址只能访问前 16MB</strong>（访问完整容量要用 4 字节地址模式）。<strong>引脚</strong>：<strong>VCC/GND 电源（2.7～3.6V，典型 3.3V，不能接 5V）</strong>、<strong>CS(SS)＝SPI 片选、低电平有效</strong>、<strong>CLK(SCK)＝SPI 时钟</strong>、<strong>DI(MOSI)＝主机输出从机输入</strong>、<strong>DO(MISO)＝主机输入从机输出</strong>、<strong>WP＝写保护</strong>（配合状态寄存器，接低保护/接高正常）、<strong>HOLD＝数据保持、低有效</strong>（可暂停当前时序去忙别的）；引脚编号：<strong>1=/CS、2=DO(IO1)、3=/WP(IO2)、4=GND、5=DI(IO0)、6=CLK、7=/HOLD(IO3)、8=VCC</strong>（括号里的 IO0～IO3 供 Dual/Quad 使用）。<strong>存储结构</strong>：<strong>8MB＝128 块（Block 0～127）×64KB；每块 16 个扇区（Sector）×4KB；每扇区 16 页（Page）×256B</strong>；地址范围 <strong>0x000000～0x7FFFFF</strong>（块 0＝0x000000～0x00FFFF，块 31＝0x1F0000～0x1FFFFF）。<strong>Flash 的写入注意事项（核心，6 条）</strong>：<strong>① 写入前必须先「写使能」</strong>（一种保护措施，防误操作，像手机锁屏）<strong>② 每个数据位只能由 1 改写为 0，不能由 0 改写为 1</strong>（所以 <strong>0xAA 覆盖写 0x55 实际得到 0x00</strong>）<strong>③ 写入数据前必须先擦除</strong>（擦除后所有位变 1，即 <strong>0xFF＝空白</strong>，读到 FF 说明该处没写过数据）<strong>④ 擦除必须按最小擦除单元</strong>（扇区 4KB / 块 64KB / 整片），所以<strong>只想改一个字节也要「读出整扇区→改→擦除→写回」</strong>（或用备份扇区机制缓解）<strong>⑤ 连续写多字节时最多写一页</strong>（256 字节），<strong>超过页尾的数据会回到页首覆盖写入</strong>，所以<strong>不能跨页写</strong> <strong>⑥ 写入结束后芯片进入忙状态</strong>（BUSY），不响应新的读写操作。<strong>读取注意事项（1 条）</strong>：<strong>直接调用读取时序，无需使能、无页限制、读完后不进入忙状态</strong>，<strong>但芯片忙时不能读</strong>。为什么会这样：<strong>Flash 为了掉电不丢失 + 大容量，牺牲了 RAM 那样的「直接覆盖改写」能力</strong>，写入靠<strong>页缓存（256 字节 RAM）+ 高压擦写电路</strong>完成（先把数据放进缓存区、芯片再慢慢搬进 Flash，搬运期间置 BUSY）；这些不方便<strong>都可以用软件弥补</strong>，而<strong>容量大</strong>是它相对其他非易失性存储器的最大优势。<strong>手册重点</strong>：<strong>状态寄存器 1</strong>——<strong>S0 = BUSY</strong>（只读；页编程/扇区擦除/块擦除/整片擦除/写状态寄存器期间置 1，完成后清 0）、<strong>S1 = WEL 写使能锁存位</strong>（执行写使能指令后置 1；<strong>写失能、上电、以及写/擦除操作完成后自动清 0</strong>——所以<strong>写操作后会「顺手关门」</strong>，不用手动写失能），其余 BP2/BP1/BP0、TB、SEC 属写保护位「了解即可」；<strong>指令集</strong>：<strong><code>0x06</code> 写使能</strong>、<code>0x04</code> 写失能、<strong><code>0x05</code> 读状态寄存器 1</strong>、<code>0x01</code> 写状态寄存器、<strong><code>0x02</code> 页编程</strong>（+24 位地址+数据）、<code>0x32</code> Quad 页编程、<strong><code>0xD8</code> 块擦除 64KB</strong>、<code>0x52</code> 块擦除 32KB、<strong><code>0x20</code> 扇区擦除 4KB</strong>、<strong><code>0xC7</code>/<code>0x60</code> 整片擦除</strong>、<code>0xB9</code> 掉电、<strong><code>0x90</code> 读厂商/设备 ID</strong>、<strong><code>0x9F</code> 读 JEDEC ID</strong>、<code>0x4B</code> 读唯一 ID、<strong><code>0x03</code> 读数据</strong>（+24 位地址+连续读取、无页限制）；<strong>写使能时序</strong>：/CS 拉低 → DI 上升沿发送 <code>0x06</code> → /CS 拉高，<strong>DO 全程保持高阻（High Impedance）</strong>；<strong>该芯片兼容 SPI 模式 0 与模式 3</strong>（两者都是<strong>下降沿移出、上升沿移入</strong>，手册用虚线标出可忽略的差异）。<strong>代码下一节开始写。</strong></p>
+<h2 id="0-本集定位-理论课-w25q64-芯片-数据手册精读-代码在-11-3-11-4">0. 本集定位：理论课（W25Q64 芯片 + 数据手册精读），代码在 11-3/11-4</h2>
+<ul>
+<li><strong>本集是纯理论课</strong>：全程 PPT（W25Q64简介 / 硬件电路 / W25Q64框图 / Flash操作注意事项）+ <strong>W25Q64BV 英文数据手册</strong>逐页精读；<strong>没有写一行代码</strong>。</li>
+<li><strong>本集安排</strong>（00:11）：先看芯片简介 → 过一遍手册，把重点与细节<strong>和上一集的 SPI 知识点结合起来</strong>。</li>
+<li>片尾 48:00：「这就是这个手册的内容，本小节就结束了……（下一小节）开始写代码」——<strong>软件 SPI 代码在 [11-3]、硬件 SPI 在 [11-4]</strong>。</li>
+</ul>
+<h2 id="1-w25q64-是什么">1. W25Q64 是什么</h2>
+<h3 id="1-1-系列与用途">1.1 系列与用途</h3>
+<ul>
+<li><strong>W25Qxx 系列</strong>：一种<strong>低成本、小型化、使用简单的非易失性存储器</strong>；</li>
+<li><strong>W25Q64</strong>：该系列中 <strong>64Mbit=8MB</strong> 的那一颗（觉得太大可以换 W25Q32 等，操作方法都一样）；</li>
+<li><strong>应用场景</strong>：<strong>数据存储</strong>（STM32 里需要掉电保存的数据）、<strong>字库存储</strong>（字库存 Flash 里，用 SPI 读取芯片查询字模）、<strong>固件程序存储</strong>；</li>
+<li><strong>固件程序存储 = XIP（eXecute In Place，就地执行）</strong>：把程序文件下载到外挂 Flash 里，<strong>芯片直接从 Flash 取指令运行</strong>，就像<strong>电脑的 BIOS 固件</strong>就存在 W25Q 系列芯片里；</li>
+<li><strong>非易失性</strong>：数据掉电不丢失（关机重启数据还在）——对比<strong>易失性</strong>的 RAM、以及同为非易失性的 <strong>E2PROM</strong>（如 AT24C02，容量小）；</li>
+<li><strong>硬件接线简单</strong>：使用 SPI 串行通信，<strong>引脚少、协议简单</strong>，除了 VCC/GND 都是 GPIO，<strong>基本不需要其他电路</strong>。</li>
+</ul>
+<h3 id="1-2-存储介质-nor-flash">1.2 存储介质：NOR Flash</h3>
+<ul>
+<li>存储介质是 <strong>NOR Flash（闪存）</strong>——<strong>Flash 就是闪存存储器</strong>；</li>
+<li>闪存分 <strong>NOR Flash</strong> 和 <strong>NAND Flash</strong> 两类，<strong>各有优势劣势、适用领域不同</strong>；<strong>本芯片是 NOR Flash</strong>。</li>
+</ul>
+<h3 id="1-3-时钟频率与-dual-quad-spi">1.3 时钟频率与 Dual/Quad SPI</h3>
+<ul>
+<li>普通 SPI 下 <strong>SCK 最大 80MHz</strong>；</li>
+<li>另外两个频率：<strong>160MHz 是「双重 SPI（Dual SPI）」的等效频率、320MHz 是「四重 SPI（Quad SPI）」的等效频率</strong>（本课程不用，了解即可）；</li>
+<li><strong>为什么能翻倍</strong>：SPI 是全双工的，<strong>只发或只收时有一根数据线闲着（资源浪费）</strong>——<strong>Dual SPI 让 MOSI 和 MISO 同时用于发送（或同时用于接收）</strong>，相当于<strong>一个时钟收发 2 位</strong>；<strong>Quad SPI 再把 WP、HOLD 也拉来当数据线（IO2、IO3）</strong>，<strong>4 根线一起收发，相当于 4 位并行</strong>——这就是「等效频率 80×2 / 80×4」的来历（实际 SCK 最大还是 80MHz）；</li>
+<li><strong>代码层面的意义</strong>：<strong>80MHz 远高于 GPIO 翻转能达到的速度</strong>，所以<strong>本课程用软件 SPI 时，翻转引脚完全不需要加延时</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-37/01-w25q-intro.jpg" alt="图 1：PPT「W25Q64简介」——W25Qxx 系列是一种低成本、小型化、使用简单的非易失性存储器，常用于数据存储、字库存储、固件程序存储等场景；存储介质 NOR Flash（闪存）；时钟频率 80MHz / 160MHz（Dual SPI）/ 320MHz（Quad SPI）；存储容量（24 位地址）：W25Q40 4Mbit/512KB、W25Q80 8Mbit/1MB、W25Q16 16Mbit/2MB、W25Q32 32Mbit/4MB、W25Q64 64Mbit/8MB、W25Q128 128Mbit/16MB、W25Q256 256Mbit/32MB；右侧是 W25Q64 模块实物；字幕「这里我用几张PPT整体地介绍一下这个芯片」"></p>
+<p><em>图 1：PPT「W25Q64简介」——W25Qxx 系列是一种低成本、小型化、使用简单的非易失性存储器，常用于数据存储、字库存储、固件程序存储等场景；存储介质 NOR Flash（闪存）；时钟频率 80MHz / 160MHz（Dual SPI）/ 320MHz（Quad SPI）；存储容量（24 位地址）：W25Q40 4Mbit/512KB、W25Q80 8Mbit/1MB、W25Q16 16Mbit/2MB、W25Q32 32Mbit/4MB、<strong>W25Q64 64Mbit/8MB</strong>、W25Q128 128Mbit/16MB、W25Q256 256Mbit/32MB；右侧是 W25Q64 模块实物；字幕「这里我用几张PPT整体地介绍一下这个芯片」</em></p>
+<p><img src="../assets/images/stm32-37/02-clock-frequency.jpg" alt="图 2：同页「时钟频率」一行被灰色高亮——80MHz / 160MHz（Dual SPI）/ 320MHz（Quad SPI）；字幕「其中SPI的SCK线，就是时钟线」"></p>
+<p><em>图 2：同页「时钟频率」一行被灰色高亮——80MHz / 160MHz（Dual SPI）/ 320MHz（Quad SPI）；字幕「其中SPI的SCK线，就是时钟线」</em></p>
+<h3 id="1-4-容量换算与-24-位地址">1.4 容量换算与 24 位地址</h3>
+<ul>
+<li><strong>1 字节＝8 位</strong>，所以 <strong>Mbit ÷ 8 ＝ MByte</strong>：4Mbit÷8=512KB、8Mbit÷8=1MB、16Mbit÷8=2MB、<strong>64Mbit÷8=8MB</strong>……</li>
+<li><strong>括号里的「24 位地址」</strong>＝<strong>3 个字节的地址</strong>——因为读写时要一次性指定 3 个字节的地址，才能找到每个字节单元；</li>
+<li><strong>24 位地址最大寻址 2 的 24 次方＝16MB</strong>（计算：2^24 / 1024 / 1024 = 16MB）；</li>
+<li>所以：<strong>W25Q64（8MB）用 3 字节地址是够的</strong>；<strong>W25Q256（32MB）如果只用 3 字节地址，就只能访问前 16MB</strong>，后 16MB 要改用 4 字节地址模式。</li>
+</ul>
+<p><img src="../assets/images/stm32-37/03-capacity-div8.jpg" alt="图 3：简介页 + 字幕「对应到常用的以字节的单位，就是都除8」——讲容量换算（Mbit÷8＝MByte）"></p>
+<p><em>图 3：简介页 + 字幕「对应到常用的以字节的单位，就是都除8」——讲容量换算（Mbit÷8＝MByte）</em></p>
+<h2 id="2-引脚与硬件电路">2. 引脚与硬件电路</h2>
+<h3 id="2-1-引脚功能表">2.1 引脚功能表</h3>
+<table>
+<thead>
+<tr>
+<th>引脚</th>
+<th>名称</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>8、4</td>
+<td><strong>VCC、GND</strong></td>
+<td><strong>电源</strong>：<strong>2.7～3.6V（典型 3.3V）</strong>，<strong>不能直接接 5V</strong></td>
+</tr>
+<tr>
+<td>1</td>
+<td><strong>/CS（CS，chip select）</strong></td>
+<td><strong>SPI 片选</strong>，对应上一集的 <strong>SS</strong>，<strong>低电平有效</strong>（画横线表示低有效）</td>
+</tr>
+<tr>
+<td>6</td>
+<td><strong>CLK（SCK）</strong></td>
+<td><strong>SPI 时钟</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td><strong>DI（MOSI，IO0）</strong></td>
+<td><strong>SPI 主机输出、从机输入</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>DO（MISO，IO1）</strong></td>
+<td><strong>SPI 主机输入、从机输出</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>/WP（IO2）</strong></td>
+<td><strong>写保护</strong>：配合内部状态寄存器，<strong>接低电平保护（不能写）、接高电平正常</strong></td>
+</tr>
+<tr>
+<td>7</td>
+<td><strong>/HOLD（IO3）</strong></td>
+<td><strong>数据保持，低电平有效</strong>：通信到一半被拉低可<strong>暂停当前时序</strong>，去操作总线上其他器件，之后再拉高<strong>继续原时序</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>注意引脚顺序</strong>：<strong>1=/CS、2=DO(IO1)、3=/WP(IO2)、4=GND、5=DI(IO0)、6=CLK、7=/HOLD(IO3)、8=VCC</strong>——和常见「1 脚 VCC」的芯片不同，接线时按这个来；</li>
+<li><strong>括号里的 IO0～IO3</strong>：只有 <strong>Dual/Quad SPI</strong> 才用（DI→IO0、DO→IO1、WP→IO2、HOLD→IO3）；<strong>普通 SPI 模式不用看括号</strong>；</li>
+<li><strong>模块电路</strong>：J1 六脚排针引出 VCC/CS/DO/GND/CLK/DI（+3.3V 供电），U1 是 W25QXX 芯片，<strong>C1（104）电源滤波</strong>，<strong>R1（1K）+ D1 电源指示灯</strong>；模块上 <strong>WP 和 HOLD 直接接到 VCC</strong>（不启用这两个功能）；接线非常简单——<strong>GND 接 3.3V 电源、SPI 四根线直接接 STM32 的 GPIO</strong>，WP/HOLD 需要用时再接 VCC。</li>
+</ul>
+<p><img src="../assets/images/stm32-37/04-hardware-pinout.jpg" alt="图 4：PPT「硬件电路」——左侧模块原理图（J1 六脚排针 VCC/CS/DO/GND/CLK/DI、U1 W25QXX、C1 104 滤波、R1 1K + D1 电源指示灯）；右侧引脚图（1 /CS、2 DO(IO1)、3 /WP(IO2)、4 GND、5 DI(IO0)、6 CLK、7 /HOLD(IO3)、8 VCC）；右下引脚功能表：VCC/GND 电源（2.7～3.6V）、CS(SS) SPI片选、CLK(SCK) SPI时钟、DI(MOSI) 主机输出从机输入、DO(MISO) 主机输入从机输出、WP 写保护、HOLD 数据保持；字幕「2号，DO，对应MISO，是SPI主机输入从机输出」"></p>
+<p><em>图 4：PPT「硬件电路」——左侧模块原理图（J1 六脚排针 VCC/CS/DO/GND/CLK/DI、U1 W25QXX、C1 104 滤波、R1 1K + D1 电源指示灯）；右侧引脚图（1 /CS、2 DO(IO1)、3 /WP(IO2)、4 GND、5 DI(IO0)、6 CLK、7 /HOLD(IO3)、8 VCC）；右下引脚功能表：VCC/GND 电源（2.7～3.6V）、CS(SS) SPI片选、CLK(SCK) SPI时钟、DI(MOSI) 主机输出从机输入、DO(MISO) 主机输入从机输出、WP 写保护、HOLD 数据保持；字幕「2号，DO，对应MISO，是SPI主机输出从机输出」</em></p>
+<h2 id="3-存储结构-框图">3. 存储结构（框图）</h2>
+<h3 id="3-1-空间划分">3.1 空间划分</h3>
+<ul>
+<li><strong>8MB 空间太大，不划分不利于管理</strong>，所以按层级划分：<ul>
+<li><strong>块（Block）</strong>：<strong>128 块 × 64KB</strong>（Block 0～127）；</li>
+<li><strong>扇区（Sector）</strong>：<strong>每块 16 个扇区 × 4KB</strong>（Sector 0～15）；</li>
+<li><strong>页（Page）</strong>：<strong>每扇区 16 页 × 256B</strong>；</li>
+</ul>
+</li>
+<li><strong>地址范围 0x000000～0x7FFFFF</strong>（8MB，最高字节是 7F 而不是 FF，因为 24 位地址只寻址 16MB、本芯片只用到前 8MB）；</li>
+<li><strong>块/扇区地址</strong>：块 0＝0x000000～0x00FFFF、块 31＝0x1F0000～0x1FFFFF；（块 n 起始＝n×0x10000）；</li>
+<li><strong>页是直接对整个存储空间划分的</strong>（不是按扇区独立编号）；<strong>页大小 256 字节</strong>。</li>
+</ul>
+<h3 id="3-2-框图内部模块">3.2 框图内部模块</h3>
+<ul>
+<li><strong>左侧</strong>：<strong>SPI 通信引脚（CLK、/CS、DI、DO）+ /HOLD、/WP</strong> → <strong>SPI Control &amp; Logic（SPI 控制逻辑）</strong>：自动操作内部电路；</li>
+<li><strong>Write Control Logic（写控制逻辑）+ Status Register（状态寄存器）</strong>：<strong>状态寄存器里体现当前芯片状态</strong>（BUSY/WEL 等）；</li>
+<li><strong>High Voltage Generators（高电压生成器）</strong>：Flash 擦写需要高压——用「LED 烧坏」的比喻理解：<strong>烧坏的 LED 永远坏（相当于写 1），没烧坏的可以继续烧（相当于写 0）</strong>，且<strong>不受是否供电影响（掉电不丢失）</strong>；</li>
+<li><strong>Page Address Latch/Counter（页地址锁存/计数器）</strong>、<strong>Byte Address Latch/Counter（字节地址锁存/计数器）</strong>：<strong>接收主机发来的 24 位地址</strong>（前两个字节进页地址计数器、剩下的做字节地址）；</li>
+<li><strong>Column Decode And 256-Byte Page Buffer（列解码 + 256 字节页缓存）</strong>：<strong>读写最终都经过这 256 字节的 RAM 缓存</strong>——因为 <strong>SPI 写入频率非常高，而 Flash 写入速度跟不上</strong>，所以<strong>数据先放缓存区，芯片再慢慢把它搬到 Flash 里</strong>（搬运期间置 <strong>BUSY</strong>）；读取时也经过缓存区。</li>
+</ul>
+<p><img src="../assets/images/stm32-37/05-block-diagram.jpg" alt="图 5：PPT「W25Q64框图」（手册 System Block Diagram）——右侧 W25Q64BV 存储空间：7FFFFFh～000000h、Block 0 (64KB) 000000h～00FFFFh … Block 127 (64KB) 7F0000h～7FFFFFh、Total 128 Blocks；左侧 Block Segmentation：Sector 0 (4KB) 0x000000～0x000FFF … Sector 15 (4KB) 0x00F000～0x00FFFF；中间 Write Control Logic/WP(IO2)、Status Register、High Voltage Generators、Page Address Latch/Counter、SPI Control &amp; Logic（/HOLD(IO3)、CLK、/CS、DI(IO0)、DO(IO1)）、Byte Address Latch/Counter、Column Decode And 256-Byte Page Buffer；字幕「之后，块31，起始是1F 00 00，结束是1F FF FF」"></p>
+<p><em>图 5：PPT「W25Q64框图」（手册 System Block Diagram）——右侧 W25Q64BV 存储空间：7FFFFFh～000000h、Block 0 (64KB) 000000h～00FFFFh … Block 127 (64KB) 7F0000h～7FFFFFh、Total 128 Blocks；左侧 Block Segmentation：Sector 0 (4KB) 0x000000～0x000FFF … Sector 15 (4KB) 0x00F000～0x00FFFF；中间 Write Control Logic/WP(IO2)、Status Register、High Voltage Generators、Page Address Latch/Counter、SPI Control &amp; Logic（/HOLD(IO3)、CLK、/CS、DI(IO0)、DO(IO1)）、Byte Address Latch/Counter、Column Decode And 256-Byte Page Buffer；字幕「之后，块31，起始是1F 00 00，结束是1F FF FF」</em></p>
+<p><img src="../assets/images/stm32-37/06-block-marked.jpg" alt="图 6：同一框图上的红笔——圈出左侧 Sector 0～15 的划分、右侧 Block 31/Block 0 的地址范围，以及下方「Column Decode And 256-Byte Page Buffer」；字幕「这个我们需要记住，后面还会用到」"></p>
+<p><em>图 6：同一框图上的红笔——圈出左侧 Sector 0～15 的划分、右侧 Block 31/Block 0 的地址范围，以及下方「Column Decode And 256-Byte Page Buffer」；字幕「这个我们需要记住，后面还会用到」</em></p>
+<h3 id="3-3-为什么要有页缓存">3.3 为什么要有页缓存</h3>
+<ul>
+<li>直接往 Flash 里写不行，因为 <strong>SPI 总线的写入频率非常高、Flash 的写入速度跟不上</strong>；</li>
+<li>所以<strong>先把数据放进 256 字节页缓存（RAM），芯片再慢慢从缓存区转移到 Flash</strong>；</li>
+<li><strong>数据从缓存区转到 Flash 需要时间</strong>，这段时间<strong>给状态寄存器的 BUSY 位置 1</strong>——「表示芯片正在搬砖、很忙」，此时<strong>不响应新的读写</strong>；</li>
+<li>读取数据也经过缓存区（W25Q64 内部有 256 字节 RAM 缓冲）。</li>
+</ul>
+<h2 id="4-flash-操作注意事项-核心">4. Flash 操作注意事项（核心）</h2>
+<blockquote>
+<p>先想一个问题：<strong>不就是个存储器吗，直接指定地址读写不就行了，为什么这么多注意事项？</strong>——因为 Flash <strong>为了「掉电不丢失」这个特性 + 大容量</strong>，在电路上做了取舍：<strong>读写不像 RAM 那样简单直接</strong>（RAM 可以直接覆盖改写：原来 0xAA，再写 0x55 就变成 0x55）。</p>
+</blockquote>
+<h3 id="4-1-写入操作的-6-条规定">4.1 写入操作的 6 条规定</h3>
+<ol>
+<li><strong>写入操作前，必须先进行「写使能」</strong>——一种<strong>保护措施，防止误操作</strong>（就像手机锁屏，防止在兜里乱点）；</li>
+<li><strong>每个数据位只能由 1 改写为 0，不能由 0 改写为 1</strong>——举例：存了 <strong>0xAA（10101010）</strong>，再<strong>覆盖写 0x55（01010101）</strong>，由于只能 1→0，<strong>实际写入结果是 0x00</strong>（8 位全 0）；「为什么有这种限制？只能说<strong>是成本原因</strong>」；</li>
+<li><strong>写入数据前必须先擦除</strong>——<strong>擦除后所有数据位变为 1（0xFF）</strong>；有了擦除，才能把 0 改回 1（擦除是「专门的擦除电路」加高压完成）；</li>
+<li><strong>擦除必须按最小擦除单元进行</strong>——不能只擦某一位/某一字节；<strong>最小擦除单元是扇区（4KB）</strong>，也可选择<strong>块擦除（64KB）或整片擦除</strong>；所以<strong>只想改写一个字节，也要「读出整个扇区（4KB）→ 改 → 擦除扇区 → 再把 4096 字节全写回去」</strong>（或者用「备份扇区/频繁使用扇区先在 RAM 里缓存、使用频率降低时再整体备份」的机制来缓解）；</li>
+<li><strong>连续写入多字节时，最多写入一页（256 字节）的数据</strong>——<strong>超过页尾位置的数据会回到页首覆盖写入</strong>；所以<strong>多字节写入不能跨越页的边沿</strong>，否则会地址错乱；</li>
+<li><strong>写入操作结束后，芯片进入忙状态</strong>，<strong>不响应新的读写操作</strong>——因为写入是对缓存区进行的，时序结束后芯片还要「搬砖」（把数据搬进 Flash），<strong>要等 BUSY 位变为 0（不忙）才能继续</strong>。</li>
+</ol>
+<h3 id="4-2-读取操作的-1-条规定">4.2 读取操作的 1 条规定</h3>
+<ul>
+<li><strong>直接调用读取时序，无需使能、无需额外操作、没有页的限制</strong>、读取结束后<strong>不会进入忙状态</strong>；</li>
+<li><strong>唯一的限制：不能在忙状态时读取</strong>（要先等 BUSY=0）；</li>
+<li><strong>结论</strong>：Flash 这些「不方便」<strong>都可以用软件来弥补</strong>，而<strong>容量大</strong>是它相对其他非易失性存储器的最大优势——「尽管慢，但在非易失性存储器中 Flash 是非常快的」。</li>
+</ul>
+<p><img src="../assets/images/stm32-37/07-flash-rules.jpg" alt="图 7：PPT「Flash操作注意事项」全页——写入操作时：①写前必须先写使能 ②每个数据位只能由 1 改写为 0，不能由 0 改写为 1 ③写入数据前必须先擦除，擦除后所有数据位变为 1 ④擦除必须按最小擦除单元进行 ⑤连续写入多字节时最多写入一页，超过页尾的数据会回到页首覆盖写入 ⑥写入结束后芯片进入忙状态，不响应新的读写操作；读取操作时：直接调用读取时序，无需使能、无需额外操作、没有页的限制，读取结束后不会进入忙状态，但不能在忙状态时读取；字幕「我直接指定地址写或者指定地址读」"></p>
+<p><em>图 7：PPT「Flash操作注意事项」全页——<strong>写入操作时</strong>：①写前必须先写使能 ②每个数据位只能由 1 改写为 0，不能由 0 改写为 1 ③写入数据前必须先擦除，擦除后所有数据位变为 1 ④擦除必须按最小擦除单元进行 ⑤连续写入多字节时最多写入一页，超过页尾的数据会回到页首覆盖写入 ⑥写入结束后芯片进入忙状态，不响应新的读写操作；<strong>读取操作时</strong>：直接调用读取时序，无需使能、无需额外操作、没有页的限制，读取结束后不会进入忙状态，但不能在忙状态时读取；字幕「我直接指定地址写或者指定地址读」</em></p>
+<p><img src="../assets/images/stm32-37/08-one-to-zero-erase.jpg" alt="图 8：同页 + 红笔圈出「每个数据位只能由 1 改写为 0」「写入数据前必须先擦除」，右上角画了二进制位示意的红框；字幕「擦除之后，所有的位变成1，也就是十六进制的FF」"></p>
+<p><em>图 8：同页 + 红笔圈出「每个数据位只能由 1 改写为 0」「写入数据前必须先擦除」，右上角画了二进制位示意的红框；字幕「擦除之后，所有的位变成1，也就是十六进制的FF」</em></p>
+<p><img src="../assets/images/stm32-37/09-page-wrap.jpg" alt="图 9：同页 + 红笔圈出「最大写入一页／超过页尾回到页首覆盖写入」整段，并在右上角写「DD」示意页回卷；字幕「要擦，就得一大片一起擦」"></p>
+<p><em>图 9：同页 + 红笔圈出「最大写入一页／超过页尾回到页首覆盖写入」整段，并在右上角写「DD」示意页回卷；字幕「要擦，就得一大片一起擦」</em></p>
+<h2 id="5-数据手册精读">5. 数据手册精读</h2>
+<blockquote>
+<p>手册文件名 <strong>W25Q64BV</strong>（WINBOND），本集精读：README/广告页 → 引脚定义 → 系统框图 → 写保护逻辑 → 2.FEATURES → 11.1 状态寄存器 → 11.2 指令集 → 11.2.4 写使能时序 → 12/13 电气特性与封装。</p>
+</blockquote>
+<h3 id="5-1-2-features">5.1 2. FEATURES</h3>
+<ul>
+<li><strong>Spiflash Memories</strong>：<strong>W25Q64BV：64Mbit/8Mbyte（8,388,608 字节）</strong>、<strong>256 字节可编程页</strong>；</li>
+<li><strong>Standard/Dual/Quad SPI</strong>：Standard SPI（CLK、/CS、DI、DO、/WP、/Hold）、Dual SPI（CLK、/CS、IO0、IO1、/WP、/Hold，其中 WP/Hold 可另用）、Quad SPI（CLK、/CS、IO0、IO1、IO2、IO3）；</li>
+<li><strong>Highest Performance Serial Flash</strong>：<strong>80MHz 时钟</strong>、<strong>160MHz 等效 Dual</strong>、<strong>320MHz 等效 Quad</strong>、<strong>40MB/s 连续数据传输率</strong>；「最多 8 个时钟」即可读 24 位地址 → <strong>支持真正的 XIP</strong>；</li>
+<li><strong>Low Power, Wide Temperature Range</strong>：<strong>供电 2.7～3.6V</strong>、4mA 工作电流、&lt;1μA 掉电电流、<strong>−40～+85℃</strong>；</li>
+<li><strong>Flexible Architecture with 4KB sectors</strong>：<strong>扇区擦除 4KB</strong>、<strong>块擦除 32KB/64KB</strong>、<strong>页编程 1～256 字节</strong>、<strong>10 万次擦写</strong>、<strong>20 年数据保存</strong>；</li>
+<li><strong>Advanced Security Features</strong>：软/硬件写保护（Top/Bottom 或 Sector/Block 选择）、Lock-Down、OTP 保护、<strong>每颗芯片 64 位唯一 ID</strong>；</li>
+<li><strong>Space Efficient Packaging</strong>：<strong>8-pin SOIC 208-mil</strong> 等封装。</li>
+</ul>
+<h3 id="5-2-11-1-状态寄存器">5.2 11.1 状态寄存器</h3>
+<ul>
+<li><strong>状态寄存器有两个</strong>（SR1、SR2），<strong>重点看状态寄存器 1</strong>；</li>
+<li><strong>11.1.1 BUSY（S0，只读）</strong>：<strong>页编程、扇区擦除、块擦除、整片擦除、写状态寄存器</strong>这些指令执行期间，<strong>BUSY 置 1</strong>，此时设备<strong>忽略进一步指令</strong>（只响应读状态寄存器等少数指令）；<strong>指令执行完成后 BUSY 清 0</strong>，表示设备准备好；</li>
+<li><strong>11.1.2 WEL（Write Enable Latch，写使能锁存位，S1）</strong>：<strong>只读</strong>；<strong>执行写使能指令后置 1</strong>——代表<strong>芯片可以进行写入操作了</strong>；<strong>以下情况清 0</strong>：<strong>写失能（Write Disable）指令、上电、以及写状态寄存器/页编程/扇区擦除/块擦除/整片擦除这些操作完成之后</strong>；<ul>
+<li>所以<strong>写操作后会「顺手关门」</strong>：<strong>不需要手动发写失能</strong>，因为写操作结束 WEL 自动清 0；</li>
+<li><strong>我们在进行任何写入（含擦除）操作前，都要先发一次写使能</strong>；</li>
+</ul>
+</li>
+<li><strong>11.1.3 BP2/BP1/BP0（块保护位）</strong>、<strong>11.1.4 TB（Top/Bottom 保护方向）</strong>、<strong>11.1.5 SEC（扇区/块保护）</strong>——写保护相关，<strong>了解即可</strong>（本课程不用）；</li>
+<li><strong>状态寄存器示意图</strong>里<strong>主要掌握最低的两位（BUSY、WEL）</strong>，其余自行查看。</li>
+</ul>
+<h3 id="5-3-11-2-2-指令集表">5.3 11.2.2 指令集表</h3>
+<table>
+<thead>
+<tr>
+<th>指令</th>
+<th>指令码</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Write Enable 写使能</strong></td>
+<td><strong>0x06</strong></td>
+<td>置 WEL=1（每次写/擦前必须发）</td>
+</tr>
+<tr>
+<td>Write Disable 写失能</td>
+<td>0x04</td>
+<td>清 WEL=0</td>
+</tr>
+<tr>
+<td><strong>Read Status Register-1 读状态寄存器 1</strong></td>
+<td><strong>0x05</strong></td>
+<td>后面返回 1 字节（S7～S0），用来看 BUSY/WEL</td>
+</tr>
+<tr>
+<td>Read Status Register-2</td>
+<td>0x35</td>
+<td>读 SR2</td>
+</tr>
+<tr>
+<td>Write Status Register 写状态寄存器</td>
+<td>0x01</td>
+<td>写保护配置用</td>
+</tr>
+<tr>
+<td><strong>Page Program 页编程</strong></td>
+<td><strong>0x02</strong></td>
+<td>+ <strong>24 位地址</strong> + 数据（≤256 字节，不跨页）</td>
+</tr>
+<tr>
+<td>Quad Page Program</td>
+<td>0x32</td>
+<td>Quad 模式页编程</td>
+</tr>
+<tr>
+<td><strong>Block Erase 64KB 块擦除</strong></td>
+<td><strong>0xD8</strong></td>
+<td>+24 位地址</td>
+</tr>
+<tr>
+<td>Block Erase 32KB 块擦除</td>
+<td>0x52</td>
+<td>+24 位地址</td>
+</tr>
+<tr>
+<td><strong>Sector Erase 4KB 扇区擦除</strong></td>
+<td><strong>0x20</strong></td>
+<td>+24 位地址（最常用）</td>
+</tr>
+<tr>
+<td><strong>Chip Erase 整片擦除</strong></td>
+<td><strong>0xC7 / 0x60</strong></td>
+<td>无参数</td>
+</tr>
+<tr>
+<td><strong>Read Data 读数据</strong></td>
+<td><strong>0x03</strong></td>
+<td>+24 位地址，之后连续交换读取，<strong>无页限制</strong></td>
+</tr>
+<tr>
+<td><strong>Manufacturer/Device ID</strong></td>
+<td><strong>0x90</strong></td>
+<td>读厂商/设备 ID</td>
+</tr>
+<tr>
+<td><strong>JEDEC ID</strong></td>
+<td><strong>0x9F</strong></td>
+<td>读 JEDEC 标准 ID（厂商 ID + 设备 ID）</td>
+</tr>
+<tr>
+<td>Read Unique ID</td>
+<td>0x4B</td>
+<td>读 64 位唯一 ID</td>
+</tr>
+<tr>
+<td>Power-down 掉电</td>
+<td>0xB9</td>
+<td>低功耗模式</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>操作流程与上一集学的 SPI 完全一样</strong>：<strong>起始（CS 拉低）→ 交换 1 字节指令码 → 交换后续字节（地址/数据）→ 终止（CS 拉高）</strong>；</li>
+<li><strong>写使能 <code>0x06</code></strong>：单字节指令，<strong>DO 全程保持高阻（High Impedance）</strong>；</li>
+<li><strong>读状态寄存器 <code>0x05</code></strong>：交换完指令码后，<strong>再交换 1 个字节就是状态寄存器的 S7～S0</strong>，<strong>S0=BUSY、S1=WEL</strong>；可以继续交换接收更多字节（读 SR2）；</li>
+<li><strong>页编程 <code>0x02</code></strong>：指令码 + <strong>24 位地址</strong>（A23～A16、A15～A8、A7～A0）+ 数据，<strong>最多 256 字节且不能跨页</strong>；</li>
+<li><strong>扇区擦除 <code>0x20</code></strong>：指令码 + 24 位地址，<strong>擦除该地址所在扇区（4KB）</strong>——比整片/块擦除更常用，「表示擦除一整个扇区，意思更加明确」；</li>
+<li><strong>JEDEC ID <code>0x9F</code></strong>：返回 <strong>厂商 ID + 设备 ID</strong>（下一节写代码时先用它验证芯片在不在）。</li>
+</ul>
+<h3 id="5-4-时序图-do-高阻与模式-0-3-兼容">5.4 时序图：DO 高阻与模式 0/3 兼容</h3>
+<ul>
+<li>手册的指令时序图<strong>和上一集讲的 SPI 时序基本一致</strong>，区别是：<ul>
+<li><strong>DO（MISO）在「只写指令」阶段始终是高阻态（High Impedance）</strong>——因为从机没有数据要回传，主机读到的就是高阻（上拉后为高）；</li>
+<li>手册标注了 <strong>Mode 0 与 Mode 3</strong>——<strong>该芯片兼容 SPI 模式 0 和模式 3</strong>；<strong>这两种模式都是「下降沿移出、上升沿移入」</strong>，所以<strong>可以规定在 SS 下降沿（或 SCK 第一个边沿）开始、后续都在 SCK 上升沿移入</strong>，从而<strong>同时兼容两种模式</strong>；手册里用<strong>虚线</strong>画出的部分（两种模式的细微差别）<strong>可以忽略不看</strong>。</li>
+</ul>
+</li>
+</ul>
+<h3 id="5-5-电气特性与封装-快速翻过">5.5 电气特性与封装（快速翻过）</h3>
+<ul>
+<li><strong>电气特性</strong>：给出**供电电压范围（2.7～3.6V）**等参数，要在这个范围里；</li>
+<li><strong>编程/擦除时间</strong>：<strong>页编程 0.7ms（最大 3ms）</strong>、<strong>块擦除典型 120/150ms</strong>、<strong>整片擦除典型 15s（最大 30s）</strong>——可以看出 <strong>Flash 的写入时间在 ms 级别</strong>；</li>
+<li><strong>13. PACKAGE SPECIFICATION</strong>：8-Pin SOIC 208-mil 封装尺寸表。</li>
+</ul>
+<p><img src="../assets/images/stm32-37/10-manual-features.jpg" alt="图 10：手册「2. FEATURES」（W25Q64BV WINBOND）——Spiflash Memories（W25Q64BV 64Mbit/8Mbyte（8,388,608）、256-byte programmable page）；Standard/Dual/Quad SPI 引脚；Highest Performance Serial Flash（80MHz、160MHz equivalent Dual、320MHz equivalent Quad、40MB/s）；Efficient &quot;Continuous Read Mode&quot;；Low Power/Wide Temperature Range（2.7～3.6V、4mA active、&lt;1μA power-down、−40～+85℃）；Flexible Architecture with 4KB sectors（扇区擦除 4KB、块擦除 32K/64K、页编程 1～256 字节、10 万次擦写、20 年保存）；Advanced Security Features；Space Efficient Packaging；页脚 - 3 -、Publication Release Date: July 08, 2010；字幕「这个大家自己再看看」"></p>
+<p><em>图 10：手册「2. FEATURES」（W25Q64BV WINBOND）——Spiflash Memories（W25Q64BV 64Mbit/8Mbyte（8,388,608）、256-byte programmable page）；Standard/Dual/Quad SPI 引脚；Highest Performance Serial Flash（80MHz、160MHz equivalent Dual、320MHz equivalent Quad、40MB/s）；Efficient &quot;Continuous Read Mode&quot;；Low Power/Wide Temperature Range（2.7～3.6V、4mA active、&lt;1μA power-down、−40～+85℃）；Flexible Architecture with 4KB sectors（扇区擦除 4KB、块擦除 32K/64K、页编程 1～256 字节、10 万次擦写、20 年保存）；Advanced Security Features；Space Efficient Packaging；页脚 - 3 -、Publication Release Date: July 08, 2010；字幕「这个大家自己再看看」</em></p>
+<p><img src="../assets/images/stm32-37/11-status-register.jpg" alt="图 11：手册「11.1 STATUS REGISTER」——11.1.1 BUSY（S0，只读；页编程/扇区擦除/块擦除/整片擦除/写状态寄存器期间置 1，完成后清 0）、11.1.2 Write Enable Latch（WEL）（S1，执行写使能指令后置 1；写失能、上电、写操作完成后清 0）、11.1.3 Block Protect Bits（BP2/BP1/BP0）、11.1.4 TB、11.1.5 SEC；字幕「代表芯片可以进行写入操作了」"></p>
+<p>*图 11：手册「11.1 STATUS REGISTER」——<strong>11.1.1 BUSY</strong>（S0，只读；页编程/扇区擦除/块擦除/整片擦除/写状态寄存器期间置 1，完成后清 0）、<strong>11.1.2 Write Enable Latch（WEL）</strong>（S1，执行写使能指令后置 1；写失能、上电、写操作完成后清 0）、11.1.3 Block Protect Bits（BP2/BP1/BP0）、11.1.4 TB、11.1.5 SEC；字幕「代表芯片可以进行写入操作了」*</p>
+<p><img src="../assets/images/stm32-37/12-instruction-set.jpg" alt="图 12：手册「11.2.2 Instruction Set Table 1」——Write Enable 06h、Write Disable 04h、Read Status Register-1 05h（S7-S0）、Read Status Register-2 35h、Write Status Register 01h、Page Program 02h（A23-A16 / A15-A8 / A7-A0 / D7-D0）、Quad Page Program 32h、Block Erase(64KB) D8h、Block Erase(32KB) 52h、Sector Erase(4KB) 20h、Chip Erase C7h/60h、Erase Suspend 75h、Erase Resume 7Ah、Power-down B9h、High Performance Mode A3h、Continuous Read Mode Reset FFh、Release Power-down/Device ID ABh、Manufacturer/Device ID 90h、Read Unique ID 4Bh、JEDEC ID 9Fh（MF7-MF0 / ID15-ID8 / ID7-ID0）；部分行有红/黄标注；字幕「我们目前先只学习这里标记的指令就行了」"></p>
+<p><em>图 12：手册「11.2.2 Instruction Set Table 1」——Write Enable 06h、Write Disable 04h、<strong>Read Status Register-1 05h</strong>（S7-S0）、Read Status Register-2 35h、Write Status Register 01h、<strong>Page Program 02h</strong>（A23-A16 / A15-A8 / A7-A0 / D7-D0）、Quad Page Program 32h、Block Erase(64KB) D8h、Block Erase(32KB) 52h、<strong>Sector Erase(4KB) 20h</strong>、Chip Erase C7h/60h、Erase Suspend 75h、Erase Resume 7Ah、Power-down B9h、High Performance Mode A3h、Continuous Read Mode Reset FFh、Release Power-down/Device ID ABh、Manufacturer/Device ID 90h、Read Unique ID 4Bh、<strong>JEDEC ID 9Fh</strong>（MF7-MF0 / ID15-ID8 / ID7-ID0）；部分行有红/黄标注；字幕「我们目前先只学习这里标记的指令就行了」</em></p>
+<p><img src="../assets/images/stm32-37/13-write-enable-06h.jpg" alt="图 13：手册「11.2.4 Write Enable (06h)」——说明写使能指令把 WEL 置 1（页编程/扇区擦除/块擦除/整片擦除/写状态寄存器之前必须写使能）；Figure 4 Write Enable Instruction Sequence Diagram：/CS（低）、CLK（标注 Mode 3 / Mode 0）、DI（0～7 位，Instruction 06h）、DO（红笔圈出 High Impedance 高阻）；下方 11.2.5 Write Disable (04h)；字幕「所以这里DO始终保持高阻态，这也可以」"></p>
+<p>*图 13：手册「11.2.4 Write Enable (06h)」——说明写使能指令把 WEL 置 1（页编程/扇区擦除/块擦除/整片擦除/写状态寄存器之前必须写使能）；<strong>Figure 4 Write Enable Instruction Sequence Diagram</strong>：/CS（低）、CLK（标注 Mode 3 / Mode 0）、DI（0～7 位，Instruction 06h）、<strong>DO（红笔圈出 High Impedance 高阻）</strong>；下方 11.2.5 Write Disable (04h)；字幕「所以这里DO始终保持高阻态，这也可以」*</p>
+<p><img src="../assets/images/stm32-37/14-package.jpg" alt="图 14：手册「13. PACKAGE SPECIFICATION / 13.1 8-Pin SOIC 208-mil（Package Code SS）」——8 脚 SOIC 封装外形图与毫米/英寸尺寸表；字幕「然后后面就是这些时序的时间要求了」"></p>
+<p><em>图 14：手册「13. PACKAGE SPECIFICATION / 13.1 8-Pin SOIC 208-mil（Package Code SS）」——8 脚 SOIC 封装外形图与毫米/英寸尺寸表；字幕「然后后面就是这些时序的时间要求了」</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>写之前必须先发 <code>0x06</code> 写使能</strong>：否则写入/擦除操作直接无效；<strong>每次写/擦都要重新发一次</strong>（WEL 写操作完成后会自动清 0）。</li>
+<li><strong>只能 1→0，不能 0→1</strong>：直接覆盖写不会得到你想要的值（0xAA 覆盖写 0x55 得 0x00），<strong>必须先擦除</strong>。</li>
+<li><strong>擦除后是 <code>0xFF</code></strong>：读到 FF 说明该处是空白/已擦除，不是「数据就是 FF」这种巧合。</li>
+<li><strong>擦除最小单元是扇区（4KB）</strong>：<strong>不能只擦一个字节</strong>；改一个字节要「读扇区→改→擦扇区→写回」。</li>
+<li><strong>一次最多写一页（256B）且不能跨页</strong>：超页尾会回卷覆盖页首数据。</li>
+<li><strong>写入后要等 BUSY 清零</strong>：写/擦期间芯片「很忙」，不响应新的读写；<strong>忙时也不能读</strong>。</li>
+<li><strong>读取不需要写使能</strong>：读是只读操作、无页限制、不改变芯片状态（但要在 BUSY=0 时读）。</li>
+<li><strong>W25Q64 容量是 8MB（64Mbit）</strong>，别和 W25Q256 的 32MB 混淆；<strong>24 位地址只能寻址 16MB</strong>。</li>
+<li><strong>地址是 24 位＝3 个字节</strong>：<code>0x02</code>/<code>0x20</code>/<code>0x03</code> 后面都要跟 3 字节地址（高位在前）。</li>
+<li><strong>VCC 只能 2.7～3.6V</strong>：不能直接接 5V。</li>
+<li><strong>CS 低有效</strong>、<strong>HOLD 低有效</strong>：接线/软件控制别搞反。</li>
+<li><strong>软件 SPI 不用加延时</strong>：芯片 SCK 最高 80MHz，GPIO 翻转远达不到，加不加延时都不影响。</li>
+<li><strong>兼容模式 0 与模式 3</strong>：两者都是下降沿移出、上升沿移入，程序里用哪种都行（本课程用模式 0）。</li>
+<li><strong>写使能指令的 DO 是高阻</strong>：不要期待它返回数据。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>开场：本小节继续学习 SPI 通信</td>
+</tr>
+<tr>
+<td>0:07</td>
+<td>使用 SPI 通信的芯片——W25Q64</td>
+</tr>
+<tr>
+<td>0:11</td>
+<td>本小节的安排：先看芯片简介</td>
+</tr>
+<tr>
+<td>0:22</td>
+<td>之后过一遍手册，把重点细节和 SPI 知识点结合</td>
+</tr>
+<tr>
+<td>0:34</td>
+<td>看 W25Q64 的简介部分</td>
+</tr>
+<tr>
+<td>1:02</td>
+<td>它们的操作方法都是一样的</td>
+</tr>
+<tr>
+<td>1:08</td>
+<td>容量是 64Mbit，也就是 8MByte</td>
+</tr>
+<tr>
+<td>1:13</td>
+<td>觉得容量太大可以换成 W25Q32</td>
+</tr>
+<tr>
+<td>1:22</td>
+<td>我们学会其中一种即可</td>
+</tr>
+<tr>
+<td>1:42</td>
+<td>手机电脑领域里这类芯片很常见</td>
+</tr>
+<tr>
+<td>1:52</td>
+<td>对比 AT24C02 这种 E2PROM</td>
+</tr>
+<tr>
+<td>2:01</td>
+<td>这个大家都能看出来</td>
+</tr>
+<tr>
+<td>2:06</td>
+<td>在电路板中比较省空间</td>
+</tr>
+<tr>
+<td>2:13</td>
+<td>这个芯片使用 SPI 串行通信</td>
+</tr>
+<tr>
+<td>2:16</td>
+<td>通信引脚比较少、协议也简单</td>
+</tr>
+<tr>
+<td>2:18</td>
+<td>硬件接线也不麻烦</td>
+</tr>
+<tr>
+<td>2:21</td>
+<td>GND 加上电，剩下的全可以接 GPIO</td>
+</tr>
+<tr>
+<td>2:25</td>
+<td>基本不需要其他电路</td>
+</tr>
+<tr>
+<td>2:38</td>
+<td>易失性存储器</td>
+</tr>
+<tr>
+<td>2:42</td>
+<td>一般就是 E2PROM</td>
+</tr>
+<tr>
+<td>2:53</td>
+<td>非易失性就是数据掉电不丢失</td>
+</tr>
+<tr>
+<td>3:01</td>
+<td>断电重启后数据仍然保持原样</td>
+</tr>
+<tr>
+<td>3:09</td>
+<td>常用于数据存储</td>
+</tr>
+<tr>
+<td>3:12</td>
+<td>STM32 需要掉电保存的数据可以写进这里</td>
+</tr>
+<tr>
+<td>3:19</td>
+<td>还有字库存储</td>
+</tr>
+<tr>
+<td>3:32</td>
+<td>简单方法可以把字库存在 STM32 内部</td>
+</tr>
+<tr>
+<td>3:46</td>
+<td>也可以先读取芯片查询字库</td>
+</tr>
+<tr>
+<td>3:58</td>
+<td>相当于把程序文件下载到外挂芯片里</td>
+</tr>
+<tr>
+<td>4:05</td>
+<td>这就是 XIP，就地执行</td>
+</tr>
+<tr>
+<td>4:08</td>
+<td>比如电脑的 BIOS 固件</td>
+</tr>
+<tr>
+<td>4:11</td>
+<td>就可以存在 W25Q 系列的芯片里</td>
+</tr>
+<tr>
+<td>4:21</td>
+<td>接着看存储介质</td>
+</tr>
+<tr>
+<td>4:22</td>
+<td>这个芯片的存储介质是 NOR Flash</td>
+</tr>
+<tr>
+<td>4:25</td>
+<td>Flash 就是闪存存储器</td>
+</tr>
+<tr>
+<td>4:32</td>
+<td>闪存分为 NOR Flash 和 NAND Flash</td>
+</tr>
+<tr>
+<td>4:37</td>
+<td>两者各有优势和劣势，适用领域不同</td>
+</tr>
+<tr>
+<td>4:43</td>
+<td>我们的芯片是 NOR Flash</td>
+</tr>
+<tr>
+<td>4:47</td>
+<td>然后看时钟频率</td>
+</tr>
+<tr>
+<td>4:48</td>
+<td>这个芯片使用 SPI 通信，SCK 最大频率</td>
+</tr>
+<tr>
+<td>5:01</td>
+<td>所以写程序翻转引脚就不用加延时了</td>
+</tr>
+<tr>
+<td>5:05</td>
+<td>不延时 GPIO 翻转也到不了 80MHz</td>
+</tr>
+<tr>
+<td>5:09</td>
+<td>所以可以放心使用</td>
+</tr>
+<tr>
+<td>5:11</td>
+<td>后面还有两个频率</td>
+</tr>
+<tr>
+<td>5:13</td>
+<td>160MHz 是双重 SPI 模式等效频率</td>
+</tr>
+<tr>
+<td>5:18</td>
+<td>320MHz 是四重 SPI 模式等效频率</td>
+</tr>
+<tr>
+<td>5:23</td>
+<td>双重和四重 SPI 大家了解即可</td>
+</tr>
+<tr>
+<td>5:28</td>
+<td>那它们是什么意思呢</td>
+</tr>
+<tr>
+<td>5:32</td>
+<td>MOSI 用于发送，是全双工通信</td>
+</tr>
+<tr>
+<td>5:36</td>
+<td>只发或只收时有资源浪费</td>
+</tr>
+<tr>
+<td>5:40</td>
+<td>这个芯片的厂商不忍心浪费</td>
+</tr>
+<tr>
+<td>5:44</td>
+<td>就对 SPI 做出了改动</td>
+</tr>
+<tr>
+<td>5:46</td>
+<td>发的时候可以同时用 MOSI 和 MISO 发送</td>
+</tr>
+<tr>
+<td>5:52</td>
+<td>收的时候也可以同时用两根线接收</td>
+</tr>
+<tr>
+<td>5:56</td>
+<td>MOSI 和 MISO 同时兼具收发功能</td>
+</tr>
+<tr>
+<td>6:05</td>
+<td>这就是双重 SPI 模式，一个时钟收发两位</td>
+</tr>
+<tr>
+<td>6:13</td>
+<td>双重 SPI 下实际 SCK 频率最大还是 80MHz</td>
+</tr>
+<tr>
+<td>6:28</td>
+<td>然后是四重 SPI 模式</td>
+</tr>
+<tr>
+<td>6:33</td>
+<td>等效频率就是 80 乘 4 等于 320MHz</td>
+</tr>
+<tr>
+<td>6:37</td>
+<td>芯片里除了 SPI 通信引脚还有 WP 写保护</td>
+</tr>
+<tr>
+<td>6:45</td>
+<td>不需要的话可以拉过来充当数据传输引脚</td>
+</tr>
+<tr>
+<td>6:54</td>
+<td>这就是四重 SPI</td>
+</tr>
+<tr>
+<td>6:57</td>
+<td>这就有点并行传输的意思了</td>
+</tr>
+<tr>
+<td>7:02</td>
+<td>8 位同时发送</td>
+</tr>
+<tr>
+<td>7:05</td>
+<td>其实就是 4 位并行的模式</td>
+</tr>
+<tr>
+<td>7:10</td>
+<td>了解即可，我们暂时用不到</td>
+</tr>
+<tr>
+<td>7:29</td>
+<td>字节对应 8 个二进制位</td>
+</tr>
+<tr>
+<td>7:31</td>
+<td>所以实际容量是 4Mbit 除以 8</td>
+</tr>
+<tr>
+<td>7:39</td>
+<td>8Mbit 除以 8 等于 1MByte</td>
+</tr>
+<tr>
+<td>7:44</td>
+<td>16M 除以 8 等于 2MByte</td>
+</tr>
+<tr>
+<td>7:48</td>
+<td>对应到常用的以字节为单位，就是都除 8</td>
+</tr>
+<tr>
+<td>8:06</td>
+<td>括号里写的是 24 位地址</td>
+</tr>
+<tr>
+<td>8:08</td>
+<td>这个芯片使用的是 24 位地址，是 3 个字节</td>
+</tr>
+<tr>
+<td>8:14</td>
+<td>读写的时候得把每个字节都分配</td>
+</tr>
+<tr>
+<td>8:18</td>
+<td>这样才能找到它们</td>
+</tr>
+<tr>
+<td>8:20</td>
+<td>讲时序的时候也提到过</td>
+</tr>
+<tr>
+<td>8:23</td>
+<td>指定地址时一次性指定 3 个字节</td>
+</tr>
+<tr>
+<td>8:28</td>
+<td>用计算器算最大能分配多少个字节</td>
+</tr>
+<tr>
+<td>8:34</td>
+<td>这里 2 的 24 次方</td>
+</tr>
+<tr>
+<td>8:39</td>
+<td>等于这么多个字节数，除 1024</td>
+</tr>
+<tr>
+<td>8:50</td>
+<td>再除 1024 等于 16MB</td>
+</tr>
+<tr>
+<td>8:52</td>
+<td>所以 24 位地址的最大寻址空间是 16MB</td>
+</tr>
+<tr>
+<td>8:57</td>
+<td>PPT 中使用 3 字节 24 位地址是够的</td>
+</tr>
+<tr>
+<td>9:07</td>
+<td>对于 32MB 的 W25Q256 来说</td>
+</tr>
+<tr>
+<td>9:21</td>
+<td>只能读写前 16MB 的数据</td>
+</tr>
+<tr>
+<td>9:25</td>
+<td>后面 16MB 用 3 个字节地址够不着</td>
+</tr>
+<tr>
+<td>9:32</td>
+<td>这样就行了，这个问题讲完</td>
+</tr>
+<tr>
+<td>9:36</td>
+<td>下面看这个芯片的硬件电路</td>
+</tr>
+<tr>
+<td>9:42</td>
+<td>看怎么把它和 STM32 连接在一起</td>
+</tr>
+<tr>
+<td>9:51</td>
+<td>左边是我们这个小模块的原理图</td>
+</tr>
+<tr>
+<td>9:55</td>
+<td>这个就是这个芯片的引脚定义</td>
+</tr>
+<tr>
+<td>10:01</td>
+<td>看引脚定义：8 脚 VCC、4 脚 GND</td>
+</tr>
+<tr>
+<td>10:06</td>
+<td>这里是电源供电引脚</td>
+</tr>
+<tr>
+<td>10:08</td>
+<td>典型 3.3V 供电设备</td>
+</tr>
+<tr>
+<td>10:14</td>
+<td>不能直接接入 5V 电压</td>
+</tr>
+<tr>
+<td>10:16</td>
+<td>然后 1 号脚</td>
+</tr>
+<tr>
+<td>10:18</td>
+<td>CS 左边画了个斜杠、上面画了个横线，低电平有效</td>
+</tr>
+<tr>
+<td>10:27</td>
+<td>CS 对应之前讲的 SPI 名称就是 SS，意思是片选</td>
+</tr>
+<tr>
+<td>10:35</td>
+<td>然后 6 号脚 CLK，对应 SCK</td>
+</tr>
+<tr>
+<td>10:54</td>
+<td>这 4 个引脚就是 SPI 通信的 4 个引脚</td>
+</tr>
+<tr>
+<td>10:58</td>
+<td>这个芯片还有两个引脚</td>
+</tr>
+<tr>
+<td>11:01</td>
+<td>3 号是 WP（Write Protect），意思是写保护</td>
+</tr>
+<tr>
+<td>11:05</td>
+<td>它配合内部的寄存器配置</td>
+</tr>
+<tr>
+<td>11:10</td>
+<td>WP 接低电平就保护住，接高电平正常</td>
+</tr>
+<tr>
+<td>11:16</td>
+<td>最后 7 号是 HOLD，意思是数据保持，低电平有效</td>
+</tr>
+<tr>
+<td>11:22</td>
+<td>这个用得不多</td>
+</tr>
+<tr>
+<td>11:24</td>
+<td>如果正常读写时把 HOLD 拉低</td>
+</tr>
+<tr>
+<td>11:31</td>
+<td>可以把 CS 置回高电平去操作其他器件</td>
+</tr>
+<tr>
+<td>11:48</td>
+<td>操作完其他器件后 HOLD 置回高电平继续之前的时序</td>
+</tr>
+<tr>
+<td>11:58</td>
+<td>还可以用 SPI 干别的事情</td>
+</tr>
+<tr>
+<td>12:03</td>
+<td>最后注意 DI、DO、WP、HOLD 旁边都有括号写 IO0～IO3</td>
+</tr>
+<tr>
+<td>12:13</td>
+<td>对应刚才说的，普通 SPI 模式括号里的不用看</td>
+</tr>
+<tr>
+<td>12:21</td>
+<td>如果是双重 SPI，DI 和 DO 就变成 IO0 和 IO1</td>
+</tr>
+<tr>
+<td>12:30</td>
+<td>如果是四重 SPI，WP 当 IO2、HOLD 当 IO3</td>
+</tr>
+<tr>
+<td>12:37</td>
+<td>这 4 个引脚都作为数据收发引脚</td>
+</tr>
+<tr>
+<td>12:40</td>
+<td>我们暂时不用</td>
+</tr>
+<tr>
+<td>12:47</td>
+<td>下面看模块原理图</td>
+</tr>
+<tr>
+<td>12:49</td>
+<td>就是 W25Qxx 的芯片</td>
+</tr>
+<tr>
+<td>12:56</td>
+<td>芯片的 VCC 通过标号接到排针 6 号脚</td>
+</tr>
+<tr>
+<td>13:02</td>
+<td>芯片的 GND 接到排针 3 号脚</td>
+</tr>
+<tr>
+<td>13:07</td>
+<td>芯片 SPI 通信的 4 个脚都直接通过排针引出来</td>
+</tr>
+<tr>
+<td>13:17</td>
+<td>WP 和 HOLD 都接到 VCC</td>
+</tr>
+<tr>
+<td>13:22</td>
+<td>C1 直接接 VCC 和 GND，电源滤波</td>
+</tr>
+<tr>
+<td>13:28</td>
+<td>R1 和 D1 接 VCC 和 GND，电源指示灯</td>
+</tr>
+<tr>
+<td>13:35</td>
+<td>就是这个芯片的硬件电路</td>
+</tr>
+<tr>
+<td>13:37</td>
+<td>接线整体上非常简洁</td>
+</tr>
+<tr>
+<td>13:40</td>
+<td>GND 接 3.3V 电源</td>
+</tr>
+<tr>
+<td>13:42</td>
+<td>SPI 通信线直接接到 STM32 的 SPI 通信引脚</td>
+</tr>
+<tr>
+<td>13:47</td>
+<td>HOLD 和 WP 需要用时直接接 VCC</td>
+</tr>
+<tr>
+<td>14:00</td>
+<td>下面看 W25Q64 的框图</td>
+</tr>
+<tr>
+<td>14:05</td>
+<td>每个芯片都有框图</td>
+</tr>
+<tr>
+<td>14:14</td>
+<td>描述的是存储器的规整示意图</td>
+</tr>
+<tr>
+<td>14:18</td>
+<td>容量 8MB，不划分的话整块太大不利于管理</td>
+</tr>
+<tr>
+<td>14:38</td>
+<td>所以把 8MB 存储空间划分成若干块</td>
+</tr>
+<tr>
+<td>14:52</td>
+<td>每一块再划分为若干扇区 Sector</td>
+</tr>
+<tr>
+<td>14:56</td>
+<td>每个扇区内部又可以分成很多页 Page</td>
+</tr>
+<tr>
+<td>15:00</td>
+<td>那 W25Q64 是怎么划分的呢</td>
+</tr>
+<tr>
+<td>15:28</td>
+<td>字节地址是 7FFFFFh</td>
+</tr>
+<tr>
+<td>15:33</td>
+<td>为什么是 7F 开头不是 FF 开头</td>
+</tr>
+<tr>
+<td>15:37</td>
+<td>因为 24 位地址最大寻址范围是 16MB</td>
+</tr>
+<tr>
+<td>16:02</td>
+<td>把它划分成若干的块 Block</td>
+</tr>
+<tr>
+<td>16:10</td>
+<td>以 64KB 为一块进行划分</td>
+</tr>
+<tr>
+<td>16:43</td>
+<td>看块内地址的变化规律</td>
+</tr>
+<tr>
+<td>16:46</td>
+<td>块 0 的起始地址 000000、结束地址 00FFFF</td>
+</tr>
+<tr>
+<td>18:08</td>
+<td>看地址规律可以发现</td>
+</tr>
+<tr>
+<td>18:31</td>
+<td>页是直接对整个存储空间划分的</td>
+</tr>
+<tr>
+<td>18:38</td>
+<td>那页的大小呢，是 256 个字节</td>
+</tr>
+<tr>
+<td>18:57</td>
+<td>再除以 256 等于 16 页</td>
+</tr>
+<tr>
+<td>19:01</td>
+<td>扇区里可以分为 16 页</td>
+</tr>
+<tr>
+<td>19:53</td>
+<td>这个我们需要记住，后面还会用到</td>
+</tr>
+<tr>
+<td>20:15</td>
+<td>控制逻辑左边是 SPI 的通信引脚 CLK/CS/DI/DO</td>
+</tr>
+<tr>
+<td>20:31</td>
+<td>控制逻辑就会自动去操作内部电路</td>
+</tr>
+<tr>
+<td>20:46</td>
+<td>状态寄存器里可以体现状态</td>
+</tr>
+<tr>
+<td>21:00</td>
+<td>右边这里是一个高电压生成器</td>
+</tr>
+<tr>
+<td>21:07</td>
+<td>因为 Flash 是掉电不丢失的</td>
+</tr>
+<tr>
+<td>21:11</td>
+<td>亮的 LED 表示 1、熄灭表示 0</td>
+</tr>
+<tr>
+<td>21:25</td>
+<td>我给它加很高的电压，LED 就烧坏了</td>
+</tr>
+<tr>
+<td>21:29</td>
+<td>用烧坏的 LED 表示 1、没烧坏的表示 0</td>
+</tr>
+<tr>
+<td>21:40</td>
+<td>烧坏的 LED 有电没电都是坏的，不受供电影响</td>
+</tr>
+<tr>
+<td>22:26</td>
+<td>总共发过来 3 个字节的地址</td>
+</tr>
+<tr>
+<td>22:30</td>
+<td>页是 256 字节</td>
+</tr>
+<tr>
+<td>22:43</td>
+<td>前两个字节会进到页地址锁存计数器里</td>
+</tr>
+<tr>
+<td>22:51</td>
+<td>通过这个写保护和行解码</td>
+</tr>
+<tr>
+<td>22:57</td>
+<td>字节地址通过列解码和 256 字节页缓存</td>
+</tr>
+<tr>
+<td>23:02</td>
+<td>来进行指定字节的读写操作</td>
+</tr>
+<tr>
+<td>23:18</td>
+<td>这里有个 256 字节的页缓存区</td>
+</tr>
+<tr>
+<td>23:23</td>
+<td>是一个 256 字节的 RAM 存储器</td>
+</tr>
+<tr>
+<td>23:31</td>
+<td>数据是通过这个 RAM 缓存区来进行的</td>
+</tr>
+<tr>
+<td>23:39</td>
+<td>芯片再将缓存区的数据复制到对应的 Flash 里</td>
+</tr>
+<tr>
+<td>23:46</td>
+<td>为什么不直接往 Flash 里写</td>
+</tr>
+<tr>
+<td>23:49</td>
+<td>因为 SPI 写入的频率非常高</td>
+</tr>
+<tr>
+<td>24:02</td>
+<td>我先放在页缓存区里存着</td>
+</tr>
+<tr>
+<td>24:09</td>
+<td>缓存区跟得上 SPI 总线的速度</td>
+</tr>
+<tr>
+<td>24:27</td>
+<td>再从缓存区转移到 Flash 存储器里</td>
+</tr>
+<tr>
+<td>24:30</td>
+<td>数据从缓存区转到 Flash 需要一定的时间</td>
+</tr>
+<tr>
+<td>24:40</td>
+<td>给状态寄存器的 BUSY 位置 1</td>
+</tr>
+<tr>
+<td>24:45</td>
+<td>表示芯片当前正在搬砖，很忙</td>
+</tr>
+<tr>
+<td>24:54</td>
+<td>读取数据应该也会通过缓存区来读取</td>
+</tr>
+<tr>
+<td>25:13</td>
+<td>整个 Flash 空间划分、SPI 控制逻辑</td>
+</tr>
+<tr>
+<td>25:28</td>
+<td>写保护功能，以及 256 字节页缓存</td>
+</tr>
+<tr>
+<td>25:32</td>
+<td>页缓存决定一次性写入的数据量</td>
+</tr>
+<tr>
+<td>25:41</td>
+<td>PPT 的最后看 Flash 操作注意事项</td>
+</tr>
+<tr>
+<td>25:45</td>
+<td>列出了 Flash 写入和读取的要求</td>
+</tr>
+<tr>
+<td>25:49</td>
+<td>步骤还是比较繁琐的</td>
+</tr>
+<tr>
+<td>25:52</td>
+<td>你可能会疑惑，不就是个存储器吗</td>
+</tr>
+<tr>
+<td>26:05</td>
+<td>为什么要搞这么多注意事项</td>
+</tr>
+<tr>
+<td>26:07</td>
+<td>为了保证掉电不丢失这个特性</td>
+</tr>
+<tr>
+<td>26:09</td>
+<td>同时还要保证存储容量足够大</td>
+</tr>
+<tr>
+<td>26:13</td>
+<td>所以 Flash 在其他地方做了取舍</td>
+</tr>
+<tr>
+<td>26:20</td>
+<td>Flash 的读写并不像 RAM 那样简单直接</td>
+</tr>
+<tr>
+<td>26:28</td>
+<td>RAM 是可以覆盖写入的</td>
+</tr>
+<tr>
+<td>26:31</td>
+<td>比如 RAM 里原来有 0xAA，再写入 0x55 就变成 0x55</td>
+</tr>
+<tr>
+<td>26:41</td>
+<td>但是 Flash 并没有这个特性</td>
+</tr>
+<tr>
+<td>26:44</td>
+<td>Flash 的读写有很多要求</td>
+</tr>
+<tr>
+<td>26:51</td>
+<td>先看读取的要求</td>
+</tr>
+<tr>
+<td>26:52</td>
+<td>读取只是看，不对电路做出实质性的改变</td>
+</tr>
+<tr>
+<td>26:58</td>
+<td>而且没有什么限制</td>
+</tr>
+<tr>
+<td>27:02</td>
+<td>那 Flash 写入操作时需要注意什么</td>
+</tr>
+<tr>
+<td>27:06</td>
+<td>必须先进行写使能</td>
+</tr>
+<tr>
+<td>27:10</td>
+<td>这是一种保护措施，防止误操作</td>
+</tr>
+<tr>
+<td>27:13</td>
+<td>就像手机锁屏一样</td>
+</tr>
+<tr>
+<td>27:24</td>
+<td>这个还是比较好理解的</td>
+</tr>
+<tr>
+<td>27:33</td>
+<td>Flash 并没有 RAM 那样直接完全覆盖改写的能力</td>
+</tr>
+<tr>
+<td>27:44</td>
+<td>存储单元里存了 0xAA，二进制是 10101010</td>
+</tr>
+<tr>
+<td>27:53</td>
+<td>比如我再次写入 0x55</td>
+</tr>
+<tr>
+<td>28:01</td>
+<td>写完这个单元里存的是 0x55 吗？实际上并不是</td>
+</tr>
+<tr>
+<td>28:07</td>
+<td>因为 0x55 的二进制是 01010101，覆盖时受第二条规定限制</td>
+</tr>
+<tr>
+<td>28:21</td>
+<td>要问为什么有这个限制，只能说是成本原因</td>
+</tr>
+<tr>
+<td>28:26</td>
+<td>写入 01010101 之后，原来的 1 可以改 0</td>
+</tr>
+<tr>
+<td>28:35</td>
+<td>所以新的最高位是 0</td>
+</tr>
+<tr>
+<td>28:38</td>
+<td>现在想改写成 1，不行</td>
+</tr>
+<tr>
+<td>28:46</td>
+<td>第三位原来 1 改 0，可以</td>
+</tr>
+<tr>
+<td>28:51</td>
+<td>结果仍然是 0</td>
+</tr>
+<tr>
+<td>28:55</td>
+<td>那以这个规律进行下去</td>
+</tr>
+<tr>
+<td>28:57</td>
+<td>0xAA 再覆盖写入 0x55 之后，最终是 0x00</td>
+</tr>
+<tr>
+<td>29:05</td>
+<td>就是 8 位全为 0</td>
+</tr>
+<tr>
+<td>29:07</td>
+<td>这就出现问题了</td>
+</tr>
+<tr>
+<td>29:08</td>
+<td>我们明明写入了 0x55，实际存储的却是 0x00</td>
+</tr>
+<tr>
+<td>29:15</td>
+<td>为了弥补只能 1 改 0 的限制，引出第三条规定</td>
+</tr>
+<tr>
+<td>29:19</td>
+<td>也就是擦除的概念</td>
+</tr>
+<tr>
+<td>29:27</td>
+<td>擦除会有专门的擦除电路进行</td>
+</tr>
+<tr>
+<td>29:36</td>
+<td>通过擦除电路擦除之后，所有位变成 1</td>
+</tr>
+<tr>
+<td>29:49</td>
+<td>也就是十六进制的 FF</td>
+</tr>
+<tr>
+<td>30:00</td>
+<td>这样就可以正确写入了</td>
+</tr>
+<tr>
+<td>30:02</td>
+<td>写入 01010101，最高位由 1 改写为 0</td>
+</tr>
+<tr>
+<td>30:12</td>
+<td>虽然不能改写为 1，但原来就是 1 就保持</td>
+</tr>
+<tr>
+<td>30:22</td>
+<td>1 和 0 都和我们写入的数据是对应的</td>
+</tr>
+<tr>
+<td>30:25</td>
+<td>写入 0x55 之后，数据单元存的就是 0x55</td>
+</tr>
+<tr>
+<td>30:35</td>
+<td>Flash 拥有单向改成 0 的权利</td>
+</tr>
+<tr>
+<td>30:42</td>
+<td>所以想改成别的，就必须得先擦除再重新来过</td>
+</tr>
+<tr>
+<td>31:00</td>
+<td>这个注意：读到 FF 就说明是空白空间</td>
+</tr>
+<tr>
+<td>31:12</td>
+<td>FF 代表空白</td>
+</tr>
+<tr>
+<td>31:25</td>
+<td>擦除必须按最小擦除单元进行</td>
+</tr>
+<tr>
+<td>31:31</td>
+<td>写入前要进行擦除</td>
+</tr>
+<tr>
+<td>31:34</td>
+<td>如果我想在 00 这个地址下写入数据</td>
+</tr>
+<tr>
+<td>31:43</td>
+<td>但是 Flash 的擦除有最小擦除单元的限制</td>
+</tr>
+<tr>
+<td>31:49</td>
+<td>你不能指定某一位擦</td>
+</tr>
+<tr>
+<td>31:52</td>
+<td>要擦，就得一大片一起擦</td>
+</tr>
+<tr>
+<td>31:58</td>
+<td>可以选择整片擦除、按块擦除、按扇区擦除</td>
+</tr>
+<tr>
+<td>32:06</td>
+<td>所以最小的擦除单元是扇区</td>
+</tr>
+<tr>
+<td>32:20</td>
+<td>那你说我只想擦除某一个扇区</td>
+</tr>
+<tr>
+<td>32:39</td>
+<td>那就得把 4096 个字节的扇区读出来</td>
+</tr>
+<tr>
+<td>32:42</td>
+<td>改写完读出来的数据后</td>
+</tr>
+<tr>
+<td>32:44</td>
+<td>再把 4096 个字节全都写回去</td>
+</tr>
+<tr>
+<td>32:47</td>
+<td>这感觉挺麻烦的</td>
+</tr>
+<tr>
+<td>32:53</td>
+<td>但如果确实想单独改写，只能这样操作</td>
+</tr>
+<tr>
+<td>33:03</td>
+<td>或者有数据变动时统一更新</td>
+</tr>
+<tr>
+<td>33:08</td>
+<td>也可以把使用频繁的扇区先缓存</td>
+</tr>
+<tr>
+<td>33:11</td>
+<td>使用频率降低时再整体备份到 Flash</td>
+</tr>
+<tr>
+<td>33:26</td>
+<td>总结：为了弥补擦除最小单元的缺点</td>
+</tr>
+<tr>
+<td>33:36</td>
+<td>连续写入多字节时，最多写入一页的数据</td>
+</tr>
+<tr>
+<td>33:44</td>
+<td>一次性不能写太多</td>
+</tr>
+<tr>
+<td>33:53</td>
+<td>为什么有这个限制</td>
+</tr>
+<tr>
+<td>34:01</td>
+<td>为什么有缓存区，因为 Flash 写入跟不上 SPI 频率</td>
+</tr>
+<tr>
+<td>34:06</td>
+<td>所以写入的数据会先放在 RAM 里暂存</td>
+</tr>
+<tr>
+<td>34:09</td>
+<td>芯片再慢慢地把数据写入到 Flash 里</td>
+</tr>
+<tr>
+<td>34:15</td>
+<td>每个时序最多写入一页（256 字节）</td>
+</tr>
+<tr>
+<td>34:26</td>
+<td>页缓存区最大写入 256 字节</td>
+</tr>
+<tr>
+<td>34:31</td>
+<td>如果你从页中间的地址开始写</td>
+</tr>
+<tr>
+<td>34:39</td>
+<td>写到页尾时地址会跳回到页首</td>
+</tr>
+<tr>
+<td>34:45</td>
+<td>所以多字节写入不能跨越页的边沿，否则会出错</td>
+</tr>
+<tr>
+<td>35:04</td>
+<td>写入操作都是对缓存区进行的</td>
+</tr>
+<tr>
+<td>35:09</td>
+<td>等时序结束后，芯片还要搬砖一段时间</td>
+</tr>
+<tr>
+<td>35:13</td>
+<td>所以每次写入操作后都有忙状态</td>
+</tr>
+<tr>
+<td>35:16</td>
+<td>我们不要进行新的读写操作</td>
+</tr>
+<tr>
+<td>35:20</td>
+<td>否则芯片是不会响应我们的</td>
+</tr>
+<tr>
+<td>35:30</td>
+<td>BUSY 位为 0 时芯片就不忙了</td>
+</tr>
+<tr>
+<td>35:35</td>
+<td>包括上面的擦除也一样</td>
+</tr>
+<tr>
+<td>35:56</td>
+<td>然后看读取操作的注意事项</td>
+</tr>
+<tr>
+<td>35:59</td>
+<td>这个就相对宽松很多了</td>
+</tr>
+<tr>
+<td>36:01</td>
+<td>读取时直接调用读取时序</td>
+</tr>
+<tr>
+<td>36:08</td>
+<td>无需额外操作，前面三条限制和读取无关</td>
+</tr>
+<tr>
+<td>36:12</td>
+<td>没有页的限制</td>
+</tr>
+<tr>
+<td>36:18</td>
+<td>不用担心地址错位或者覆盖的问题</td>
+</tr>
+<tr>
+<td>36:21</td>
+<td>读取操作结束后不会进入忙状态</td>
+</tr>
+<tr>
+<td>36:30</td>
+<td>但是不能在忙状态时读取</td>
+</tr>
+<tr>
+<td>36:39</td>
+<td>所以读取前要确认芯片是否处于忙状态</td>
+</tr>
+<tr>
+<td>36:48</td>
+<td>是不是觉得有点麻烦</td>
+</tr>
+<tr>
+<td>36:51</td>
+<td>Flash 这种非易失性存储器目前市场竞争力还是非常大的</td>
+</tr>
+<tr>
+<td>36:56</td>
+<td>尽管它有这么多不方便，但都可以用软件来弥补</td>
+</tr>
+<tr>
+<td>37:04</td>
+<td>比如容量大，是其他存储器比不了的</td>
+</tr>
+<tr>
+<td>37:06</td>
+<td>相比 RAM 是慢，但在非易失性存储器中算很快的</td>
+</tr>
+<tr>
+<td>37:24</td>
+<td>还有几个重要的知识点要说</td>
+</tr>
+<tr>
+<td>37:27</td>
+<td>打开模块资料文件夹</td>
+</tr>
+<tr>
+<td>37:29</td>
+<td>找到 W25QXX 的参考资料</td>
+</tr>
+<tr>
+<td>37:33</td>
+<td>打开 W25Q64 的手册</td>
+</tr>
+<tr>
+<td>37:43</td>
+<td>我们来看手册</td>
+</tr>
+<tr>
+<td>37:50</td>
+<td>最前面可以把它当成广告页来看</td>
+</tr>
+<tr>
+<td>37:55</td>
+<td>然后下面是芯片的引脚定义</td>
+</tr>
+<tr>
+<td>37:58</td>
+<td>这个我们刚才讲过</td>
+</tr>
+<tr>
+<td>38:02</td>
+<td>是对芯片每个引脚的描述</td>
+</tr>
+<tr>
+<td>38:10</td>
+<td>然后是芯片的系统框图</td>
+</tr>
+<tr>
+<td>38:12</td>
+<td>这个比较重要，刚才也详细分析过</td>
+</tr>
+<tr>
+<td>38:21</td>
+<td>比如标准 SPI、双重 SPI、四重 SPI</td>
+</tr>
+<tr>
+<td>38:32</td>
+<td>然后这页描述的是写保护的逻辑</td>
+</tr>
+<tr>
+<td>38:35</td>
+<td>我们暂时也不用写保护</td>
+</tr>
+<tr>
+<td>38:39</td>
+<td>状态寄存器总共有两个</td>
+</tr>
+<tr>
+<td>38:40</td>
+<td>其中比较重要的是状态寄存器 1</td>
+</tr>
+<tr>
+<td>38:49</td>
+<td>这两个位在这里我标出来了</td>
+</tr>
+<tr>
+<td>38:52</td>
+<td>首先是 BUSY 位</td>
+</tr>
+<tr>
+<td>39:22</td>
+<td>扇区擦除、块擦除、整片擦除或写状态寄存器指令时</td>
+</tr>
+<tr>
+<td>39:29</td>
+<td>设备将会忽略进一步指令</td>
+</tr>
+<tr>
+<td>39:40</td>
+<td>写状态寄存器指令结束后 BUSY 清零，表示设备准备好了</td>
+</tr>
+<tr>
+<td>39:43</td>
+<td>这就是 BUSY 位</td>
+</tr>
+<tr>
+<td>39:45</td>
+<td>然后是写使能锁存位 WEL</td>
+</tr>
+<tr>
+<td>39:49</td>
+<td>在执行完写使能指令后置 1</td>
+</tr>
+<tr>
+<td>39:53</td>
+<td>代表芯片可以进行写入操作了</td>
+</tr>
+<tr>
+<td>39:55</td>
+<td>当设备写失能时清 0</td>
+</tr>
+<tr>
+<td>39:59</td>
+<td>什么时候处于写失能状态呢</td>
+</tr>
+<tr>
+<td>40:05</td>
+<td>在执行完这些指令之后</td>
+</tr>
+<tr>
+<td>40:27</td>
+<td>就不需要再手动进行写失能了</td>
+</tr>
+<tr>
+<td>40:28</td>
+<td>因为写入操作后会顺便帮我们写失能</td>
+</tr>
+<tr>
+<td>40:31</td>
+<td>相当于有个顺手关门的操作</td>
+</tr>
+<tr>
+<td>40:33</td>
+<td>我们在进行任何写入操作前都要来一遍写使能</td>
+</tr>
+<tr>
+<td>40:44</td>
+<td>状态寄存器主要提这两位，其他自行查看</td>
+</tr>
+<tr>
+<td>40:56</td>
+<td>这里是状态寄存器的示意图</td>
+</tr>
+<tr>
+<td>40:58</td>
+<td>我们主要掌握最低的两位</td>
+</tr>
+<tr>
+<td>41:13</td>
+<td>之后我们进入下一部分</td>
+</tr>
+<tr>
+<td>41:22</td>
+<td>这里写的是芯片 ID 号，厂商 ID 和设备 ID</td>
+</tr>
+<tr>
+<td>41:36</td>
+<td>如果使用 9F 指令来读</td>
+</tr>
+<tr>
+<td>41:37</td>
+<td>我们写程序的时候先读取 ID 验证</td>
+</tr>
+<tr>
+<td>41:42</td>
+<td>到时候就参考这个表来验证</td>
+</tr>
+<tr>
+<td>41:47</td>
+<td>然后下面这个表就是 SPI 的指令集了</td>
+</tr>
+<tr>
+<td>41:57</td>
+<td>指令码是 06（写使能）</td>
+</tr>
+<tr>
+<td>42:01</td>
+<td>我们就利用上一小节学习的 SPI 来操作</td>
+</tr>
+<tr>
+<td>42:04</td>
+<td>先起始然后交换</td>
+</tr>
+<tr>
+<td>42:25</td>
+<td>读状态寄存器 1 的指令</td>
+</tr>
+<tr>
+<td>42:31</td>
+<td>所以后面有数据</td>
+</tr>
+<tr>
+<td>42:36</td>
+<td>这个字节就是状态寄存器的 S7～S0</td>
+</tr>
+<tr>
+<td>42:42</td>
+<td>如果继续交换接收</td>
+</tr>
+<tr>
+<td>42:46</td>
+<td>其中 S0 是 BUSY 位，S1 是 WEL 位</td>
+</tr>
+<tr>
+<td>43:01</td>
+<td>页编程有 256 字节页大小的限制</td>
+</tr>
+<tr>
+<td>43:15</td>
+<td>一个字节后面是指定地址（24 位）</td>
+</tr>
+<tr>
+<td>43:47</td>
+<td>想擦除的话主要用扇区擦除</td>
+</tr>
+<tr>
+<td>44:09</td>
+<td>这样表示擦除一整个扇区，意思更加明确</td>
+</tr>
+<tr>
+<td>44:21</td>
+<td>操作流程是起始、交换发送 9F</td>
+</tr>
+<tr>
+<td>44:33</td>
+<td>然后继续最后一个要看的指令：读数据</td>
+</tr>
+<tr>
+<td>44:37</td>
+<td>读数据操作流程是起始、交换、发送指令码</td>
+</tr>
+<tr>
+<td>44:44</td>
+<td>之后就是交换读取了</td>
+</tr>
+<tr>
+<td>44:47</td>
+<td>读到的数据就是这个地址下的数据</td>
+</tr>
+<tr>
+<td>44:50</td>
+<td>如果继续交换读取</td>
+</tr>
+<tr>
+<td>44:56</td>
+<td>这个读取没有页的限制</td>
+</tr>
+<tr>
+<td>45:00</td>
+<td>所以可以直接读取 Data</td>
+</tr>
+<tr>
+<td>45:05</td>
+<td>下一小节编写读时序的时候会用到</td>
+</tr>
+<tr>
+<td>45:17</td>
+<td>包括时序图这里也画出来了</td>
+</tr>
+<tr>
+<td>45:26</td>
+<td>时间关系，每条指令的详细解释就不带着看了</td>
+</tr>
+<tr>
+<td>45:31</td>
+<td>听完之前的讲解应该也可以理解</td>
+</tr>
+<tr>
+<td>45:36</td>
+<td>下面的时序图和我们之前讲的 SPI 基本一致</td>
+</tr>
+<tr>
+<td>45:40</td>
+<td>有几个区别</td>
+</tr>
+<tr>
+<td>45:41</td>
+<td>就是这里的 DO</td>
+</tr>
+<tr>
+<td>45:43</td>
+<td>按理说从机应该通过 DO 把数据回传过来</td>
+</tr>
+<tr>
+<td>45:50</td>
+<td>所以这里 DO 始终保持高阻态</td>
+</tr>
+<tr>
+<td>45:54</td>
+<td>然后这里有个 Mode 0</td>
+</tr>
+<tr>
+<td>45:59</td>
+<td>这个芯片可以兼容 SPI 的模式 0 和模式 3</td>
+</tr>
+<tr>
+<td>46:05</td>
+<td>我们看模式 0 和模式 3</td>
+</tr>
+<tr>
+<td>46:12</td>
+<td>可以发现它们都是下降沿移出、上升沿移入</td>
+</tr>
+<tr>
+<td>46:17</td>
+<td>所以我们可以规定</td>
+</tr>
+<tr>
+<td>46:18</td>
+<td>在 SS 下降沿或者 SCK 的第一个边沿开始</td>
+</tr>
+<tr>
+<td>46:25</td>
+<td>后续移入数据都在 SCK 的上升沿</td>
+</tr>
+<tr>
+<td>46:30</td>
+<td>这样就可以兼容模式 0 和模式 3</td>
+</tr>
+<tr>
+<td>46:33</td>
+<td>所以手册里画了个虚线</td>
+</tr>
+<tr>
+<td>46:42</td>
+<td>虚线部分我们可以忽略不看</td>
+</tr>
+<tr>
+<td>46:44</td>
+<td>这就是时序的一些区别</td>
+</tr>
+<tr>
+<td>46:49</td>
+<td>剩下的都是指令的具体介绍和注意事项</td>
+</tr>
+<tr>
+<td>46:50</td>
+<td>大家可以自己慢慢看</td>
+</tr>
+<tr>
+<td>46:57</td>
+<td>然后是电气特性</td>
+</tr>
+<tr>
+<td>47:03</td>
+<td>比如给出了供电电压范围</td>
+</tr>
+<tr>
+<td>47:07</td>
+<td>要在这个范围里才行</td>
+</tr>
+<tr>
+<td>47:10</td>
+<td>之后还是一些表</td>
+</tr>
+<tr>
+<td>47:16</td>
+<td>一些参数可能会用到</td>
+</tr>
+<tr>
+<td>47:19</td>
+<td>比如执行编程和擦除的时间</td>
+</tr>
+<tr>
+<td>47:22</td>
+<td>页编程是 0.7ms，最大 3ms</td>
+</tr>
+<tr>
+<td>47:30</td>
+<td>块擦除典型值是 120 和 150ms</td>
+</tr>
+<tr>
+<td>47:40</td>
+<td>整片擦除典型 15s、最大 30s</td>
+</tr>
+<tr>
+<td>47:44</td>
+<td>可以看出 Flash 的写入时间是 ms 级别</td>
+</tr>
+<tr>
+<td>47:54</td>
+<td>最后是一些封装的尺寸信息</td>
+</tr>
+<tr>
+<td>48:01</td>
+<td>这就是这个手册的内容</td>
+</tr>
+<tr>
+<td>48:03</td>
+<td>本小节就结束了</td>
+</tr>
+<tr>
+<td>48:06</td>
+<td>下一小节开始写代码</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，551 段），不是 ASR。错字主要是 <strong><code>SPI</code> → 「SPL」</strong>（5 处）、<strong><code>W25Q</code> → 「W25O」</strong>（3 处）、<code>读取</code> → 「卖取」（2 处）、<code>读写</code> → 「卖写」（1 处）、<code>查询</code> → 「香询」、<code>地址</code> → 「地批址」、<code>模式</code> → 「模贰」（各 1 处），另外，手册页脚的 <code>Publication Release Date: July 08, 2010</code>、<code>- 3 -</code>、<code>- 25 -</code> 等只出现在<strong>画面</strong>的手册页上、未进入 OCR 文本；这些都不是口述内容，已按画面/上下文校正。</li>
+<li><strong>本集无代码</strong>：全程 PPT + 数据手册精读；<strong>软件 SPI 代码在 [11-3]、硬件 SPI 在 [11-4]</strong>。</li>
+<li><strong>扇区擦除（4KB）的时间数值没有听清</strong>：口述清晰给出<strong>页编程 0.7ms/最大 3ms、块擦除典型 120/150ms、整片擦除典型 15s/最大 30s</strong>；<strong>扇区擦除的时间本集未明确读出</strong>——本笔记只写已确认的三项，扇区擦除时间需要时查手册 AC 特性表。</li>
+<li><strong>MID/DID 具体值（<code>0xEF</code> / <code>0x4017</code>）来自上一集现象</strong>：本集只讲 <strong><code>0x9F</code> 是读 JEDEC ID 指令、<code>0x90</code> 是读 Manufacturer/Device ID 指令</strong>，<strong>没有在画面上给出这两颗芯片的具体 ID 值</strong>——笔记没有把上一集的实测值混进来。</li>
+<li><strong>写保护（BP2/BP1/BP0、TB、SEC、WP 引脚）只讲「了解即可」</strong>：本集未讲具体配置步骤，笔记只写它们存在与作用。</li>
+<li><strong>Dual SPI / Quad SPI 只讲概念</strong>（MOSI/MISO 同时收发、WP/HOLD 变 IO2/IO3、等效频率 160/320MHz），本课程不使用。</li>
+<li><strong>状态寄存器只重点讲 BUSY（S0）与 WEL（S1）</strong>，其余位未展开。</li>
+<li><strong>手册大量英文表页只快速翻过</strong>（电气特性、AC 参数、封装），笔记只摘已讲过的内容；模式 0 与模式 3 的差异按口述「都是下降沿移出、上升沿移入，虚线部分可忽略」写。</li>
+<li><strong>片尾 48:06</strong>「下一小节开始写代码」，<strong>没有点名工程编号</strong>；按课程顺序软件 SPI 在 [11-3]。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-38.html"><span class="label">下一篇</span>[11-3] 软件SPI读写W25Q64</a>
+    <a class="next" href="stm32-36.html"><span class="label">上一篇</span>[11-1] SPI通信协议</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-w25q64-%E8%8A%AF%E7%89%87-%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C%E7%B2%BE%E8%AF%BB-%E4%BB%A3%E7%A0%81%E5%9C%A8-11-3-11-4">0. 本集定位：理论课（W25Q64 芯片 + 数据手册精读），代码在 11-3/11-4</a>
+        <a class="level-2" href="#1-w25q64-%E6%98%AF%E4%BB%80%E4%B9%88">1. W25Q64 是什么</a>
+        <a class="level-3" href="#1-1-%E7%B3%BB%E5%88%97%E4%B8%8E%E7%94%A8%E9%80%94">1.1 系列与用途</a>
+        <a class="level-3" href="#1-2-%E5%AD%98%E5%82%A8%E4%BB%8B%E8%B4%A8-nor-flash">1.2 存储介质：NOR Flash</a>
+        <a class="level-3" href="#1-3-%E6%97%B6%E9%92%9F%E9%A2%91%E7%8E%87%E4%B8%8E-dual-quad-spi">1.3 时钟频率与 Dual/Quad SPI</a>
+        <a class="level-3" href="#1-4-%E5%AE%B9%E9%87%8F%E6%8D%A2%E7%AE%97%E4%B8%8E-24-%E4%BD%8D%E5%9C%B0%E5%9D%80">1.4 容量换算与 24 位地址</a>
+        <a class="level-2" href="#2-%E5%BC%95%E8%84%9A%E4%B8%8E%E7%A1%AC%E4%BB%B6%E7%94%B5%E8%B7%AF">2. 引脚与硬件电路</a>
+        <a class="level-3" href="#2-1-%E5%BC%95%E8%84%9A%E5%8A%9F%E8%83%BD%E8%A1%A8">2.1 引脚功能表</a>
+        <a class="level-2" href="#3-%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84-%E6%A1%86%E5%9B%BE">3. 存储结构（框图）</a>
+        <a class="level-3" href="#3-1-%E7%A9%BA%E9%97%B4%E5%88%92%E5%88%86">3.1 空间划分</a>
+        <a class="level-3" href="#3-2-%E6%A1%86%E5%9B%BE%E5%86%85%E9%83%A8%E6%A8%A1%E5%9D%97">3.2 框图内部模块</a>
+        <a class="level-3" href="#3-3-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E6%9C%89%E9%A1%B5%E7%BC%93%E5%AD%98">3.3 为什么要有页缓存</a>
+        <a class="level-2" href="#4-flash-%E6%93%8D%E4%BD%9C%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9-%E6%A0%B8%E5%BF%83">4. Flash 操作注意事项（核心）</a>
+        <a class="level-3" href="#4-1-%E5%86%99%E5%85%A5%E6%93%8D%E4%BD%9C%E7%9A%84-6-%E6%9D%A1%E8%A7%84%E5%AE%9A">4.1 写入操作的 6 条规定</a>
+        <a class="level-3" href="#4-2-%E8%AF%BB%E5%8F%96%E6%93%8D%E4%BD%9C%E7%9A%84-1-%E6%9D%A1%E8%A7%84%E5%AE%9A">4.2 读取操作的 1 条规定</a>
+        <a class="level-2" href="#5-%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C%E7%B2%BE%E8%AF%BB">5. 数据手册精读</a>
+        <a class="level-3" href="#5-1-2-features">5.1 2. FEATURES</a>
+        <a class="level-3" href="#5-2-11-1-%E7%8A%B6%E6%80%81%E5%AF%84%E5%AD%98%E5%99%A8">5.2 11.1 状态寄存器</a>
+        <a class="level-3" href="#5-3-11-2-2-%E6%8C%87%E4%BB%A4%E9%9B%86%E8%A1%A8">5.3 11.2.2 指令集表</a>
+        <a class="level-3" href="#5-4-%E6%97%B6%E5%BA%8F%E5%9B%BE-do-%E9%AB%98%E9%98%BB%E4%B8%8E%E6%A8%A1%E5%BC%8F-0-3-%E5%85%BC%E5%AE%B9">5.4 时序图：DO 高阻与模式 0/3 兼容</a>
+        <a class="level-3" href="#5-5-%E7%94%B5%E6%B0%94%E7%89%B9%E6%80%A7%E4%B8%8E%E5%B0%81%E8%A3%85-%E5%BF%AB%E9%80%9F%E7%BF%BB%E8%BF%87">5.5 电气特性与封装（快速翻过）</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

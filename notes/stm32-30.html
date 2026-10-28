@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[9-6] FlyMcu串口下载与STLINK Utility · 我的学习笔记</title>
+  <meta name="description" content="STM32 [9-6]：FlyMcu 串口 ISP 下载（勾 Create HEX File → COM12/115200 → BOOT0=1+复位进 BootLoader → 编程 → 换回复位）；BootLoader 与表6 启动配置；一键下载电路（RTS/DTR，本板无）；读 Flash/擦除/读器件信息；选项字节四块（读保护、写保护死循环）；STLINK Utility 编程与改选项字节。">
+  <meta property="og:title" content="[9-6] FlyMcu串口下载与STLINK Utility · 我的学习笔记">
+  <meta property="og:description" content="STM32 [9-6]：FlyMcu 串口 ISP 下载（勾 Create HEX File → COM12/115200 → BOOT0=1+复位进 BootLoader → 编程 → 换回复位）；BootLoader 与表6 启动配置；一键下载电路（RTS/DTR，本板无）；读 Flash/擦除/读器件信息；选项字节四块（读保护、写保护死循环）；STLINK Utility 编程与改选项字节。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html" class="active" aria-current="page">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>34 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">工具</span><span class="tag">下载</span><span class="tag">FlyMcu</span><span class="tag">STLINK</span><span class="tag">BootLoader</span><span class="tag">选项字节</span>
+    </div>
+    <article class="prose"><h1>[9-6] FlyMcu串口下载与STLINK Utility — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=30，21:59（1319 秒）</li>
+<li>素材：220 帧关键帧（<strong>每 6 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>388 段</strong>）；关键截图 15 张随笔记收录（源图在 <code>vidsum_out/stm32_p30/frames/</code>，站内图片在 <code>assets/images/stm32-30/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；字幕里混入了<strong>软件界面文字/日志</strong>（如 <code>FromELF: creating hex file...</code>、<code>Flash Load finished</code>、<code>www.mcuisp.com</code>、<code>Application running ...</code>）与行首符号，这些<strong>不是老师口述内容</strong>，已剔除，错字已按画面校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>工具实操课</strong>——教两个上位机软件：<strong>FlyMcu（串口 ISP 下载）</strong> 与 <strong>STLINK Utility（SWD 下载）</strong>。<strong>全程没有写一行新代码</strong>（只借用现成的 <code>3-1 LED闪烁</code> 示例工程生成 hex 文件），也没有讲 Keil 内置下载的配置（那部分在软件安装集）；中途插 PPT 讲<strong>存储器映像/启动配置</strong>，并打开 <strong>CH340G 模块原理图</strong>讲<strong>一键下载电路</strong>。片尾 21:50「有关这两个软件、STM32 BootLoader、选项字节等内容到这里就结束了」，<strong>没有下集预告</strong>（工具篇收尾，模块 9 结束）。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>FlyMcu</strong> 是<strong>通过串口给 STM32 下载程序</strong>的绿色免安装软件（作用是 51 单片机 <strong>STC-ISP</strong> 那一套；没买 ST-Link 时用它），<strong>STLINK Utility</strong> 是<strong>配合 ST-Link 用 SWD 下载</strong>的工具——两者功能差不多，区别只是<strong>下载通道</strong>。<strong>串口下载有三个前提</strong>：① <strong>电路必须能实现 USART1 与电脑通信</strong>（<strong>本芯片的串口下载只适配 USART1</strong>，接 USART2/3 不行）② <strong>要一个 .hex 文件</strong>——Keil 里 <code>工程选项 → Output → 勾 Create HEX File</code>，重新编译后 Build Output 会多出 <strong><code>FromELF: creating hex file...</code></strong>，在 <strong><code>Objects</code> 目录</strong>里得到 <strong><code>Project.hex</code></strong> ③ <strong>下载前必须让芯片进 BootLoader</strong>：把 <strong>BOOT0 跳线帽</strong>从左边拔下插到右边两个针脚（<strong>BOOT0=1</strong>），<strong>再按一次复位</strong>（<strong>STM32 只在复位时读 BOOT 引脚</strong>，运行中切换无效）。FlyMcu 里：<strong>搜索串口 → Port 选 COM 号 → bps 保持 115200 → 点「…」选 hex → 其余默认 → 开始编程</strong>；日志会显示 <strong>CPU ID 0x414、芯片内 BootLoader 版本 3.0、写选项字节、命令执行完毕一切正常</strong>；<strong>此时 LED 还不亮</strong>（芯片在跑 BootLoader），<strong>把 BOOT0 跳线帽换回、按复位</strong>，<strong>LED 闪烁</strong>。<strong>原理</strong>：<code>0x08000000</code> 存的是主程序，<strong>串口下载要有一段「能接收数据并写进 Flash」的程序</strong>——它就是 <strong>BootLoader</strong>，由 ST 出厂烧在 ROM 末尾 <strong><code>0x1FFFF000</code> 系统存储器</strong>（比喻：机器人给自己换电池，得先有另一个小机器人；类比手机刷机模式、电脑 PE 系统）；<strong>由 BOOT 引脚选择启动哪个程序</strong>（<strong>表6</strong>：BOOT1=x/BOOT0=0 → 主闪存；BOOT1=0/BOOT0=1 → 系统存储器；BOOT1=1/BOOT0=1 → 内置 SRAM），且<strong>复位后 SYSCLK 第 4 个上升沿锁存 BOOT 引脚值</strong>。<strong>嫌每次拔跳线帽麻烦</strong> → 可用串口模块的 <strong>RTS、DTR 输出脚</strong>（配两个三极管）做<strong>一键下载电路</strong>，用软件自动控制 BOOT0/RST（<strong>本套板没有这个电路</strong>，只能手动；FlyMcu 下方<strong>下拉框</strong>就是配 DTR/RTS 电平用的，没电路时选哪个都行）。<strong>FlyMcu 其它功能</strong>：<strong>读 Flash</strong>（只能存 <strong>.bin</strong>，无地址信息；hex 才有地址信息；<strong>FlyMcu 下载只认 hex、读出来只能 bin，bin 不能再下回去</strong>）、<strong>清除芯片</strong>（全擦成 FF）、<strong>读器件信息</strong>（序列号 + Flash 容量，<strong>作者实测本片 256KB，而 C8T6 标称 64KB</strong>——属实测+网上说法）、<strong>选项字节</strong>（四大块：<strong>读保护</strong> A5 允许读出/FF 阻止读出、硬件选项字节、用户数据字节 Data0/Data1、<strong>写保护 WRP0～WRP3</strong> 按 2KB 页）。<strong>选项字节的坑</strong>：<strong>设了写保护再下载会出错</strong>，而 FlyMcu <strong>不能单独写选项字节、只能下载时顺带写</strong> → <strong>下载不了就解不了保护</strong>，形成<strong>死循环</strong>；<strong>STLINK Utility 能单独改选项字节</strong>，所以能解。<strong>STLINK Utility</strong>：安装（含 ST-Link 驱动）→ <strong>跳线帽全部回最左边 + 复位</strong> → 点<strong>连接</strong>（Device ID <strong>0x414</strong>、Flash <strong>256KB</strong>）→ <strong>保存/擦除/打开文件（hex 和 bin 都支持）/编程 → Start</strong> → LED 闪烁；选项字节走 <strong>Target → Option Bytes</strong>，配好点 <strong>Apply 就能单独修改</strong>；还能 <strong>ST-LINK → Firmware update</strong> 升级固件（当前 <strong>V2.J29.S7</strong>，可升 <strong>V2.J37.S7</strong>，用着没问题不必常更新）。</p>
+<h2 id="0-本集定位-工具实操课-无代码">0. 本集定位：工具实操课（无代码）</h2>
+<ul>
+<li><strong>本集不写代码</strong>：只借用现成的 <strong><code>3-1 LED闪烁</code></strong> 示例工程，<strong>唯一改动是「勾上生成 HEX 文件」这个选项</strong>，用来演示下载流程。</li>
+<li><strong>本集不是「代码课」也不是「理论课」</strong>：主体是<strong>两个上位机软件的操作演示</strong>（FlyMcu、STLINK Utility），中间夹了 PPT（存储器映像、启动配置表6）和 CH340G 原理图（一键下载电路）。</li>
+<li><strong>本集不讲</strong>：Keil 内置下载（ST-Link Debugger / Flash Download 配置在软件安装集里）、DAP-Link 等其他下载器。</li>
+<li>片尾 21:50 收尾，<strong>无下集预告</strong>；模块 9（USART）到此结束。</li>
+</ul>
+<h2 id="1-两个软件是什么">1. 两个软件是什么</h2>
+<p>资料文件夹「<strong>工具软件</strong>」里有：<strong>FlyMcu 程序烧录软件</strong>、<strong>STLINK Utility</strong>、<strong>UltraCodingSwitch</strong>、<strong>USB 转串口 CH340 驱动</strong>、<strong>串口助手</strong>——本集讲前两个。</p>
+<table>
+<thead>
+<tr>
+<th>软件</th>
+<th>下载通道</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>FlyMcu</strong></td>
+<td><strong>串口（USART1）</strong></td>
+<td><strong>绿色软件免安装</strong>，打开即用；没有 ST-Link 时的方案；作用类似 51 的 <strong>STC-ISP</strong></td>
+</tr>
+<tr>
+<td><strong>STLINK Utility</strong></td>
+<td><strong>ST-Link（SWD）</strong></td>
+<td>需要<strong>安装</strong>（含 ST-Link 驱动）；配合 ST-Link 使用，功能更全（可单独配置选项字节、升级固件）</td>
+</tr>
+</tbody></table>
+<ul>
+<li>两者<strong>功能差不多，都能下载程序</strong>，区别只是<strong>下载通道不同</strong>：<strong>FlyMcu 是串口下载，STLINK Utility 是 ST-Link 下载</strong>；</li>
+<li><strong>串口下载的硬件要求</strong>：电路要能保证 <strong>USART1 与电脑进行串口通信</strong>（接法与前几节一样：模块 RXD→PA9、TXD→PA10、GND 共地）；<strong>必须是 USART1</strong>，接其他 USART 不行。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/01-tools-folder.jpg" alt="图 1：资料里的「工具软件」文件夹——FlyMcu程序烧录软件、STLINK Utility、UltraCodingSwitch、USB转串口CH340驱动、串口助手；字幕「里面也有很多有意思的功能，可以给大家介绍一下」"></p>
+<p><em>图 1：资料里的「工具软件」文件夹——FlyMcu程序烧录软件、STLINK Utility、UltraCodingSwitch、USB转串口CH340驱动、串口助手；字幕「里面也有很多有意思的功能，可以给大家介绍一下」</em></p>
+<h2 id="2-flymcu-串口-isp-下载流程">2. FlyMcu 串口 ISP 下载流程</h2>
+<h3 id="2-1-生成-hex-文件-keil-侧唯一改动">2.1 生成 HEX 文件（Keil 侧唯一改动）</h3>
+<ul>
+<li>随便打开一个示例工程（这里拖进来的是 <strong><code>3-1 LED闪烁</code></strong>）；</li>
+<li>点<strong>工程选项 → Output 选项卡 → 勾上「Create HEX File」→ OK</strong>；</li>
+<li><strong>重新编译</strong>：Build Output 里会多出一条 <strong><code>FromELF: creating hex file...</code></strong>；</li>
+<li>打开工程目录，在 <strong><code>Objects</code> 文件夹</strong>里就能找到 <strong><code>Project.hex</code></strong>（示例中 5 KB）——这就是串口下载需要的程序文件，「这部分流程和 51 单片机那里是一样的」。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/03-fromelf-log.jpg" alt="图 2：Keil 打开示例工程 3-1 LED闪烁（main.c 里 GPIOA Pin_0 推挽输出、GPIO_ResetBits / Delay_ms(500) / GPIO_SetBits 循环），Build Output 出现 FromELF: creating hex file... 与 0 Error(s), 0 Warning(s)"></p>
+<p><em>图 2：Keil 打开示例工程 <code>3-1 LED闪烁</code>（main.c 里 GPIOA Pin_0 推挽输出、GPIO_ResetBits / Delay_ms(500) / GPIO_SetBits 循环），Build Output 出现 <code>FromELF: creating hex file...</code> 与 <code>0 Error(s), 0 Warning(s)</code></em></p>
+<p><img src="../assets/images/stm32-30/04-project-hex.jpg" alt="图 3：工程目录 Objects 文件夹里的 `Project.hex`（HEX 文件，5 KB，修改时间 2022/8/18 15:05，高亮）；字幕「这部分流程和51单片机那里是一样的」"></p>
+<p>*图 3：工程目录 <code>Objects</code> 文件夹里的 <strong><code>Project.hex</code></strong>（HEX 文件，5 KB，修改时间 2022/8/18 15:05，高亮）；字幕「这部分流程和51单片机那里是一样的」*</p>
+<h3 id="2-2-flymcu-界面设置">2.2 FlyMcu 界面设置</h3>
+<p>打开 <strong>FlyMcu V0.188</strong>（标题栏可见版本号），按下面顺序设置：</p>
+<ol>
+<li>点 <strong>「搜索串口」</strong>（菜单栏里的搜索按钮）；</li>
+<li><strong>Port 选 COM 号</strong>（这里 COM12）；</li>
+<li><strong>bps 保持默认 115200</strong>（这是串口下载的波特率，与前面串口助手一样）；</li>
+<li>点右边的 <strong>「…」</strong> 按钮，找到刚才生成的 <strong>hex 文件</strong>（工程目录 <code>Objects</code> 里选中、打开）；</li>
+<li><strong>其余配置先保持默认</strong>。</li>
+</ol>
+<p>界面上还有：<strong>「编程前重装文件」</strong>（勾选后每次都重新加载 hex）、<strong>「校验」</strong>、<strong>「编程后执行」</strong>、<strong>「使用 RamIsp」</strong>、<strong>「连续烧录模式」</strong>、<strong>读器件信息(R) / 清除芯片(Z) / 读FLASH</strong> 按钮、<strong>选项字节区</strong>（「编程到FLASH时写选项字节」「设定选项字节等」），以及<strong>底部下拉框</strong>（配 DTR/RTS 电平，配合一键下载电路用）。</p>
+<p><img src="../assets/images/stm32-30/02-flymcu-ui.jpg" alt="图 4：FlyMcu V0.188 主界面——菜单栏 搜索串口(V) / Port:COM12 / bps:115200 / www.mcuisp.com，「联机下载时的程序文件」栏、「编程前重装文件」勾选；左侧「开始编程(P)」与校验/编程后执行/使用RamIsp/连续烧录模式；「读器件信息(R)/清除芯片(Z)/读FLASH」；选项字节区「编程到FLASH时写选项字节」「设定选项字节等」；底部下拉框「DTR的高电平复位,RTS高电平进BootLoader」；字幕「这个软件是绿色软件」"></p>
+<p><em>图 4：FlyMcu V0.188 主界面——菜单栏 <code>搜索串口(V) / Port:COM12 / bps:115200 / www.mcuisp.com</code>，「联机下载时的程序文件」栏、「编程前重装文件」勾选；左侧「开始编程(P)」与校验/编程后执行/使用RamIsp/连续烧录模式；「读器件信息(R)/清除芯片(Z)/读FLASH」；选项字节区「编程到FLASH时写选项字节」「设定选项字节等」；底部下拉框「DTR的高电平复位,RTS高电平进BootLoader」；字幕「这个软件是绿色软件」</em></p>
+<h3 id="2-3-进-bootloader-拔-boot0-跳线帽-按复位">2.3 进 BootLoader：拔 BOOT0 跳线帽 + 按复位</h3>
+<ul>
+<li><strong>配置 BOOT 引脚之前，直接点「开始编程」会一直卡住</strong>——因为芯片还在跑主程序，没人接收串口数据；</li>
+<li><strong>第一步</strong>：找到板上的<strong>两个跳线帽</strong>（配置 BOOT 引脚用），<strong>把 BOOT0 的跳线帽拔下来</strong>；</li>
+<li><strong>第二步</strong>：<strong>插在右边两个针脚上</strong>——即 <strong>BOOT0 = 1</strong>；</li>
+<li><strong>第三步（关键）</strong>：<strong>按一下复位键</strong>——<strong>STM32 只有在刚复位时才会读取 BOOT 引脚的值</strong>；<strong>程序运行后再切换 BOOT 引脚是无效的</strong>；</li>
+<li>这样芯片就进入了 <strong>BootLoader</strong> 程序：<strong>不断接收 USART1 的数据、刷新到主闪存</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/05-boot0-jumper.jpg" alt="图 5：面包板实拍——手上正把 BOOT0 跳线帽从原位置拔下来（准备插到右边针脚，BOOT0=1）；右侧是 FlyMcu 窗口；字幕「也就是配置BOOT0引脚的跳线帽，拔下来」"></p>
+<p>*图 5：面包板实拍——手上正把 <strong>BOOT0 跳线帽</strong>从原位置拔下来（准备插到右边针脚，BOOT0=1）；右侧是 FlyMcu 窗口；字幕「也就是配置BOOT0引脚的跳线帽，拔下来」*</p>
+<h3 id="2-4-下载与现象">2.4 下载与现象</h3>
+<ul>
+<li>回到 FlyMcu <strong>点「开始编程」</strong> → 下载过程成功运行；</li>
+<li>日志（示例）：<strong>DTR/RTS 电平操作 → 开始连接 → 收到 <code>1F 1F</code> → 串口 COM12 连接成功 115200bps → 芯片内 BootLoader 版本号 3.0 → 芯片 PID 0x00000414（STM32F10xxx High-density）→ 读出的选项字节 A5 5A FF 00 FF 00 FF 00 FF 00 FF 00 FF 00 → 96 位芯片唯一序列号 → 芯片 FLASH 容量为 256KB → 开始全片擦除 → 全片擦除成功 → 写入 1KB 进度 100% → 写入选项字节 → 成功写入选项字节 → 命令执行完毕，一切正常</strong>；</li>
+<li><strong>此时 LED 还不亮</strong>——因为 STM32 <strong>还在执行 BootLoader 的刷机程序</strong>；</li>
+<li><strong>把 BOOT0 跳线帽换回</strong>（回左边）+ <strong>按一下复位</strong> → <strong>LED 闪烁，程序正常运行</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/06-download-log.jpg" alt="图 6：FlyMcu 下载完成后的日志窗口——DTR/RTS 时序、开始连接、收到 1F 1F、串口 COM12 连接成功 115200bps、芯片内 BootLoader 版本号 3.0、芯片 PID 0x00000414、读出选项字节 A5 5A FF 00 …、96 位唯一序列号、芯片 FLASH 容量 256KB、全片擦除成功、写入 1KB 进度 100%、成功写入选项字节、命令执行完毕一切正常；字幕「回到STM32，目前LED还没有亮起来」"></p>
+<p><em>图 6：FlyMcu 下载完成后的日志窗口——DTR/RTS 时序、开始连接、收到 <code>1F 1F</code>、串口 COM12 连接成功 115200bps、芯片内 BootLoader 版本号 3.0、芯片 PID 0x00000414、读出选项字节 <code>A5 5A FF 00 …</code>、96 位唯一序列号、芯片 FLASH 容量 256KB、全片擦除成功、写入 1KB 进度 100%、成功写入选项字节、命令执行完毕一切正常；字幕「回到STM32，目前LED还没有亮起来」</em></p>
+<h2 id="3-原理-bootloader-与启动配置">3. 原理：BootLoader 与启动配置</h2>
+<h3 id="3-1-bootloader-是-给自己换电池的小机器人">3.1 BootLoader 是「给自己换电池的小机器人」</h3>
+<ul>
+<li>之前讲过 <strong>STM32 的存储器映像</strong>：<strong>ROM 区 <code>0x08000000</code> 位置存的就是编译后的程序代码</strong>，<strong>写什么程序进去、STM32 就执行什么程序</strong>；</li>
+<li><strong>串口下载</strong>的本质：<strong>把程序数据通过串口发给 STM32，由它接收并刷新到 <code>0x0800</code> 这一块位置</strong>；</li>
+<li><strong>但「接收并转存数据」这个动作本身也是一个程序</strong>——<strong>如何用程序实现自我更新？</strong> 作者用<strong>机器人给自己换电池</strong>打比方：换电池要先拆旧电池、再装新电池，可<strong>旧电池一拆机器人就没电了</strong>，装新电池的工作也做不了；所以必须<strong>再额外做一个小机器人</strong>，需要时启动它、由它完成换电池、再回去运行大机器人；</li>
+<li><strong>同理</strong>：STM32 串口自我更新就需要「小机器人」——这就是 <strong>BootLoader</strong>：<strong>ST 公司写好的一段程序</strong>，存放在 <strong>ROM 区最后、<code>0x1FFFF000</code> 处的「系统存储器」<strong>里（也叫</strong>自举程序</strong>），用途就是<strong>程序自我更新（串口下载）</strong>：<ul>
+<li>更新时：<strong>BootLoader 接收 USART1 的数据、刷新到程序存储器</strong>；这期间<strong>主程序处于瘫痪状态</strong>；</li>
+<li>更新完成后：<strong>再启动主程序、执行新程序</strong>——这就是串口下载的完整流程；</li>
+</ul>
+</li>
+<li><strong>类比</strong>：BootLoader 相当于<strong>手机的刷机模式</strong>或<strong>电脑的 PE 系统</strong>，是辅助主程序进行自我更新的。</li>
+</ul>
+<h3 id="3-2-启动配置表6-boot1-boot0-决定启动哪个程序">3.2 启动配置表6：BOOT1/BOOT0 决定启动哪个程序</h3>
+<p>PPT 里的<strong>表6 启动模式</strong>：</p>
+<table>
+<thead>
+<tr>
+<th>BOOT1</th>
+<th>BOOT0</th>
+<th>启动模式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>X</strong></td>
+<td><strong>0</strong></td>
+<td><strong>主闪存存储器</strong></td>
+<td>从 <code>0x08000000</code> 启动（跑「大机器人」＝你的程序）</td>
+</tr>
+<tr>
+<td><strong>0</strong></td>
+<td><strong>1</strong></td>
+<td><strong>系统存储器</strong></td>
+<td>从 <code>0x1FFFF000</code> 启动（跑「小机器人」＝BootLoader）</td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>1</strong></td>
+<td><strong>内置 SRAM</strong></td>
+<td>从 <code>0x20000000</code> 启动（比较高级，暂时不用）</td>
+</tr>
+</tbody></table>
+<ul>
+<li>所以<strong>串口下载时把 BOOT0 置 1（BOOT1=0）</strong> → 芯片从<strong>系统存储器</strong>启动 → 跑 <strong>BootLoader</strong> → 才能接收串口数据写 Flash；</li>
+<li><strong>下载完把 BOOT0 换回 0</strong> → 复位后从<strong>主闪存</strong>启动 → 跑你刚下载的程序；</li>
+<li>PPT 下方还写着：<strong>「在系统复位后，SYSCLK 的第 4 个上升沿，BOOT 引脚的值将被锁存」</strong>——<strong>所以每次切换 BOOT 引脚之后，都必须按一下复位</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/07-boot-config-table6.jpg" alt="图 7：PPT「启动配置」——表6 启动模式：BOOT1=X/BOOT0=0 → 主闪存存储器；BOOT1=0/BOOT0=1 → 系统存储器；BOOT1=1/BOOT0=1 → 内置SRAM；下方说明「在系统复位后，SYSCLK 的第4个上升沿，BOOT引脚的值将被锁存。用户可以通过设置BOOT1和BOOT0引脚的状态，来选择在复位后的启动模式」；字幕「这里有一个启动配置」"></p>
+<p><em>图 7：PPT「启动配置」——表6 启动模式：BOOT1=X/BOOT0=0 → 主闪存存储器；BOOT1=0/BOOT0=1 → 系统存储器；BOOT1=1/BOOT0=1 → 内置SRAM；下方说明「在系统复位后，SYSCLK 的第4个上升沿，BOOT引脚的值将被锁存。用户可以通过设置BOOT1和BOOT0引脚的状态，来选择在复位后的启动模式」；字幕「这里有一个启动配置」</em></p>
+<h2 id="4-一键下载电路-原理-本套板没有">4. 一键下载电路（原理，本套板没有）</h2>
+<ul>
+<li><strong>痛点</strong>：每下载一次程序就要<strong>拔插两遍跳线帽 + 按两次复位</strong>，太麻烦；</li>
+<li><strong>思路</strong>：程序自我更新必须让 <strong>BOOT0 和 RST 引脚产生高低电平变化</strong>；那能不能<strong>接两根线，让电脑点下载时自动设置这两个引脚的电平</strong>？——<strong>可行</strong>；</li>
+<li><strong>用什么线</strong>：看串口模块电路——除了 <strong>TXD/RXD</strong> 通信脚，CH340G 还有 <strong>RTS、CTS、DTR、DSR</strong> 这几个<strong>流控脚</strong>，其中 <strong>RTS 和 DTR 是输出脚</strong>，可以用它们<strong>控制 BOOT0 和 RST</strong>；</li>
+<li><strong>外围电路</strong>：一般用<strong>两个三极管开关</strong>做控制电路；电路细节可上网搜 <strong>「STM32 一键下载电路」</strong>，有方案和解释；</li>
+<li><strong>有了这个电路</strong>：点下载时软件自动完成「进 BootLoader → 下载 → 回主程序」，<strong>不需要再频繁切换跳线帽、按复位</strong>；</li>
+<li><strong>FlyMcu 底部的下拉框</strong>就是<strong>配置 DTR/RTS 电平</strong>的（「DTR 的高电平复位 / RTS 高电平进 BootLoader」等）——<strong>要根据你的一键下载电路来选</strong>；</li>
+<li><strong>注意（本套板）</strong>：<strong>我们这个硬件没有一键下载电路</strong>，所以<strong>还是得手动切换跳线帽</strong>，下拉框选哪个<strong>都无所谓</strong>（下载前软件仍会按设置给 DTR/RTS 置电平，但对本板没有物理作用）。</li>
+</ul>
+<h3 id="4-1-缓招-勾-编程后执行-去掉-写选项字节">4.1 缓招：勾「编程后执行」+ 去掉「写选项字节」</h3>
+<ul>
+<li>没有一键下载电路，还有一个<strong>缓招</strong>：<strong>勾上「编程后执行」</strong>，同时<strong>去掉「编程到FLASH时写选项字节」的勾</strong>——<strong>否则下载之后会提示执行失败</strong>；</li>
+<li>这样下载完成后，<strong>软件会人工加一条跳转指令</strong>，让芯片<strong>直接从 <code>0x0800</code> 开始运行主程序</strong>——即使跳线帽还停在 BootLoader 状态，<strong>LED 也会立刻开始闪</strong>；</li>
+<li><strong>但这是一次性的</strong>：<strong>按一下复位，程序又回到 BootLoader</strong>（LED 不亮）；</li>
+<li><strong>用法</strong>：<strong>调试阶段</strong>把跳线帽切到 BootLoader、反复下载调试，<strong>全部调试完成后</strong>再切回主程序——<strong>只在最开始和最后切换一次跳线帽</strong>，比较省事。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/09-run-after-program.jpg" alt="图 8：FlyMcu 勾选「编程后执行」、「编程到FLASH时写选项字节」未勾选，底部下拉框为「DTR的低电平复位,RTS高电平进BootLoader」；右侧日志显示开始连接、芯片 BootLoader 版本 3.0、FLASH 容量 256KB、全片擦除成功等；字幕「要不然下载之后会提示执行失败」"></p>
+<p><em>图 8：FlyMcu 勾选「编程后执行」、**「编程到FLASH时写选项字节」未勾选*</em>，底部下拉框为「DTR的低电平复位,RTS高电平进BootLoader」；右侧日志显示开始连接、芯片 BootLoader 版本 3.0、FLASH 容量 256KB、全片擦除成功等；字幕「要不然下载之后会提示执行失败」*</p>
+<p><img src="../assets/images/stm32-30/08-ch340g-rts-dtr.jpg" alt="图 9：CH340G 模块原理图——U1 CH340G 的 14 脚 `RTS#`、13 脚 `DTR#`（红圈/红线标出）可用于控制 BOOT0 与 RST；右侧是排针与引脚说明（5V/VCC/3V3/TXD/RXD/GND）；字幕「我们可以用这两个引脚来控制BOOT0和RST」"></p>
+<p>*图 9：CH340G 模块原理图——U1 CH340G 的 <strong>14 脚 <code>RTS#</code>、13 脚 <code>DTR#</code></strong>（红圈/红线标出）可用于控制 BOOT0 与 RST；右侧是排针与引脚说明（5V/VCC/3V3/TXD/RXD/GND）；字幕「我们可以用这两个引脚来控制BOOT0和RST」*</p>
+<h2 id="5-flymcu-的其它功能">5. FlyMcu 的其它功能</h2>
+<h3 id="5-1-读-flash-bin">5.1 读 Flash → .bin</h3>
+<ul>
+<li>点 <strong>「读FLASH」</strong> → 选保存位置（桌面）、起名 <code>led</code> → 保存 → 提示读取完成，<strong>桌面出现程序文件</strong>；</li>
+<li><strong>能做啥</strong>：比如别人用 STM32 做了个产品，你抄了 PCB 板、再<strong>把芯片里的程序读出来</strong>，就能「大批量山寨」——所以<strong>自己做产品时要注意开读保护</strong>（见第 6 章）；</li>
+<li><strong><code>.bin</code> 与 <code>.hex</code> 的区别</strong>：<strong>bin 是「没有地址信息的原始数据文件」</strong>（记录的是从 <code>0x0800</code> 开始的程序数据）；<strong>hex 是带地址信息的</strong>；</li>
+<li><strong>FlyMcu 的局限</strong>：<strong>下载时只能选 <code>.hex</code> 文件</strong>（选 bin 会报错）；<strong>读出来只能存 <code>.bin</code></strong>——<strong>读出的 bin 不能再下载回去</strong>（软件设计时没考虑到）；<strong>STLINK Utility 两种都支持</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/10-led-bin.jpg" alt="图 10：读完 Flash 后，桌面出现 led.bin（高亮）；字幕「桌面上就出现了程序文件」"></p>
+<p><em>图 10：读完 Flash 后，桌面出现 <code>led.bin</code>（高亮）；字幕「桌面上就出现了程序文件」</em></p>
+<h3 id="5-2-清除芯片与读器件信息">5.2 清除芯片与读器件信息</h3>
+<ul>
+<li><strong>「清除芯片」</strong>：把<strong>主程序区全部擦除</strong>，擦除后所有数据都是 <strong>FF</strong>；</li>
+<li><strong>「读器件信息」</strong>：读出芯片<strong>序列号</strong>等信息，以及 <strong>Flash 容量</strong>；</li>
+<li><strong>⚠ 实测现象</strong>：<strong>作者这片 C8T6 读出 Flash 容量 256KB</strong>，而 <strong>C8T6 标称 64KB（中容量产品）</strong>，「直接成大容量产品了」——<strong>作者试过很多片：有的 64K、有的 128K、有的 256K</strong>；百度到的说法是<strong>生产时为了省工序，很多型号一个模子做出来，但 C8T6 只保证前 64K 没问题</strong>（也有其他说法）——<strong>这不是官方结论，属实测 + 网上传闻</strong>，不过「问题并不是很大」；</li>
+<li>面板上的 <strong>Ramlsp、连续烧录模式</strong>目前用得不多，可自行研究。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/11-flash-256k.jpg" alt="图 11：FlyMcu 日志里红框标出 「芯片FLASH容量为256KB」；字幕「我们这个C8T6芯片的标称Flash容量是64K」"></p>
+<p>*图 11：FlyMcu 日志里红框标出 <strong>「芯片FLASH容量为256KB」</strong>；字幕「我们这个C8T6芯片的标称Flash容量是64K」*</p>
+<h2 id="6-选项字节-option-bytes">6. 选项字节（Option Bytes）</h2>
+<blockquote>
+<p>选项字节也是 <strong>ROM 区最后的一小块存储单元</strong>，用途是<strong>存储一些独立于程序代码的配置参数</strong>。点「设定选项字节等」→ 选 <strong>STM32F1</strong> 那一项，就打开配置窗口；<strong>共四大块</strong>。</p>
+</blockquote>
+<h3 id="6-1-读保护">6.1 读保护</h3>
+<ul>
+<li><strong><code>A5</code> = 允许读出；<code>FF</code> = 阻止读出</strong>（窗口里就是「改成A5允许读出」「改成FF阻止读出」两个按钮，并说明「RDP 值等于 0xA5 时允许读出 Flash 内容，其它值阻止读出并阻止对 Flash 前 4KB 的读写」）；</li>
+<li><strong>作用</strong>：做产品时不开读保护，<strong>别人很容易把程序偷走</strong>（如 5.1 的读 Flash）；</li>
+<li><strong>注意</strong>：<strong>阻止读出之后再回 Keil 下载程序会失败</strong>；要到这里<strong>取消读保护</strong>（改回 A5）；</li>
+<li><strong>重要副作用</strong>：<strong>取消读保护时会同时清空芯片里的程序</strong>——「这样程序就不会被偷走了」。</li>
+</ul>
+<h3 id="6-2-硬件选项字节">6.2 硬件选项字节</h3>
+<ul>
+<li>包括<strong>软件看门狗（WWDG）硬件/软件启动</strong>、<strong>进入 STOP 模式不产生复位</strong>、<strong>进入 Standby 模式不产生复位</strong>，以及 B3～B7「这几位用户应该大概也许可以使用」；</li>
+<li><strong>了解一下就行</strong>，有需求再用。</li>
+</ul>
+<h3 id="6-3-用户数据字节">6.3 用户数据字节</h3>
+<ul>
+<li><strong><code>Data0</code>（地址 <code>0x1FFFF804</code>）、<code>Data1</code>（地址 <code>0x1FFFF806</code>）</strong>：<strong>这两个字节用户可以自由使用</strong>。</li>
+</ul>
+<h3 id="6-4-写保护">6.4 写保护</h3>
+<ul>
+<li><strong><code>WRP0</code>～<code>WRP3</code></strong> 可以对 Flash 的<strong>页</strong>单独写保护（按 0-3、4-7、8-11 … 分组勾选，<strong>每 2KB 一页</strong>）；</li>
+<li><strong>用途举例</strong>：在主程序最后几页写了自定义数据、不想下载时被擦掉，就可以把最后几页设成写保护锁起来；</li>
+<li><strong>设了写保护就不能再写</strong>，要写必须先解除写保护。</li>
+</ul>
+<h3 id="6-5-选项字节的好处">6.5 选项字节的好处</h3>
+<ol>
+<li><strong>不随程序更新变化</strong>（「世外桃源」）——可以用来存<strong>不随程序变化而变化的参数</strong>；</li>
+<li><strong>可以用上位机（FlyMcu / STLINK Utility）很方便地修改</strong>——可以做成<strong>产品中供用户配置的参数</strong>。</li>
+</ol>
+<h3 id="6-6-写保护的坑-flymcu-的死循环">6.6 ⚠ 写保护的坑：FlyMcu 的死循环</h3>
+<ul>
+<li><strong>设了写保护之后再下载</strong>，如果需要写入保护区就会<strong>出错</strong>（比如把最前面几页设了写保护，下载一次之后再下载肯定出错）；</li>
+<li>而 <strong>FlyMcu 这个软件不能单独写选项字节</strong>，<strong>只能下载 Flash 时顺便写选项字节</strong>；</li>
+<li>于是：<strong>写保护了 → 下载不了 → 下载不了就不能解除写保护 → 死循环</strong>；</li>
+<li><strong>解决</strong>：用 <strong>STLINK Utility</strong>——它可以<strong>单独配置选项字节</strong>（第 7 章），所以能解开；</li>
+<li><strong>配置完选项字节</strong>记得<strong>点「采用这个设置」</strong>，并把**「编程到FLASH时写选项字节」勾上**，再走正常下载流程，就能更新选项字节的配置。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/12-option-bytes-flymcu.jpg" alt="图 12：FlyMcu 的「Option Bytes Setting」窗口——读保护字节（值栏 +「改成A5允许读出」「改成FF阻止读出」按钮及说明）、硬件选项字节（值 FF、「设置成FF(缺省值)」按钮，B0=1 软狗硬件启动、B1=1 进 STOP 不产生复位、B2=1 进 Standby 不产生复位、B3～B7）、用户数据字节 Data0(0x1FFFF804)/Data1(0x1FFFF806)、写保护字节 WRP0～WRP3（0-3、4-7 … 复选框），以及「采用这个设置 / 放弃此次设置 / 恢复出厂缺省值」按钮；字幕「这里可以看到，设成A5允许读出，设成FF阻止读出」"></p>
+<p><em>图 12：FlyMcu 的「Option Bytes Setting」窗口——<strong>读保护字节</strong>（值栏 +「改成A5允许读出」「改成FF阻止读出」按钮及说明）、<strong>硬件选项字节</strong>（值 FF、「设置成FF(缺省值)」按钮，B0=1 软狗硬件启动、B1=1 进 STOP 不产生复位、B2=1 进 Standby 不产生复位、B3～B7）、<strong>用户数据字节</strong> Data0(0x1FFFF804)/Data1(0x1FFFF806)、<strong>写保护字节</strong> WRP0～WRP3（0-3、4-7 … 复选框），以及「采用这个设置 / 放弃此次设置 / 恢复出厂缺省值」按钮；字幕「这里可以看到，设成A5允许读出，设成FF阻止读出」</em></p>
+<h2 id="7-stlink-utility-swd-下载">7. STLINK Utility（SWD 下载）</h2>
+<h3 id="7-1-安装">7.1 安装</h3>
+<ul>
+<li>是<strong>安装包</strong>：下一步 → Yes → 指定安装路径（默认也行）→ 下一步；</li>
+<li>最后一步提示<strong>安装 ST-Link 驱动</strong>（勾上）→ Finish；</li>
+<li>安装完<strong>桌面出现软件图标</strong>，双击打开就是主界面。</li>
+</ul>
+<h3 id="7-2-下载流程">7.2 下载流程</h3>
+<ol>
+<li><strong>跳线帽恢复</strong>（两个都回到<strong>最左边</strong>，即 BOOT0=0）+ <strong>按复位</strong>；</li>
+<li>点工具栏的<strong>连接</strong>按钮 → 右侧出现<strong>器件信息</strong>：<strong>Device</strong>（STM32F10xx High-density）、<strong>Device ID 0x414</strong>、<strong>Revision ID</strong>、<strong>Flash size 256KBytes</strong>；</li>
+<li><strong>下方大框</strong>显示的是 <strong><code>0x08000000</code> 开始的程序数据</strong>——作者这里芯片刚被擦除过，所以<strong>数据全是 FF</strong>；</li>
+<li><strong>保存</strong>：可以把这块数据<strong>存成 <code>.hex</code> 或 <code>.bin</code></strong>；</li>
+<li><strong>断开连接</strong>、<strong>橡皮擦</strong>（擦除芯片）；</li>
+<li><strong>打开文件</strong>：<strong>文件类型支持 <code>.hex</code> 和 <code>.bin</code></strong>——所以<strong>可以打开刚才用 FlyMcu 读出的 bin</strong>（解决 5.1 的局限）；</li>
+<li>点<strong>编程</strong>按钮（下方一栏显示程序文件路径），再点 <strong>Start</strong> 开始下载 → <strong>下载完成，LED 闪烁</strong>；</li>
+<li>这一套流程<strong>和 Keil 内置下载基本一样，非常简单</strong>。</li>
+</ol>
+<p><img src="../assets/images/stm32-30/13-stlink-main.jpg" alt="图 13：ST-LINK Utility 主界面——Device 为 STM32F10xx High-density、Device ID 0x414、Revision ID Rev Z、Flash size 256KBytes；Memory display 的 Address 0x08000000、Size 0x40000、Data Width 32 bits；Device Memory @0x08000000，File 为 led.bin；下方日志 Device ID:0x414、Device Flash Size 256KBytes、led.bin opened successfully、Memory programmed in 9s and 844ms.、Verification...OK、Programmed memory Checksum 0x03F846DD；字幕「这就是STLINK Utility下载程序的流程」"></p>
+<p><em>图 13：ST-LINK Utility 主界面——Device 为 STM32F10xx High-density、Device ID 0x414、Revision ID Rev Z、Flash size 256KBytes；Memory display 的 Address 0x08000000、Size 0x40000、Data Width 32 bits；Device Memory @0x08000000，File 为 led.bin；下方日志 Device ID:0x414、Device Flash Size 256KBytes、led.bin opened successfully、Memory programmed in 9s and 844ms.、Verification...OK、Programmed memory Checksum 0x03F846DD；字幕「这就是STLINK Utility下载程序的流程」</em></p>
+<h3 id="7-3-选项字节-target-option-bytes-可单独修改">7.3 选项字节：Target → Option Bytes（可单独修改）</h3>
+<ul>
+<li>菜单 <strong>Target → Option Bytes</strong> 打开配置页，内容和 FlyMcu 里的一样：<ul>
+<li><strong><code>Read Out Protection</code></strong>（下拉可选 Disabled 等）、<strong>BOR Level</strong>；</li>
+<li><strong>User configuration option bytes</strong>（IWDT_STOP/IWDT_SW、WWDG_SW、nBOOT0、nBOOT1、nRST_STOP、nRST_STDBY、nRST_SHDW、VDDA_Monitor 等）；</li>
+<li><strong>Security option bytes</strong>（SEC_SIZE0/SEC_SIZE2、BOOT_LOCK）；</li>
+<li><strong>Boot address option bytes</strong>（BOOT_ADD0/BOOT_ADD1）；</li>
+<li><strong>User data storage option bytes</strong>（Data 0 / Data 1，默认 0xFF）；</li>
+<li><strong>Flash sectors protection</strong>（Page 0、1、2 … 每页 Start address / Size 2K / Protection：No Protection）；</li>
+</ul>
+</li>
+<li><strong>该型号没有的项会显示成灰色</strong>（如 BOR Level 的下拉显示 Unavailable）；</li>
+<li>配好之后<strong>直接点 Apply</strong>，就<strong>能单独更改选项字节</strong>——<strong>不像 FlyMcu 必须下载程序顺便更新</strong>；</li>
+<li><strong>所以如果芯片被读保护或写保护锁住了，可以到这里解除保护</strong>（解决 6.6 的死循环）。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/14-option-bytes-stlink.jpg" alt="图 14：STLINK Utility 的 Option Bytes 窗口——Read Out Protection: Disabled、BOR Level（Unavailable 灰）、User configuration option bytes（IWDT_STOP/IWDT_SW/nBOOT0/WWDG_SW/nRST_STOP/nRST_STDBY/nRST_SHDW 等复选框）、Security option bytes（SEC_SIZE0/SEC_SIZE2、BOOT_LOCK）、Boot address option bytes、User data storage option bytes（Data 0/1 = 0xFF）、Flash sectors protection（Page 0～10，Start address 0x08000000，Size 2K，Protection No Protection）；下方 Apply / Cancel；字幕「第四块是写保护」"></p>
+<p><em>图 14：STLINK Utility 的 Option Bytes 窗口——<code>Read Out Protection: Disabled</code>、<code>BOR Level</code>（Unavailable 灰）、<code>User configuration option bytes</code>（IWDT_STOP/IWDT_SW/nBOOT0/WWDG_SW/nRST_STOP/nRST_STDBY/nRST_SHDW 等复选框）、<code>Security option bytes</code>（SEC_SIZE0/SEC_SIZE2、BOOT_LOCK）、<code>Boot address option bytes</code>、<code>User data storage option bytes</code>（Data 0/1 = 0xFF）、<code>Flash sectors protection</code>（Page 0～10，Start address 0x08000000，Size 2K，Protection No Protection）；下方 <code>Apply / Cancel</code>；字幕「第四块是写保护」</em></p>
+<h3 id="7-4-固件升级-st-link-firmware-update">7.4 固件升级：ST-LINK → Firmware update</h3>
+<ul>
+<li>菜单 <strong>ST-LINK → Firmware update</strong> → 打开 <strong>ST-LinkUpgrade</strong> 窗口 → 点 <strong>Device Connect</strong>（<strong>这里提示要重启一下</strong>——按提示<strong>拔掉重新插</strong>）→ 连接成功；</li>
+<li>显示<strong>当前固件版本 <code>V2.J29.S7</code></strong>，<strong>最新可升级到 <code>V2.J37.S7</code></strong>（Type：STM32+STM8 Debugger）；</li>
+<li>要升级点 <strong>Yes &gt;&gt;&gt;&gt;</strong> 即可；<strong>用着没问题的话，也不需要经常更新</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-30/15-firmware-version.jpg" alt="图 15：ST-Link Upgrade 窗口——Current Firmware: Version: V2.J29.S7 / Type: STM32+STM8 Debugger；Upgrade to Firmware: STM32+STM8 Debugger V2.J37.S7；Yes &gt;&gt;&gt;&gt; 按钮；后面 ST-LINK Utility 日志可见 Option bytes updated successfully.；字幕「如果要升级的话，点Yes」"></p>
+<p><em>图 15：ST-Link Upgrade 窗口——<code>Current Firmware: Version: V2.J29.S7 / Type: STM32+STM8 Debugger</code>；<code>Upgrade to Firmware: STM32+STM8 Debugger V2.J37.S7</code>；<code>Yes &gt;&gt;&gt;&gt;</code> 按钮；后面 ST-LINK Utility 日志可见 <code>Option bytes updated successfully.</code>；字幕「如果要升级的话，点Yes」</em></p>
+<h2 id="8-两者对比与适用场景">8. 两者对比与适用场景</h2>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th><strong>FlyMcu</strong></th>
+<th><strong>STLINK Utility</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>下载通道</td>
+<td><strong>串口 USART1（ISP）</strong></td>
+<td><strong>ST-Link SWD</strong></td>
+</tr>
+<tr>
+<td>是否需要额外硬件</td>
+<td><strong>只要 USB 转串口模块</strong>（有板载 CH340 即可）</td>
+<td><strong>必须有 ST-Link 调试器</strong></td>
+</tr>
+<tr>
+<td>安装</td>
+<td>绿色免安装</td>
+<td>需安装（含驱动）</td>
+</tr>
+<tr>
+<td>下载文件</td>
+<td><strong>只能 <code>.hex</code></strong></td>
+<td><strong><code>.hex</code> 和 <code>.bin</code> 都支持</strong></td>
+</tr>
+<tr>
+<td>读取文件</td>
+<td><strong>只能存 <code>.bin</code></strong>（不能再下回去）</td>
+<td>hex/bin 均可</td>
+</tr>
+<tr>
+<td>进下载模式</td>
+<td><strong>手动切 BOOT0 + 复位</strong>（或一键下载电路）</td>
+<td><strong>不需要</strong>（SWD 直接连）</td>
+</tr>
+<tr>
+<td>选项字节</td>
+<td><strong>只能下载时顺带写</strong>（写保护后死循环）</td>
+<td><strong>可以单独改（Apply）</strong>，能解保护</td>
+</tr>
+<tr>
+<td>速度/便利性</td>
+<td>慢（115200 串口）、步骤多</td>
+<td>快、和 Keil 内置下载一样简单</td>
+</tr>
+<tr>
+<td>典型场景</td>
+<td><strong>没有 ST-Link 时救急</strong>、量产简单下载</td>
+<td>日常开发下载/调试、<strong>救砖解保护</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li>一句话：<strong>日常开发用 ST-Link（STLINK Utility 或 Keil 内置）</strong>；<strong>手头没有 ST-Link 时，FlyMcu 用串口也能下载</strong>——<strong>前提是芯片没被写保护锁死</strong>。</li>
+</ul>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>串口下载只认 USART1</strong>：接 USART2/3 不行。</li>
+<li><strong>必须先生成 hex</strong>：Keil 工程选项 → Output → 勾 <strong>Create HEX File</strong>，否则 Objects 里没有 <code>Project.hex</code>；编译成功会打印 <code>FromELF: creating hex file...</code>。</li>
+<li><strong>下载前必须进 BootLoader</strong>：<strong>BOOT0=1 + 按复位</strong>；<strong>不按复位</strong>的话芯片仍在跑主程序，点「开始编程」会一直<strong>卡住</strong>。</li>
+<li><strong>STM32 只在复位时读 BOOT 引脚</strong>（复位后 SYSCLK 第 4 个上升沿锁存）：<strong>改了跳线帽不按复位等于没改</strong>。</li>
+<li><strong>下载完 LED 不亮是正常的</strong>：芯片还在跑 BootLoader；<strong>BOOT0 换回 + 复位</strong>才运行主程序。</li>
+<li><strong>FlyMcu 下载只能选 <code>.hex</code></strong>，读出来只能存 <code>.bin</code>，<strong>bin 不能再下回去</strong>——想下 bin 用 STLINK Utility。</li>
+<li><strong>读保护设成 FF 后 Keil 就下载失败</strong>：要回选项字节改回 A5；<strong>取消读保护会同时清空程序</strong>。</li>
+<li><strong>写保护 + FlyMcu = 死循环</strong>：写保护后下载出错、FlyMcu 又不能单独写选项字节；<strong>用 STLINK Utility 的 Option Bytes 解除</strong>。</li>
+<li><strong>「编程后执行」是一次性的</strong>：勾它并去掉「写选项字节」勾可让下载后立刻运行，但<strong>按复位又会回到 BootLoader</strong>。</li>
+<li><strong>本套板没有一键下载电路</strong>：FlyMcu 的 DTR/RTS 下拉框选了也没实际作用，<strong>还是要手动拔跳线帽</strong>。</li>
+<li><strong>Flash 显示 256K ≠ 官方 64K</strong>：C8T6 标称 64K，读出值因片而异（64/128/256K），<strong>C8T6 只保证前 64K</strong>——实测+网上说法，不是官方结论。</li>
+<li><strong>STLINK Utility 的选项字节改完必须点 Apply</strong>，否则不生效；该型号没有的项显示灰色（Unavailable）属正常。</li>
+<li><strong>ST-Link 固件升级前</strong>：ST-LinkUpgrade 会提示<strong>重启</strong>——按提示<strong>拔插一次</strong>再连；用着没问题不必常更新。</li>
+<li><strong>擦除后数据全是 FF</strong>：这是正常的空片状态（<code>0x08000000</code> 起全 FF 就是已擦除）。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>这一小节讲点轻松的，教大家用两个小软件</td>
+</tr>
+<tr>
+<td>0:12</td>
+<td>第一个是 FlyMcu，可以通过串口给 STM32 下载程序</td>
+</tr>
+<tr>
+<td>0:19</td>
+<td>没有 ST-Link 时可以用这个软件串口下载</td>
+</tr>
+<tr>
+<td>0:24</td>
+<td>第二个是 STLINK Utility，配合 ST-Link 使用</td>
+</tr>
+<tr>
+<td>0:36</td>
+<td>两个软件功能差不多，都能下载程序</td>
+</tr>
+<tr>
+<td>0:40</td>
+<td>FlyMcu 是串口下载，STLINK Utility 是 ST-Link 下载</td>
+</tr>
+<tr>
+<td>0:51</td>
+<td>FlyMcu 是绿色软件，直接打开就能运行</td>
+</tr>
+<tr>
+<td>0:57</td>
+<td>玩过 STC 51 单片的应该知道 STC-ISP</td>
+</tr>
+<tr>
+<td>1:09</td>
+<td>FlyMcu 就跟 STC-ISP 用途一样</td>
+</tr>
+<tr>
+<td>1:16</td>
+<td>演示串口下载流程：先接串口电路</td>
+</tr>
+<tr>
+<td>1:23</td>
+<td>电路要保证 USART1 与电脑通信</td>
+</tr>
+<tr>
+<td>1:29</td>
+<td>必须是 USART1，芯片串口下载只适配它</td>
+</tr>
+<tr>
+<td>1:44</td>
+<td>随便打开一个示例代码，比如 LED 闪烁</td>
+</tr>
+<tr>
+<td>1:57</td>
+<td>生成 HEX 文件：工程选项 → Output → 勾 Create HEX File</td>
+</tr>
+<tr>
+<td>2:12</td>
+<td>重新编译，Build Output 多出创建 HEX 的信息</td>
+</tr>
+<tr>
+<td>2:23</td>
+<td>在 Objects 文件夹里找到生成的 HEX 文件</td>
+</tr>
+<tr>
+<td>2:35</td>
+<td>打开 FlyMcu：先点搜索串口</td>
+</tr>
+<tr>
+<td>2:42</td>
+<td>Port 选串口的 COM 号，bps 保持 115200</td>
+</tr>
+<tr>
+<td>2:55</td>
+<td>点三个点的按钮，选中刚才生成的 HEX 文件</td>
+</tr>
+<tr>
+<td>3:07</td>
+<td>其他配置暂时保持默认</td>
+</tr>
+<tr>
+<td>3:15</td>
+<td>开始编程前要配置 BOOT 引脚进入 BootLoader</td>
+</tr>
+<tr>
+<td>3:25</td>
+<td>否则点开始编程会一直卡住</td>
+</tr>
+<tr>
+<td>3:34</td>
+<td>第一步：找到配置 BOOT0 的跳线帽拔下来</td>
+</tr>
+<tr>
+<td>3:45</td>
+<td>插在右边两个针脚，配置 BOOT0 为 1</td>
+</tr>
+<tr>
+<td>3:50</td>
+<td>第二步：按一下复位键，让程序重新运行</td>
+</tr>
+<tr>
+<td>3:54</td>
+<td>切换 BOOT 引脚后一定要再按复位</td>
+</tr>
+<tr>
+<td>3:58</td>
+<td>因为 STM32 只在刚复位时读取 BOOT 引脚</td>
+</tr>
+<tr>
+<td>4:05</td>
+<td>这样芯片就进入 BootLoader 程序了</td>
+</tr>
+<tr>
+<td>4:10</td>
+<td>进 BootLoader 后不断接收 USART1 数据刷新主闪存</td>
+</tr>
+<tr>
+<td>4:19</td>
+<td>回到 FlyMcu 点开始编程，下载成功</td>
+</tr>
+<tr>
+<td>4:27</td>
+<td>日志显示 CPU ID 0x414、BootLoader 3.0、执行完毕</td>
+</tr>
+<tr>
+<td>4:32</td>
+<td>回到 STM32，LED 还没亮</td>
+</tr>
+<tr>
+<td>4:36</td>
+<td>因为还在执行 BootLoader 的刷机程序</td>
+</tr>
+<tr>
+<td>4:41</td>
+<td>把 BOOT 引脚换回来，拔掉 BOOT0 跳线帽</td>
+</tr>
+<tr>
+<td>4:48</td>
+<td>按一下复位，LED 闪烁，程序运行正常</td>
+</tr>
+<tr>
+<td>4:55</td>
+<td>接下来研究两个问题：BOOT 引脚干啥、BootLoader 是啥</td>
+</tr>
+<tr>
+<td>5:08</td>
+<td>第二个问题：每次都要拔插跳线帽太麻烦</td>
+</tr>
+<tr>
+<td>5:17</td>
+<td>先看存储器映像：0x0800 存编译后的程序代码</td>
+</tr>
+<tr>
+<td>5:31</td>
+<td>串口下载就是接收数据刷新到 0x0800</td>
+</tr>
+<tr>
+<td>5:43</td>
+<td>但接收转存数据本身也是程序，如何自我更新</td>
+</tr>
+<tr>
+<td>5:51</td>
+<td>像机器人给自己换电池，需要另一个小机器人</td>
+</tr>
+<tr>
+<td>6:06</td>
+<td>这个小机器人就是 BootLoader，ST 写好的一段程序</td>
+</tr>
+<tr>
+<td>6:21</td>
+<td>它存放在 ROM 末尾 0x1FFFF000 的系统存储器</td>
+</tr>
+<tr>
+<td>6:30</td>
+<td>用途是程序自我更新、串口下载</td>
+</tr>
+<tr>
+<td>6:40</td>
+<td>更新时 BootLoader 接收数据刷新程序存储器</td>
+</tr>
+<tr>
+<td>6:51</td>
+<td>更新好之后启动主程序，这就是串口下载流程</td>
+</tr>
+<tr>
+<td>7:04</td>
+<td>类比手机刷机模式、电脑 PE 系统</td>
+</tr>
+<tr>
+<td>7:18</td>
+<td>启动配置表6：BOOT1/BOOT0 决定启动模式</td>
+</tr>
+<tr>
+<td>7:28</td>
+<td>BOOT0=0 从主闪存 0x0800 启动</td>
+</tr>
+<tr>
+<td>7:35</td>
+<td>BOOT0=1、BOOT1=0 从系统存储器启动</td>
+</tr>
+<tr>
+<td>7:43</td>
+<td>BOOT0=1、BOOT1=1 从 SRAM 0x2000 启动</td>
+</tr>
+<tr>
+<td>7:56</td>
+<td>系统复位后 SYSCLK 第 4 个上升沿锁存 BOOT 引脚</td>
+</tr>
+<tr>
+<td>8:03</td>
+<td>所以切换 BOOT 引脚后都要按复位</td>
+</tr>
+<tr>
+<td>8:11</td>
+<td>第二个问题：如何免去频繁切换跳线帽</td>
+</tr>
+<tr>
+<td>8:26</td>
+<td>RTS/DTR 是串口模块的流控输出脚</td>
+</tr>
+<tr>
+<td>8:35</td>
+<td>可以用 RTS/DTR 控制 BOOT0 和 RST</td>
+</tr>
+<tr>
+<td>8:48</td>
+<td>外围用两个三极管做控制电路，即一键下载电路</td>
+</tr>
+<tr>
+<td>9:16</td>
+<td>有了一键下载电路就不需要频繁切换跳线帽</td>
+</tr>
+<tr>
+<td>9:29</td>
+<td>FlyMcu 下面下拉框用于配置 DTR 和 RTS 高低电平</td>
+</tr>
+<tr>
+<td>9:48</td>
+<td>本硬件目前没有一键下载电路，下拉框选哪个无所谓</td>
+</tr>
+<tr>
+<td>10:10</td>
+<td>下载前会给 DTR/RTS 置电平，切换大/小机器人工作</td>
+</tr>
+<tr>
+<td>10:25</td>
+<td>缓招：勾上编程后执行</td>
+</tr>
+<tr>
+<td>10:35</td>
+<td>并去掉编程到 FLASH 时写选项字节的勾</td>
+</tr>
+<tr>
+<td>10:41</td>
+<td>否则下载之后会提示执行失败</td>
+</tr>
+<tr>
+<td>10:50</td>
+<td>开始编程，下载完成后程序直接运行了</td>
+</tr>
+<tr>
+<td>11:05</td>
+<td>因为软件人工加了一条跳转指令，从 0x0800 运行</td>
+</tr>
+<tr>
+<td>11:16</td>
+<td>但这只是一次性的，复位后仍回到 BootLoader</td>
+</tr>
+<tr>
+<td>11:25</td>
+<td>调试时可以停在 BootLoader 反复下载</td>
+</tr>
+<tr>
+<td>11:34</td>
+<td>调试完再切回主程序，只需切换两次</td>
+</tr>
+<tr>
+<td>11:44</td>
+<td>接下来看读 Flash：点读 FLASH 保存到桌面</td>
+</tr>
+<tr>
+<td>11:50</td>
+<td>芯片里的程序被读出来存成 led.bin</td>
+</tr>
+<tr>
+<td>12:00</td>
+<td>bin 是没有地址信息的原始数据文件</td>
+</tr>
+<tr>
+<td>12:10</td>
+<td>hex 文件是有地址信息的，两种作用一样</td>
+</tr>
+<tr>
+<td>12:20</td>
+<td>FlyMcu 下载只能选 hex，读出只能选 bin</td>
+</tr>
+<tr>
+<td>12:30</td>
+<td>读出的 bin 不能再下载回去，有点折磨人</td>
+</tr>
+<tr>
+<td>12:40</td>
+<td>STLINK Utility 则两种文件都可以选</td>
+</tr>
+<tr>
+<td>12:50</td>
+<td>点击清除芯片，主程序区全部擦除成 FF</td>
+</tr>
+<tr>
+<td>13:02</td>
+<td>读器件信息：读芯片序列号</td>
+</tr>
+<tr>
+<td>13:12</td>
+<td>显示 Flash 容量 256K，而 C8T6 标称 64K</td>
+</tr>
+<tr>
+<td>13:24</td>
+<td>试过很多芯片，有 64K/128K/256K</td>
+</tr>
+<tr>
+<td>13:37</td>
+<td>百度说法：生产时省工序，一个模子做出来</td>
+</tr>
+<tr>
+<td>13:50</td>
+<td>但 C8T6 只保证前 64K 没问题</td>
+</tr>
+<tr>
+<td>14:01</td>
+<td>RamIsp 和连续烧录模式用得不多</td>
+</tr>
+<tr>
+<td>14:05</td>
+<td>最后研究选项字节：ROM 区最后的一小块存储单元</td>
+</tr>
+<tr>
+<td>14:20</td>
+<td>点设定选项字节，选 STM32F1 这一项</td>
+</tr>
+<tr>
+<td>14:30</td>
+<td>第一块是读保护：A5 允许读出、FF 阻止读出</td>
+</tr>
+<tr>
+<td>14:40</td>
+<td>阻止读出后再回 Keil 下载就会失败</td>
+</tr>
+<tr>
+<td>14:48</td>
+<td>取消读保护时会同时清空芯片程序</td>
+</tr>
+<tr>
+<td>15:20</td>
+<td>接着是硬件选项字节：看门狗、停机待机不复位</td>
+</tr>
+<tr>
+<td>15:40</td>
+<td>然后是用户数据字节 Data0/Data1</td>
+</tr>
+<tr>
+<td>15:52</td>
+<td>选项字节好处：不随程序更新变化、可用上位机改</td>
+</tr>
+<tr>
+<td>16:25</td>
+<td>最后一项是写保护 WRP0～WRP3，按页 2K</td>
+</tr>
+<tr>
+<td>16:40</td>
+<td>设写保护后再下载如果需要写入保护区就出错</td>
+</tr>
+<tr>
+<td>16:52</td>
+<td>FlyMcu 不能单独写选项字节，只能下载时顺带写</td>
+</tr>
+<tr>
+<td>17:01</td>
+<td>形成死循环，STLINK Utility 可以解决</td>
+</tr>
+<tr>
+<td>17:10</td>
+<td>配置后点采用这个设置，勾上写选项字节再下载</td>
+</tr>
+<tr>
+<td>17:25</td>
+<td>FlyMcu 就讲到这里，接下来看 STLINK Utility</td>
+</tr>
+<tr>
+<td>17:51</td>
+<td>这个软件需要安装，直接下一步、Yes</td>
+</tr>
+<tr>
+<td>18:05</td>
+<td>安装路径可指定或默认，下一步</td>
+</tr>
+<tr>
+<td>18:25</td>
+<td>最后提示安装 ST-Link 驱动，完成 Finish</td>
+</tr>
+<tr>
+<td>18:33</td>
+<td>桌面出现软件图标，双击打开主界面</td>
+</tr>
+<tr>
+<td>18:40</td>
+<td>演示下载流程：跳线帽恢复两个都在最左边，复位</td>
+</tr>
+<tr>
+<td>18:56</td>
+<td>点击连接按钮，出现器件信息</td>
+</tr>
+<tr>
+<td>19:06</td>
+<td>下方大框显示 0x0800 开始的程序数据（全 FF）</td>
+</tr>
+<tr>
+<td>19:15</td>
+<td>点保存可以把程序存成 hex 或 bin</td>
+</tr>
+<tr>
+<td>19:26</td>
+<td>点橡皮擦可以擦除芯片</td>
+</tr>
+<tr>
+<td>19:30</td>
+<td>下载程序：先点打开文件，支持 hex 和 bin</td>
+</tr>
+<tr>
+<td>19:38</td>
+<td>打开刚才读出的 bin 文件，点编程</td>
+</tr>
+<tr>
+<td>19:50</td>
+<td>点 Start 开始下载，下载完成后 LED 闪烁</td>
+</tr>
+<tr>
+<td>20:03</td>
+<td>和 Keil 内置的下载基本一样，非常简单</td>
+</tr>
+<tr>
+<td>20:10</td>
+<td>讲选项字节配置：Target → Option Bytes</td>
+</tr>
+<tr>
+<td>20:20</td>
+<td>第一块读保护可以使能或失能</td>
+</tr>
+<tr>
+<td>20:24</td>
+<td>第二块硬件参数，灰色选项本型号没有</td>
+</tr>
+<tr>
+<td>20:32</td>
+<td>第三块用户参数，第四块写保护</td>
+</tr>
+<tr>
+<td>20:35</td>
+<td>配置好点 Apply 就能单独更改选项字节</td>
+</tr>
+<tr>
+<td>20:42</td>
+<td>芯片被读保护或写保护锁住可到这里解除</td>
+</tr>
+<tr>
+<td>20:56</td>
+<td>最后介绍 ST-LINK 固件更新</td>
+</tr>
+<tr>
+<td>21:00</td>
+<td>点 ST-LINK → Firmware update，打开升级窗口</td>
+</tr>
+<tr>
+<td>21:10</td>
+<td>点 Device Connect，提示重启，拔插一次</td>
+</tr>
+<tr>
+<td>21:25</td>
+<td>当前固件 V2.J29.S7，最新 V2.J37.S7</td>
+</tr>
+<tr>
+<td>21:32</td>
+<td>要升级点 Yes，用着没问题不必常更新</td>
+</tr>
+<tr>
+<td>21:44</td>
+<td>两个软件、BootLoader、选项字节等内容到此结束</td>
+</tr>
+<tr>
+<td>21:50</td>
+<td>希望能给大家之后的学习和应用带来帮助</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，388 段），不是 ASR。字幕里混入了少量<strong>软件界面噪声</strong>（<code>www.mcuisp.com</code> 等）；<code>FromELF: creating hex file...</code>、<code>Flash Load finished</code>、<code>Application running ...</code> 等只在<strong>画面</strong>的 Keil/FlyMcu 界面里、未进入 OCR 文本，这些<strong>都不是老师口述内容</strong>；另有行首符号（<code>厂</code>、<code>门</code>、<code>广</code>）。典型 OCR 错字（本集实际出现）：<code>串口</code> → 「串回」、<code>引脚</code> → 「引I脚」、<code>FlyMcu</code> → 「FlvMcu/FIvMcu/FvMcu」、<code>ST-LINK</code> → 「STLNK」、<code>STLINK Utility</code> → 「STLINKUtilitv」，已按画面校正。</li>
+<li><strong>本集没有代码</strong>：只借用现成的 <code>3-1 LED闪烁</code> 示例去生成 hex，<strong>没有写新程序</strong>；<strong>也没有讲 Keil 内置下载的配置</strong>（ST-Link Debugger / Flash Download 在软件安装集里）——本笔记没有把本集写成代码课。</li>
+<li><strong>FlyMcu 版本 <code>V0.188</code></strong> 取自标题栏（f_00004）；作者未逐项讲波特率/校验的其它取值，只说「bps 保持默认 115200」。</li>
+<li><strong>一键下载电路只讲原理</strong>（RTS/DTR + 两个三极管 + 搜「STM32 一键下载电路」），<strong>本套板没有该电路</strong>——本笔记已注明「本板仍需手动拔跳线帽」，<strong>没有写成「本板可一键下载」</strong>。</li>
+<li><strong>Flash 读出 256KB 属作者实测 + 百度说法</strong>（「生产时省工序、一个模子做出来，C8T6 只保证前 64K」），<strong>不是 ST 官方结论</strong>——笔记已标注「实测/传闻」。</li>
+<li><strong>写保护死循环</strong>只讲了「FlyMcu 不能单独写选项字节 → 死循环 → STLINK Utility 能解决」，<strong>没有演示 STLINK 解除写保护的完整操作过程</strong>。</li>
+<li><strong>ST-Link 固件版本号</strong>画面为 <strong><code>V2.J29.S7</code> → <code>V2.J37.S7</code></strong>（f_00216 可读）；OCR 可能把 <code>J</code> 识成 <code>1</code>（如「V2.129.S7」），本笔记按画面取 <code>J</code>，<strong>如与实物不符以实际为准</strong>。</li>
+<li><strong>「编程后执行」是一次性的</strong>：作者明确说按复位后仍回到 BootLoader；日志里的「成功从 0800 开始运行」是软件人工加的跳转指令。</li>
+<li><strong>片尾无下集预告</strong>：本集是「工具篇」收尾，模块 9（USART）结束。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-50.html"><span class="label">下一篇</span>结课寄语与后续预告</a>
+    <a class="next" href="stm32-29.html"><span class="label">上一篇</span>[9-5] 串口收发HEX数据包与文本数据包</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E5%B7%A5%E5%85%B7%E5%AE%9E%E6%93%8D%E8%AF%BE-%E6%97%A0%E4%BB%A3%E7%A0%81">0. 本集定位：工具实操课（无代码）</a>
+        <a class="level-2" href="#1-%E4%B8%A4%E4%B8%AA%E8%BD%AF%E4%BB%B6%E6%98%AF%E4%BB%80%E4%B9%88">1. 两个软件是什么</a>
+        <a class="level-2" href="#2-flymcu-%E4%B8%B2%E5%8F%A3-isp-%E4%B8%8B%E8%BD%BD%E6%B5%81%E7%A8%8B">2. FlyMcu 串口 ISP 下载流程</a>
+        <a class="level-3" href="#2-1-%E7%94%9F%E6%88%90-hex-%E6%96%87%E4%BB%B6-keil-%E4%BE%A7%E5%94%AF%E4%B8%80%E6%94%B9%E5%8A%A8">2.1 生成 HEX 文件（Keil 侧唯一改动）</a>
+        <a class="level-3" href="#2-2-flymcu-%E7%95%8C%E9%9D%A2%E8%AE%BE%E7%BD%AE">2.2 FlyMcu 界面设置</a>
+        <a class="level-3" href="#2-3-%E8%BF%9B-bootloader-%E6%8B%94-boot0-%E8%B7%B3%E7%BA%BF%E5%B8%BD-%E6%8C%89%E5%A4%8D%E4%BD%8D">2.3 进 BootLoader：拔 BOOT0 跳线帽 + 按复位</a>
+        <a class="level-3" href="#2-4-%E4%B8%8B%E8%BD%BD%E4%B8%8E%E7%8E%B0%E8%B1%A1">2.4 下载与现象</a>
+        <a class="level-2" href="#3-%E5%8E%9F%E7%90%86-bootloader-%E4%B8%8E%E5%90%AF%E5%8A%A8%E9%85%8D%E7%BD%AE">3. 原理：BootLoader 与启动配置</a>
+        <a class="level-3" href="#3-1-bootloader-%E6%98%AF-%E7%BB%99%E8%87%AA%E5%B7%B1%E6%8D%A2%E7%94%B5%E6%B1%A0%E7%9A%84%E5%B0%8F%E6%9C%BA%E5%99%A8%E4%BA%BA">3.1 BootLoader 是「给自己换电池的小机器人」</a>
+        <a class="level-3" href="#3-2-%E5%90%AF%E5%8A%A8%E9%85%8D%E7%BD%AE%E8%A1%A86-boot1-boot0-%E5%86%B3%E5%AE%9A%E5%90%AF%E5%8A%A8%E5%93%AA%E4%B8%AA%E7%A8%8B%E5%BA%8F">3.2 启动配置表6：BOOT1/BOOT0 决定启动哪个程序</a>
+        <a class="level-2" href="#4-%E4%B8%80%E9%94%AE%E4%B8%8B%E8%BD%BD%E7%94%B5%E8%B7%AF-%E5%8E%9F%E7%90%86-%E6%9C%AC%E5%A5%97%E6%9D%BF%E6%B2%A1%E6%9C%89">4. 一键下载电路（原理，本套板没有）</a>
+        <a class="level-3" href="#4-1-%E7%BC%93%E6%8B%9B-%E5%8B%BE-%E7%BC%96%E7%A8%8B%E5%90%8E%E6%89%A7%E8%A1%8C-%E5%8E%BB%E6%8E%89-%E5%86%99%E9%80%89%E9%A1%B9%E5%AD%97%E8%8A%82">4.1 缓招：勾「编程后执行」+ 去掉「写选项字节」</a>
+        <a class="level-2" href="#5-flymcu-%E7%9A%84%E5%85%B6%E5%AE%83%E5%8A%9F%E8%83%BD">5. FlyMcu 的其它功能</a>
+        <a class="level-3" href="#5-1-%E8%AF%BB-flash-bin">5.1 读 Flash → .bin</a>
+        <a class="level-3" href="#5-2-%E6%B8%85%E9%99%A4%E8%8A%AF%E7%89%87%E4%B8%8E%E8%AF%BB%E5%99%A8%E4%BB%B6%E4%BF%A1%E6%81%AF">5.2 清除芯片与读器件信息</a>
+        <a class="level-2" href="#6-%E9%80%89%E9%A1%B9%E5%AD%97%E8%8A%82-option-bytes">6. 选项字节（Option Bytes）</a>
+        <a class="level-3" href="#6-1-%E8%AF%BB%E4%BF%9D%E6%8A%A4">6.1 读保护</a>
+        <a class="level-3" href="#6-2-%E7%A1%AC%E4%BB%B6%E9%80%89%E9%A1%B9%E5%AD%97%E8%8A%82">6.2 硬件选项字节</a>
+        <a class="level-3" href="#6-3-%E7%94%A8%E6%88%B7%E6%95%B0%E6%8D%AE%E5%AD%97%E8%8A%82">6.3 用户数据字节</a>
+        <a class="level-3" href="#6-4-%E5%86%99%E4%BF%9D%E6%8A%A4">6.4 写保护</a>
+        <a class="level-3" href="#6-5-%E9%80%89%E9%A1%B9%E5%AD%97%E8%8A%82%E7%9A%84%E5%A5%BD%E5%A4%84">6.5 选项字节的好处</a>
+        <a class="level-3" href="#6-6-%E5%86%99%E4%BF%9D%E6%8A%A4%E7%9A%84%E5%9D%91-flymcu-%E7%9A%84%E6%AD%BB%E5%BE%AA%E7%8E%AF">6.6 ⚠ 写保护的坑：FlyMcu 的死循环</a>
+        <a class="level-2" href="#7-stlink-utility-swd-%E4%B8%8B%E8%BD%BD">7. STLINK Utility（SWD 下载）</a>
+        <a class="level-3" href="#7-1-%E5%AE%89%E8%A3%85">7.1 安装</a>
+        <a class="level-3" href="#7-2-%E4%B8%8B%E8%BD%BD%E6%B5%81%E7%A8%8B">7.2 下载流程</a>
+        <a class="level-3" href="#7-3-%E9%80%89%E9%A1%B9%E5%AD%97%E8%8A%82-target-option-bytes-%E5%8F%AF%E5%8D%95%E7%8B%AC%E4%BF%AE%E6%94%B9">7.3 选项字节：Target → Option Bytes（可单独修改）</a>
+        <a class="level-3" href="#7-4-%E5%9B%BA%E4%BB%B6%E5%8D%87%E7%BA%A7-st-link-firmware-update">7.4 固件升级：ST-LINK → Firmware update</a>
+        <a class="level-2" href="#8-%E4%B8%A4%E8%80%85%E5%AF%B9%E6%AF%94%E4%B8%8E%E9%80%82%E7%94%A8%E5%9C%BA%E6%99%AF">8. 两者对比与适用场景</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

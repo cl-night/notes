@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[6-7] TIM编码器接口 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 第 19 集 [6-7]（理论课）：片头演示成品工程 6-8 编码器接口测速（右转为正、左转为负、越快越大、停下 0）；随后讲编码器接口——接收正交编码器 A/B 相自动控制 CNT 自增/自减（相当于带方向的外部时钟），CNT=位置、定时取一次清零=速度；每定时器 1 个、借 CH1/CH2、基本定时器没有；正交真值表、表77 三种模式、抗噪声与极性实例；代码在 P20。">
+  <meta property="og:title" content="[6-7] TIM编码器接口 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 第 19 集 [6-7]（理论课）：片头演示成品工程 6-8 编码器接口测速（右转为正、左转为负、越快越大、停下 0）；随后讲编码器接口——接收正交编码器 A/B 相自动控制 CNT 自增/自减（相当于带方向的外部时钟），CNT=位置、定时取一次清零=速度；每定时器 1 个、借 CH1/CH2、基本定时器没有；正交真值表、表77 三种模式、抗噪声与极性实例；代码在 P20。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html" class="active" aria-current="page">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>37 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">编码器</span>
+    </div>
+    <article class="prose"><h1>[6-7] TIM编码器接口 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=19，25:58（1558 秒）</li>
+<li>素材：260 帧关键帧（<strong>每 6 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>476 段</strong>）；关键截图 14 张随笔记收录（源图在 <code>vidsum_out/stm32_p19/frames/</code>，站内图片在 <code>assets/images/stm32-19/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；讲参考手册那几段混入了手册正文与页码（如「273/754」），这些<strong>不是老师口述内容</strong>，已剔除，错字已按画面校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是定时器大节<strong>最后一部分（编码器接口）的理论课</strong>——00:00 直接是 PPT「编码器接口简介」标题页，00:10–02:40 演示<strong>已经写好的成品工程</strong> <code>6-8 编码器接口测速</code> 的现象（Keil 里没讲代码），02:44 起「程序看完，我们来看一下 PPT」，之后到 25:58 全是原理、框图、真值表与手册；片尾原话「我们下一小节来<strong>写编码器接口的代码</strong>」——<strong>代码在 P20 [6-8]</strong>。本集<strong>通篇没有讲库函数</strong>、没有写一行代码，笔记里也不写具体配置函数的名称与参数。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>编码器接口（<strong>Encoder Interface</strong>）就是把<strong>增量式（正交）编码器的 A/B 两相信号</strong>直接接进定时器、由<strong>硬件自动控制 CNT 自增还是自减</strong>的电路：<strong>A/B 相每出现一个边沿，就看另一相此刻的电平</strong>——按正交编码的规律，<strong>正转时 A 相超前 B 相 90°、反转时 A 相滞后 B 相 90°</strong>，于是「正转的四种跳变状态全部让 CNT 自增、反转的四种全部让 CNT 自减」，所以<strong>CNT 的值就表示编码器的位置</strong>、<strong>每隔一段时间把 CNT 取出来再清零，取到的值就表示速度</strong>——本质上就是<strong>带方向控制的测频法</strong>（P17/P18 的测频法思路，加了「方向」这一维）；编码器接口相当于<strong>一个带有方向选择的外部时钟</strong>，它同时控制 CNT 的<strong>计数时钟和计数方向</strong>，因此<strong>原来那套 72MHz 内部时钟和时基单元里设的计数方向都不再使用</strong>（但 <strong>ARR 仍有效</strong>，一般设成 <strong>65535</strong> 最大量程，这样反向自减时 0 的下一个数是 65535，<strong>把 16 位无符号数当 16 位有符号数看就得到 -1、-2、-3</strong>，很方便得到负数）。资源上要记死：<strong>每个高级/通用定时器只有 1 个编码器接口</strong>（基本定时器<strong>没有</strong>），两个输入脚<strong>借用输入捕获的 CH1/CH2</strong>（所以 CH3/CH4 不能接编码器）；C8T6 只有 TIM1/2/3/4 → <strong>最多接 4 个编码器</strong>，接满就没有定时器可用了，这时只能用<strong>外部中断软件计次</strong>来弥补（<strong>硬件资源与软件资源互补</strong>——这正是编码器接口存在的意义：电机高速旋转时编码器每秒成千上万个脉冲，如果靠外部中断，程序会频繁进中断做「加一减一」这种低级工作、白白浪费软件资源）。配置层面本集只给了<strong>手册配置清单</strong>（<code>CC1S=&#39;01&#39;</code>、<code>CC2S=&#39;01&#39;</code>、<code>CC1P=&#39;0&#39;</code>、<code>CC2P=&#39;0&#39;</code>、<code>SMS=&#39;011&#39;</code>，出自手册画面），<strong>具体代码在 P20</strong>。</p>
+<h2 id="0-本集定位-理论课-代码在-6-8-p20">0. 本集定位：理论课，代码在 [6-8] P20</h2>
+<ul>
+<li><strong>本集是纯理论课</strong>：片头 2 分半只是<strong>成品工程的现象演示</strong>，02:44 起回 PPT，之后 23 分钟全是原理、框图、真值表、实例与手册截图。</li>
+<li><strong>片头工程</strong>：<code>6-8 编码器接口测速</code>——面包板上接一个<strong>旋转编码器模块</strong>，OLED 显示 <code>Speed</code>；<strong>这和 P12 用外部中断做「旋转编码器计次」的功能基本一样</strong>：本质仍然是「编码器计次」，只是<strong>本工程由定时器的编码器接口自动计次</strong>，而 P12 是<strong>触发外部中断、在中断函数里手动加减</strong>。</li>
+<li><strong>片尾明确预告代码在下一集</strong>：25:52「我们下一小节来写编码器接口的代码」——代码在 <strong>P20 [6-8]</strong>。</li>
+<li><strong>本集的硬边界</strong>（素材核对过）：<ul>
+<li><strong>通篇没有讲库函数</strong>：全文没有出现编码器接口相关的库函数名与参数（例如配置函数、读计数器函数），本笔记也<strong>不写</strong>这些，只写「配置与代码在 P20」。</li>
+<li><strong>本集没有「倍频」这个说法</strong>：老师只说「A、B 相都计次，相当于<strong>计次频率提高了一倍</strong>」（10:04 口述）；本笔记沿用「计次频率提高了一倍」，<strong>不写具体倍数</strong>。</li>
+<li><strong>寄存器位 <code>CC1S / CC2S / CC1P / CC2P / SMS</code> 只出现在最后的手册画面</strong>（25:48），老师没有逐条口述——本笔记引用时都注明「出自手册页」。</li>
+</ul>
+</li>
+<li>编号对照：本集视频是 <strong>[6-7]</strong>，片头工程目录却叫 <strong><code>6-8</code></strong>（把「代码小节」的编号用在了工程名上）——与 P15～P18 一样，两套编号不是一回事。</li>
+</ul>
+<h2 id="1-片头现象-编码器接口测速">1. 片头现象：编码器接口测速</h2>
+<ul>
+<li>面包板上接了一个<strong>旋转编码器模块</strong>（套件里的触点式旋钮编码器），OLED 显示 <code>Speed</code>。</li>
+<li><strong>向右慢速旋转</strong>：<strong>数值为正、计次比较小</strong>（画面 <code>Speed:+00000</code> 附近）；<strong>向右快速旋转</strong>：<strong>计次就会增大</strong>；</li>
+<li><strong>向左慢速旋转</strong>：<strong>数值为负、计次比较小</strong>（画面 <code>Speed:-00008</code>）；<strong>向左快速旋转</strong>：<strong>计次也是负向增大</strong>；</li>
+<li><strong>停下来，速度就是 0</strong>。</li>
+<li>结论：<strong>使用定时器的编码器接口、再配合编码器，就可以测量旋转速度和旋转方向</strong>。</li>
+<li><strong>典型应用</strong>：编码器测速一般用在<strong>电机控制</strong>的项目上——<strong>用 PWM 驱动电机，再用编码器测量电机的速度，然后用 PID 算法做闭环控制</strong>，这是比较常见的使用场景。实际电机转速比较高，一般用<strong>无接触式的霍尔传感器或光栅</strong>测速；本实验为了方便，用<strong>触点式的旋钮编码器</strong>演示、<strong>电机旋转用人工旋转来模拟</strong>——实际使用时，旋钮编码器和电机上的霍尔/光栅编码器是<strong>一样的效果</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/02-encoder-demo.jpg" alt="图 1：片头现象（成品工程）——Keil 标题栏 STM32Project\6-8 编码器接口测速；面包板上左边是旋转编码器模块、右边是 STM32 最小系统板，OLED 显示 Speed:+00000"></p>
+<p><em>图 1：片头现象（成品工程）——Keil 标题栏 <code>STM32Project\6-8 编码器接口测速</code>；面包板上左边是旋转编码器模块、右边是 STM32 最小系统板，OLED 显示 <code>Speed:+00000</code></em></p>
+<p><img src="../assets/images/stm32-19/03-speed-negative.jpg" alt="图 2：向左慢速旋转时 OLED 显示 Speed:-00008（数值为负、计次较小）；字幕「然后向左慢速旋转，数值为负，计次比较小」"></p>
+<p><em>图 2：向左慢速旋转时 OLED 显示 <code>Speed:-00008</code>（数值为负、计次较小）；字幕「然后向左慢速旋转，数值为负，计次比较小」</em></p>
+<p><img src="../assets/images/stm32-19/04-application.jpg" alt="图 3：应用场景——编码器测速一般用在电机控制项目（PWM 驱动电机 + 编码器测速 + PID 闭环），OLED 停下时显示 Speed:+00000；字幕「这里编码器测速一般应用在电机控制的项目上」"></p>
+<p><em>图 3：应用场景——编码器测速一般用在电机控制项目（PWM 驱动电机 + 编码器测速 + PID 闭环），OLED 停下时显示 <code>Speed:+00000</code>；字幕「这里编码器测速一般应用在电机控制的项目上」</em></p>
+<ul>
+<li><strong>为什么用硬件电路而不是外部中断</strong>（本集反复强调的动机）：如果用外部中断来计次，<strong>当电机高速旋转时，编码器每秒产生成千上万个脉冲</strong>，程序就得<strong>频繁进中断</strong>，而进中断之后完成的任务<strong>又只是简单的加一减一</strong>——软件资源就被这种<strong>简单而又低级的工作</strong>占用了。所以对于<strong>需要频繁执行、操作又比较简单</strong>的任务，一般都会<strong>设计一个硬件电路模块来自动完成</strong>；编码器接口就是用来自动给编码器计次的电路。<strong>每隔一段时间取一下计次值，就能得到编码器旋转的速度</strong>。</li>
+</ul>
+<h2 id="2-编码器接口是什么">2. 编码器接口是什么</h2>
+<h3 id="2-1-定义与能力">2.1 定义与能力</h3>
+<ul>
+<li><strong>Encoder Interface，编码器接口</strong>（英文认识一下就行）。</li>
+<li><strong>「编码器接口可接收增量（正交）编码器的信号，根据编码器旋转产生的正交信号脉冲，自动控制 CNT 自增或自减，从而指示编码器的位置、旋转方向和旋转速度。」</strong></li>
+<li><strong>增量编码器 = 正交编码器</strong>，都是同一个意思：<strong>输出两个方波信号、相位相差 90°</strong>（超前 90° 或滞后 90° 分别代表正转和反转）。</li>
+<li><strong>每个高级定时器和通用定时器都拥有 1 个编码器接口</strong>；<strong>两个输入引脚借用了输入捕获的通道 1 和通道 2</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/01-encoder-intro.jpg" alt="图 4：PPT「编码器接口简介」——Encoder Interface 编码器接口；可接收增量（正交）编码器信号，根据旋转产生的正交信号脉冲自动控制 CNT 自增或自减，从而指示编码器的位置、旋转方向和旋转速度；每个高级/通用定时器拥有 1 个编码器接口；两个输入引脚借用输入捕获的通道 1 和通道 2"></p>
+<p><em>图 4：PPT「编码器接口简介」——Encoder Interface 编码器接口；可接收增量（正交）编码器信号，根据旋转产生的正交信号脉冲自动控制 CNT 自增或自减，从而指示编码器的位置、旋转方向和旋转速度；每个高级/通用定时器拥有 1 个编码器接口；两个输入引脚借用输入捕获的通道 1 和通道 2</em></p>
+<h3 id="2-2-工作流程-cnt-位置-取一次清零-速度">2.2 工作流程：CNT = 位置，取一次清零 = 速度</h3>
+<ul>
+<li>编码器有 <strong>A 相、B 相两个输出</strong>，接入 STM32 定时器的编码器接口；<strong>编码器接口自动控制时基单元里的 CNT 计数器进行自增或自减</strong>。</li>
+<li>举例：初始化后 <strong>CNT 初值为 0</strong>；<strong>编码器右转，CNT 就自增</strong>——右转产生一个脉冲，CNT 就加一次；<strong>右转产生 10 个脉冲后停下来，CNT 就由 0 自增到 10</strong>；再<strong>左转，CNT 就自减</strong>——<strong>左转产生 5 个脉冲</strong>，<strong>CNT 就在原来 10 的基础上自减 5、变成 5</strong>。</li>
+<li>所以说：<strong>编码器接口其实就相当于一个带有方向控制的外部时钟，它同时控制着 CNT 的计数时钟和计数方向</strong>。这样 <strong>CNT 的值就表示了编码器的位置</strong>。</li>
+<li><strong>测速</strong>：<strong>「如果我们每隔一段时间取一次 CNT 的值，再把 CNT 清零，那每次取出来的值就表示了编码器的速度」</strong>。</li>
+<li>借用 P17 测频法/测周法的知识点：<strong>编码器测速实际上就是测频法测「正交脉冲的频率」</strong>——<strong>CNT 计次、每隔一段时间取一次计次</strong>，就是测频法的思路；只不过<strong>编码器接口计次更高级，它能根据旋转方向，不仅能自增计次、还能自减计次</strong>，是一个<strong>带方向的测速</strong>。</li>
+</ul>
+<h3 id="2-3-资源与限制">2.3 资源与限制</h3>
+<ul>
+<li><strong>每个高级定时器和通用定时器都只有 1 个编码器接口</strong>——<strong>资源比较紧张</strong>：<strong>如果一个定时器配置成了编码器接口模式，那它基本上就干不了其他活了</strong>。</li>
+<li><strong>本课程的 C8T6 芯片只有 TIM1、TIM2、TIM3、TIM4 四个定时器</strong>，所以<strong>最多只能接 4 个编码器</strong>；而且<strong>接完 4 个编码器，就没有定时器可以用了</strong>——所以如果编码器比较多，要考虑这个资源够不够用。</li>
+<li><strong>实在不行还可以用外部中断来接编码器</strong>——这样就是用<strong>软件资源来弥补硬件资源</strong>。<strong>硬件资源和软件资源是互补的</strong>：硬件资源越多、软件就越轻松；<strong>硬件不够，那就软件来凑</strong>。例如：<ul>
+<li><strong>PWM</strong>：可以不用硬件 PWM，改成定时中断，在中断里手动计数、手动翻转电平；</li>
+<li><strong>输入捕获</strong>：可以不用硬件捕获，改成外部中断，在中断里手动读取；</li>
+<li><strong>编码器</strong>：可以不用编码器接口，改成外部中断，在中断里手动增减。</li>
+</ul>
+</li>
+<li><strong>编码器只能接 CH1 和 CH2</strong>（借用了输入捕获的前两个通道），<strong>CH3、CH4 不能接编码器</strong>。</li>
+<li><strong>高级定时器和通用定时器都有编码器接口</strong>，两者结构是一样的；<strong>基本定时器没有编码器接口</strong>（下面的框图会看到）。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/07-basic-timer-no-encoder.jpg" alt="图 5：基本定时器框图（图144）——只有时基单元（PSC/CNT/ARR）、内部时钟 CK_INT 与触发控制器，没有编码器接口、也没有输入捕获/输出比较的通道；字幕「然后基本定时器是没有编码器接口的」"></p>
+<p><em>图 5：基本定时器框图（图144）——只有时基单元（PSC/CNT/ARR）、内部时钟 CK_INT 与触发控制器，<strong>没有编码器接口</strong>、也没有输入捕获/输出比较的通道；字幕「然后基本定时器是没有编码器接口的」</em></p>
+<h2 id="3-旋转编码器与正交信号">3. 旋转编码器与正交信号</h2>
+<h3 id="3-1-旋转编码器是什么-有哪些类型">3.1 旋转编码器是什么、有哪些类型</h3>
+<ul>
+<li><strong>「旋转编码器：用来测量位置、速度或旋转方向的装置，当其旋转轴旋转时，其输出端可以输出与旋转速度和方向对应的方波信号，读取方波信号的频率和相位信息即可得知旋转轴的速度和方向。」</strong></li>
+<li>类型：<strong>机械触点式 / 霍尔传感器式 / 光栅式</strong>。</li>
+<li>常见形态（画面配了实物图）：<ol>
+<li><strong>光栅 + 红外对管</strong>：只有<strong>一相</strong>方波输出，<strong>不是</strong>正交编码器（只能测速、不能测方向）；</li>
+<li><strong>套件里的触点式旋转编码器</strong>：有 <strong>4 个引脚</strong>——上面两个是<strong>供电的正极和负极</strong>，下面两个是 <strong>A 相、B 相</strong>，是<strong>正交编码器</strong>；</li>
+<li><strong>电机后面自带的霍尔编码器</strong>：<strong>接线引脚一般有 6 个</strong>——<strong>2 根接电机、2 根接编码器电源、中间的 2 根是 A、B 相</strong>；</li>
+<li>另外，一些<strong>独立的编码器（如光栅式）还有 Z 相</strong>：<strong>0 位置脉冲</strong>——编码器<strong>转到一个固定位置时输出一个脉冲</strong>，一般用于<strong>位置测量、校准 0 位置</strong>。</li>
+</ol>
+</li>
+</ul>
+<p><img src="../assets/images/stm32-19/05-encoder-types.jpg" alt="图 6：PPT「旋转编码器简介」——旋转编码器用来测量位置/速度/旋转方向，输出与速度和方向对应的方波信号，读取频率和相位即得速度与方向；类型有机械触点式/霍尔传感器式/光栅式；下方 5 张实物图（光栅+红外对管、触点式、电机自带霍尔编码器等）；字幕「第一个是只有一个光栅加红外对管的编码器」"></p>
+<p><em>图 6：PPT「旋转编码器简介」——旋转编码器用来测量位置/速度/旋转方向，输出与速度和方向对应的方波信号，读取频率和相位即得速度与方向；类型有机械触点式/霍尔传感器式/光栅式；下方 5 张实物图（光栅+红外对管、触点式、电机自带霍尔编码器等）；字幕「第一个是只有一个光栅加红外对管的编码器」</em></p>
+<h3 id="3-2-只有一相为什么不行">3.2 只有一相为什么不行</h3>
+<ul>
+<li>编码器转起来时，<strong>A 相、B 相都会输出这样的方波信号</strong>；<strong>转得越快，方波的频率就越高</strong>——所以<strong>频率就代表了速度</strong>。</li>
+<li>但如果<strong>只有一相</strong>（比如光栅+红外对管那种）：<strong>能测量速度，但是不能测量方向</strong>——因为<strong>正转和反转时，单相的波形是一模一样的</strong>（频率一样），看不出转向。</li>
+<li>另一种思路：<strong>再加一根「方向脚」</strong>，让它在正转时输出高电平、反转时输出低电平，也能区分方向——<strong>但这不是正交信号</strong>。本节讲的是<strong>正交编码器</strong>。</li>
+</ul>
+<h3 id="3-3-正交方案的两个好处">3.3 正交方案的两个好处</h3>
+<ul>
+<li><strong>正交方案</strong>：<strong>正转时 A 相提前 B 相 90°（A 超前 B）；反转时 A 相滞后 B 相 90°</strong>——「当然这个谁提前、谁滞后，是 A 相提前还是 B 相提前，<strong>只是极性定义的问题</strong>，把 A、B 相接法换一下，谁提前谁滞后就反过来了，功能上没区别」。</li>
+<li><strong>好处① 精度更高</strong>：只有一相时一个周期只能计一次数；<strong>正交信号 A、B 相都能计次，相当于计次频率提高了一倍</strong>——同样的转速能数到更多数，分辨率更高。</li>
+<li><strong>好处② 抗噪声</strong>：<strong>正交信号的两个信号必须交替跳变</strong>——正常旋转时 A、B 交替变化；如果<strong>一个信号不变、另一个信号连续跳变</strong>（比如某个传感器抖了一下连跳好几下），<strong>就不符合正交编码器的信号规律</strong>，此时计数会<strong>加减来回摆动、净计数不变</strong>，噪声就被抵消了。</li>
+</ul>
+<h3 id="3-4-正交编码器的两张真值表">3.4 正交编码器的两张真值表</h3>
+<p>按「边沿」和「另一相此刻的状态」列出正转/反转的四种情况（画面两张表）：</p>
+<table>
+<thead>
+<tr>
+<th>正转：边沿</th>
+<th>另一相状态</th>
+<th></th>
+<th>反转：边沿</th>
+<th>另一相状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>A相 ↑</td>
+<td>B相低电平</td>
+<td></td>
+<td>A相 ↑</td>
+<td>B相高电平</td>
+</tr>
+<tr>
+<td>A相 ↓</td>
+<td>B相高电平</td>
+<td></td>
+<td>A相 ↓</td>
+<td>B相低电平</td>
+</tr>
+<tr>
+<td>B相 ↑</td>
+<td>A相高电平</td>
+<td></td>
+<td>B相 ↑</td>
+<td>A相低电平</td>
+</tr>
+<tr>
+<td>B相 ↓</td>
+<td>A相低电平</td>
+<td></td>
+<td>B相 ↓</td>
+<td>A相高电平</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>正转</strong>：<code>A↑ → B低</code>、<code>A↓ → B高</code>、<code>B↑ → A高</code>、<code>B↓ → A低</code>；</li>
+<li><strong>反转</strong>：四种组合<strong>正好相反</strong>（<code>A↑ → B高</code>、<code>A↓ → B低</code>、<code>B↑ → A低</code>、<code>B↓ → A高</code>）。</li>
+<li>由此得出<strong>编码器接口的设计逻辑</strong>：<strong>把 A、B 相的所有边沿都作为计数时钟</strong>，<strong>出现边沿时按「另一相此刻的高低电平」决定自增还是自减</strong>——这就是 STM32 定时器编码器接口的执行逻辑。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/06-quadrature-truth-tables.jpg" alt="图 7：PPT「正交编码器」——上半是正转波形（A 相超前 B 相 90°）与真值表「A↑→B低、A↓→B高、B↑→A高、B↓→A低」，下半是反转波形（A 相滞后）与相反的真值表；红圈圈出两张表；字幕「看一下正交信号如何计次和区分旋转方向呢」"></p>
+<p><em>图 7：PPT「正交编码器」——上半是正转波形（A 相超前 B 相 90°）与真值表「A↑→B低、A↓→B高、B↑→A高、B↓→A低」，下半是反转波形（A 相滞后）与相反的真值表；红圈圈出两张表；字幕「看一下正交信号如何计次和区分旋转方向呢」</em></p>
+<h2 id="4-编码器接口在定时器框图里的位置">4. 编码器接口在定时器框图里的位置</h2>
+<h3 id="4-1-输入部分-借输入捕获的-ch1-ch2">4.1 输入部分：借输入捕获的 CH1/CH2</h3>
+<ul>
+<li>在通用定时器框图（图98）里，<strong>编码器接口处于中间偏上的位置</strong>；<strong>高级定时器和通用定时器的结构是一样的</strong>，<strong>每个定时器只有一个编码器接口</strong>；<strong>基本定时器没有</strong>。</li>
+<li><strong>编码器接口有两个输入端</strong>：分别接<strong>编码器的 A 相和 B 相</strong>——图里这两个输入端各有一个网络标号，分别是 <strong><code>TI1FP1</code></strong> 和 <strong><code>TI2FP2</code></strong>。</li>
+<li>从图里能看出：<strong>编码器接口的两个引脚借用了输入捕获单元的前两个通道</strong>——所以<strong>最终的编码器输入脚就是定时器的 CH1 和 CH2</strong> 这两个引脚。</li>
+<li>信号通路：<strong>CH1 经过输入滤波器和边沿检测 → TI1FP1 → 编码器接口</strong>；<strong>CH2 经同样电路 → TI2FP2 → 编码器接口</strong>；<strong>CH3 和 CH4 与编码器接口无关</strong>（后面还有一路输入捕获的数据选择器，那和编码器接口无关）。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/08-fig98-encoder-interface.jpg" alt="图 8：图98 通用定时器框图上标出编码器接口——红圈圈住右侧「编码器接口」方框，它的两个输入来自 TI1FP1 / TI2FP2；左边红圈圈出 TIMx_CH1 / TIMx_CH2 与它们的输入滤波器和边沿检测器；字幕「就是定时器的 CH1 和 CH2 这两个引脚」"></p>
+<p><em>图 8：图98 通用定时器框图上标出编码器接口——红圈圈住右侧「编码器接口」方框，它的两个输入来自 TI1FP1 / TI2FP2；左边红圈圈出 TIMx_CH1 / TIMx_CH2 与它们的输入滤波器和边沿检测器；字幕「就是定时器的 CH1 和 CH2 这两个引脚」</em></p>
+<h3 id="4-2-输出部分-相当于-带方向的外部时钟">4.2 输出部分：相当于「带方向的外部时钟」</h3>
+<ul>
+<li><strong>编码器接口的输出部分其实就相当于从模式控制器</strong>，去<strong>控制 CNT 的计数时钟和计数方向</strong>：简单来说，就是按前面总结的那张表——<strong>正转的情况就控制 CNT 自增、反转的情况就控制 CNT 自减</strong>。</li>
+<li><strong>特别注意</strong>：<strong>我们之前一直在使用的 72MHz 内部时钟、以及时基单元初始化里设置的计数方向，在编码器模式下都不会被使用</strong>——<strong>计数器的自增和自减，受编码器控制</strong>。</li>
+<li>（但 <strong>ARR 仍然有效</strong>，见 4.4 的补码说明。）</li>
+</ul>
+<h3 id="4-3-编码器接口基本结构">4.3 编码器接口基本结构</h3>
+<ul>
+<li><strong>输入捕获的前两个通道，通过 GPIO 口接入编码器的 A、B 相</strong>；</li>
+<li>然后经过<strong>滤波器</strong>和<strong>边沿检测极性选择</strong>，产生 <strong>TI1FP1 和 TI2FP2</strong>，通向<strong>编码器接口</strong>；</li>
+<li><strong>编码器接口通过预分频器控制 CNT 计数器的时钟</strong>，<strong>同时根据编码器的旋转方向控制 CNT 的计数方向</strong>：<strong>编码器正转时 CNT 自增，编码器反转时 CNT 自减</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/09-encoder-basic-structure.jpg" alt="图 9：PPT「编码器接口基本结构」——右上时基单元（PSC 预分频器 / CNT 计数器 / ARR 自动重装器）；中间偏左是「编码器接口」方框；下方两路 GPIO → 滤波器 → 边沿检测极性选择 → TI1FP1 / TI2FP2 → 编码器接口；字幕「输入捕获的前两个通道，通过 GPIO 口接入编码器的 A、B 相」"></p>
+<p><em>图 9：PPT「编码器接口基本结构」——右上时基单元（PSC 预分频器 / CNT 计数器 / ARR 自动重装器）；中间偏左是「编码器接口」方框；下方两路 GPIO → 滤波器 → 边沿检测极性选择 → TI1FP1 / TI2FP2 → 编码器接口；字幕「输入捕获的前两个通道，通过 GPIO 口接入编码器的 A、B 相」</em></p>
+<h3 id="4-4-arr-与补码-怎么得到负数">4.4 ARR 与补码：怎么得到负数</h3>
+<ul>
+<li><strong>ARR 也是有效的</strong>，<strong>一般会把 ARR 设成 65535（最大量程）</strong>，这样可以利用<strong>补码</strong>的特性很容易得到负数。</li>
+<li>例如 CNT 初始为 0：<strong>正转时 CNT 自增</strong> 0、1、2、3、4……这都没问题；<strong>反转时 CNT 自减</strong>——<strong>0 的下一个数就是 65535</strong>，接着是 65534、65533……</li>
+<li>「这里负数不应该是 -1、-2 吗？65535 是不是就出问题了？」——<strong>没关系</strong>：程序里<strong>直接把这个 16 位的无符号数转换为 16 位的有符号数</strong>，根据补码的定义，<strong>65535 就对应 -1、65534 对应 -2、65533 对应 -3</strong>……这样就可以直接得到负数，非常方便。这就是读出数据、得到负数的一个小技巧。</li>
+<li>注意：<strong>本集只讲了这个思路，没有给具体 C 代码</strong>（怎么转换、在哪里转换，代码在 P20）。</li>
+</ul>
+<h2 id="5-三种工作模式与表77">5. 三种工作模式与表77</h2>
+<h3 id="5-1-表77-计数方向与编码器信号的关系">5.1 表77：计数方向与编码器信号的关系</h3>
+<p>画面给出<strong>表77「计数方向与编码器信号的关系」</strong>（完整 6 行，逐行抄录）：</p>
+<table>
+<thead>
+<tr>
+<th>有效边沿</th>
+<th>相对信号的电平（TI1FP1 对应 TI2，TI2FP2 对应 TI1）</th>
+<th>TI1FP1 信号：上升</th>
+<th>TI1FP1 信号：下降</th>
+<th>TI2FP2 信号：上升</th>
+<th>TI2FP2 信号：下降</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>仅在 TI1 计数</td>
+<td>高</td>
+<td>向下计数</td>
+<td>向上计数</td>
+<td>不计数</td>
+<td>不计数</td>
+</tr>
+<tr>
+<td>仅在 TI1 计数</td>
+<td>低</td>
+<td>向上计数</td>
+<td>向下计数</td>
+<td>不计数</td>
+<td>不计数</td>
+</tr>
+<tr>
+<td>仅在 TI2 计数</td>
+<td>高</td>
+<td>不计数</td>
+<td>不计数</td>
+<td>向上计数</td>
+<td>向下计数</td>
+</tr>
+<tr>
+<td>仅在 TI2 计数</td>
+<td>低</td>
+<td>不计数</td>
+<td>不计数</td>
+<td>向下计数</td>
+<td>向上计数</td>
+</tr>
+<tr>
+<td>在 TI1 和 TI2 上计数</td>
+<td>高</td>
+<td>向下计数</td>
+<td>向上计数</td>
+<td>向上计数</td>
+<td>向下计数</td>
+</tr>
+<tr>
+<td>在 TI1 和 TI2 上计数</td>
+<td>低</td>
+<td>向上计数</td>
+<td>向下计数</td>
+<td>向下计数</td>
+<td>向上计数</td>
+</tr>
+</tbody></table>
+<ul>
+<li>表的含义：<strong>TI1FP1 和 TI2FP2 接的就是编码器的 A、B 相</strong>；<strong>在 A 相和 B 相的上升沿或下降沿触发计数</strong>，<strong>到底向上还是向下计数，取决于边沿信号发生的这个时刻、另一相的电平状态</strong>（也就是表里「相对信号的电平」那一列——<strong>TI1FP1 对应 TI2、TI2FP2 对应 TI1，就是「另一相电平」的意思</strong>）。</li>
+<li><strong>三组行</strong>分别对应<strong>三种工作模式</strong>：<strong>仅在 TI1 计数、仅在 TI2 计数、在 TI1 和 TI2 上计数</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/10-table77-count-direction.jpg" alt="图 10：表77「计数方向与编码器信号的关系」完整 6 行——三组（仅在 TI1 计数 / 仅在 TI2 计数 / 在 TI1 和 TI2 上计数）×「相对信号的电平 高/低」，右侧 4 列是 TI1FP1 上升/下降、TI2FP2 上升/下降 对应的「向上计数 / 向下计数 / 不计数」；字幕「这个表，描述的就是我们刚才说的，编码器接口的工作逻辑」"></p>
+<p><em>图 10：表77「计数方向与编码器信号的关系」完整 6 行——三组（仅在 TI1 计数 / 仅在 TI2 计数 / 在 TI1 和 TI2 上计数）×「相对信号的电平 高/低」，右侧 4 列是 TI1FP1 上升/下降、TI2FP2 上升/下降 对应的「向上计数 / 向下计数 / 不计数」；字幕「这个表，描述的就是我们刚才说的，编码器接口的工作逻辑」</em></p>
+<h3 id="5-2-三种模式分别是什么意思">5.2 三种模式分别是什么意思</h3>
+<ul>
+<li>前面总结的正转 4 种状态（<code>A↑→B低</code>、<code>A↓→B高</code>、<code>B↑→A高</code>、<code>B↓→A低</code>）<strong>涉及两个引脚</strong>：<strong>A 相上升沿、A 相下降沿、B 相上升沿、B 相下降沿</strong>。</li>
+<li><strong>如果这 4 种状态都执行自增或自减</strong>，就是 <strong>A 相和 B 相的边沿都计数</strong> → 对应第 3 种模式 <strong>「在 TI1 和 TI2 上计数」</strong>。</li>
+<li>也可以<strong>忽略一些边沿</strong>：<strong>仅在 A 相的上升沿和下降沿计数</strong>、B 相的两个状态忽略（对应「仅在 TI1 计数」）；或者<strong>仅在 B 相的上升沿和下降沿计数</strong>、A 相的边沿不管（对应「仅在 TI2 计数」）——这样也能实现功能，<strong>只是计次的精度低了一些</strong>。</li>
+<li>用图比划：<strong>两个边沿都计数时</strong>，计数的时刻是<strong>每一个边沿</strong>（A↑、A↓、B↑、B↓ 都计）；<strong>仅在 A 相边沿计数时</strong>，只取 A 相的上升沿和下降沿时刻、<strong>B 相的边沿被忽略</strong>；仅在 B 相边沿计数同理。</li>
+</ul>
+<h3 id="5-3-结论-正转都向上-反转都向下-一般用双沿">5.3 结论：正转都向上、反转都向下，一般用双沿</h3>
+<ul>
+<li>把左边的正转真值表和右边的表77 对照（假设 <strong>TI1 接 A 相、TI2 接 B 相</strong>）：<ul>
+<li>左表第一个状态「<strong>A 相上升沿，B 相低电平</strong>」→ 右表「<strong>在 TI1 和 TI2 上计数</strong>」行、<strong>A 相上升沿</strong>、<strong>另一相低电平</strong> → <strong>向上计数</strong>；</li>
+<li>第二个状态「<strong>A 相下降沿，B 相高电平</strong>」→ <strong>向上计数</strong>；</li>
+<li>第三个状态「<strong>B 相上升沿，A 相高电平</strong>」→ <strong>向上计数</strong>；</li>
+<li>第四个状态「<strong>B 相下降沿，A 相低电平</strong>」→ 还是<strong>向上计数</strong>。</li>
+</ul>
+</li>
+<li>反转的四个状态拿来对比，就对应另外四种「<strong>向下计数</strong>」。</li>
+<li><strong>总结一句话：正转的状态都向上计数，反转的状态都向下计数</strong>——这就是编码器接口的执行逻辑。</li>
+<li><strong>一般都用第 3 种模式（TI1 和 TI2 上计数、两个边沿都计数）</strong>，因为<strong>这个模式计数精度最高</strong>（计次频率提高了一倍）；另外两种「仅在一个边沿计数」的模式只在一相边沿计数、精度低一些。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/11-table77-three-modes.jpg" alt="图 11：同一张表77 上的红笔标注——红圈圈出左侧三种模式的分组（仅在 TI1 计数 / 仅在 TI2 计数 / 在 TI1 和 TI2 上计数），表头右侧标出 A（TI1FP1 信号）和 B（TI2FP2 信号）；字幕「分别是仅在 TI1 计数、仅在 TI2 计数和 TI1 TI2 都计数」"></p>
+<p><em>图 11：同一张表77 上的红笔标注——红圈圈出左侧三种模式的分组（仅在 TI1 计数 / 仅在 TI2 计数 / 在 TI1 和 TI2 上计数），表头右侧标出 A（TI1FP1 信号）和 B（TI2FP2 信号）；字幕「分别是仅在 TI1 计数、仅在 TI2 计数和 TI1 TI2 都计数」</em></p>
+<p><img src="../assets/images/stm32-19/12-all-edges-count.jpg" alt="图 12：「正交编码器」页上红竖线标出的「双沿计数时刻」——每个 A↑、A↓、B↑、B↓ 都画了一条竖线，对应第 3 种模式（两个边沿都计数）的计数时刻；字幕「那这两种仅在一个边沿计数的模式」"></p>
+<p><em>图 12：「正交编码器」页上红竖线标出的「双沿计数时刻」——每个 A↑、A↓、B↑、B↓ 都画了一条竖线，对应第 3 种模式（两个边沿都计数）的计数时刻；字幕「那这两种仅在一个边沿计数的模式」</em></p>
+<h2 id="6-两个实例">6. 两个实例</h2>
+<h3 id="6-1-实例一-均不反相-抗噪声原理">6.1 实例一：均不反相——抗噪声原理</h3>
+<ul>
+<li>实例「均不反相」，用的是<strong>在 TI1 和 TI2 上计数</strong>（双沿计数）模式；图 132「编码器模式下的计数器操作实例」画了 <strong>TI1、TI2 两路波形</strong>和<strong>计数器值的变化</strong>：<ul>
+<li><strong>向前</strong>（正转）：计数器<strong>阶梯式上升</strong>；</li>
+<li><strong>遇到毛刺</strong>：波形上出现<strong>一相不动、另一相连续跳变</strong>的情况（不符合正交规律），此时<strong>计数器会来回加/减摆动</strong>；</li>
+<li><strong>毛刺过后</strong>：<strong>最终计数值还是原来那个数，并不受到噪声的影响</strong>——这就是<strong>正交编码器抗噪声的原理</strong>；</li>
+<li>之后<strong>向后</strong>（反转）：计数器<strong>阶梯式下降</strong>；再来一次毛刺、又恢复向前上升。</li>
+</ul>
+</li>
+<li>也就是说：<strong>正交信号必须交替跳变</strong>，合法跳变才计一个数；<strong>不合法的毛刺跳变只是让计数器来回摆动、净计数为 0</strong>，所以能抗住这种噪声。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/13-instance-noise-immunity.jpg" alt="图 13：PPT「实例（均不反相）」——上表是表77 的后两行（在 TI1 和 TI2 上计数）；图132「编码器模式下的计数器操作实例」：TI1/TI2 时序图下方「计数器」呈阶梯上升/下降，标注「向前 / 毛刺 / 向后 / 毛刺 / 向前」，毛刺处计数来回摆动但净计数不变；字幕「这个图里，使用的就是两个引脚的边沿都计数的模式」"></p>
+<p><em>图 13：PPT「实例（均不反相）」——上表是表77 的后两行（在 TI1 和 TI2 上计数）；图132「编码器模式下的计数器操作实例」：TI1/TI2 时序图下方「计数器」呈阶梯上升/下降，标注「向前 / 毛刺 / 向后 / 毛刺 / 向前」，毛刺处计数来回摆动但净计数不变；字幕「这个图里，使用的就是两个引脚的边沿都计数的模式」</em></p>
+<h3 id="6-2-实例二-ti1-反相-极性与方向">6.2 实例二：TI1 反相——极性与方向</h3>
+<ul>
+<li>另一个实例是 <strong>TI1 反相的图（图 133）</strong>，展示的是<strong>极性变化对计数的影响</strong>。</li>
+<li><strong>关键区别</strong>：在<strong>输入捕获</strong>模式下，极性选择指的是「上升沿/下降沿」的<strong>边沿极性</strong>；而在<strong>编码器接口模式</strong>下，<strong>极性不再是边沿极性的概念，而是「高低电平反相」</strong>——<strong>这里有两个极性控制参数：一档是「直通、不反相」，另一档是「过一个非门、反相」</strong>——把输入的高、低电平整体反过来（具体参数名在 P20 的代码里才会出现）。</li>
+<li>可以这样理解：<strong>均不反相</strong>时，如果查表得到的计数方向是向上，那<strong>TI1 反相之后，查表得到的计数方向就反了</strong>（同样的旋转，计数器方向与均不反相相反）。</li>
+<li><strong>用途</strong>：如果实际接线后发现**「加减方向反了」<strong>（正转时 CNT 在减、反转时在加），就可以</strong>把任一个引脚反相<strong>来纠正；或者</strong>直接交换 A、B 两相的接线**、或者<strong>换一个引脚</strong>（延伸结论，视频原话是「有很多地方都可以调整极性」），都能改变方向。</li>
+</ul>
+<h2 id="7-手册导读与下一集">7. 手册导读与下一集</h2>
+<ul>
+<li>本集内容在手册里对应**「编码器接口模式」**这一节。</li>
+<li>手册里有一句<strong>总结性的话</strong>：<strong>「编码器接口模式基本上相当于使用了一个带有方向选择的外部时钟」</strong>。</li>
+<li>手册页上列出的<strong>配置清单</strong>（画面，25:48；本集只给手册清单，具体代码在 P20）：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>寄存器位（出自手册画面）</th>
+<th>取值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>CC1S</code>（TIMx_CCMR1）</td>
+<td><code>&#39;01&#39;</code></td>
+<td>IC1FP1 映射到 TI1</td>
+</tr>
+<tr>
+<td><code>CC2S</code>（TIMx_CCMR2）</td>
+<td><code>&#39;01&#39;</code></td>
+<td>IC2FP2 映射到 TI2</td>
+</tr>
+<tr>
+<td><code>CC1P</code>（TIMx_CCER）</td>
+<td><code>&#39;0&#39;</code></td>
+<td>IC1FP1 不反相，IC1FP1 = TI1</td>
+</tr>
+<tr>
+<td><code>CC2P</code>（TIMx_CCER）</td>
+<td><code>&#39;0&#39;</code></td>
+<td>IC2FP2 不反相，IC2FP2 = TI2</td>
+</tr>
+<tr>
+<td><code>SMS</code>（TIMx_SMCR）</td>
+<td><code>&#39;011&#39;</code></td>
+<td>所有输入均在上升沿和下降沿有效</td>
+</tr>
+</tbody></table>
+<ul>
+<li>手册里还有<strong>表77</strong>、<strong>两个实例</strong>（抗噪声原理、极性选择的作用）以及一些说明文字，可以自行查看。</li>
+<li><strong>结尾（25:52）</strong>：「那本小节的内容就到这里，<strong>我们下一小节来写编码器接口的代码</strong>。」——代码在 <strong>P20 [6-8]</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-19/14-manual-config-list.jpg" alt="图 14：参考手册「编码器接口模式」页——上方是表77，下方是配置清单：CC1S=&#39;01&#39;（TIMx_CCMR1，IC1FP1 映射到 TI1）、CC2S=&#39;01&#39;（TIMx_CCMR2，IC2FP2 映射到 TI2）、CC1P=&#39;0&#39;（TIMx_CCER，IC1FP1 不反相）、CC2P=&#39;0&#39;（TIMx_CCER，IC2FP2 不反相）、SMS=&#39;011&#39;（TIMx_SMCR，所有输入均在上升沿和下降沿有效）；字幕「那本小节的内容就到这里」"></p>
+<p><em>图 14：参考手册「编码器接口模式」页——上方是表77，下方是配置清单：<code>CC1S=&#39;01&#39;</code>（TIMx_CCMR1，IC1FP1 映射到 TI1）、<code>CC2S=&#39;01&#39;</code>（TIMx_CCMR2，IC2FP2 映射到 TI2）、<code>CC1P=&#39;0&#39;</code>（TIMx_CCER，IC1FP1 不反相）、<code>CC2P=&#39;0&#39;</code>（TIMx_CCER，IC2FP2 不反相）、<code>SMS=&#39;011&#39;</code>（TIMx_SMCR，所有输入均在上升沿和下降沿有效）；字幕「那本小节的内容就到这里」</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>编码器接口只能借 CH1/CH2</strong>：它用的是输入捕获的前两个通道，<strong>CH3/CH4 不能接编码器</strong>——引脚具体是哪个，由所选定时器的 CH1/CH2 决定（查引脚定义表）。</li>
+<li><strong>基本定时器没有编码器接口</strong>：只有高级定时器和通用定时器有，且<strong>每个定时器只有 1 个</strong>。</li>
+<li><strong>一个定时器配成编码器模式后基本干不了别的活</strong>：C8T6 只有 TIM1～TIM4，<strong>最多接 4 个编码器</strong>；接满后没定时器可用，只能退回<strong>外部中断软件计次</strong>（硬件不够软件凑）。</li>
+<li><strong>编码器模式下 72MHz 内部时钟不再使用</strong>：CNT 的计数时钟由「编码器边沿」提供；<strong>时基单元里设置的计数方向也不再使用</strong>（方向由编码器决定）。</li>
+<li><strong>但 ARR 仍然有效</strong>：一般设 <strong>65535</strong>（最大量程），配合<strong>补码</strong>把 16 位无符号数当 16 位有符号数，才能得到 -1、-2 这样的负数。</li>
+<li><strong>CNT 的值是「位置」不是「速度」</strong>：要测速度必须<strong>每隔一段时间取一次 CNT、再把 CNT 清零</strong>——取到的值才是这段时间的速度（本质是带方向的测频法）。</li>
+<li><strong>只有单相不能测方向</strong>：单相方波正转反转一模一样；加方向脚虽然能区分方向，但<strong>那不是正交信号</strong>。</li>
+<li><strong>「谁超前」只是极性定义</strong>：正转 A 超前 B、还是 B 超前 A，取决于你怎么定义方向和怎么接 A/B 相——换接法就反过来，功能不变。</li>
+<li><strong>正交的两个好处别只记一个</strong>：①精度更高（A、B 相都计次，<strong>计次频率提高了一倍</strong>）②抗噪声（<strong>两信号必须交替跳变</strong>，毛刺只让计数来回摆动）。</li>
+<li><strong>三种模式里一般只用「在 TI1 和 TI2 上计数」</strong>：两个边沿都计数，精度最高；另外两种「仅在一个边沿计数」的模式能工作但精度低。</li>
+<li><strong>编码器模式下的「极性」不是边沿极性</strong>：输入捕获里极性是选上升沿/下降沿，而编码器接口里<strong>极性是「高低电平反相」</strong>（不反相 / 过非门反相）——别拿输入捕获的理解套上去。</li>
+<li><strong>加减方向反了怎么办</strong>：①把<strong>任一个引脚反相</strong>；②<strong>交换 A/B 两相接线</strong>；③换引脚（延伸）——都能纠正方向。</li>
+<li><strong>本集没有库函数、没有配置代码</strong>：具体怎么配寄存器/调库函数、怎么读计数器、怎么把无符号转有符号，<strong>都在 P20 [6-8]</strong>；本集只给了手册配置清单（图 14）。</li>
+<li><strong>编码器接口不负责「测速的采样时间」</strong>：取 CNT 的间隔、脉冲当量（一圈多少个脉冲）、误差与分辨率，本集<strong>都没有讲</strong>（留到 P20 及实际项目）。</li>
+<li><strong>Z 相不是每个编码器都有</strong>：光栅/独立编码器才可能有 Z 相（0 位置脉冲），套件里的触点式旋钮编码器只有 A/B 两相。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>开场：本小节继续学习定时器，这是最后一部分——编码器接口</td>
+</tr>
+<tr>
+<td>0:10</td>
+<td>先看最终程序的现象：本小节只有一个程序，就是编码器接口测速</td>
+</tr>
+<tr>
+<td>0:22</td>
+<td>面包板上接了一个旋转编码器模块；这个代码和之前写的「旋转编码器计次」功能基本一样</td>
+</tr>
+<tr>
+<td>0:32</td>
+<td>本质上也是编码器计次，只不过本代码靠定时器的编码器接口自动计次</td>
+</tr>
+<tr>
+<td>0:40</td>
+<td>之前的代码是触发外部中断、在中断函数里手动计次</td>
+</tr>
+<tr>
+<td>0:46</td>
+<td>用编码器接口的好处是节约软件资源：外部中断计次时，电机高速旋转每秒成千上万脉冲，程序频繁进中断</td>
+</tr>
+<tr>
+<td>1:06</td>
+<td>进中断后做的只是简单加一减一，软件资源被低级工作占用了</td>
+</tr>
+<tr>
+<td>1:10</td>
+<td>所以「需要频繁执行、操作又比较简单」的任务，一般设计硬件电路模块自动完成</td>
+</tr>
+<tr>
+<td>1:14</td>
+<td>编码器接口就是用来自动给编码器计次的电路；每隔一段时间取一下计次值就得到速度</td>
+</tr>
+<tr>
+<td>1:24</td>
+<td>看程序：OLED 显示 Speed</td>
+</tr>
+<tr>
+<td>1:31</td>
+<td>向右慢速旋转数值为正、计次较小；向右快速旋转计次增大</td>
+</tr>
+<tr>
+<td>1:42</td>
+<td>向左慢速旋转数值为负、计次较小；向左快速旋转计次负向增大</td>
+</tr>
+<tr>
+<td>1:55</td>
+<td>停下来速度就是 0；配合编码器可测旋转速度与方向</td>
+</tr>
+<tr>
+<td>2:06</td>
+<td>应用：电机控制——PWM 驱动电机 + 编码器测速 + PID 闭环</td>
+</tr>
+<tr>
+<td>2:20</td>
+<td>实际电机用霍尔/光栅测速；本实验用触点式旋钮编码器、人工旋转模拟</td>
+</tr>
+<tr>
+<td>2:40</td>
+<td>程序看完，回 PPT 看编码器接口的简介</td>
+</tr>
+<tr>
+<td>2:46</td>
+<td>英文 Encoder Interface，直译编码器接口</td>
+</tr>
+<tr>
+<td>2:55</td>
+<td>工作流程概述：可接收增量（正交）编码器信号，根据正交脉冲自动控制 CNT 自增或自减</td>
+</tr>
+<tr>
+<td>3:17</td>
+<td>正交编码器：输出两个相位差 90° 的方波，超前/滞后分别代表正转/反转</td>
+</tr>
+<tr>
+<td>3:37</td>
+<td>编码器 A/B 两相接入，编码器接口自动控制时基单元 CNT 自增或自减</td>
+</tr>
+<tr>
+<td>4:00</td>
+<td>举例：CNT 初值 0，右转 10 个脉冲 → CNT 到 10</td>
+</tr>
+<tr>
+<td>4:20</td>
+<td>再左转产生 5 个脉冲 → CNT 在 10 的基础上自减 5</td>
+</tr>
+<tr>
+<td>4:38</td>
+<td>编码器接口相当于一个带方向控制的外部时钟，同时控制计数时钟和计数方向</td>
+</tr>
+<tr>
+<td>4:46</td>
+<td>所以 CNT 的值表示位置；每隔一段时间取一次 CNT 再清零，取出的值表示速度</td>
+</tr>
+<tr>
+<td>4:54</td>
+<td>借用测频法/测周法：编码器测速就是测频法测正交脉冲频率，只是加了方向</td>
+</tr>
+<tr>
+<td>5:21</td>
+<td>资源：每个高级/通用定时器拥有 1 个编码器接口</td>
+</tr>
+<tr>
+<td>5:30</td>
+<td>配成编码器模式后基本干不了别的活；C8T6 只有 TIM1～TIM4，最多接 4 个编码器</td>
+</tr>
+<tr>
+<td>5:44</td>
+<td>接满就没定时器用了；实在不行用外部中断软件计次弥补</td>
+</tr>
+<tr>
+<td>6:00</td>
+<td>硬件资源与软件资源互补：硬件越多软件越轻松，硬件不够软件来凑（PWM/输入捕获/编码器都有对应例子）</td>
+</tr>
+<tr>
+<td>6:47</td>
+<td>两个输入引脚借用输入捕获的通道 1 和通道 2</td>
+</tr>
+<tr>
+<td>7:08</td>
+<td>旋转编码器简介：测量位置、速度或旋转方向的装置</td>
+</tr>
+<tr>
+<td>7:26</td>
+<td>类型：机械触点式 / 霍尔传感器式 / 光栅式</td>
+</tr>
+<tr>
+<td>7:40</td>
+<td>常见形态：光栅+红外对管只有一相，不是正交编码器</td>
+</tr>
+<tr>
+<td>7:48</td>
+<td>套件里的触点式编码器有 4 个引脚：上面电源正负极、下面 A/B 两相，是正交编码器</td>
+</tr>
+<tr>
+<td>8:07</td>
+<td>电机自带的霍尔编码器有 6 根线：2 根电机、2 根电源、中间 2 根 A/B 相</td>
+</tr>
+<tr>
+<td>8:33</td>
+<td>独立编码器还有 Z 相（0 位置脉冲），用于位置测量、校准 0 位置</td>
+</tr>
+<tr>
+<td>9:10</td>
+<td>转动时 A/B 输出方波，转得越快频率越高，频率代表速度</td>
+</tr>
+<tr>
+<td>9:20</td>
+<td>只有一相能测速但不能测方向；加方向脚可行但不是正交信号</td>
+</tr>
+<tr>
+<td>9:31</td>
+<td>正交方案：正转 A 超前 B 90°、反转 A 滞后 B 90°（谁超前是极性定义）</td>
+</tr>
+<tr>
+<td>9:56</td>
+<td>好处①精度更高：A、B 相都计次，计次频率提高了一倍</td>
+</tr>
+<tr>
+<td>10:18</td>
+<td>好处②抗噪声：两信号必须交替跳变，一相不动另一相连跳就抵消</td>
+</tr>
+<tr>
+<td>10:29</td>
+<td>正转真值表：A↑→B低、A↓→B高、B↑→A高、B↓→A低</td>
+</tr>
+<tr>
+<td>11:20</td>
+<td>反转真值表四种状态正好相反</td>
+</tr>
+<tr>
+<td>11:46</td>
+<td>设计逻辑：把 A/B 所有边沿作为计数时钟，按另一相此刻电平决定自增/自减</td>
+</tr>
+<tr>
+<td>12:37</td>
+<td>看框图：编码器接口处于定时器这个位置，高级/通用一样、每定时器一个</td>
+</tr>
+<tr>
+<td>12:54</td>
+<td>基本定时器没有编码器接口</td>
+</tr>
+<tr>
+<td>13:00</td>
+<td>编码器接口有两个输入端，分别接编码器 A/B 相；网络标号 TI1FP1、TI2FP2</td>
+</tr>
+<tr>
+<td>13:22</td>
+<td>借用输入捕获的前两个通道，所以输入脚就是 CH1 和 CH2；CH3/CH4 无关</td>
+</tr>
+<tr>
+<td>14:00</td>
+<td>输出部分相当于从模式控制器，控制 CNT 的计数时钟和计数方向</td>
+</tr>
+<tr>
+<td>14:15</td>
+<td>按前面总结的表：正转控制 CNT 自增，反转控制 CNT 自减</td>
+</tr>
+<tr>
+<td>14:24</td>
+<td>注意：72MHz 内部时钟和时基单元里设置的计数方向不再使用</td>
+</tr>
+<tr>
+<td>14:46</td>
+<td>编码器接口基本结构：GPIO→滤波→边沿检测极性选择→TI1FP1/TI2FP2→编码器接口</td>
+</tr>
+<tr>
+<td>15:05</td>
+<td>编码器接口通过预分频器控制 CNT 时钟，同时根据方向控制计数方向；正转增反转减</td>
+</tr>
+<tr>
+<td>15:23</td>
+<td>ARR 也有效，一般设 65535 最大量程，利用补码得到负数</td>
+</tr>
+<tr>
+<td>15:40</td>
+<td>正转 CNT 0、1、2、3…；反转 0 的下一个数是 65535，再 65534、65533</td>
+</tr>
+<tr>
+<td>16:00</td>
+<td>把 16 位无符号数转换成 16 位有符号数：65535 对应 -1、65534 对应 -2</td>
+</tr>
+<tr>
+<td>16:20</td>
+<td>这个技巧很方便得到负数；电路结构了解得差不多</td>
+</tr>
+<tr>
+<td>16:24</td>
+<td>看工作模式表77：描述编码器接口的工作逻辑</td>
+</tr>
+<tr>
+<td>16:38</td>
+<td>TI1FP1/TI2FP2 接 A/B 相，在 A/B 的上升沿或下降沿触发计数</td>
+</tr>
+<tr>
+<td>16:52</td>
+<td>向上还是向下计数，取决于边沿出现时另一相的电平状态（相对信号电平）</td>
+</tr>
+<tr>
+<td>17:06</td>
+<td>编码器还分了 3 种工作模式：仅在 TI1 计数、仅在 TI2 计数、TI1 TI2 都计数</td>
+</tr>
+<tr>
+<td>17:30</td>
+<td>4 种正转状态涉及两个引脚：A 相上升/下降沿、B 相上升/下降沿</td>
+</tr>
+<tr>
+<td>17:45</td>
+<td>4 种状态都计数就是第 3 种模式（TI1 和 TI2 都计数）</td>
+</tr>
+<tr>
+<td>17:53</td>
+<td>也可以忽略部分边沿：仅在 A 相边沿计数（仅 TI1）或仅在 B 相边沿计数（仅 TI2）</td>
+</tr>
+<tr>
+<td>18:06</td>
+<td>只用一相边沿也能实现功能，只是计次精度低一些</td>
+</tr>
+<tr>
+<td>18:18</td>
+<td>双沿计数时每个边沿都是计数时刻；单相计数时忽略另一相边沿</td>
+</tr>
+<tr>
+<td>18:28</td>
+<td>用左表与右表对照：正转四种状态都对应向上计数</td>
+</tr>
+<tr>
+<td>19:20</td>
+<td>反转四种状态则对应向下计数</td>
+</tr>
+<tr>
+<td>19:44</td>
+<td>总结：正转状态都向上计数、反转状态都向下计数</td>
+</tr>
+<tr>
+<td>19:58</td>
+<td>另两种模式只在一相边沿计数，精度低一些</td>
+</tr>
+<tr>
+<td>20:05</td>
+<td>一般都用第 3 种模式（两个边沿都计数），因为计次精度最高</td>
+</tr>
+<tr>
+<td>20:14</td>
+<td>实例一（均不反相）：图132 用双沿计数模式，画 TI1/TI2 与计数器变化</td>
+</tr>
+<tr>
+<td>20:38</td>
+<td>向前时计数器阶梯上升；遇到毛刺（一相不动另一相连跳）时加减摆动</td>
+</tr>
+<tr>
+<td>20:52</td>
+<td>毛刺过后计数值还是原来的，不受噪声影响——这就是抗噪声原理</td>
+</tr>
+<tr>
+<td>22:10</td>
+<td>之后向后计数器下降，再来毛刺、再向前</td>
+</tr>
+<tr>
+<td>22:35</td>
+<td>实例二（TI1 反相）：展示极性变化对计数的影响</td>
+</tr>
+<tr>
+<td>23:00</td>
+<td>输入捕获模式下极性是边沿极性；编码器模式下极性是高低电平反相</td>
+</tr>
+<tr>
+<td>23:30</td>
+<td>选上升沿参数=不反相、下降沿参数=过非门反相</td>
+</tr>
+<tr>
+<td>24:00</td>
+<td>TI1 反相后，同样的旋转查表得到的计数方向与均不反相相反</td>
+</tr>
+<tr>
+<td>24:35</td>
+<td>用途：加减方向反了时，把任一引脚反相，或交换 A/B 相、换引脚</td>
+</tr>
+<tr>
+<td>25:05</td>
+<td>本集内容对应手册的「编码器接口模式」一节</td>
+</tr>
+<tr>
+<td>25:20</td>
+<td>手册原话：编码器接口模式基本上相当于使用了一个带有方向选择的外部时钟</td>
+</tr>
+<tr>
+<td>25:30</td>
+<td>手册还有表77、两个实例的说明，可以自行查看</td>
+</tr>
+<tr>
+<td>25:50</td>
+<td>结尾：本小节内容到这儿，下一小节来写编码器接口的代码</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，476 段），不是 ASR。<strong>讲手册那几段混入了大片手册正文</strong>（如「一个外部的增量编码器可以直接与 MCU 连接而不需要外部接口逻辑」「273/754」页码等），这些<strong>不是口述内容</strong>；另有行首噪声（<code>T4</code>、<code>厂</code>、<code>门</code> 等）。典型 OCR 错字（本集实际出现）：<code>编码器接口</code> → 「编码器接回/编码器接国/编码器接」、<code>CNT</code> → 「CN」、<code>TI1FP1</code> → 「T1FP1/T11」、<code>引脚</code> → 「引I脚」、<code>这个</code> → 「这介」、<code>Encoder Interface</code> → 「Encoderlnterface」等，已按画面和上下文校正。</li>
+<li><strong>本集完全没有讲库函数</strong>：全文没有出现编码器接口相关的库函数名与参数（素材核对为 0 次），所以本笔记<strong>一个函数名都没写</strong>，配置与代码统一写「在 P20 [6-8]」；本集能给的只有<strong>手册配置清单</strong>（图 14，出自手册画面）。</li>
+<li><strong>本集没有「倍频」这个词</strong>：老师只说「A、B 相都计次，相当于<strong>计次频率提高了一倍</strong>」（10:04）；更细的倍数说法属常识推算，本集未出现，本笔记也未使用。</li>
+<li><strong>寄存器位 <code>CC1S / CC2S / CC1P / CC2P / SMS</code> 只出现在最后的手册画面</strong>（f_00259，25:48），老师没有逐条口述；本笔记 7 章的清单表已注明「出自手册画面」，不是本节口述结论。</li>
+<li><strong>ARR 设 65535 与「补码转负数」讲得比较口语</strong>：「我们会做一个操作……直接转成有符号数」，<strong>没有给具体 C 代码</strong>（比如怎么写强制类型转换、在哪里转），写法留到 P20。</li>
+<li><strong>「测速」的采样时间/误差没讲</strong>：只说「每隔一段时间取一次 CNT 再清零」，<strong>没有给采样周期、脉冲当量（一圈多少脉冲）、分辨率与误差公式</strong>，这些要等 P20 或实际项目。</li>
+<li><strong>片头工程名与视频小节号不同套</strong>：片头工程是 <code>6-8 编码器接口测速</code>（P20 的代码），本集标题是 [6-7]——与 P15～P18 一样，素材按「代码小节」编号。</li>
+<li><strong>现象只有 OLED 数值、没有示波器/波形测量</strong>：<code>Speed:+00000</code>、<code>Speed:-00008</code> 都是画面瞬时值，正转/反转/快慢的对应关系靠口述描述。</li>
+<li><strong>手册导读较仓促</strong>：25:05–25:52 只说了「对应编码器接口模式一节 + 表77 + 两个实例 + 配置清单」，没有逐条讲；手册页还有滚动/遮挡（OCR 混入页码等文本）。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-20.html"><span class="label">下一篇</span>[6-8] 编码器接口测速</a>
+    <a class="next" href="stm32-18.html"><span class="label">上一篇</span>[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E4%BB%A3%E7%A0%81%E5%9C%A8-6-8-p20">0. 本集定位：理论课，代码在 [6-8] P20</a>
+        <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E7%8E%B0%E8%B1%A1-%E7%BC%96%E7%A0%81%E5%99%A8%E6%8E%A5%E5%8F%A3%E6%B5%8B%E9%80%9F">1. 片头现象：编码器接口测速</a>
+        <a class="level-2" href="#2-%E7%BC%96%E7%A0%81%E5%99%A8%E6%8E%A5%E5%8F%A3%E6%98%AF%E4%BB%80%E4%B9%88">2. 编码器接口是什么</a>
+        <a class="level-3" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E8%83%BD%E5%8A%9B">2.1 定义与能力</a>
+        <a class="level-3" href="#2-2-%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B-cnt-%E4%BD%8D%E7%BD%AE-%E5%8F%96%E4%B8%80%E6%AC%A1%E6%B8%85%E9%9B%B6-%E9%80%9F%E5%BA%A6">2.2 工作流程：CNT = 位置，取一次清零 = 速度</a>
+        <a class="level-3" href="#2-3-%E8%B5%84%E6%BA%90%E4%B8%8E%E9%99%90%E5%88%B6">2.3 资源与限制</a>
+        <a class="level-2" href="#3-%E6%97%8B%E8%BD%AC%E7%BC%96%E7%A0%81%E5%99%A8%E4%B8%8E%E6%AD%A3%E4%BA%A4%E4%BF%A1%E5%8F%B7">3. 旋转编码器与正交信号</a>
+        <a class="level-3" href="#3-1-%E6%97%8B%E8%BD%AC%E7%BC%96%E7%A0%81%E5%99%A8%E6%98%AF%E4%BB%80%E4%B9%88-%E6%9C%89%E5%93%AA%E4%BA%9B%E7%B1%BB%E5%9E%8B">3.1 旋转编码器是什么、有哪些类型</a>
+        <a class="level-3" href="#3-2-%E5%8F%AA%E6%9C%89%E4%B8%80%E7%9B%B8%E4%B8%BA%E4%BB%80%E4%B9%88%E4%B8%8D%E8%A1%8C">3.2 只有一相为什么不行</a>
+        <a class="level-3" href="#3-3-%E6%AD%A3%E4%BA%A4%E6%96%B9%E6%A1%88%E7%9A%84%E4%B8%A4%E4%B8%AA%E5%A5%BD%E5%A4%84">3.3 正交方案的两个好处</a>
+        <a class="level-3" href="#3-4-%E6%AD%A3%E4%BA%A4%E7%BC%96%E7%A0%81%E5%99%A8%E7%9A%84%E4%B8%A4%E5%BC%A0%E7%9C%9F%E5%80%BC%E8%A1%A8">3.4 正交编码器的两张真值表</a>
+        <a class="level-2" href="#4-%E7%BC%96%E7%A0%81%E5%99%A8%E6%8E%A5%E5%8F%A3%E5%9C%A8%E5%AE%9A%E6%97%B6%E5%99%A8%E6%A1%86%E5%9B%BE%E9%87%8C%E7%9A%84%E4%BD%8D%E7%BD%AE">4. 编码器接口在定时器框图里的位置</a>
+        <a class="level-3" href="#4-1-%E8%BE%93%E5%85%A5%E9%83%A8%E5%88%86-%E5%80%9F%E8%BE%93%E5%85%A5%E6%8D%95%E8%8E%B7%E7%9A%84-ch1-ch2">4.1 输入部分：借输入捕获的 CH1/CH2</a>
+        <a class="level-3" href="#4-2-%E8%BE%93%E5%87%BA%E9%83%A8%E5%88%86-%E7%9B%B8%E5%BD%93%E4%BA%8E-%E5%B8%A6%E6%96%B9%E5%90%91%E7%9A%84%E5%A4%96%E9%83%A8%E6%97%B6%E9%92%9F">4.2 输出部分：相当于「带方向的外部时钟」</a>
+        <a class="level-3" href="#4-3-%E7%BC%96%E7%A0%81%E5%99%A8%E6%8E%A5%E5%8F%A3%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84">4.3 编码器接口基本结构</a>
+        <a class="level-3" href="#4-4-arr-%E4%B8%8E%E8%A1%A5%E7%A0%81-%E6%80%8E%E4%B9%88%E5%BE%97%E5%88%B0%E8%B4%9F%E6%95%B0">4.4 ARR 与补码：怎么得到负数</a>
+        <a class="level-2" href="#5-%E4%B8%89%E7%A7%8D%E5%B7%A5%E4%BD%9C%E6%A8%A1%E5%BC%8F%E4%B8%8E%E8%A1%A877">5. 三种工作模式与表77</a>
+        <a class="level-3" href="#5-1-%E8%A1%A877-%E8%AE%A1%E6%95%B0%E6%96%B9%E5%90%91%E4%B8%8E%E7%BC%96%E7%A0%81%E5%99%A8%E4%BF%A1%E5%8F%B7%E7%9A%84%E5%85%B3%E7%B3%BB">5.1 表77：计数方向与编码器信号的关系</a>
+        <a class="level-3" href="#5-2-%E4%B8%89%E7%A7%8D%E6%A8%A1%E5%BC%8F%E5%88%86%E5%88%AB%E6%98%AF%E4%BB%80%E4%B9%88%E6%84%8F%E6%80%9D">5.2 三种模式分别是什么意思</a>
+        <a class="level-3" href="#5-3-%E7%BB%93%E8%AE%BA-%E6%AD%A3%E8%BD%AC%E9%83%BD%E5%90%91%E4%B8%8A-%E5%8F%8D%E8%BD%AC%E9%83%BD%E5%90%91%E4%B8%8B-%E4%B8%80%E8%88%AC%E7%94%A8%E5%8F%8C%E6%B2%BF">5.3 结论：正转都向上、反转都向下，一般用双沿</a>
+        <a class="level-2" href="#6-%E4%B8%A4%E4%B8%AA%E5%AE%9E%E4%BE%8B">6. 两个实例</a>
+        <a class="level-3" href="#6-1-%E5%AE%9E%E4%BE%8B%E4%B8%80-%E5%9D%87%E4%B8%8D%E5%8F%8D%E7%9B%B8-%E6%8A%97%E5%99%AA%E5%A3%B0%E5%8E%9F%E7%90%86">6.1 实例一：均不反相——抗噪声原理</a>
+        <a class="level-3" href="#6-2-%E5%AE%9E%E4%BE%8B%E4%BA%8C-ti1-%E5%8F%8D%E7%9B%B8-%E6%9E%81%E6%80%A7%E4%B8%8E%E6%96%B9%E5%90%91">6.2 实例二：TI1 反相——极性与方向</a>
+        <a class="level-2" href="#7-%E6%89%8B%E5%86%8C%E5%AF%BC%E8%AF%BB%E4%B8%8E%E4%B8%8B%E4%B8%80%E9%9B%86">7. 手册导读与下一集</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

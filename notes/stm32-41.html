@@ -1,0 +1,2652 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[12-1] Unix时间戳 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [12-1]（理论课）：片头演示 BKP 与 RTC 成品程序（复位/断电保持）；Unix 时间戳定义（1970-1-1 UTC 起秒数、不考虑闰秒、全时区共用计数器、按小时偏移）、32 位 2038 问题；UTC/GMT 与闰秒；time.h 七函数与三种数据类型；Dev-C++ 实操 gmtime/localtime/mktime/ctime/asctime/strftime。">
+  <meta property="og:title" content="[12-1] Unix时间戳 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [12-1]（理论课）：片头演示 BKP 与 RTC 成品程序（复位/断电保持）；Unix 时间戳定义（1970-1-1 UTC 起秒数、不考虑闰秒、全时区共用计数器、按小时偏移）、32 位 2038 问题；UTC/GMT 与闰秒；time.h 七函数与三种数据类型；Dev-C++ 实操 gmtime/localtime/mktime/ctime/asctime/strftime。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html" class="active" aria-current="page">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>56 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">RTC</span><span class="tag">Unix时间戳</span><span class="tag">time.h</span><span class="tag">UTC</span>
+    </div>
+    <article class="prose"><h1>[12-1] Unix时间戳 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=41，44:27（2667 秒）</li>
+<li>素材：242 帧关键帧（<strong>每 11 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>743 段</strong>）；关键截图 14 张随笔记收录（源图在 <code>vidsum_out/stm32_p41/frames/</code>，站内图片在 <code>assets/images/stm32-41/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；错字主要是 <strong><code>闰</code> → 「润」</strong>（润秒/润年）、<code>秒计数器</code> → 「利计数器」、<code>时间戳</code> → 「时间溅」、<code>日期时间</code> → 「回期时间」、<code>gmtime</code> → 「amtime」、<code>localtime</code> → 「ocaltime」、<code>time_t</code> → 「time+」、<code>夏令时</code> → 「直今时」、<code>电源</code> → 「由源」，并混入网页/浏览器文字——这些<strong>不是口述内容</strong>，已剔除/校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 12（RTC 实时时钟）的第一节</strong>——对应<strong>参考手册第 16 章</strong>。本集<strong>零 STM32 代码</strong>：00:00 先翻手册交代本大节位置 → 01:27–06:36 <strong>只演示两个成品程序的最终现象</strong>（<code>12-1 读写备份寄存器</code>、<code>12-2 实时时钟</code>，<strong>不讲代码</strong>）→ 06:36 起回到 PPT 讲 <strong>Unix 时间戳、UTC/GMT、闰秒</strong> → 23:39 起在 **Dev-C++（PC 端 C 程序，不是 STM32 工程）**里逐个演示 <code>time.h</code> 的函数。STM32 侧的 BKP/RTC 外设结构在 [12-2]、代码在 [12-3]。结尾 44:24「那我们下一小节，再见」。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>本大节讲 RTC 实时时钟</strong>（手册第 16 章），分三小节：<strong>本集单独讲 Unix 时间戳</strong>（因为 <strong>STM32 的 RTC 计数器本质上就是一个秒计数器/时间戳</strong>），之后讲 BKP 与 RTC 外设结构，再往后写代码。<strong>手册 16.1 RTC 简介</strong>：<strong>实时时钟是一个独立的定时器</strong>，RTC 模块有<strong>一组连续计数的计数器</strong>，在相应软件配置下可提供<strong>时钟日历</strong>功能；<strong>RTC 模块和时钟配置系统（RCC_BDCR）位于后备区域</strong>，所以<strong>系统复位或从待机模式唤醒后，RTC 的设置和时间维持不变</strong>；<strong>系统复位后对后备寄存器和 RTC 的访问被禁止</strong>（防止对后备区域 BKP 的意外写操作），要访问需：<strong>① 设置 <code>RCC_APB1ENR</code> 的 <code>PWREN</code> 和 <code>BKPEN</code> 位</strong>（使能电源接口和后备接口时钟）<strong>② 设置 <code>PWR_CR</code> 的 <code>DBP</code> 位</strong>（使能对后备寄存器和 RTC 的访问）。<strong>片头现象①（<code>12-1 读写备份寄存器</code>）</strong>：在 <strong>ST-Link 上引一根线模拟 VBAT 电池电源</strong>；按键后往两个备份寄存器写入 <strong><code>0x1234</code>、<code>0x5678</code></strong> 再读回，OLED 的 <code>W:</code> 与 <code>R:</code> 一致；<strong>只要 VBAT 有电池供电，即使主电源断电，BKP 数据仍保持</strong>；<strong>按复位键 BKP 数据也不复位</strong>；但<strong>把 VBAT 也断开（彻底断电）后 BKP 就清零</strong>——<strong>BKP 本质上不能做到完全掉电不丢失</strong>，它<strong>更多是为 RTC 服务的</strong>。<strong>现象②（<code>12-2 实时时钟</code>）</strong>：OLED 显示年月日时分秒；<strong>按复位键时间继续走、不复位</strong>；<strong>拔掉系统主电源后时间仍然继续走</strong>（靠 VBAT 供电）——这才是真正「掉电不丢时间」。作者的<strong>硬件坑</strong>：<strong>有的芯片 VBAT 的电源还会微弱地给整个系统供电</strong>，导致拔掉主电源后系统还有残留供电（还有其他硬件问题），替代办法后续写代码时再说。<strong>Unix 时间戳定义</strong>：<strong>从 UTC/GMT 的 1970 年 1 月 1 日 0 时 0 分 0 秒开始所经过的秒数</strong>，<strong>不考虑闰秒</strong>；<strong>时间戳存储在一个秒计数器中</strong>（<strong>32 位/64 位整型</strong>）；<strong>世界上所有时区的秒计数器相同</strong>，<strong>不同时区通过添加偏移得到当地时间</strong>（如中国东 8 区：北京＝伦敦＋8 小时）。<strong>对照表</strong>（画面原表）：</p>
+<table>
+<thead>
+<tr>
+<th>秒计数器</th>
+<th>日期时间（伦敦）</th>
+<th>日期时间（北京）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>0</strong></td>
+<td>1970-1-1 0:0:0</td>
+<td>1970-1-1 8:0:0</td>
+</tr>
+<tr>
+<td><strong>1000000000</strong></td>
+<td>2001-9-9 1:46:40</td>
+<td>2001-9-9 9:46:40</td>
+</tr>
+<tr>
+<td><strong>1672588795</strong></td>
+<td>2023-1-1 15:59:55</td>
+<td>2023-1-1 23:59:55</td>
+</tr>
+</tbody></table>
+<p><strong>为什么用秒计数器（好处）</strong>：<strong>① 简化硬件电路</strong>——RTC 里放一个大秒寄存器就行，<strong>不用管年月日寄存器、进位、大月小月、平年闰年</strong>；<strong>② 时间间隔计算方便</strong>——两个时刻秒数相减再除一小时秒数即可；<strong>③ 存储方便</strong>（一个较大的变量）。<strong>坏处</strong>：<strong>占用软件资源</strong>——给人看的时候还要做比较复杂的换算。<strong>溢出风险</strong>：以 <strong>32 位有符号</strong>为例，最大 <code>2^32/2−1 = 2147483647</code>（约 <strong>21 亿多秒</strong>）→ 业界称 <strong>2038 问题</strong>；现代手机/电脑多用 <strong>64 位</strong>，范围极大、可高枕无忧。<strong>时区</strong>：地球分 <strong>24 个时区</strong>，每差一个时区 ±1 小时；<strong>所有时区共用一个秒计数器</strong>，按所在时区加小时偏移；<strong>1970 年之前的时间戳无法表示</strong>。<strong>时间戳有两种表现形式</strong>：① <strong>永不进位的秒计数原值</strong>；② 由它<strong>计算出的年月日时分秒</strong>（要算一年多少秒、一天多少秒，还要考虑大小月/平闰年，<strong>步骤固定但麻烦</strong>，所以直接用现成库）。<strong>UTC/GMT</strong>：<strong>GMT（Greenwich Mean Time，格林尼治标准时间）以地球自转为基础</strong>，把地球自转一周的时间等分为 24 小时；<strong>UTC（Universal Time Coordinated，协调世界时）以原子钟为基础</strong>，规定<strong>铯 133 原子基态的两个超精细能级间在零磁场下跃迁辐射 9,192,631,770 周所持续的时间为 1 秒</strong>；<strong>当原子钟计时的一天与地球自转一周的时间相差超过 0.9 秒时，UTC 会执行闰秒</strong>来保持协调一致。<strong>为什么需要 UTC</strong>：地球因潮汐/地质活动<strong>越转越慢</strong>，用「一天」定秒长会让秒长不断变化（光速、音速这些常数就固定不了），所以改用铯原子钟；但纯原子钟计时又会与地球自转脱节（时间长了中午 12 点太阳不在正上方），于是引入<strong>闰秒</strong>。<strong>闰秒示例</strong>：上一次闰秒是<strong>北京时间 2017 年 1 月 1 日 7 时 59 分 59 秒</strong>，下一秒出现 <strong>7 时 59 分 60 秒</strong>（该分钟共 61 秒）。日常生活中 <strong>GMT 与 UTC 可视为一样</strong>，手机电脑里写 <strong>GMT+8 / UTC+8</strong> 都行。<strong>时间戳对闰秒没有适应性</strong>：每次产生闰秒，时间戳与授时中心的标准时间就差 1 秒（了解即可）。<strong><code>time.h</code> 七个函数</strong>：<code>time</code>（获取系统时钟）、<code>gmtime</code>（秒→日期时间·格林尼治）、<code>localtime</code>（秒→日期时间·当地）、<code>mktime</code>（日期时间→秒·当地）、<code>ctime</code>（秒→字符串·默认格式）、<code>asctime</code>（日期时间→字符串·默认格式）、<code>strftime</code>（日期时间→字符串·自定义格式）；另有 <code>clock</code>（程序执行时间）、<code>difftime</code>（两时间差）只提到、未演示。<strong>三种数据类型</strong>：<strong><code>time_t</code></strong>（<code>typedef</code> 重命名，本平台是 <code>time64_t</code>＝<code>int64</code>，<strong>64 位有符号整型</strong>）、<strong><code>struct tm</code></strong>（<strong>9 个成员</strong>：<code>tm_sec</code> 0～59、<code>tm_min</code> 0～59、<code>tm_hour</code> 0～23、<code>tm_mday</code> 1～31、<strong><code>tm_mon</code> 0～11（从 1 月起的月份偏移）</strong>、<strong><code>tm_year</code> 从 1900 年起的年数</strong>、<code>tm_wday</code> 从周日起的星期几 0～6、<code>tm_yday</code> 0～365、<code>tm_isdst</code> 夏令时 +1/0/−1）、<strong><code>char*</code></strong>（字符串指针）。<strong>Dev-C++ 实操要点</strong>：<code>time(NULL)</code> 取系统时间（也可用输出参数 <code>time(&amp;time_cnt)</code>）；<strong><code>gmtime</code> 返回指针，赋值给结构体变量要在前面加 <code>*</code></strong>（<code>time_date = *gmtime(&amp;time_cnt);</code>）否则是指针跨级赋值；打印<strong>年份要 <code>tm_year + 1900</code>、月份要 <code>tm_mon + 1</code></strong>；<strong><code>localtime</code> 与 <code>gmtime</code> 用法一样，但会自动按本机时区加 8 小时</strong>（得到 2023-1-1 23:59:55）；<strong><code>mktime</code> 必须传「当地时间」</strong>——传入 <code>localtime</code> 的结果转回去秒数不变，改成 <code>gmtime</code> 的结果就会对不上；<code>mktime</code> 参数<strong>没有 <code>const</code></strong>，因为它会<strong>回填 <code>tm_wday</code>/<code>tm_yday</code></strong>；<code>ctime</code>/<code>asctime</code> 输出西方习惯格式（<code>Sunday January …</code>），日常少用；<code>strftime(char 数组, 长度, &quot;%H:%M:%S&quot;, &amp;time_date)</code> 可自定义格式。<strong>结尾强调：重点掌握 <code>localtime</code> 与 <code>mktime</code></strong>。<strong>注意</strong>：<strong><code>time()</code> 在 STM32 裸机上用不了</strong>——PC 能读系统时间，STM32 没有 RTC 就不知道当前时间，要靠 RTC 计数器自己维护秒计数（引出下一小节）。</p>
+<h2 id="0-本集定位-理论课-片头演示成品程序-unix-时间戳-dev-c-实操-time-h">0. 本集定位：理论课（片头演示成品程序 + Unix 时间戳 + Dev-C++ 实操 time.h）</h2>
+<ul>
+<li><strong>本集零 STM32 代码</strong>：片头两个工程（<code>12-1 读写备份寄存器</code>、<code>12-2 实时时钟</code>）<strong>只演示现象、不讲代码</strong>；所有代码实操都在 **Dev-C++（PC 端 C 语言程序）**里进行；</li>
+<li><strong>本集任务两个</strong>：<strong>① 了解 Unix 时间戳到底是什么</strong> <strong>② 会用 C 语言 <code>time.h</code> 进行时间戳各种形式的转换</strong>；</li>
+<li>作者特别说明：<strong>这个知识不特别应用在 STM32 中</strong>，学完在别处也能用；</li>
+<li>片尾 44:24「那我们下一小节，再见」；<strong>STM32 侧的 BKP/RTC 外设结构在 [12-2]</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-41/01-manual-rtc-intro.jpg" alt="图 1：参考手册第 16 章「实时时钟(RTC)」——16.1 RTC简介：实时时钟是一个独立的定时器，RTC 模块拥有一组连续计数的计数器，在相应软件配置下可提供时钟日历的功能；RTC 模块和时钟配置系统（RCC_BDCR 寄存器）位于后备区域，即系统复位或从待机模式唤醒后 RTC 的设置和时间维持不变；系统复位后对后备寄存器和 RTC 的访问被禁止（防止对后备区域 BKP 的意外写操作），需设置 RCC_APB1ENR 的 PWREN 和 BKPEN 位、设置 PWR_CR 的 DBP 位；下方 16.2 主要特性；字幕「对应手册，是第16章的位置」"></p>
+<p><em>图 1：参考手册第 16 章「实时时钟(RTC)」——<strong>16.1 RTC简介</strong>：实时时钟是一个独立的定时器，RTC 模块拥有一组连续计数的计数器，在相应软件配置下可提供时钟日历的功能；RTC 模块和时钟配置系统（RCC_BDCR 寄存器）<strong>位于后备区域</strong>，即系统复位或从待机模式唤醒后 RTC 的设置和时间维持不变；系统复位后对后备寄存器和 RTC 的访问被禁止（防止对后备区域 BKP 的意外写操作），需*<em>设置 RCC_APB1ENR 的 PWREN 和 BKPEN 位</em></em>、<strong>设置 PWR_CR 的 DBP 位</strong>；下方 16.2 主要特性；字幕「对应手册，是第16章的位置」*</p>
+<h2 id="1-片头-两个成品程序的现象">1. 片头：两个成品程序的现象</h2>
+<h3 id="1-1-现象1-bkp-备份寄存器-12-1-读写备份寄存器">1.1 现象①：BKP 备份寄存器（<code>12-1 读写备份寄存器</code>）</h3>
+<ul>
+<li><strong>硬件</strong>：在 <strong>ST-Link 上引一根线</strong>，<strong>模拟一个电池的电源（VBAT）</strong>；</li>
+<li><strong>程序</strong>：按键后往<strong>两个备份寄存器</strong>里分别写入 <strong><code>0x1234</code>、<code>0x5678</code></strong>，再读出来显示（OLED 的 <code>W:</code> 与 <code>R:</code> 两行）；</li>
+<li><strong>验证结论</strong>：<ul>
+<li><strong>写入和读出一样</strong>——BKP 可以正常存数据（「其实 BKP 备份寄存器和上一节学的 Flash 存储器类似，都是用来存储数据的」）；</li>
+<li><strong>只要 VBAT 有电池供电，即使 STM32 主电源断电</strong>，BKP 的值仍维持原状；重新上电读出来和断电前一样；</li>
+<li><strong>按下复位键，BKP 的数据也不会复位</strong>；</li>
+<li><strong>但把 VBAT 也断开（彻底没电）后，BKP 的数据就清零了</strong>——<strong>BKP 本质上并不能做到完全掉电不丢失</strong>；</li>
+</ul>
+</li>
+<li><strong>结论</strong>：<strong>BKP 更多是为了服务 RTC 的</strong>（RTC 用它保存配置/状态）。</li>
+</ul>
+<p><img src="../assets/images/stm32-41/02-bkp-main.jpg" alt="图 2：现象①的 main.c（工程 12-1 读写备份寄存器）——uint16_t ArrayWrite（） = {0x1234, 0x5678};、uint16_t ArrayRead（2）;、OLED_ShowString(1, 1, &quot;W:&quot;); / (2, 1, &quot;R:&quot;);、RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);、RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);、PWR_BackupAccessCmd(ENABLE);；字幕「下载」"></p>
+<p><em>图 2：现象①的 main.c（工程 <code>12-1 读写备份寄存器</code>）——<code>uint16_t ArrayWrite[] = {0x1234, 0x5678};</code>、<code>uint16_t ArrayRead[2];</code>、<code>OLED_ShowString(1, 1, &quot;W:&quot;);</code> / <code>(2, 1, &quot;R:&quot;);</code>、<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_BKP, ENABLE);</code>、<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);</code>、<code>PWR_BackupAccessCmd(ENABLE);</code>；字幕「下载」</em></p>
+<p><img src="../assets/images/stm32-41/03-bkp-phenomenon.jpg" alt="图 3：现象①的 OLED 显示（W: 与 R: 两行；画面显示为 1238 567C，这是显示/采样错位，实际应为 0x1234/0x5678）——面包板上 W25Q64 模块旁的 ST-Link 引出一根线模拟 VBAT 电池电源；字幕「只要VBAT有电池供电，即使STM32主电源断电」"></p>
+<p><em>图 3：现象①的 OLED 显示（<code>W:</code> 与 <code>R:</code> 两行；画面显示为 <code>1238 567C</code>，这是显示/采样错位，实际应为 <code>0x1234</code>/<code>0x5678</code>）——面包板上 W25Q64 模块旁的 ST-Link 引出一根线模拟 VBAT 电池电源；字幕「只要VBAT有电池供电，即使STM32主电源断电」</em></p>
+<h3 id="1-2-现象2-rtc-实时时钟-12-2-实时时钟">1.2 现象②：RTC 实时时钟（<code>12-2 实时时钟</code>）</h3>
+<ul>
+<li>OLED 显示<strong>年月日时分秒</strong>，靠 VBAT 电池维持；</li>
+<li><strong>按复位键</strong>：时间<strong>继续走、不复位</strong>；</li>
+<li><strong>拔掉系统主电源</strong>：时间<strong>仍然继续走</strong>（VBAT 供电）——「就像我们手机一样，要不然时间就错了」；</li>
+<li>这说明 RTC 是<strong>真正掉电不丢时间</strong>的（本质上是借 BKP 后备区域实现的）。</li>
+</ul>
+<h3 id="1-3-作者的硬件坑">1.3 作者的硬件坑</h3>
+<ul>
+<li><strong>坑①</strong>：<strong>有的芯片 VBAT 的电源还会微弱地给整个系统供电</strong>，导致拔掉主电源后系统还有残留供电（现象不明显但存在）；</li>
+<li><strong>坑②</strong>：还有别的硬件问题（口述未展开）；</li>
+<li><strong>替代办法</strong>：后续写代码的时候再说。</li>
+</ul>
+<p><img src="../assets/images/stm32-41/04-rtc-phenomenon.jpg" alt="图 4：现象②（工程 12-2 实时时钟）——作者正用手拔掉系统主电源线，观察 RTC 时间是否继续走；字幕「我们再断开系统主电源」"></p>
+<p><em>图 4：现象②（工程 <code>12-2 实时时钟</code>）——作者正用手拔掉系统主电源线，观察 RTC 时间是否继续走；字幕「我们再断开系统主电源」</em></p>
+<h2 id="2-unix-时间戳">2. Unix 时间戳</h2>
+<h3 id="2-1-定义">2.1 定义</h3>
+<ul>
+<li><strong>Unix 时间戳（Unix Timestamp）</strong>：<strong>从 UTC/GMT 的 1970 年 1 月 1 日 0 时 0 分 0 秒开始所经过的秒数</strong>，<strong>不考虑闰秒</strong>；</li>
+<li><strong>时间戳存储在一个秒计数器中</strong>，<strong>秒计数器为 32 位/64 位的整型变量</strong>；</li>
+<li><strong>世界上所有时区的秒计数器相同</strong>，<strong>不同时区通过添加偏移得到当地时间</strong>；</li>
+<li><strong>Unix 时间戳最早在 Unix 系统使用</strong>，之后很多由 Unix 演变的系统（Linux、Windows、安卓等）都继承了这套规定；</li>
+<li><strong>对计算机来说</strong>：一个<strong>永不进位的秒数</strong>，<strong>无论是存储还是计算都非常方便</strong>，所以在程序底层应用广泛；<strong>对人来说</strong>：一长串秒数难记难理解——所以需要能双向转换。</li>
+</ul>
+<h3 id="2-2-秒计数器-vs-日期时间-对照表">2.2 秒计数器 vs 日期时间（对照表）</h3>
+<table>
+<thead>
+<tr>
+<th>秒计数器</th>
+<th>日期时间（伦敦）</th>
+<th>日期时间（北京）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>0</strong></td>
+<td>1970-1-1 0:0:0</td>
+<td>1970-1-1 8:0:0</td>
+</tr>
+<tr>
+<td><strong>1000000000</strong></td>
+<td>2001-9-9 1:46:40</td>
+<td>2001-9-9 9:46:40</td>
+</tr>
+<tr>
+<td><strong>1672588795</strong></td>
+<td>2023-1-1 15:59:55</td>
+<td>2023-1-1 23:59:55</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>年/月/日/时/分/秒计时系统</strong>是每 60 秒进 1 分钟、每 60 分钟进 1 小时、之后继续进位到日、月、年；</li>
+<li><strong>秒计数器则永不进位</strong>：60 秒就是 60、100 秒就是 100、千秒万秒一亿秒都直接加下去。</li>
+</ul>
+<h3 id="2-3-为什么用秒计数器">2.3 为什么用秒计数器</h3>
+<p><strong>好处</strong>：</p>
+<ol>
+<li><strong>简化硬件电路</strong>：设计 RTC 时<strong>放一个大秒寄存器</strong>即可，<strong>不用考虑年月日寄存器、进位、大月小月、平年闰年</strong>——对硬件设计非常友好；</li>
+<li><strong>时间间隔计算方便</strong>：两个时刻的秒数<strong>相减再除一小时的秒数</strong>，就能很快算出间隔（比用年月日时分秒算容易得多）；</li>
+<li><strong>存储方便</strong>：存一个比较大的变量即可。</li>
+</ol>
+<p><strong>坏处</strong>：<strong>比较占用软件资源</strong>——给人看的时候，软件要做一遍比较复杂的计算（换算成年月日时分秒）。</p>
+<h3 id="2-4-存储格式与溢出风险">2.4 存储格式与溢出风险</h3>
+<ul>
+<li>秒计数器可以用 <strong>32 位或 64 位整型</strong>存储；以<strong>32 位有符号</strong>为例，最大值为 <strong><code>2^32/2 − 1 = 2147483647</code></strong>——<strong>约 21 亿多秒</strong>（作者说「大家可以拿计算器算一下」）；</li>
+<li>这个数<strong>只够用到 2038 年前后</strong>，业界称 <strong>2038 问题</strong>，可能导致很多不健全的程序出错；</li>
+<li>现代手机/电脑多用 <strong>64 位</strong>时间戳，<strong>能存储的时间范围非常非常大</strong>，「总之一对于人类来说完全可以高枕无忧了」；</li>
+<li><strong>本课程 STM32 的 RTC 计数器是 32 位的</strong>（详见 [12-2]）。</li>
+</ul>
+<p><img src="../assets/images/stm32-41/05-unix-timestamp-ppt.jpg" alt="图 5：PPT「Unix时间戳」——定义：Unix 时间戳定义为从 UTC/GMT 的 1970 年 1 月 1 日 0 时 0 分 0 秒开始所经过的秒数、不考虑闰秒；时间戳存储在一个秒计数器中，秒计数器为 32 位/64 位的整型变量；世界上所有时区的秒计数器相同，不同时区通过添加偏移得到当地时间；下方是秒计数器 0/1000000000/1672588795 与伦敦、北京日期时间的对照表；红笔在标题处画框；字幕「之后继续进位，就是日、月、年了」"></p>
+<p>*图 5：PPT「Unix时间戳」——定义：Unix 时间戳定义为从 UTC/GMT 的 <strong>1970 年 1 月 1 日 0 时 0 分 0 秒</strong>开始所经过的秒数、<strong>不考虑闰秒</strong>；时间戳存储在一个秒计数器中，秒计数器为 <strong>32 位/64 位的整型变量</strong>；世界上所有时区的秒计数器相同，不同时区通过添加偏移得到当地时间；下方是秒计数器 0/1000000000/1672588795 与伦敦、北京日期时间的对照表；红笔在标题处画框；字幕「之后继续进位，就是日、月、年了」*</p>
+<p><img src="../assets/images/stm32-41/06-32bit-overflow.jpg" alt="图 6：同页 +「32 位/64 位」被灰色高亮 + 红笔写 2^32/2 ——讲 32 位有符号秒计数器的最大值；字幕「2^32/2−1，大家可以拿计算器算一下」"></p>
+<p><em>图 6：同页 +「32 位/64 位」被灰色高亮 + 红笔写 <code>2^32/2</code> ——讲 32 位有符号秒计数器的最大值；字幕「2^32/2−1，大家可以拿计算器算一下」</em></p>
+<h3 id="2-5-时区与时间轴">2.5 时区与时间轴</h3>
+<ul>
+<li>地球分 <strong>24 个时区</strong>，<strong>每差一个时区 ±1 小时</strong>；</li>
+<li><strong>所有时区共用一个秒计数器</strong>，各自按所在时区<strong>加小时偏移</strong>得到当地时间；</li>
+<li>例如：秒计数器 0 对应伦敦 0 点，中国在<strong>东 8 区</strong>，对应北京就是 <strong>8 点</strong>；</li>
+<li><strong>时间轴</strong>：起点是<strong>人为规定</strong>的<strong>伦敦时间 1970 年 1 月 1 日 0 点</strong>；<strong>1970 年之前的时间戳无法表示</strong>；</li>
+<li>时间戳有两种表现形式：<strong>① 永不进位的秒计数原值</strong>；<strong>② 由它计算出的年月日时分秒</strong>——后者要算「一年多少秒、一天多少秒、现在是第几天、第几时几分几秒」，<strong>还要考虑大小月、平年闰年</strong>，<strong>计算麻烦但步骤固定</strong>，所以<strong>直接用现成的库函数</strong>（<code>time.h</code>），<strong>不用自己了解计算步骤</strong>。</li>
+</ul>
+<h2 id="3-utc-与-gmt-闰秒">3. UTC 与 GMT、闰秒</h2>
+<h3 id="3-1-gmt-格林尼治标准时间">3.1 GMT（格林尼治标准时间）</h3>
+<ul>
+<li><strong>英文全称 Greenwich Mean Time</strong>，中文译「格林尼治标准时间」（也译格林威治标准时间/格林威治平均时间，都是一个意思）；</li>
+<li><strong>格林尼治是英国伦敦的一个地名</strong>，所以可以简单理解为<strong>伦敦标准时间</strong>；</li>
+<li><strong>是一种以地球自转为基础的时间计量系统</strong>：<strong>把地球自转一周的时间间隔等分为 24 小时</strong>，以此确定计时标准；</li>
+<li>这种计时方法<strong>很符合直觉</strong>（「一天」就定义为地球自转一周）；以前全球计时都用 GMT，不同时区再加对应小时偏移。</li>
+</ul>
+<h3 id="3-2-gmt-的缺陷与-utc-的引入">3.2 GMT 的缺陷与 UTC 的引入</h3>
+<ul>
+<li><strong>地球自转一周的时间其实不固定</strong>：由于潮汐、地质活动等原因，<strong>地球目前越转越慢</strong>；</li>
+<li>如果<strong>用「一天」来定义时间基准</strong>，那<strong>秒长就会不断变长</strong>——而光速、音速这类常数就不能固定了；</li>
+<li>所以科学家提出了<strong>新的计时系统</strong>：<strong>UTC（Universal Time Coordinated，协调世界时）</strong>；</li>
+<li><strong>UTC 以原子钟为基础</strong>：规定<strong>铯 133 原子基态的两个超精细能级间在零磁场下跃迁辐射 9,192,631,770 周所持续的时间为 1 秒</strong>——<strong>秒长就此固定</strong>（最初定义的秒长与 1970 年的 GMT 保持一致）。</li>
+</ul>
+<h3 id="3-3-为什么要闰秒">3.3 为什么要闰秒</h3>
+<ul>
+<li>用<strong>恒定不变的秒</strong>计时，而<strong>地球自转越来越慢</strong>，两者会逐渐出现偏差；</li>
+<li>时间长了，<strong>中午 12 点太阳可能不在正上方</strong>（甚至越来越偏）——这是不能接受的；</li>
+<li>但科学家对精度有极致追求，<strong>不能容忍 1 秒的偏差</strong>；</li>
+<li>于是<strong>在原子钟基础上加入闰秒机制</strong>：<strong>当原子钟计时的一天与地球自转一周的时间相差超过 0.9 秒时，UTC 会执行闰秒</strong>——<strong>计时标准恒定不变，但计时系统多打一秒去追上地球自转</strong>；</li>
+<li><strong>闰秒示例</strong>：<strong>上一次闰秒是北京时间 2017 年 1 月 1 日 7 时 59 分 59 秒</strong>，<strong>下一秒时钟出现 7 时 59 分 60 秒</strong>——<strong>这一分钟总共 61 秒</strong>；</li>
+<li><strong>恒定的时间标准 + 闰秒机制</strong>，既满足科研需要又满足人类生活需要；<strong>UTC 是现在的时间标准，比 GMT 更精确</strong>；</li>
+<li><strong>副作用</strong>：<strong>闰秒机制可能造成一些程序 bug</strong>；<strong>时间戳对闰秒没有适应性</strong>——每次产生闰秒，时间戳与授时中心的标准时间就<strong>差 1 秒</strong>（了解即可）；</li>
+<li><strong>日常生活中 GMT 与 UTC 可以看成一样的</strong>：手机/电脑时间设置里写 <strong>GMT+8 或 UTC+8</strong> 都可以，表示使用东 8 区时间。</li>
+</ul>
+<p><img src="../assets/images/stm32-41/07-utc-gmt-ppt.jpg" alt="图 7：PPT「UTC/GMT」——GMT（Greenwich Mean Time）格林尼治标准时间是一种以地球自转为基础的时间计量系统，它把地球自转一周的时间间隔等分为 24 小时，以此确定计时标准；UTC（Universal Time Coordinated）协调世界时是一种以原子钟为基础的时间计量系统，它规定铯 133 原子基态的两个超精细能级间在零磁场下跃迁辐射 9,192,631,770 周所持续的时间为 1 秒；当原子钟计时一天的时间与地球自转一周的时间相差超过 0.9 秒时，UTC 会执行闰秒来保证其计时与地球自转的协调一致；字幕「这些都是一个意思」"></p>
+<p><em>图 7：PPT「UTC/GMT」——<strong>GMT（Greenwich Mean Time）格林尼治标准时间</strong>是一种以地球自转为基础的时间计量系统，它把地球自转一周的时间间隔等分为 24 小时，以此确定计时标准；<strong>UTC（Universal Time Coordinated）协调世界时</strong>是一种以原子钟为基础的时间计量系统，它规定<strong>铯 133 原子基态的两个超精细能级间在零磁场下跃迁辐射 9,192,631,770 周所持续的时间为 1 秒</strong>；当原子钟计时一天的时间与地球自转一周的时间<strong>相差超过 0.9 秒时</strong>，UTC 会执行<strong>闰秒</strong>来保证其计时与地球自转的协调一致；字幕「这些都是一个意思」</em></p>
+<p><img src="../assets/images/stm32-41/08-leapsecond.jpg" alt="图 8：同页 +「闰秒」被灰色高亮——讲上一次闰秒在北京时间 2017 年 1 月 1 日 7 时 59 分 59 秒，下一秒出现 7 时 59 分 60 秒；字幕「北京时间2017年1月1日7时59分59秒」"></p>
+<p><em>图 8：同页 +「闰秒」被灰色高亮——讲上一次闰秒在*<em>北京时间 2017 年 1 月 1 日 7 时 59 分 59 秒</em></em>，下一秒出现 7 时 59 分 60 秒；字幕「北京时间2017年1月1日7时59分59秒」*</p>
+<h2 id="4-c-语言-time-h-与三种数据类型">4. C 语言 <code>time.h</code> 与三种数据类型</h2>
+<h3 id="4-1-七个函数">4.1 七个函数</h3>
+<table>
+<thead>
+<tr>
+<th>函数原型</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>time_t time(time_t*);</code></strong></td>
+<td><strong>获取系统时钟</strong>（返回当前秒计数器）</td>
+</tr>
+<tr>
+<td><strong><code>struct tm* gmtime(const time_t*);</code></strong></td>
+<td><strong>秒计数器 → 日期时间（格林尼治时间）</strong></td>
+</tr>
+<tr>
+<td><strong><code>struct tm* localtime(const time_t*);</code></strong></td>
+<td><strong>秒计数器 → 日期时间（当地时间）</strong></td>
+</tr>
+<tr>
+<td><strong><code>time_t mktime(struct tm*);</code></strong></td>
+<td><strong>日期时间 → 秒计数器（当地时间）</strong></td>
+</tr>
+<tr>
+<td><code>char* ctime(const time_t*);</code></td>
+<td>秒计数器 → 字符串（默认格式）</td>
+</tr>
+<tr>
+<td><code>char* asctime(const struct tm*);</code></td>
+<td>日期时间 → 字符串（默认格式）</td>
+</tr>
+<tr>
+<td><code>size_t strftime(char*, size_t, const char*, const struct tm*);</code></td>
+<td>日期时间 → 字符串（<strong>自定义格式</strong>）</td>
+</tr>
+</tbody></table>
+<ul>
+<li>另有 <strong><code>clock</code></strong>（返回程序执行起处理器时钟所用时间）与 <strong><code>difftime</code></strong>（返回两个时间相差的秒数 <code>time1−time2</code>）——<strong>只提到、未演示</strong>；</li>
+<li>作者推荐看<strong>菜鸟教程</strong>的 <code>time.h</code> 页面（含讲解与例子），函数可以按需逐个点开学习。</li>
+</ul>
+<h3 id="4-2-三种数据类型">4.2 三种数据类型</h3>
+<p><strong>(1) 秒计数器类型 <code>time_t</code></strong></p>
+<ul>
+<li><strong><code>time_t</code> 是一个 <code>typedef</code> 重命名的类型</strong>；在 Dev-C++（MinGW）里展开后是 <strong><code>time64_t</code></strong>，<strong>实际上就是 <code>int64</code></strong>——<strong>64 位有符号整型</strong>；</li>
+<li>如果没有特别声明（如 <code>_USE_32BIT_TIME_T</code>），默认用 64 位，<strong>不用担心溢出</strong>；</li>
+<li>用来存储时间戳里那个一直自增的秒数。</li>
+</ul>
+<p><strong>(2) 日期时间类型 <code>struct tm</code></strong></p>
+<ul>
+<li>定义在 <code>time.h</code> 里，是<strong>封装好的结构体类型</strong>，用 <code>struct tm</code> 两个词作类型名，后跟变量名；</li>
+<li><strong>9 个成员</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>成员</th>
+<th>含义</th>
+<th>取值范围</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>tm_sec</code></strong></td>
+<td>秒</td>
+<td>0～59（有些实现含闰秒到 61）</td>
+</tr>
+<tr>
+<td><strong><code>tm_min</code></strong></td>
+<td>分</td>
+<td>0～59</td>
+</tr>
+<tr>
+<td><strong><code>tm_hour</code></strong></td>
+<td>时（从午夜起）</td>
+<td>0～23</td>
+</tr>
+<tr>
+<td><strong><code>tm_mday</code></strong></td>
+<td>日</td>
+<td>1～31</td>
+</tr>
+<tr>
+<td><strong><code>tm_mon</code></strong></td>
+<td>月（<strong>从 1 月起的偏移</strong>）</td>
+<td>0～11（0 是 1 月）</td>
+</tr>
+<tr>
+<td><strong><code>tm_year</code></strong></td>
+<td>年（<strong>从 1900 年起的年数</strong>）</td>
+<td>如 123 表示 2023 年</td>
+</tr>
+<tr>
+<td><strong><code>tm_wday</code></strong></td>
+<td>星期（从周日起的偏移）</td>
+<td>0～6（0 是周日）</td>
+</tr>
+<tr>
+<td><strong><code>tm_yday</code></strong></td>
+<td>一年中的第几天</td>
+<td>0～365</td>
+</tr>
+<tr>
+<td><strong><code>tm_isdst</code></strong></td>
+<td>是否使用夏令时</td>
+<td>+1 使用 / 0 不使用 / −1 不知道</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>两个偏移要特别注意</strong>：<strong><code>tm_year</code> 的偏移是 1900</strong>（<strong>时间戳的起点是 1970，两者不一样</strong>），所以真实年份＝<code>tm_year+1900</code>；<strong><code>tm_mon</code> 从 0 开始</strong>，所以真实月份＝<code>tm_mon+1</code>；</li>
+<li><strong>夏令时（<code>tm_isdst</code>）</strong>：欧美大部分国家和其他地区少部分国家还在用，<strong>我国曾经用过一段时间、现在已经不用</strong>——简单说就是为了鼓励夏天早睡早起、节约用电而设计；<strong>本集只解释含义，不展开实现</strong>；</li>
+<li><strong>写法差异</strong>：<code>time.h</code> 里是 <code>struct tm { ... };</code>（<strong>没加 <code>typedef</code></strong>），而我们 STM32 库函数里习惯 <code>typedef struct { ... } 新名字;</code>——两种写法效果一样，只是使用时类型名要写 <code>struct tm</code>。</li>
+</ul>
+<p><strong>(3) 字符串类型 <code>char*</code></strong></p>
+<ul>
+<li><strong><code>char*</code> 是 char 型数据的指针</strong>，用来指向一个表示时间的字符串（如 <code>ctime</code>/<code>asctime</code>/<code>strftime</code> 的输出）。</li>
+</ul>
+<h3 id="4-3-转换关系图">4.3 转换关系图</h3>
+<ul>
+<li><strong>系统时钟 --<code>time()</code>--&gt; 秒计数器 <code>time_t</code></strong>；</li>
+<li><strong><code>time_t</code> --<code>gmtime()</code>/<code>localtime()</code>--&gt; 日期时间 <code>struct tm</code></strong>（<code>localtime</code> 会自动按本机时区加小时偏移）；</li>
+<li><strong><code>struct tm</code> --<code>mktime()</code>--&gt; 秒计数器 <code>time_t</code></strong>（逆过程，要用当地时间）；</li>
+<li><strong><code>time_t</code> --<code>ctime()</code>--&gt; <code>char*</code></strong>；<strong><code>struct tm</code> --<code>asctime()</code>--&gt; <code>char*</code></strong>；<strong><code>struct tm</code> --<code>strftime()</code>--&gt; <code>char*</code></strong>（自定义格式）。</li>
+</ul>
+<p><img src="../assets/images/stm32-41/09-timeh-table.jpg" alt="图 9：PPT「时间戳转换」函数总表——C 语言 time.h 模块提供时间获取和时间戳转换的相关函数，可方便地进行秒计数器、日期时间、字符串之间的转换；表中七行分别为 time_t time(time_t*) 获取系统时钟、struct tm* gmtime(const time_t*) 秒→日期时间（格林尼治）、struct tm* localtime(const time_t*) 秒→日期时间（当地）、time_t mktime(struct tm*) 日期时间→秒（当地）、char* ctime(const time_t*) 秒→字符串（默认格式）、char* asctime(const struct tm*) 日期时间→字符串（默认格式）、size_t strftime(char*, size_t, const char*, const struct tm*) 日期时间→字符串（自定义格式）；字幕「使用还是非常方便的」"></p>
+<p><em>图 9：PPT「时间戳转换」函数总表——C 语言 <code>time.h</code> 模块提供时间获取和时间戳转换的相关函数，可方便地进行<strong>秒计数器、日期时间、字符串</strong>之间的转换；表中七行分别为 <code>time_t time(time_t*)</code> 获取系统时钟、<code>struct tm* gmtime(const time_t*)</code> 秒→日期时间（格林尼治）、<code>struct tm* localtime(const time_t*)</code> 秒→日期时间（当地）、<code>time_t mktime(struct tm*)</code> 日期时间→秒（当地）、<code>char* ctime(const time_t*)</code> 秒→字符串（默认格式）、<code>char* asctime(const struct tm*)</code> 日期时间→字符串（默认格式）、<code>size_t strftime(char*, size_t, const char*, const struct tm*)</code> 日期时间→字符串（自定义格式）；字幕「使用还是非常方便的」</em></p>
+<p><img src="../assets/images/stm32-41/10-struct-tm.jpg" alt="图 10：Dev-C++ 里打开 time.h 的 struct tm 定义原文——tm_sec（Seconds: 0-59）、tm_min（0-59）、tm_hour（Hours since midnight: 0-23）、tm_mday（Day of the month: 1-31）、tm_mon（Months since january: 0-11）、tm_year（Years since 1900）、tm_wday（Days since Sunday: 0-6，高亮）、tm_yday（Days since Jan. 1: 0-365）、tm_isdst（+1 Daylight Savings Time, 0 No DST, -1 don&#39;t know）；字幕「然后tm_wday，表示从周日开始的星期几」"></p>
+<p><em>图 10：Dev-C++ 里打开 <code>time.h</code> 的 <code>struct tm</code> 定义原文——<code>tm_sec</code>（Seconds: 0-59）、<code>tm_min</code>（0-59）、<code>tm_hour</code>（Hours since midnight: 0-23）、<code>tm_mday</code>（Day of the month: 1-31）、<code>tm_mon</code>（Months <em>since</em> january: 0-11）、<code>tm_year</code>（Years since 1900）、<code>tm_wday</code>（Days since Sunday: 0-6，高亮）、<code>tm_yday</code>（Days since Jan. 1: 0-365）、<code>tm_isdst</code>（+1 Daylight Savings Time, 0 No DST, -1 don&#39;t know）；字幕「然后tm_wday，表示从周日开始的星期几」</em></p>
+<p><img src="../assets/images/stm32-41/12-convert-diagram.jpg" alt="图 11：PPT「时间戳转换」关系图——系统时钟 --time()--&gt; 秒计数器 time_t；time_t --gmtime()/localtime()--&gt; 日期时间 struct tm；struct tm --mktime()--&gt; 秒计数器；time_t --ctime()--&gt; char*；struct tm --asctime()/strftime()--&gt; char*；字幕「只是localtime会根据时区自动添加小时的偏移」"></p>
+<p><em>图 11：PPT「时间戳转换」关系图——系统时钟 --<code>time()</code>--&gt; 秒计数器 <code>time_t</code>；<code>time_t</code> --<code>gmtime()</code>/<code>localtime()</code>--&gt; 日期时间 <code>struct tm</code>；<code>struct tm</code> --<code>mktime()</code>--&gt; 秒计数器；<code>time_t</code> --<code>ctime()</code>--&gt; <code>char*</code>；<code>struct tm</code> --<code>asctime()</code>/<code>strftime()</code>--&gt; <code>char*</code>；字幕「只是localtime会根据时区自动添加小时的偏移」</em></p>
+<h2 id="5-dev-c-实操-pc-端-c-程序-不是-stm32-工程">5. Dev-C++ 实操（PC 端 C 程序，不是 STM32 工程）</h2>
+<h3 id="5-1-准备">5.1 准备</h3>
+<ul>
+<li>打开 <strong>Dev-C++</strong>（任何 C 语言编译器都可以），先建一个最简单的 HelloWorld 工程，在 main.c 里 <code>#include &lt;stdio.h&gt;</code> + <code>#include &lt;time.h&gt;</code>；</li>
+<li><strong>定义三个全局变量</strong>（对应三种数据类型）：<code>time_t time_cnt;</code>（秒计数器）、<code>struct tm time_date;</code>（日期时间）、<code>char *time_str;</code>（字符串）；</li>
+<li><strong>作者提醒</strong>：这些函数<strong>大量涉及指针操作</strong>，指针不熟的建议先补指针教程。</li>
+</ul>
+<h3 id="5-2-time-获取系统时间">5.2 <code>time()</code>：获取系统时间</h3>
+<pre><code class="language-c">time_cnt = time(NULL);      /* 用返回值 */
+time(&amp;time_cnt);            /* 或用输出参数，效果一样 */
+printf(&quot;%d\n&quot;, time_cnt);   /* 打印当前时间戳秒数 */
+</code></pre>
+<ul>
+<li>参数不需要时可以给 <code>NULL</code>；返回值就是当前时间戳，类型 <code>time_t</code>；</li>
+<li>把返回值赋给 <code>time_cnt</code> 就得到了时间；<strong>用在线时间戳转换工具可以验证这个数对不对</strong>；</li>
+<li><strong>重点</strong>：<strong>这个函数在电脑里可以直接读电脑时间，但在 STM32 里用不了</strong>——<strong>STM32 是裸机系统，不知道现在是啥时间</strong>（要靠 RTC 计数器自己维护，引出下一小节）。</li>
+</ul>
+<h3 id="5-3-gmtime-秒-格林尼治日期时间">5.3 <code>gmtime()</code>：秒 → 格林尼治日期时间</h3>
+<pre><code class="language-c">time_cnt = 1672588795;                  /* 手动给一个秒数做测试 */
+time_date = *gmtime(&amp;time_cnt);         /* 返回值是指针，赋值给结构体要加 * */
+printf(&quot;%d\n&quot;, time_date.tm_year + 1900);
+printf(&quot;%d\n&quot;, time_date.tm_mon + 1);
+printf(&quot;%d\n&quot;, time_date.tm_mday);
+/* …tm_hour / tm_min / tm_sec / tm_wday 同理 */
+</code></pre>
+<ul>
+<li><code>gmtime</code> 返回 <strong><code>struct tm*</code>（指针）</strong>，而左边 <code>time_date</code> 是<strong>结构体变量</strong>——<strong>指针不能直接赋给变量</strong>，所以要<strong>在右边加 <code>*</code> 取内容</strong>（另一种办法是把左边定义成指针，两者等价）；</li>
+<li><strong>打印时年份要 <code>+1900</code>、月份要 <code>+1</code></strong>，否则会打印出 123 年、0 月；</li>
+<li>结果：<code>1672588795</code> → 伦敦时间 <strong>2023-1-1 15:59:55</strong>、星期日，与 PPT 对照表一致。</li>
+</ul>
+<p><img src="../assets/images/stm32-41/11-gmtime-code.jpg" alt="图 12：gmtime 调用代码——#include &lt;stdio.h&gt;、#include &lt;time.h&gt;；全局 time_t time_cnt;、struct tm time_date;、char *time_str;；main 里注释掉的 time_cnt = time(NULL); / time(&amp;time_cnt);，time_cnt = 1672588795;、printf(&quot;%d\n&quot;, time_cnt);，以及 `time_date = *gmtime(&amp;time_cnt);`（高亮，注意前面的 *）；字幕「好，这样，我们的转换实际上就已经完成了」"></p>
+<p>*图 12：<code>gmtime</code> 调用代码——<code>#include &lt;stdio.h&gt;</code>、<code>#include &lt;time.h&gt;</code>；全局 <code>time_t time_cnt;</code>、<code>struct tm time_date;</code>、<code>char *time_str;</code>；main 里注释掉的 <code>time_cnt = time(NULL);</code> / <code>time(&amp;time_cnt);</code>，<code>time_cnt = 1672588795;</code>、<code>printf(&quot;%d\n&quot;, time_cnt);</code>，以及 <strong><code>time_date = *gmtime(&amp;time_cnt);</code></strong>（高亮，注意前面的 <code>*</code>）；字幕「好，这样，我们的转换实际上就已经完成了」*</p>
+<h3 id="5-4-localtime-秒-当地日期时间">5.4 <code>localtime()</code>：秒 → 当地日期时间</h3>
+<ul>
+<li><strong>用法和 <code>gmtime</code> 完全一样</strong>，只是<strong>函数名换成 <code>localtime</code></strong>；</li>
+<li>区别：<strong><code>localtime</code> 会根据本机时区自动添加小时的偏移</strong>——作者在 <strong>东 8 区</strong>，所以得到 <strong>2023-1-1 23:59:55</strong>（比伦敦多 8 小时），与 PPT 对照表一致。</li>
+</ul>
+<h3 id="5-5-mktime-日期时间-秒-必须传当地时间">5.5 <code>mktime()</code>：日期时间 → 秒（<strong>必须传当地时间</strong>）</h3>
+<pre><code class="language-c">time_cnt = mktime(&amp;time_date);   /* 传入日期时间结构体的地址 */
+printf(&quot;%d\n&quot;, time_cnt);
+</code></pre>
+<ul>
+<li>是上面两个函数的<strong>逆过程</strong>；参数是<strong>日期时间结构体指针</strong>；</li>
+<li><strong>必须传「当地时间」</strong>：把刚才 <code>localtime</code> 得到的结果转回去，秒数<strong>和最初的 1672588795 完全一样</strong>；</li>
+<li><strong>反例</strong>：如果把 <code>localtime</code> 改成 <code>gmtime</code>（即传入伦敦时间）再 <code>mktime</code>，<strong>得到的秒数就和最初不一样</strong>——说明 <strong><code>mktime</code> 是按当地时间解析的</strong>；</li>
+<li><strong>为什么参数没有 <code>const</code></strong>：因为 <code>mktime</code> 算秒数的同时会<strong>回填 <code>tm_wday</code>（星期）和 <code>tm_yday</code>（一年第几天）</strong>——所以你传进去的星期参数<strong>实际上不作为输入</strong>。</li>
+</ul>
+<h3 id="5-6-ctime-asctime-转成默认格式字符串">5.6 <code>ctime()</code> / <code>asctime()</code>：转成默认格式字符串</h3>
+<pre><code class="language-c">time_str = ctime(&amp;time_cnt);   printf(time_str);   /* time_t → 字符串 */
+time_str = asctime(&amp;time_date); printf(time_str);  /* struct tm → 字符串 */
+</code></pre>
+<ul>
+<li>两者输出<strong>完全相同</strong>的默认格式字符串，例如 <code>Sunday January 1 23:59:55 2023</code>；</li>
+<li><strong>这是西方国家的习惯格式</strong>，中国一般不用这么「奇怪」的格式，所以<strong>这两个函数用得不多，了解即可</strong>。</li>
+</ul>
+<h3 id="5-7-strftime-自定义格式">5.7 <code>strftime()</code>：自定义格式</h3>
+<pre><code class="language-c">char str[50];
+strftime(str, 50, &quot;%H:%M:%S&quot;, &amp;time_date);
+printf(&quot;%s\n&quot;, str);
+</code></pre>
+<ul>
+<li><strong>四个参数</strong>：<strong>① 字符数组 ② 数组长度 ③ 格式字符串 ④ 日期时间结构体指针</strong>；</li>
+<li><strong>格式占位符</strong>参照菜鸟教程：<strong><code>%H</code> 小时、<code>%M</code> 分钟、<code>%S</code> 秒</strong>（还有日期等其他格式可自行尝试）；<strong>占位符会被替换成具体值，其他符号保留原样</strong>；</li>
+<li>结果就是 <strong>23:59:55</strong> 这种「小时-分钟-秒」格式。</li>
+</ul>
+<h3 id="5-8-结尾-重点掌握哪两个">5.8 结尾：重点掌握哪两个</h3>
+<ul>
+<li><code>time.h</code> 里<strong>不太重要的函数</strong>：<strong><code>clock</code></strong>（计算程序执行了多长时间）、<strong><code>difftime</code></strong>（计算两个时间之间的差值）——<strong>了解即可</strong>；</li>
+<li><strong>必须重点掌握的是 <code>localtime</code> 与 <code>mktime</code> 这两个</strong>（作者原话），其他了解即可。</li>
+</ul>
+<p><img src="../assets/images/stm32-41/13-full-code.jpg" alt="图 13：完整转换代码（Dev-C++）——time_cnt = 1672588795;、time_date = *localtime(&amp;time_cnt);、逐行打印 tm_year + 1900/tm_mon + 1/tm_mday/tm_hour/tm_min/tm_sec/tm_wday、time_cnt = mktime(&amp;time_date);、time_str = ctime(&amp;time_cnt); printf(time_str);、time_str = asctime(&amp;time_date); printf(time_str);，最后开始写 char … + strftime(…)；字幕「所以，我们首先定义一个char型数组」"></p>
+<p><em>图 13：完整转换代码（Dev-C++）——<code>time_cnt = 1672588795;</code>、<code>time_date = *localtime(&amp;time_cnt);</code>、逐行打印 <code>tm_year + 1900</code>/<code>tm_mon + 1</code>/<code>tm_mday</code>/<code>tm_hour</code>/<code>tm_min</code>/<code>tm_sec</code>/<code>tm_wday</code>、<code>time_cnt = mktime(&amp;time_date);</code>、<code>time_str = ctime(&amp;time_cnt); printf(time_str);</code>、<code>time_str = asctime(&amp;time_date); printf(time_str);</code>，最后开始写 <code>char …</code> + <code>strftime(…)</code>；字幕「所以，我们首先定义一个char型数组」</em></p>
+<p><img src="../assets/images/stm32-41/14-runoob-table.jpg" alt="图 14：菜鸟教程「C 标准库 - &lt;time.h&gt;」页面函数表——9 条：asctime、clock、ctime、`difftime`（高亮：返回 time1 和 time2 之间相差的秒数 (time1-time2)）、gmtime、localtime、mktime、strftime、time；字幕「然后difftime，可以计算两个时间之间的差值」"></p>
+<p><em>图 14：菜鸟教程「C 标准库 - &lt;time.h&gt;」页面函数表——9 条：<code>asctime</code>、<code>clock</code>、<code>ctime</code>、<strong><code>difftime</code>（高亮：返回 time1 和 time2 之间相差的秒数 (time1-time2)）</strong>、<code>gmtime</code>、<code>localtime</code>、<code>mktime</code>、<code>strftime</code>、<code>time</code>；字幕「然后difftime，可以计算两个时间之间的差值」</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong><code>gmtime</code>/<code>localtime</code> 返回指针</strong>：赋给结构体变量要加 <code>*</code>（<code>time_date = *gmtime(&amp;cnt);</code>），否则是指针与变量的跨级赋值，编译不过。</li>
+<li><strong>打印年份要 <code>+1900</code>、月份要 <code>+1</code></strong>：<code>tm_year</code> 是从 1900 起的偏移、<code>tm_mon</code> 从 0 开始（0 表示 1 月）。</li>
+<li><strong><code>tm_year</code> 的偏移是 1900，与时间戳起点 1970 不是一回事</strong>，别混。</li>
+<li><strong><code>localtime</code> 与 <code>gmtime</code> 用法相同但结果差 8 小时</strong>（东 8 区）：前者自动按时区加偏移。</li>
+<li><strong><code>mktime</code> 必须传当地时间</strong>：传 <code>gmtime</code> 的结果换算回去会得到不同的秒数。</li>
+<li><strong><code>mktime</code> 参数没有 <code>const</code></strong>：它会回填 <code>tm_wday</code>/<code>tm_yday</code>，传入的星期不作为输入。</li>
+<li><strong>32 位有符号秒计数器最大约 21 亿秒</strong>（<code>2^32/2−1</code>），存在 <strong>2038 问题</strong>；现代系统多用 64 位。</li>
+<li><strong>时间戳不考虑闰秒</strong>：每次闰秒会与授时中心标准时间差 1 秒，程序要注意。</li>
+<li><strong>BKP 不能完全掉电不丢失</strong>：VBAT 断了就清零；它的存在<strong>主要是为 RTC 服务</strong>。</li>
+<li><strong>RTC 才是掉电不丢时间</strong>：靠 VBAT 后备区域供电，复位/主电源断开时间都继续走。</li>
+<li><strong><code>time()</code> 不能直接用在 STM32 裸机上</strong>：STM32 没有「系统时间」可读，要用 RTC 计数器自己维护秒数。</li>
+<li><strong>GMT 与 UTC 日常可视为一样</strong>：写 GMT+8 / UTC+8 都表示东 8 区。</li>
+<li><strong><code>clock</code>/<code>difftime</code> 本集未演示</strong>：只需知道用途（程序运行时间、两时间差）。</li>
+<li><strong>夏令时 <code>tm_isdst</code></strong>：+1 使用 / 0 不使用 / −1 不知道；我国现已不用。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:09</td>
+<td>课程来到第 12 节，讲 RTC 实时时钟</td>
+</tr>
+<tr>
+<td>0:12</td>
+<td>对应手册第 16 章的位置</td>
+</tr>
+<tr>
+<td>1:03</td>
+<td>这一大节计划分三小节讲</td>
+</tr>
+<tr>
+<td>1:05</td>
+<td>第一小节单独讲 Unix 时间戳</td>
+</tr>
+<tr>
+<td>1:11</td>
+<td>要使用 STM32 的 RTC，学时间戳很有必要</td>
+</tr>
+<tr>
+<td>1:16</td>
+<td>之后讲 BKP 和 RTC 外设结构</td>
+</tr>
+<tr>
+<td>1:27</td>
+<td>先看最终的程序现象</td>
+</tr>
+<tr>
+<td>1:31</td>
+<td>本集一共有两个示例代码</td>
+</tr>
+<tr>
+<td>1:42</td>
+<td>先看第一个代码</td>
+</tr>
+<tr>
+<td>1:47</td>
+<td>在 ST-Link 上引一根线</td>
+</tr>
+<tr>
+<td>1:54</td>
+<td>这根线模拟一个电池的电源</td>
+</tr>
+<tr>
+<td>2:10</td>
+<td>这个程序的目的是往备份寄存器写数据再读出来</td>
+</tr>
+<tr>
+<td>2:17</td>
+<td>目前 W 是写的内容，还没写入数据</td>
+</tr>
+<tr>
+<td>2:24</td>
+<td>按一下按键</td>
+</tr>
+<tr>
+<td>2:27</td>
+<td>在两个备份寄存器中分别写入 0x1234</td>
+</tr>
+<tr>
+<td>2:32</td>
+<td>之后读出来也是 0x1234</td>
+</tr>
+<tr>
+<td>2:35</td>
+<td>写入和读出一样，没问题</td>
+</tr>
+<tr>
+<td>2:41</td>
+<td>读出来和写入一样，都没问题</td>
+</tr>
+<tr>
+<td>2:44</td>
+<td>BKP 备份寄存器和 Flash 存储器类似，都是存数据的</td>
+</tr>
+<tr>
+<td>3:05</td>
+<td>BKP 的值也可以维持原状</td>
+</tr>
+<tr>
+<td>3:21</td>
+<td>直接读出 BKP，数据和断电之前一样</td>
+</tr>
+<tr>
+<td>3:30</td>
+<td>并且在系统复位后</td>
+</tr>
+<tr>
+<td>3:38</td>
+<td>再次拔掉主电源、重新上电</td>
+</tr>
+<tr>
+<td>3:41</td>
+<td>BKP 的数据就清零了</td>
+</tr>
+<tr>
+<td>3:43</td>
+<td>因为 BKP 本质上并不能完全掉电不丢失</td>
+</tr>
+<tr>
+<td>3:51</td>
+<td>这就是 BKP 备份寄存器的特性</td>
+</tr>
+<tr>
+<td>4:02</td>
+<td>这就是第一个代码的现象</td>
+</tr>
+<tr>
+<td>4:07</td>
+<td>它更多的是为 RTC 服务的</td>
+</tr>
+<tr>
+<td>4:10</td>
+<td>接着看第二个代码：实时时钟</td>
+</tr>
+<tr>
+<td>4:18</td>
+<td>这就是实时时钟的现象</td>
+</tr>
+<tr>
+<td>4:20</td>
+<td>把这个线插回去</td>
+</tr>
+<tr>
+<td>4:39</td>
+<td>这个用途等会儿再讲</td>
+</tr>
+<tr>
+<td>4:48</td>
+<td>先看一下，用途写代码时再研究</td>
+</tr>
+<tr>
+<td>4:50</td>
+<td>这就是实时时钟的显示</td>
+</tr>
+<tr>
+<td>4:57</td>
+<td>实时时钟光有显示还不够</td>
+</tr>
+<tr>
+<td>5:02</td>
+<td>首先是复位：既然在计时</td>
+</tr>
+<tr>
+<td>5:04</td>
+<td>按下复位键，时间继续运行、不会复位</td>
+</tr>
+<tr>
+<td>5:07</td>
+<td>实时时钟在系统主电源断电后</td>
+</tr>
+<tr>
+<td>5:12</td>
+<td>就像手机一样，要不然时间就错了</td>
+</tr>
+<tr>
+<td>5:36</td>
+<td>这就是 RTC 实时时钟的程序现象</td>
+</tr>
+<tr>
+<td>5:44</td>
+<td>它其实是借用 BKP 来实现的</td>
+</tr>
+<tr>
+<td>5:54</td>
+<td>测试时遇到的硬件 bug</td>
+</tr>
+<tr>
+<td>5:57</td>
+<td>有的芯片 VBAT 的电源会微弱地给整个系统供电</td>
+</tr>
+<tr>
+<td>6:04</td>
+<td>导致主电源拔掉后系统还有残留供电</td>
+</tr>
+<tr>
+<td>6:13</td>
+<td>这是其中一个问题</td>
+</tr>
+<tr>
+<td>6:25</td>
+<td>替代方法后续写代码时再说</td>
+</tr>
+<tr>
+<td>6:36</td>
+<td>程序现象就看到这里</td>
+</tr>
+<tr>
+<td>6:37</td>
+<td>回到 PPT 看时间戳这个知识点</td>
+</tr>
+<tr>
+<td>6:48</td>
+<td>什么是 UTC 和 GMT</td>
+</tr>
+<tr>
+<td>6:52</td>
+<td>时间戳里的秒计数器和日期时间如何转换</td>
+</tr>
+<tr>
+<td>6:58</td>
+<td>这涉及 C 语言的 time.h 函数库</td>
+</tr>
+<tr>
+<td>7:08</td>
+<td>本小节的任务有两个</td>
+</tr>
+<tr>
+<td>7:10</td>
+<td>一是了解时间戳到底是什么东西</td>
+</tr>
+<tr>
+<td>7:14</td>
+<td>二是会使用 C 语言 time.h 里的这些函数</td>
+</tr>
+<tr>
+<td>7:24</td>
+<td>这个知识不特别应用在 STM32 中</td>
+</tr>
+<tr>
+<td>7:31</td>
+<td>学完之后在别的地方也能用到</td>
+</tr>
+<tr>
+<td>7:34</td>
+<td>看第一页 PPT：Unix 时间戳</td>
+</tr>
+<tr>
+<td>7:37</td>
+<td>Unix 时间戳最早是在 Unix 系统使用的</td>
+</tr>
+<tr>
+<td>7:49</td>
+<td>目前 Linux、Windows、安卓等系统都继承了它的规定</td>
+</tr>
+<tr>
+<td>8:03</td>
+<td>那看一下第一条</td>
+</tr>
+<tr>
+<td>8:19</td>
+<td>这里大家可能有疑问：UTC/GMT 是什么</td>
+</tr>
+<tr>
+<td>8:27</td>
+<td>闰年、闰月这些用得比较多</td>
+</tr>
+<tr>
+<td>8:29</td>
+<td>但这个闰秒又是个什么东西</td>
+</tr>
+<tr>
+<td>8:30</td>
+<td>这两个知识点下一节 PPT 再讲</td>
+</tr>
+<tr>
+<td>8:35</td>
+<td>现在简单理解：时间戳是一个计数器数值</td>
+</tr>
+<tr>
+<td>8:45</td>
+<td>到现在为止总共经过的秒数</td>
+</tr>
+<tr>
+<td>8:54</td>
+<td>年月日时分秒的计时系统</td>
+</tr>
+<tr>
+<td>8:57</td>
+<td>每 60 秒进位一次记为 1 分钟</td>
+</tr>
+<tr>
+<td>9:00</td>
+<td>每 60 分钟进位一次记为 1 小时</td>
+</tr>
+<tr>
+<td>9:02</td>
+<td>之后继续进位就是日、月、年</td>
+</tr>
+<tr>
+<td>9:08</td>
+<td>假定 1970 年 1 月 1 日 0 点整为 0 秒</td>
+</tr>
+<tr>
+<td>9:13</td>
+<td>之后就永远用基本的秒来计时、永不进位</td>
+</tr>
+<tr>
+<td>9:18</td>
+<td>60 秒就是 60 秒，100 秒就是 100 秒</td>
+</tr>
+<tr>
+<td>9:21</td>
+<td>千秒、万秒、一亿秒</td>
+</tr>
+<tr>
+<td>9:23</td>
+<td>无论这个数有多大，都不进位</td>
+</tr>
+<tr>
+<td>9:28</td>
+<td>从 1970 年计到现在，这个秒数已经非常大</td>
+</tr>
+<tr>
+<td>9:36</td>
+<td>对人类来说这个 16 亿秒又难记又难理解</td>
+</tr>
+<tr>
+<td>9:41</td>
+<td>但对计算机来说一个永不进位的秒</td>
+</tr>
+<tr>
+<td>9:44</td>
+<td>无论是存储还是计算都非常方便</td>
+</tr>
+<tr>
+<td>9:47</td>
+<td>所以时间戳在程序底层应用非常广泛</td>
+</tr>
+<tr>
+<td>9:51</td>
+<td>秒计数器和日期时间可以相互转换</td>
+</tr>
+<tr>
+<td>9:59</td>
+<td>需要给人观看时就要转换</td>
+</tr>
+<tr>
+<td>10:07</td>
+<td>用这样一个很大的秒数来表示时间有很多好处</td>
+</tr>
+<tr>
+<td>10:08</td>
+<td>第一，简化硬件电路</td>
+</tr>
+<tr>
+<td>10:10</td>
+<td>设计 RTC 硬件时直接弄一个很大的秒寄存器就行</td>
+</tr>
+<tr>
+<td>10:15</td>
+<td>不需要考虑年月日寄存器、进位</td>
+</tr>
+<tr>
+<td>10:19</td>
+<td>大月小月、平年闰年这些东西</td>
+</tr>
+<tr>
+<td>10:25</td>
+<td>第二，时间间隔的计算非常方便</td>
+</tr>
+<tr>
+<td>10:29</td>
+<td>比如 1 月 1 号 8 点到 3 月 1 号 18 点间是多少小时</td>
+</tr>
+<tr>
+<td>10:34</td>
+<td>用年月日时分秒算比较麻烦</td>
+</tr>
+<tr>
+<td>10:39</td>
+<td>但如果用秒计数器</td>
+</tr>
+<tr>
+<td>10:41</td>
+<td>只要把两个时刻的秒数相减</td>
+</tr>
+<tr>
+<td>10:44</td>
+<td>再除一个小时的秒数</td>
+</tr>
+<tr>
+<td>10:46</td>
+<td>就可以很快算出两个时刻的间隔</td>
+</tr>
+<tr>
+<td>10:49</td>
+<td>第三，存储方便</td>
+</tr>
+<tr>
+<td>10:51</td>
+<td>存秒数，一个比较大的变量就行了</td>
+</tr>
+<tr>
+<td>10:57</td>
+<td>当然用秒计数器表示时间也有坏处</td>
+</tr>
+<tr>
+<td>11:00</td>
+<td>就是比较占用软件资源</td>
+</tr>
+<tr>
+<td>11:06</td>
+<td>软件都要进行一通比较复杂的计算</td>
+</tr>
+<tr>
+<td>11:11</td>
+<td>这就是使用时间戳的好处和坏处</td>
+</tr>
+<tr>
+<td>11:16</td>
+<td>时间戳存储在一个秒计数器中</td>
+</tr>
+<tr>
+<td>11:19</td>
+<td>秒计数器为 32 位/64 位的整型变量</td>
+</tr>
+<tr>
+<td>11:26</td>
+<td>计算机为了存储这样一个永不进位的秒数</td>
+</tr>
+<tr>
+<td>11:30</td>
+<td>这个数据类型还是要定义大一些</td>
+</tr>
+<tr>
+<td>11:34</td>
+<td>变量类型在不同系统中定义不一样</td>
+</tr>
+<tr>
+<td>11:41</td>
+<td>32 位有符号数能表示的最大数字是</td>
+</tr>
+<tr>
+<td>11:45</td>
+<td>大家可以拿计算器算一下</td>
+</tr>
+<tr>
+<td>11:51</td>
+<td>这个数是 21 亿多，其实是有溢出风险的</td>
+</tr>
+<tr>
+<td>12:04</td>
+<td>按 32 位有符号数算的时间戳</td>
+</tr>
+<tr>
+<td>12:09</td>
+<td>可能导致很多不健全的计算机程序出错</td>
+</tr>
+<tr>
+<td>12:15</td>
+<td>随着操作系统和设备的更新换代</td>
+</tr>
+<tr>
+<td>12:20</td>
+<td>目前的手机、电脑等设备</td>
+</tr>
+<tr>
+<td>12:37</td>
+<td>64 位的时间戳能存储的时间范围非常非常大</td>
+</tr>
+<tr>
+<td>12:39</td>
+<td>对人类来说完全可以高枕无忧了</td>
+</tr>
+<tr>
+<td>12:43</td>
+<td>回到本小节 STM32 的 RTC</td>
+</tr>
+<tr>
+<td>13:30</td>
+<td>世界上所有时区的秒计数器相同</td>
+</tr>
+<tr>
+<td>13:34</td>
+<td>不同时区通过添加偏移得到当地时间</td>
+</tr>
+<tr>
+<td>13:37</td>
+<td>我们知道地球上不同经度时间不一样</td>
+</tr>
+<tr>
+<td>13:50</td>
+<td>这个位置的时间是一个时间标准</td>
+</tr>
+<tr>
+<td>13:54</td>
+<td>它指的是伦敦时间的 0 时 0 分 0 秒</td>
+</tr>
+<tr>
+<td>13:58</td>
+<td>那其他地方呢</td>
+</tr>
+<tr>
+<td>14:00</td>
+<td>可以划分为 24 个时区</td>
+</tr>
+<tr>
+<td>14:04</td>
+<td>每偏差一个时区，时间就要加减一个小时</td>
+</tr>
+<tr>
+<td>14:07</td>
+<td>我们处理不同时区的方式是</td>
+</tr>
+<tr>
+<td>14:10</td>
+<td>所有时区共用一个时间戳的秒计数器</td>
+</tr>
+<tr>
+<td>14:14</td>
+<td>再根据不同时区添加小时的偏移</td>
+</tr>
+<tr>
+<td>14:18</td>
+<td>比如秒计数的 0 对应伦敦时间的 0 点</td>
+</tr>
+<tr>
+<td>14:22</td>
+<td>中国使用北京时间、处于东 8 区</td>
+</tr>
+<tr>
+<td>14:26</td>
+<td>对应北京的时间就是 8 点</td>
+</tr>
+<tr>
+<td>14:29</td>
+<td>这就是时间戳对不同时区的处理方式</td>
+</tr>
+<tr>
+<td>14:32</td>
+<td>下面看一下这个图，总结上面的知识点</td>
+</tr>
+<tr>
+<td>14:35</td>
+<td>图中箭头代表一个时间轴</td>
+</tr>
+<tr>
+<td>14:39</td>
+<td>在这个时间轴上我们要定义一个起点</td>
+</tr>
+<tr>
+<td>14:42</td>
+<td>时间戳从这个起点开始计时</td>
+</tr>
+<tr>
+<td>14:44</td>
+<td>这个起点是人为规定的</td>
+</tr>
+<tr>
+<td>14:46</td>
+<td>当时的设计者选择了伦敦时间 1970 年 1 月 1 日 0 点</td>
+</tr>
+<tr>
+<td>14:52</td>
+<td>对 1970 年之前的时间，时间戳无法表示</td>
+</tr>
+<tr>
+<td>14:56</td>
+<td>时间戳有两种表现形式</td>
+</tr>
+<tr>
+<td>14:58</td>
+<td>一种是它的基本形式：永不进位的秒计数器</td>
+</tr>
+<tr>
+<td>15:03</td>
+<td>从 0 开始，每过 1 秒加一个数</td>
+</tr>
+<tr>
+<td>15:07</td>
+<td>另一种是秒计数器经过计算得到的日期时间</td>
+</tr>
+<tr>
+<td>15:12</td>
+<td>比如 0 秒对应伦敦时间 1970 年 1 月 1 日 0 点</td>
+</tr>
+<tr>
+<td>15:19</td>
+<td>计到 10 亿秒的时候</td>
+</tr>
+<tr>
+<td>15:22</td>
+<td>就对应伦敦时间 2001 年 9 月 9 日 1 时 46 分 40 秒</td>
+</tr>
+<tr>
+<td>15:30</td>
+<td>这背后要经过一些比较复杂的计算</td>
+</tr>
+<tr>
+<td>15:33</td>
+<td>比如先算一年有多少秒</td>
+</tr>
+<tr>
+<td>15:37</td>
+<td>再算一天有多少秒</td>
+</tr>
+<tr>
+<td>15:40</td>
+<td>得到现在是这一年的第几天</td>
+</tr>
+<tr>
+<td>15:45</td>
+<td>最后再计算是几时几分几秒</td>
+</tr>
+<tr>
+<td>15:46</td>
+<td>还要考虑大小月、平年闰年</td>
+</tr>
+<tr>
+<td>15:50</td>
+<td>所以这个计算还是非常麻烦的</td>
+</tr>
+<tr>
+<td>15:53</td>
+<td>好在计算步骤是固定的</td>
+</tr>
+<tr>
+<td>16:00</td>
+<td>这就是我们要学的 time.h 这个模块</td>
+</tr>
+<tr>
+<td>16:03</td>
+<td>里面就有现成的秒计数器转日期时间</td>
+</tr>
+<tr>
+<td>16:06</td>
+<td>以及日期时间转秒计数器的函数</td>
+</tr>
+<tr>
+<td>16:09</td>
+<td>所以这里只要会调用 time.h 的函数</td>
+</tr>
+<tr>
+<td>16:16</td>
+<td>就知道秒计数器和日期时间的对应关系了</td>
+</tr>
+<tr>
+<td>16:17</td>
+<td>至于计算步骤，不用过多了解</td>
+</tr>
+<tr>
+<td>16:22</td>
+<td>有了 time.h 里的函数</td>
+</tr>
+<tr>
+<td>16:24</td>
+<td>秒计数器的计算就非常简单了</td>
+</tr>
+<tr>
+<td>16:27</td>
+<td>比如 1672588795 这个秒数</td>
+</tr>
+<tr>
+<td>16:31</td>
+<td>调用函数一计算</td>
+</tr>
+<tr>
+<td>16:39</td>
+<td>最后在伦敦时间基础上得到北京时间就很简单</td>
+</tr>
+<tr>
+<td>16:45</td>
+<td>每个秒计数器对应的伦敦时间加 8 小时</td>
+</tr>
+<tr>
+<td>16:50</td>
+<td>就是对应的北京时间</td>
+</tr>
+<tr>
+<td>16:51</td>
+<td>这就是 Unix 时间戳整个的设计思路</td>
+</tr>
+<tr>
+<td>16:56</td>
+<td>最后推荐一个在线时间戳转换工具网站</td>
+</tr>
+<tr>
+<td>17:02</td>
+<td>在百度搜索 Unix 时间戳就能找到很多</td>
+</tr>
+<tr>
+<td>17:48</td>
+<td>时间戳的基本知识就了解这么多</td>
+</tr>
+<tr>
+<td>17:51</td>
+<td>接下来第二页 PPT</td>
+</tr>
+<tr>
+<td>17:52</td>
+<td>这里主要是两个科普性内容</td>
+</tr>
+<tr>
+<td>17:55</td>
+<td>了解一下 GMT、UTC 是什么</td>
+</tr>
+<tr>
+<td>17:59</td>
+<td>为什么会有闰秒这个现象</td>
+</tr>
+<tr>
+<td>18:01</td>
+<td>首先看一下 GMT</td>
+</tr>
+<tr>
+<td>18:05</td>
+<td>翻译成中文就是格林尼治标准时间</td>
+</tr>
+<tr>
+<td>18:10</td>
+<td>格林尼治是英国伦敦的一个地名</td>
+</tr>
+<tr>
+<td>18:23</td>
+<td>可以简单理解它就是伦敦标准时间</td>
+</tr>
+<tr>
+<td>18:26</td>
+<td>格林尼治这个地方有一个天文台</td>
+</tr>
+<tr>
+<td>18:37</td>
+<td>格林尼治标准时间是以地球自转为基础的时间计量系统</td>
+</tr>
+<tr>
+<td>18:41</td>
+<td>它把地球自转一周的时间等分为 24 小时</td>
+</tr>
+<tr>
+<td>18:45</td>
+<td>以此确定计时标准</td>
+</tr>
+<tr>
+<td>18:47</td>
+<td>这种计时方法非常符合直觉</td>
+</tr>
+<tr>
+<td>18:51</td>
+<td>一天的定就是地球自转一周</td>
+</tr>
+<tr>
+<td>19:05</td>
+<td>GMT 是以前全球计时的时间标准</td>
+</tr>
+<tr>
+<td>19:11</td>
+<td>不同时区再加上对应的小时偏移</td>
+</tr>
+<tr>
+<td>19:14</td>
+<td>这样全球各地的时间就能确定下来</td>
+</tr>
+<tr>
+<td>19:20</td>
+<td>这是因为 GMT 有一个严重的问题</td>
+</tr>
+<tr>
+<td>19:23</td>
+<td>地球自转一周的时间其实是不固定的</td>
+</tr>
+<tr>
+<td>19:27</td>
+<td>由于潮汐、地球活动等原因，地球越转越慢</td>
+</tr>
+<tr>
+<td>19:32</td>
+<td>如果要根据一天的时间来定时间基准</td>
+</tr>
+<tr>
+<td>19:35</td>
+<td>这个时间基准就是在不断变化的</td>
+</tr>
+<tr>
+<td>19:37</td>
+<td>比如把一天等分为 24 小时对应的秒数</td>
+</tr>
+<tr>
+<td>19:44</td>
+<td>地球越转越慢，定义的 1 秒就越来越长</td>
+</tr>
+<tr>
+<td>19:50</td>
+<td>我们说光速是多少 m/s、音速是多少 m/s</td>
+</tr>
+<tr>
+<td>19:59</td>
+<td>为了时间的定义更标准</td>
+</tr>
+<tr>
+<td>20:02</td>
+<td>科学家提出了新的计时系统</td>
+</tr>
+<tr>
+<td>20:07</td>
+<td>中文名称叫协调世界时</td>
+</tr>
+<tr>
+<td>20:10</td>
+<td>协调世界时是以原子钟为基础的时间计量系统</td>
+</tr>
+<tr>
+<td>20:15</td>
+<td>它规定铯 133 原子这样这样持续的时间为 1 秒</td>
+</tr>
+<tr>
+<td>20:26</td>
+<td>使用原子钟提供的时间</td>
+</tr>
+<tr>
+<td>20:31</td>
+<td>一秒到底是多长就可以定死了</td>
+</tr>
+<tr>
+<td>20:36</td>
+<td>最初确定的这个参数</td>
+</tr>
+<tr>
+<td>20:39</td>
+<td>定义的 1 秒时长与 1970 年的 GMT 保持一致</td>
+</tr>
+<tr>
+<td>20:47</td>
+<td>我们以一个恒定不变的秒来计时</td>
+</tr>
+<tr>
+<td>20:48</td>
+<td>但地球自转越来越慢</td>
+</tr>
+<tr>
+<td>20:50</td>
+<td>这样计下去计时的一天和自转的一天就会出现偏差</td>
+</tr>
+<tr>
+<td>20:55</td>
+<td>时间长一些，中午 12 点太阳可能不在正上方</td>
+</tr>
+<tr>
+<td>21:04</td>
+<td>这是我们不能忍受的</td>
+</tr>
+<tr>
+<td>21:12</td>
+<td>科学家对精度有极致追求，不能容忍哪怕 1 秒的偏差</td>
+</tr>
+<tr>
+<td>21:20</td>
+<td>所以在原子钟计时系统基础上加入闰秒机制</td>
+</tr>
+<tr>
+<td>21:27</td>
+<td>当原子钟计时一天与地球自转一周相差超过 0.9 秒时</td>
+</tr>
+<tr>
+<td>21:39</td>
+<td>调整闰秒：计时标准恒定不变</td>
+</tr>
+<tr>
+<td>21:43</td>
+<td>但地球越转越慢</td>
+</tr>
+<tr>
+<td>21:46</td>
+<td>计时系统就多打一秒去追一下地球自转</td>
+</tr>
+<tr>
+<td>21:50</td>
+<td>比如上一次闰秒的时刻是</td>
+</tr>
+<tr>
+<td>21:52</td>
+<td>北京时间 2017 年 1 月 1 日 7 时 59 分 59 秒</td>
+</tr>
+<tr>
+<td>21:57</td>
+<td>下一秒时钟会出现 7 时 59 分 60 秒</td>
+</tr>
+<tr>
+<td>22:01</td>
+<td>这一分钟总共是 61 秒，这就是闰秒的操作</td>
+</tr>
+<tr>
+<td>22:05</td>
+<td>恒定的时间标准加上闰秒机制</td>
+</tr>
+<tr>
+<td>22:08</td>
+<td>既能保证 UTC 满足科研需要，又满足人类生活需要</td>
+</tr>
+<tr>
+<td>22:14</td>
+<td>这就是协调世界时的设计思路</td>
+</tr>
+<tr>
+<td>22:16</td>
+<td>UTC 是现在的时间标准，比 GMT 更精确</td>
+</tr>
+<tr>
+<td>22:21</td>
+<td>但闰秒机制的设计也可能造成一些程序 bug</td>
+</tr>
+<tr>
+<td>22:29</td>
+<td>平时的生活中</td>
+</tr>
+<tr>
+<td>22:33</td>
+<td>可以把 GMT 和 UTC 看成是一样的</td>
+</tr>
+<tr>
+<td>22:37</td>
+<td>手机电脑的时间设置里写 GMT+8 或 UTC+8 都可以</td>
+</tr>
+<tr>
+<td>22:46</td>
+<td>这就说明我们使用的是东 8 区的时间</td>
+</tr>
+<tr>
+<td>22:49</td>
+<td>这就是 UTC 和 GMT 的介绍</td>
+</tr>
+<tr>
+<td>23:07</td>
+<td>说明目前时间戳对闰秒没有适应性</td>
+</tr>
+<tr>
+<td>23:10</td>
+<td>每次产生闰秒时</td>
+</tr>
+<tr>
+<td>23:12</td>
+<td>时间戳的时间和国家授时中心的标准时间</td>
+</tr>
+<tr>
+<td>23:15</td>
+<td>就会产生 1 秒的偏差，这个了解一下</td>
+</tr>
+<tr>
+<td>23:18</td>
+<td>时间戳的基础知识就结束了</td>
+</tr>
+<tr>
+<td>23:23</td>
+<td>下面学习时间戳中秒计数器和日期时间如何转换</td>
+</tr>
+<tr>
+<td>23:29</td>
+<td>这需要用到 C 语言的 time.h 模块</td>
+</tr>
+<tr>
+<td>23:35</td>
+<td>time.h 提供时间获取和时间戳转换的相关函数</td>
+</tr>
+<tr>
+<td>23:38</td>
+<td>可以方便地进行秒计数器、日期时间和字符串之间的转换</td>
+</tr>
+<tr>
+<td>23:43</td>
+<td>使用非常方便，直接调函数、填参数就行</td>
+</tr>
+<tr>
+<td>23:47</td>
+<td>time.h 里主要有以下这么多函数</td>
+</tr>
+<tr>
+<td>23:51</td>
+<td>当然并不是全部，还有两个不太重要的没列出来</td>
+</tr>
+<tr>
+<td>23:55</td>
+<td>网上有很多教程</td>
+</tr>
+<tr>
+<td>24:00</td>
+<td>比如菜鸟教程里就有这个模块的讲解和例子</td>
+</tr>
+<tr>
+<td>24:05</td>
+<td>下面这些函数都可以去点击学习</td>
+</tr>
+<tr>
+<td>24:11</td>
+<td>那回到 PPT，重要的函数给大家演示一下</td>
+</tr>
+<tr>
+<td>24:19</td>
+<td>这些函数中，有三个最为重要</td>
+</tr>
+<tr>
+<td>24:22</td>
+<td>gmtime 是秒计数器转换为 GMT 格林尼治日期时间</td>
+</tr>
+<tr>
+<td>24:29</td>
+<td>localtime 是秒计数器转换为当地日期时间</td>
+</tr>
+<tr>
+<td>24:38</td>
+<td>这两个函数是非常相似的</td>
+</tr>
+<tr>
+<td>24:43</td>
+<td>下面 mktime 就是日期时间转换为秒计数器的函数</td>
+</tr>
+<tr>
+<td>24:48</td>
+<td>这个要用当地的时间</td>
+</tr>
+<tr>
+<td>24:49</td>
+<td>有了这三个函数就可以进行时间戳的转换了</td>
+</tr>
+<tr>
+<td>24:52</td>
+<td>先看下一页 PPT</td>
+</tr>
+<tr>
+<td>24:57</td>
+<td>就是在各种数据类型之间进行转换</td>
+</tr>
+<tr>
+<td>25:01</td>
+<td>为了明白函数用途，首先得清楚三种数据类型</td>
+</tr>
+<tr>
+<td>25:06</td>
+<td>首先是秒计数器数据类型</td>
+</tr>
+<tr>
+<td>25:08</td>
+<td>它的类型名叫做 time_t</td>
+</tr>
+<tr>
+<td>25:12</td>
+<td>time_t 是什么类型呢</td>
+</tr>
+<tr>
+<td>25:14</td>
+<td>我们可以结合程序来看一下</td>
+</tr>
+<tr>
+<td>25:16</td>
+<td>打开 Dev-C++ 这个软件</td>
+</tr>
+<tr>
+<td>25:18</td>
+<td>这是一个最简单的 C 语言工程</td>
+</tr>
+<tr>
+<td>25:20</td>
+<td>使用任何一种 C 语言编译器都可以</td>
+</tr>
+<tr>
+<td>25:25</td>
+<td>运行目前程序的现象是打印 HelloWorld!</td>
+</tr>
+<tr>
+<td>25:28</td>
+<td>好，我们在这个工程里玩一玩 time.h 的相关函数</td>
+</tr>
+<tr>
+<td>25:32</td>
+<td>为了使用这个模块，先加 <code>#include &lt;time.h&gt;</code></td>
+</tr>
+<tr>
+<td>25:40</td>
+<td>之后可以定义一个全局变量</td>
+</tr>
+<tr>
+<td>25:43</td>
+<td>数据类型就是刚才说的秒计数器类型 time_t</td>
+</tr>
+<tr>
+<td>25:49</td>
+<td>变量名可以任起一个，这里叫做 time_cnt</td>
+</tr>
+<tr>
+<td>25:55</td>
+<td>表示它是一个秒计数器</td>
+</tr>
+<tr>
+<td>25:56</td>
+<td>time_t 其实是一个 typedef 重命名的类型</td>
+</tr>
+<tr>
+<td>26:01</td>
+<td>右键转到定义</td>
+</tr>
+<tr>
+<td>26:05</td>
+<td>如果不是特别声明，要用 32 位的秒计数器类型</td>
+</tr>
+<tr>
+<td>26:09</td>
+<td>默认情况下 time_t 就是 time64_t</td>
+</tr>
+<tr>
+<td>26:14</td>
+<td>time64_t 实际上就是 int64</td>
+</tr>
+<tr>
+<td>26:20</td>
+<td>所以 time_t 实际上就是 int64 类型</td>
+</tr>
+<tr>
+<td>26:24</td>
+<td>是一个 64 位有符号的整型数据</td>
+</tr>
+<tr>
+<td>26:27</td>
+<td>所以这里的程序使用的是 64 位的秒计数器</td>
+</tr>
+<tr>
+<td>26:32</td>
+<td>不用担心溢出问题</td>
+</tr>
+<tr>
+<td>26:34</td>
+<td>这就是 time_t 数据类型，用来存那个一直自增的秒数</td>
+</tr>
+<tr>
+<td>26:42</td>
+<td>下一个数据类型是日期时间数据类型</td>
+</tr>
+<tr>
+<td>26:45</td>
+<td>类型名是 struct tm</td>
+</tr>
+<tr>
+<td>26:49</td>
+<td>在程序中可以定义一个结构体变量</td>
+</tr>
+<tr>
+<td>26:54</td>
+<td>这两个词组合在一起代表一个结构体类型名</td>
+</tr>
+<tr>
+<td>27:01</td>
+<td>结构体变量名可以自己起一个，比如 time_date</td>
+</tr>
+<tr>
+<td>27:07</td>
+<td>这个 tm 结构体可以在 time.h 里找到定义</td>
+</tr>
+<tr>
+<td>27:12</td>
+<td>它是一个封装好的结构体类型</td>
+</tr>
+<tr>
+<td>27:17</td>
+<td>结构体的成员有这么多，依次看一下</td>
+</tr>
+<tr>
+<td>27:21</td>
+<td>tm_sec 表示秒，取值范围 0～59</td>
+</tr>
+<tr>
+<td>27:26</td>
+<td>tm_min 表示分钟，取值范围 0～59</td>
+</tr>
+<tr>
+<td>27:30</td>
+<td>tm_hour 表示从午夜开始的小时，0～23</td>
+</tr>
+<tr>
+<td>27:36</td>
+<td>tm_mday 表示日，取值范围 1～31</td>
+</tr>
+<tr>
+<td>27:42</td>
+<td>tm_mon 表示从 1 月开始的第几个月，取值 0～11</td>
+</tr>
+<tr>
+<td>27:48</td>
+<td>它的值 0 对应 1 月、1 对应 2 月</td>
+</tr>
+<tr>
+<td>27:54</td>
+<td>才是我们所说的月份</td>
+</tr>
+<tr>
+<td>27:58</td>
+<td>tm_year 表示从 1900 年起的第几年</td>
+</tr>
+<tr>
+<td>28:02</td>
+<td>所以这个参数要加上 1900 才是我们说的年份</td>
+</tr>
+<tr>
+<td>28:06</td>
+<td>另外注意这个年份的偏移是 1900</td>
+</tr>
+<tr>
+<td>28:10</td>
+<td>我们时间戳的起点是 1970</td>
+</tr>
+<tr>
+<td>28:13</td>
+<td>这两个年份不一样，注意一下</td>
+</tr>
+<tr>
+<td>28:15</td>
+<td>所以这个参数最小值应该是 70</td>
+</tr>
+<tr>
+<td>28:22</td>
+<td>然后 tm_wday 表示从周日开始的星期几</td>
+</tr>
+<tr>
+<td>28:23</td>
+<td>0 表示周日、1 表示周一，一直到 6 表示周六</td>
+</tr>
+<tr>
+<td>28:35</td>
+<td>这个参数我们平常用的不多</td>
+</tr>
+<tr>
+<td>28:37</td>
+<td>最后一个 tm_isdst，表示是否使用夏令时</td>
+</tr>
+<tr>
+<td>28:43</td>
+<td>+1 表示使用、0 表示不使用、-1 表示不知道</td>
+</tr>
+<tr>
+<td>28:48</td>
+<td>夏令时这个东西，欧美地区大部分国家还在使用</td>
+</tr>
+<tr>
+<td>28:52</td>
+<td>我国是初期使用了一段时间</td>
+</tr>
+<tr>
+<td>28:58</td>
+<td>但现在我国已经不用夏令时了</td>
+</tr>
+<tr>
+<td>29:03</td>
+<td>夏令时简单来说</td>
+</tr>
+<tr>
+<td>29:05</td>
+<td>就是为了鼓励大家夏天早睡早起、节约用电而设计的</td>
+</tr>
+<tr>
+<td>29:11</td>
+<td>感兴趣可以自己研究，这里不详细介绍</td>
+</tr>
+<tr>
+<td>29:14</td>
+<td>这个日期时间结构体就了解了</td>
+</tr>
+<tr>
+<td>29:17</td>
+<td>它里面就是表示年月日时分秒、星期等内容的数据</td>
+</tr>
+<tr>
+<td>29:25</td>
+<td>当然这个结构体的定义形式和我们 STM32 库函数里有点区别</td>
+</tr>
+<tr>
+<td>29:32</td>
+<td>STM32 里用的是 typedef struct 新名字 这种形式</td>
+</tr>
+<tr>
+<td>29:37</td>
+<td>这里没有使用 typedef</td>
+</tr>
+<tr>
+<td>29:40</td>
+<td>而是在花括号前给结构体起名叫 tm</td>
+</tr>
+<tr>
+<td>29:45</td>
+<td>使用的时候类型名就是两个词 struct tm</td>
+</tr>
+<tr>
+<td>29:52</td>
+<td>这种方式和我们 STM32 库函数里的效果是一样的</td>
+</tr>
+<tr>
+<td>29:58</td>
+<td>这就是日期时间结构体的内容</td>
+</tr>
+<tr>
+<td>30:02</td>
+<td>最后是字符串数据类型</td>
+</tr>
+<tr>
+<td>30:04</td>
+<td>类型名是 char*，就是 char 型数据的指针</td>
+</tr>
+<tr>
+<td>30:09</td>
+<td>用来指向一个表示时间的字符串</td>
+</tr>
+<tr>
+<td>30:16</td>
+<td>在程序中可以定义 char *time_str;</td>
+</tr>
+<tr>
+<td>30:26</td>
+<td>三种数据类型就准备好了</td>
+</tr>
+<tr>
+<td>30:27</td>
+<td>下面来使用函数</td>
+</tr>
+<tr>
+<td>30:31</td>
+<td>可以看到这些函数中大量出现了指针操作</td>
+</tr>
+<tr>
+<td>30:35</td>
+<td>不熟悉指针的建议先看一下指针教程</td>
+</tr>
+<tr>
+<td>30:40</td>
+<td>要不然不容易理解这些函数的用法</td>
+</tr>
+<tr>
+<td>30:48</td>
+<td>其实这些官方模块真是遍地是指针</td>
+</tr>
+<tr>
+<td>30:54</td>
+<td>所以指针大家还是要好好学一学</td>
+</tr>
+<tr>
+<td>30:57</td>
+<td>看函数：第一个 time，作用是取系统时钟</td>
+</tr>
+<tr>
+<td>31:03</td>
+<td>返回值是 time_t，表示当前系统时钟的秒计数器值</td>
+</tr>
+<tr>
+<td>31:08</td>
+<td>参数是 time_t*，是一个输出参数</td>
+</tr>
+<tr>
+<td>31:12</td>
+<td>输出的内容和返回值是一样的</td>
+</tr>
+<tr>
+<td>31:14</td>
+<td>所以这个函数可以通过返回值获取系统时钟</td>
+</tr>
+<tr>
+<td>31:18</td>
+<td>也可以通过输出参数获取系统时钟</td>
+</tr>
+<tr>
+<td>31:24</td>
+<td>这个函数在电脑里可以直接读取电脑的时间</td>
+</tr>
+<tr>
+<td>31:30</td>
+<td>但是在 STM32 里是用不了的</td>
+</tr>
+<tr>
+<td>31:33</td>
+<td>因为 STM32 是一个裸机系统，它不知道现在是啥时间</td>
+</tr>
+<tr>
+<td>31:41</td>
+<td>在程序中调用实验一下</td>
+</tr>
+<tr>
+<td>31:44</td>
+<td>在这里调用 time 函数</td>
+</tr>
+<tr>
+<td>31:46</td>
+<td>参数不需要的话可以给 NULL</td>
+</tr>
+<tr>
+<td>31:48</td>
+<td>返回值就是当前时间，类型是 time_t</td>
+</tr>
+<tr>
+<td>31:52</td>
+<td>可以把它的值赋值给刚才定义的变量 time_cnt</td>
+</tr>
+<tr>
+<td>31:56</td>
+<td>这样就得到了时间</td>
+</tr>
+<tr>
+<td>31:59</td>
+<td>时间对不对呢</td>
+</tr>
+<tr>
+<td>32:02</td>
+<td>用 printf 打印出来</td>
+</tr>
+<tr>
+<td>32:05</td>
+<td>这里 %d、变量是 time_cnt</td>
+</tr>
+<tr>
+<td>32:09</td>
+<td>运行看一下</td>
+</tr>
+<tr>
+<td>32:12</td>
+<td>得到当前时间戳的秒数，是这么多</td>
+</tr>
+<tr>
+<td>32:16</td>
+<td>我们复制这个数</td>
+</tr>
+<tr>
+<td>32:20</td>
+<td>用在线工具验证一下</td>
+</tr>
+<tr>
+<td>32:30</td>
+<td>这个获取时间的函数还可以用输出参数来取</td>
+</tr>
+<tr>
+<td>32:36</td>
+<td>time，参数给 time_cnt 的地址</td>
+</tr>
+<tr>
+<td>32:40</td>
+<td>两者效果是一样的</td>
+</tr>
+<tr>
+<td>32:43</td>
+<td>运行一下，也是没问题的</td>
+</tr>
+<tr>
+<td>32:47</td>
+<td>另外我们还可以手动给它一个数值</td>
+</tr>
+<tr>
+<td>32:50</td>
+<td>比如 time_cnt 等于</td>
+</tr>
+<tr>
+<td>32:54</td>
+<td>我们就用 PPT 的这个值做例子</td>
+</tr>
+<tr>
+<td>32:59</td>
+<td>这个值对应的是伦敦时间的 15 点、北京时间的 23 点</td>
+</tr>
+<tr>
+<td>33:03</td>
+<td>放到这里</td>
+</tr>
+<tr>
+<td>33:07</td>
+<td>这就相当于手动给了一个时间，就用它来测试</td>
+</tr>
+<tr>
+<td>33:11</td>
+<td>有了秒计数器之后</td>
+</tr>
+<tr>
+<td>33:14</td>
+<td>接着把它转换为日期时间的格式</td>
+</tr>
+<tr>
+<td>33:15</td>
+<td>继续看函数</td>
+</tr>
+<tr>
+<td>33:18</td>
+<td>第一个 gmtime 将秒计数器的值</td>
+</tr>
+<tr>
+<td>33:22</td>
+<td>转换为格林尼治也就是伦敦时间</td>
+</tr>
+<tr>
+<td>33:31</td>
+<td>返回值是 struct tm*，是日期时间结构体指针类型</td>
+</tr>
+<tr>
+<td>33:40</td>
+<td>在程序中实验一下</td>
+</tr>
+<tr>
+<td>33:45</td>
+<td>这里调用 gmtime</td>
+</tr>
+<tr>
+<td>33:54</td>
+<td>根据传进去的数值，函数内部会经过一通计算</td>
+</tr>
+<tr>
+<td>33:59</td>
+<td>返回值就是日期时间了</td>
+</tr>
+<tr>
+<td>34:02</td>
+<td>返回值是 struct tm*</td>
+</tr>
+<tr>
+<td>34:07</td>
+<td>这样就是指针跨级赋值</td>
+</tr>
+<tr>
+<td>34:10</td>
+<td>等号右边是地址，等号左边是一个变量，这是不行的</td>
+</tr>
+<tr>
+<td>34:15</td>
+<td>解决方法有两个</td>
+</tr>
+<tr>
+<td>34:16</td>
+<td>一是在右边加 * 取内容</td>
+</tr>
+<tr>
+<td>34:21</td>
+<td>这样等号左右就都是变量了</td>
+</tr>
+<tr>
+<td>34:22</td>
+<td>结构体变量之间相互赋值没问题</td>
+</tr>
+<tr>
+<td>34:26</td>
+<td>或者右边不加 *，把左边的变量定义成指针类型</td>
+</tr>
+<tr>
+<td>34:31</td>
+<td>这样等号左右都是指针，结构体指针之间也可以赋值</td>
+</tr>
+<tr>
+<td>34:37</td>
+<td>两种方法都可以，这里使用第一种</td>
+</tr>
+<tr>
+<td>34:42</td>
+<td>这样转换实际上就已经完成了</td>
+</tr>
+<tr>
+<td>34:46</td>
+<td>用 printf 打印看一下</td>
+</tr>
+<tr>
+<td>34:48</td>
+<td>复制一下 printf，打印的变量是 time_date</td>
+</tr>
+<tr>
+<td>34:52</td>
+<td>这是一个结构体变量，用点取结构体成员</td>
+</tr>
+<tr>
+<td>34:57</td>
+<td>先看一下 year</td>
+</tr>
+<tr>
+<td>35:01</td>
+<td>然后复制几份，依次看一下月、日</td>
+</tr>
+<tr>
+<td>35:05</td>
+<td>在软件里可以按 Ctrl+空格提示成员</td>
+</tr>
+<tr>
+<td>35:11</td>
+<td>最后可以再看一下星期</td>
+</tr>
+<tr>
+<td>35:14</td>
+<td>编译运行</td>
+</tr>
+<tr>
+<td>35:17</td>
+<td>可以看到目前转换的日期时间是</td>
+</tr>
+<tr>
+<td>35:20</td>
+<td>123 年 0 月 1 日 15 时 59 分 55 秒星期 0</td>
+</tr>
+<tr>
+<td>35:26</td>
+<td>这个星期 0 就是星期天</td>
+</tr>
+<tr>
+<td>35:28</td>
+<td>目前是不对的</td>
+</tr>
+<tr>
+<td>35:31</td>
+<td>因为刚才说了，这里的年是从 1900 年经过的年数</td>
+</tr>
+<tr>
+<td>35:37</td>
+<td>月是从 1 月经过的月数</td>
+</tr>
+<tr>
+<td>35:39</td>
+<td>所以要得到正确的年份</td>
+</tr>
+<tr>
+<td>35:41</td>
+<td>需要在这里给年加上 1900 的偏移</td>
+</tr>
+<tr>
+<td>35:46</td>
+<td>月加上 1 的偏移</td>
+</tr>
+<tr>
+<td>35:50</td>
+<td>这样再试一下</td>
+</tr>
+<tr>
+<td>35:59</td>
+<td>这与我们 PPT 这里给定的伦敦时间是一致的</td>
+</tr>
+<tr>
+<td>36:05</td>
+<td>我们可以查一下日历对照</td>
+</tr>
+<tr>
+<td>36:14</td>
+<td>这就是 gmtime，秒计数器转伦敦时间的函数</td>
+</tr>
+<tr>
+<td>36:19</td>
+<td>接着看第三个 localtime，转换当地时间</td>
+</tr>
+<tr>
+<td>36:24</td>
+<td>这个函数和 gmtime 使用方法一样</td>
+</tr>
+<tr>
+<td>36:32</td>
+<td>它是 localtime 会根据时区自动添加小时的偏移</td>
+</tr>
+<tr>
+<td>36:37</td>
+<td>在程序中要转换为本地时间</td>
+</tr>
+<tr>
+<td>36:40</td>
+<td>直接把函数名由 gmtime 改成 localtime 就行了</td>
+</tr>
+<tr>
+<td>36:46</td>
+<td>这个函数内部会根据当前电脑的设置</td>
+</tr>
+<tr>
+<td>36:49</td>
+<td>自动判断我们处于哪个时区</td>
+</tr>
+<tr>
+<td>36:51</td>
+<td>然后把时间添加时区偏移后输出</td>
+</tr>
+<tr>
+<td>36:54</td>
+<td>运行看一下</td>
+</tr>
+<tr>
+<td>36:57</td>
+<td>现在的时间是 2023 年 1 月 1 日 23 时 59 分 55 秒</td>
+</tr>
+<tr>
+<td>37:03</td>
+<td>localtime 判断我们在东 8 区</td>
+</tr>
+<tr>
+<td>37:06</td>
+<td>就自动把时间加了 8 个小时输出</td>
+</tr>
+<tr>
+<td>37:10</td>
+<td>这与 PPT 里给定的北京时间是一致的</td>
+</tr>
+<tr>
+<td>37:15</td>
+<td>这就是 gmtime 和 localtime</td>
+</tr>
+<tr>
+<td>37:19</td>
+<td>继续学习下一个函数 mktime</td>
+</tr>
+<tr>
+<td>37:20</td>
+<td>mktime 就是上面两个函数的逆过程</td>
+</tr>
+<tr>
+<td>37:28</td>
+<td>当然 mktime 传入的日期时间需要是当地的</td>
+</tr>
+<tr>
+<td>37:33</td>
+<td>mktime 就是刚才两个转换的逆过程</td>
+</tr>
+<tr>
+<td>37:38</td>
+<td>还是写程序试一下</td>
+</tr>
+<tr>
+<td>37:40</td>
+<td>调用 mktime 函数</td>
+</tr>
+<tr>
+<td>37:43</td>
+<td>参数是日期时间结构体指针</td>
+</tr>
+<tr>
+<td>37:46</td>
+<td>可以把刚才转换过来的日期时间结构体的地址传进去</td>
+</tr>
+<tr>
+<td>37:51</td>
+<td>之后函数会经过一通计算</td>
+</tr>
+<tr>
+<td>37:54</td>
+<td>返回对应的秒计数器的值</td>
+</tr>
+<tr>
+<td>37:56</td>
+<td>我们还是存在 time_cnt 里</td>
+</tr>
+<tr>
+<td>37:59</td>
+<td>最后还是打印出来看一下现象</td>
+</tr>
+<tr>
+<td>38:06</td>
+<td>这里掉了个分号</td>
+</tr>
+<tr>
+<td>38:11</td>
+<td>首先给定的是这个秒数</td>
+</tr>
+<tr>
+<td>38:14</td>
+<td>转换当地时间后是 23 点的这个日期时间</td>
+</tr>
+<tr>
+<td>38:18</td>
+<td>之后根据这个日期时间再转换回秒数</td>
+</tr>
+<tr>
+<td>38:21</td>
+<td>可以发现最终的秒数和最初的秒数是一样的</td>
+</tr>
+<tr>
+<td>38:25</td>
+<td>这说明 mktime 给它传入当地时间是正确的</td>
+</tr>
+<tr>
+<td>38:29</td>
+<td>如果把这个 localtime 改成 gmtime 看一下</td>
+</tr>
+<tr>
+<td>38:35</td>
+<td>这时最终的秒数就和最初的秒数不一样了</td>
+</tr>
+<tr>
+<td>38:38</td>
+<td>这说明 mktime 不是依据伦敦时间进行的</td>
+</tr>
+<tr>
+<td>38:42</td>
+<td>这就是 mktime 函数的现象</td>
+</tr>
+<tr>
+<td>38:45</td>
+<td>另外说明一下这个 mktime 的参数前面并没有加 const</td>
+</tr>
+<tr>
+<td>38:55</td>
+<td>它内部的工作过程是这样的</td>
+</tr>
+<tr>
+<td>38:58</td>
+<td>日期时间结构体里面有年月日时分秒星期等数据</td>
+</tr>
+<tr>
+<td>39:08</td>
+<td>你填的星期参数实际上是不作为输入参数的</td>
+</tr>
+<tr>
+<td>39:12</td>
+<td>相反，这个函数在算出秒数的同时</td>
+</tr>
+<tr>
+<td>39:19</td>
+<td>会把星期回填到结构体里面的星期之中</td>
+</tr>
+<tr>
+<td>39:23</td>
+<td>所以使用这个函数</td>
+</tr>
+<tr>
+<td>39:30</td>
+<td>这个功能大家可以自己试一下，不再演示了</td>
+</tr>
+<tr>
+<td>39:41</td>
+<td>我们需要用这些现成的函数</td>
+</tr>
+<tr>
+<td>39:43</td>
+<td>下面这三个函数就比较简单了</td>
+</tr>
+<tr>
+<td>39:49</td>
+<td>我们不用复杂的函数也能很方便地操作</td>
+</tr>
+<tr>
+<td>39:52</td>
+<td>如果你需要的话我们演示一下使用方法</td>
+</tr>
+<tr>
+<td>39:59</td>
+<td>使用默认的格式</td>
+</tr>
+<tr>
+<td>40:07</td>
+<td>对应这个图，它们的作用就是</td>
+</tr>
+<tr>
+<td>40:10</td>
+<td>分别把上面两个类型的数据转换为 char* 格式的字符串</td>
+</tr>
+<tr>
+<td>40:16</td>
+<td>具体是什么效果呢，试一下就知道了</td>
+</tr>
+<tr>
+<td>40:18</td>
+<td>在这里调用 ctime</td>
+</tr>
+<tr>
+<td>40:22</td>
+<td>参数是 time_t*，把 time_cnt 的地址传进去</td>
+</tr>
+<tr>
+<td>40:27</td>
+<td>返回值是 char 的字符串</td>
+</tr>
+<tr>
+<td>40:30</td>
+<td>用上面这里定义的变量来接它</td>
+</tr>
+<tr>
+<td>40:36</td>
+<td>可以 printf 打出来</td>
+</tr>
+<tr>
+<td>40:39</td>
+<td>直接把字符串传进去</td>
+</tr>
+<tr>
+<td>40:41</td>
+<td>运行看一下</td>
+</tr>
+<tr>
+<td>40:44</td>
+<td>最后一行输出的就是日期和时间</td>
+</tr>
+<tr>
+<td>40:47</td>
+<td>Sunday 星期天、January 一月</td>
+</tr>
+<tr>
+<td>40:50</td>
+<td>23 时 59 分 55 秒、2023 年</td>
+</tr>
+<tr>
+<td>40:54</td>
+<td>这就是默认的时间格式</td>
+</tr>
+<tr>
+<td>40:56</td>
+<td>但这个格式是西方国家的习惯</td>
+</tr>
+<tr>
+<td>40:59</td>
+<td>我们中国一般不用这么奇怪的格式</td>
+</tr>
+<tr>
+<td>41:02</td>
+<td>所以这个函数我们用的不多</td>
+</tr>
+<tr>
+<td>41:06</td>
+<td>然后 asctime 实际上也是同样的效果</td>
+</tr>
+<tr>
+<td>41:09</td>
+<td>只是它的参数不一样而已</td>
+</tr>
+<tr>
+<td>41:12</td>
+<td>复制一下</td>
+</tr>
+<tr>
+<td>41:15</td>
+<td>这里调用 asctime</td>
+</tr>
+<tr>
+<td>41:17</td>
+<td>参数要给 time_date</td>
+</tr>
+<tr>
+<td>41:20</td>
+<td>这样就行了，看一下</td>
+</tr>
+<tr>
+<td>41:24</td>
+<td>最终这两个函数运行的效果是完全一样的</td>
+</tr>
+<tr>
+<td>41:27</td>
+<td>这两个函数了解即可</td>
+</tr>
+<tr>
+<td>41:29</td>
+<td>最后我们再来试一下最后一个</td>
+</tr>
+<tr>
+<td>41:40</td>
+<td>在这个图里它的作用和 asctime 是一样的</td>
+</tr>
+<tr>
+<td>41:44</td>
+<td>我们在程序中验证一下</td>
+</tr>
+<tr>
+<td>41:46</td>
+<td>调用 strftime</td>
+</tr>
+<tr>
+<td>41:49</td>
+<td>它总共有 4 个参数</td>
+</tr>
+<tr>
+<td>41:51</td>
+<td>前面两个参数需要传入一个字符数组和数组长度</td>
+</tr>
+<tr>
+<td>41:55</td>
+<td>第三个参数需要给定指定的格式字符串</td>
+</tr>
+<tr>
+<td>41:59</td>
+<td>第四个参数把 time_date 传进去就行了</td>
+</tr>
+<tr>
+<td>42:02</td>
+<td>所以我们首先定义一个 char 型数组</td>
+</tr>
+<tr>
+<td>42:05</td>
+<td>名字就叫 str，长度给个 50</td>
+</tr>
+<tr>
+<td>42:10</td>
+<td>然后下面这里</td>
+</tr>
+<tr>
+<td>42:11</td>
+<td>先把数组传进去，再把数组长度 50 传进去</td>
+</tr>
+<tr>
+<td>42:14</td>
+<td>第三个参数需要指定格式</td>
+</tr>
+<tr>
+<td>42:17</td>
+<td>怎么指定呢？可以参考菜鸟教程</td>
+</tr>
+<tr>
+<td>42:20</td>
+<td>点开这个函数可以看到格式定义</td>
+</tr>
+<tr>
+<td>42:25</td>
+<td>实际上这个就类似于 printf 第一个参数的格式字符串</td>
+</tr>
+<tr>
+<td>42:31</td>
+<td>左边是占位符格式，右边是解释和实例</td>
+</tr>
+<tr>
+<td>42:35</td>
+<td>比如我们想写小时，就是 %H</td>
+</tr>
+<tr>
+<td>42:39</td>
+<td>分钟就是 %M</td>
+</tr>
+<tr>
+<td>42:40</td>
+<td>秒就是 %S</td>
+</tr>
+<tr>
+<td>42:43</td>
+<td>其他这些格式大家都可以一一尝试</td>
+</tr>
+<tr>
+<td>42:46</td>
+<td>在程序中第三个参数给个字符串</td>
+</tr>
+<tr>
+<td>42:49</td>
+<td>我们想这样显示：显示小时 %H、加一个冒号</td>
+</tr>
+<tr>
+<td>42:55</td>
+<td>再显示分钟、加一个冒号、再显示秒</td>
+</tr>
+<tr>
+<td>42:59</td>
+<td>这样指定格式就行了</td>
+</tr>
+<tr>
+<td>43:02</td>
+<td>然后最后一个参数，把 time_date 的地址传进去</td>
+</tr>
+<tr>
+<td>43:06</td>
+<td>格式化完之后，printf 打印一下</td>
+</tr>
+<tr>
+<td>43:17</td>
+<td>小时-分钟-秒，是占位，打印时会替换为后面时间的具体值</td>
+</tr>
+<tr>
+<td>43:26</td>
+<td>其他的符号会保留原始内容</td>
+</tr>
+<tr>
+<td>43:29</td>
+<td>打印的字符串通过前两个参数输出到指定数组里</td>
+</tr>
+<tr>
+<td>43:33</td>
+<td>这就是这个函数的作用</td>
+</tr>
+<tr>
+<td>43:36</td>
+<td>到这里 time.h 的重要函数就讲完了</td>
+</tr>
+<tr>
+<td>43:40</td>
+<td>time.h 里还有几个函数没讲到</td>
+</tr>
+<tr>
+<td>43:46</td>
+<td>主要就是 clock 函数，可以用来计算程序执行了多长时间</td>
+</tr>
+<tr>
+<td>43:52</td>
+<td>然后 difftime，可以计算两个时间之间的差值</td>
+</tr>
+<tr>
+<td>43:56</td>
+<td>其他的函数好像都提到过</td>
+</tr>
+<tr>
+<td>44:00</td>
+<td>最重要的还是 localtime 和 mktime 这两个</td>
+</tr>
+<tr>
+<td>44:09</td>
+<td>这两个重点掌握，其他的了解即可</td>
+</tr>
+<tr>
+<td>44:13</td>
+<td>本小节的两个任务就完成了</td>
+</tr>
+<tr>
+<td>44:16</td>
+<td>一是了解 Unix 时间戳</td>
+</tr>
+<tr>
+<td>44:18</td>
+<td>二是会进行时间戳不同数据类型的转换</td>
+</tr>
+<tr>
+<td>44:22</td>
+<td>这就是本小节的内容</td>
+</tr>
+<tr>
+<td>44:24</td>
+<td>那我们下一小节再见</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，743 段），不是 ASR。错字主要是 <strong><code>闰</code> → 「润」</strong>（润秒/润年）、<strong><code>秒计数器</code> → 「利计数器/计数哭」</strong>、<strong><code>时间戳</code> → 「时间溅」</strong>、<code>日期时间</code> → 「回期时间」、<code>gmtime</code> → 「amtime」、<code>localtime</code> → 「ocaltime」、<code>time_t</code> → 「time+」、<code>夏令时</code> → 「直今时」、<code>电源</code> → 「由源」；并混入网页/浏览器文字——已按画面/上下文校正。</li>
+<li><strong>本集零 STM32 代码</strong>：片头 <code>12-1 读写备份寄存器</code>、<code>12-2 实时时钟</code> <strong>只演示现象、不讲代码</strong>；所有代码实操都在 **Dev-C++（PC 端 C 程序）**里完成——笔记中没有把 Dev-C++ 的示例写成 STM32 工程内容。</li>
+<li><strong>BKP 画面显示有错位</strong>：图 3 的 OLED 显示 <code>1238 567C</code>，而口述与 main.c 都是 <code>0x1234</code>/<code>0x5678</code>——笔记<strong>以 <code>0x1234</code>/<code>0x5678</code> 为准</strong>，并在图注里注明「画面显示错位」。</li>
+<li><strong>本集不系统讲 RTC 外设结构</strong>（框图只在 12:39 一闪而过）；<strong>RTC 外设寄存器细节属 [12-2]</strong>。</li>
+<li><strong>时间戳与日期时间的换算算法未演示</strong>：作者明确说「计算步骤很麻烦但固定，<strong>不用过多了解</strong>，直接调 <code>time.h</code>」——笔记<strong>没有编造逐位换算公式</strong>。</li>
+<li><strong>32 位溢出的具体日期未念出</strong>：只口述「最大 2147483647 ≈ 21 亿多秒」与「2038 问题」这个通用说法——笔记<strong>不写死具体日期时间</strong>。</li>
+<li><strong>闰秒只举一例</strong>：北京时间 2017-1-1 7:59:59 → 7:59:60（该分钟 61 秒），其余闰秒历史未讲。</li>
+<li><strong>夏令时（<code>tm_isdst</code>）只解释含义</strong>（+1 用 / 0 不用 / −1 不知道），我国现已不用，未讲实现。</li>
+<li><strong><code>clock</code> / <code>difftime</code> 未演示</strong>：只在菜鸟教程页面与一句口述中出现（程序运行时间、两时间差）。</li>
+<li><strong><code>mktime</code> 参数必须是当地时间</strong>：传 <code>gmtime</code> 结果会算错（作者现场实验验证）；参数前<strong>没有 <code>const</code></strong>，因为它会<strong>回填 <code>tm_wday</code>/<code>tm_yday</code></strong>。</li>
+<li><strong><code>time()</code> 在 STM32 裸机上用不了</strong>：作者明说 PC 能读系统时间、STM32 不知道当前时间——STM32 侧要用 <strong>RTC 计数器</strong>自己维护秒计数（引出下一小节）。</li>
+<li><strong>片尾 44:24</strong>「那我们下一小节，再见」；<strong>无下节编号预告</strong>，按课程顺序下一节是 BKP 与 RTC 外设结构。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-42.html"><span class="label">下一篇</span>[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+    <a class="next" href="stm32-40.html"><span class="label">上一篇</span>[11-5] 硬件SPI读写W25Q64</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E7%89%87%E5%A4%B4%E6%BC%94%E7%A4%BA%E6%88%90%E5%93%81%E7%A8%8B%E5%BA%8F-unix-%E6%97%B6%E9%97%B4%E6%88%B3-dev-c-%E5%AE%9E%E6%93%8D-time-h">0. 本集定位：理论课（片头演示成品程序 + Unix 时间戳 + Dev-C++ 实操 time.h）</a>
+        <a class="level-2" href="#1-%E7%89%87%E5%A4%B4-%E4%B8%A4%E4%B8%AA%E6%88%90%E5%93%81%E7%A8%8B%E5%BA%8F%E7%9A%84%E7%8E%B0%E8%B1%A1">1. 片头：两个成品程序的现象</a>
+        <a class="level-3" href="#1-1-%E7%8E%B0%E8%B1%A11-bkp-%E5%A4%87%E4%BB%BD%E5%AF%84%E5%AD%98%E5%99%A8-12-1-%E8%AF%BB%E5%86%99%E5%A4%87%E4%BB%BD%E5%AF%84%E5%AD%98%E5%99%A8">1.1 现象①：BKP 备份寄存器（12-1 读写备份寄存器）</a>
+        <a class="level-3" href="#1-2-%E7%8E%B0%E8%B1%A12-rtc-%E5%AE%9E%E6%97%B6%E6%97%B6%E9%92%9F-12-2-%E5%AE%9E%E6%97%B6%E6%97%B6%E9%92%9F">1.2 现象②：RTC 实时时钟（12-2 实时时钟）</a>
+        <a class="level-3" href="#1-3-%E4%BD%9C%E8%80%85%E7%9A%84%E7%A1%AC%E4%BB%B6%E5%9D%91">1.3 作者的硬件坑</a>
+        <a class="level-2" href="#2-unix-%E6%97%B6%E9%97%B4%E6%88%B3">2. Unix 时间戳</a>
+        <a class="level-3" href="#2-1-%E5%AE%9A%E4%B9%89">2.1 定义</a>
+        <a class="level-3" href="#2-2-%E7%A7%92%E8%AE%A1%E6%95%B0%E5%99%A8-vs-%E6%97%A5%E6%9C%9F%E6%97%B6%E9%97%B4-%E5%AF%B9%E7%85%A7%E8%A1%A8">2.2 秒计数器 vs 日期时间（对照表）</a>
+        <a class="level-3" href="#2-3-%E4%B8%BA%E4%BB%80%E4%B9%88%E7%94%A8%E7%A7%92%E8%AE%A1%E6%95%B0%E5%99%A8">2.3 为什么用秒计数器</a>
+        <a class="level-3" href="#2-4-%E5%AD%98%E5%82%A8%E6%A0%BC%E5%BC%8F%E4%B8%8E%E6%BA%A2%E5%87%BA%E9%A3%8E%E9%99%A9">2.4 存储格式与溢出风险</a>
+        <a class="level-3" href="#2-5-%E6%97%B6%E5%8C%BA%E4%B8%8E%E6%97%B6%E9%97%B4%E8%BD%B4">2.5 时区与时间轴</a>
+        <a class="level-2" href="#3-utc-%E4%B8%8E-gmt-%E9%97%B0%E7%A7%92">3. UTC 与 GMT、闰秒</a>
+        <a class="level-3" href="#3-1-gmt-%E6%A0%BC%E6%9E%97%E5%B0%BC%E6%B2%BB%E6%A0%87%E5%87%86%E6%97%B6%E9%97%B4">3.1 GMT（格林尼治标准时间）</a>
+        <a class="level-3" href="#3-2-gmt-%E7%9A%84%E7%BC%BA%E9%99%B7%E4%B8%8E-utc-%E7%9A%84%E5%BC%95%E5%85%A5">3.2 GMT 的缺陷与 UTC 的引入</a>
+        <a class="level-3" href="#3-3-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E9%97%B0%E7%A7%92">3.3 为什么要闰秒</a>
+        <a class="level-2" href="#4-c-%E8%AF%AD%E8%A8%80-time-h-%E4%B8%8E%E4%B8%89%E7%A7%8D%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B">4. C 语言 time.h 与三种数据类型</a>
+        <a class="level-3" href="#4-1-%E4%B8%83%E4%B8%AA%E5%87%BD%E6%95%B0">4.1 七个函数</a>
+        <a class="level-3" href="#4-2-%E4%B8%89%E7%A7%8D%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B">4.2 三种数据类型</a>
+        <a class="level-3" href="#4-3-%E8%BD%AC%E6%8D%A2%E5%85%B3%E7%B3%BB%E5%9B%BE">4.3 转换关系图</a>
+        <a class="level-2" href="#5-dev-c-%E5%AE%9E%E6%93%8D-pc-%E7%AB%AF-c-%E7%A8%8B%E5%BA%8F-%E4%B8%8D%E6%98%AF-stm32-%E5%B7%A5%E7%A8%8B">5. Dev-C++ 实操（PC 端 C 程序，不是 STM32 工程）</a>
+        <a class="level-3" href="#5-1-%E5%87%86%E5%A4%87">5.1 准备</a>
+        <a class="level-3" href="#5-2-time-%E8%8E%B7%E5%8F%96%E7%B3%BB%E7%BB%9F%E6%97%B6%E9%97%B4">5.2 time()：获取系统时间</a>
+        <a class="level-3" href="#5-3-gmtime-%E7%A7%92-%E6%A0%BC%E6%9E%97%E5%B0%BC%E6%B2%BB%E6%97%A5%E6%9C%9F%E6%97%B6%E9%97%B4">5.3 gmtime()：秒 → 格林尼治日期时间</a>
+        <a class="level-3" href="#5-4-localtime-%E7%A7%92-%E5%BD%93%E5%9C%B0%E6%97%A5%E6%9C%9F%E6%97%B6%E9%97%B4">5.4 localtime()：秒 → 当地日期时间</a>
+        <a class="level-3" href="#5-5-mktime-%E6%97%A5%E6%9C%9F%E6%97%B6%E9%97%B4-%E7%A7%92-%E5%BF%85%E9%A1%BB%E4%BC%A0%E5%BD%93%E5%9C%B0%E6%97%B6%E9%97%B4">5.5 mktime()：日期时间 → 秒（必须传当地时间）</a>
+        <a class="level-3" href="#5-6-ctime-asctime-%E8%BD%AC%E6%88%90%E9%BB%98%E8%AE%A4%E6%A0%BC%E5%BC%8F%E5%AD%97%E7%AC%A6%E4%B8%B2">5.6 ctime() / asctime()：转成默认格式字符串</a>
+        <a class="level-3" href="#5-7-strftime-%E8%87%AA%E5%AE%9A%E4%B9%89%E6%A0%BC%E5%BC%8F">5.7 strftime()：自定义格式</a>
+        <a class="level-3" href="#5-8-%E7%BB%93%E5%B0%BE-%E9%87%8D%E7%82%B9%E6%8E%8C%E6%8F%A1%E5%93%AA%E4%B8%A4%E4%B8%AA">5.8 结尾：重点掌握哪两个</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

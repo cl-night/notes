@@ -1,0 +1,1972 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[12-2] BKP备份寄存器&amp;RTC实时时钟 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [12-2]（理论课，零代码零库函数）：BKP（VDD 断由 VBAT 维持、复位不复位、TAMPER 侵入清空、20/84 字节、本质是 RAM）；RTC（后备区域、32 位秒计数器＝Unix 时间戳、20 位预分频、三时钟源、N+1 分频、闹钟一次性）；手册 4 条注意事项（PWREN·BKPEN·DBP、RSF、CNF、RTOFF）。">
+  <meta property="og:title" content="[12-2] BKP备份寄存器&amp;RTC实时时钟 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [12-2]（理论课，零代码零库函数）：BKP（VDD 断由 VBAT 维持、复位不复位、TAMPER 侵入清空、20/84 字节、本质是 RAM）；RTC（后备区域、32 位秒计数器＝Unix 时间戳、20 位预分频、三时钟源、N+1 分频、闹钟一次性）；手册 4 条注意事项（PWREN·BKPEN·DBP、RSF、CNF、RTOFF）。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html" class="active" aria-current="page">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>50 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">BKP</span><span class="tag">RTC</span><span class="tag">后备区域</span><span class="tag">参考手册</span>
+    </div>
+    <article class="prose"><h1>[12-2] BKP备份寄存器&amp;RTC实时时钟 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=42，44:43（2683 秒）</li>
+<li>素材：244 帧关键帧（<strong>每 11 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>455 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p42/frames/</code>，站内图片在 <code>assets/images/stm32-42/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；错字主要是 <strong><code>晶振</code> → 「显振」</strong>（8 处）、<code>数据</code> → 「数居」、<code>存储</code> → 「存诸」、<code>时间戳</code> → 「时间翟」、<code>介绍</code> → 「乔绍」、<code>TAMPER</code> → 「TAMIPER」、<code>32 位</code> → 「32 为」，并混入手册页脚与英文正文——这些<strong>不是口述内容</strong>，已剔除/校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 12 的理论课</strong>——<strong>先讲 BKP 备份寄存器、再讲 RTC 实时时钟</strong>（<strong>本节重点是 RTC</strong>），全程 PPT + 引脚定义表 + 数据手册（第 5 章 BKP、第 16 章 RTC）+ RCC 时钟树。<strong>本集零代码、零库函数</strong>（只出现寄存器名 <code>BKP_DR17</code>、<code>RCC_APB1ENR</code>、<code>PWR_CR</code>、<code>RTC_CRL</code>、<code>RTC_CR</code> 等，没有 <code>BKP_WriteBackupRegister</code>/<code>RTC_SetCounter</code>/<code>RTC_WaitForSynchro</code> 之类调用）。结尾 44:42「……BKP 和 RTC 的代码部分」→ <strong>代码在 [12-3]/[12-4]</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>BKP（Backup Registers，备份寄存器）</strong>：<strong>可用于存储用户应用程序数据</strong>；<strong>当 VDD（2.0～3.6V）电源被切断时，它们仍然由 VBAT（1.8～3.6V）维持供电</strong>；<strong>当系统在待机模式下被唤醒，或系统复位/电源复位时，它们也不会被复位</strong>；<strong>TAMPER 引脚产生的侵入事件会将所有备份寄存器内容清除</strong>；<strong>RTC 引脚可输出 RTC 校准时钟、RTC 闹钟脉冲或者秒脉冲</strong>；<strong>存储 RTC 时钟校准寄存器</strong>；<strong>用户数据存储容量：20 字节（中容量和小容量）/ 84 字节（大容量和互联型）</strong>——<strong>每个数据寄存器 16 位＝2 字节</strong>，中/小容量是 <strong>DR1～DR10</strong>（20 字节），大容量/互联型再加上 <strong>DR11～DR42</strong>（84 字节）。<strong>BKP 本质上是 RAM 存储器</strong>——<strong>VBAT 也没电时数据就清零</strong>；「这个特性是显然要有的」，上一集也演示过。<strong>供电引脚</strong>：<strong>VDD/VSS1～3（数字部分）、VDDA/VSSA（模拟部分）这四组 VDD 开头的都是主电源</strong>，正常使用时全部接 3.3V；<strong>VBAT 是备用电池供电引脚</strong>，<strong>要用 BKP 和 RTC 就必须接备用电池</strong>，电池正极接 VBAT、<strong>负极与主电源共地</strong>。<strong>TAMPER 侵入检测</strong>（与 PC13、RTC 三功能共用 PC13，即 VBAT 旁边的 2 号脚）：设备需要防拆、BKP 里又存了敏感数据时，<strong>使能 TAMPER 引脚的侵入检测功能</strong>，设计电路时用一个默认上拉/下拉电阻、引一根线到设备外壳的防拆开关或触点——<strong>别人一拆开设备触发开关，STM32 就检测到侵入事件</strong>（<strong>数据自动清零并申请中断</strong>），<strong>你还可以在中断里清除其他存储器数据、把设备锁死</strong>，这样<strong>即使设备关机也能防拆</strong>。<strong>RTC（Real Time Clock，实时时钟）</strong>：<strong>是一个独立的定时器</strong>，可为系统提供时钟和日历功能；<strong>RTC 和时钟配置系统处于后备区域</strong>，<strong>系统复位时数据不清零，VDD 断电后可借助 VBAT 供电继续走时</strong>；<strong>32 位的可编程计数器可对应 Unix 时间戳的秒计数器</strong>；<strong>20 位的可编程预分频器可适配不同频率的输入时钟</strong>；<strong>三种 RTC 时钟源：HSE 时钟除以 128（通常为 8MHz/128）、LSE 振荡器时钟（通常为 32.768kHz）、LSI 振荡器时钟（40kHz）</strong>。<strong>为什么 RTC 没有年月日寄存器</strong>（对比 DS1302 那种外置 RTC 芯片）：<strong>因为用了时间戳</strong>——<strong>读时间是先读 32 位秒数、再用 <code>localtime()</code> 转年月日时分秒；写时间是用 <code>mktime()</code> 把年月日转成秒数、写入计数器</strong>；<strong>一个 32 位秒计数器就实现了年月日时分秒</strong>，<strong>极大简化硬件电路</strong>，代价是<strong>读写时要花一点软件计算资源</strong>。<strong>RCC 时钟树（图62）</strong>：OSC32_IN/OUT→<strong>LSE OSC 32.768kHz</strong>；OSC_IN/OUT→HSE 4～16MHz→<strong>/128</strong>；LSI RC 40kHz——<strong>经 RTCSEL[1:0] 选择进 RTCCLK</strong>，再送到 RTC；<strong>为什么选 32.768kHz</strong>：它是 2 的 15 次方（32768），<strong>便于分频得到 1Hz</strong>，而且这个频率<strong>是晶振工艺比较合适的频率</strong>。<strong>图154 简化的 RTC 框图</strong>：APB1 总线→<strong>APB1 接口（待机时不供电）</strong>；<strong>RTCCLK→RTC_PRL（重装载）→RTC_DIV（上升沿/自减）→TR_CLK→32 位可编程计数器 RTC_CNT</strong>；<strong>RTC_ALR 与 CNT 比较产生 RTC_Alarm</strong>；三路输出 <strong>RTC_Second / RTC_Overflow / RTC_Alarm</strong> → <strong>RTC_CR 的 SECF/SECIE、OWF/OWIE、ALRF/ALRIE</strong> → <strong>NVIC 中断控制器</strong>；<strong>WKUP pin（PA0）/WKP_STDBY→退出待机模式</strong>；后备区域标注「待机时维持供电」。<strong>预分频器细节</strong>：<strong>PRL 是重装载寄存器（计数目标）</strong>、<strong>DIV 是余数寄存器（自减计数器，存当前计数值）</strong>；<strong>写入 PRL＝N 表示 N+1 分频</strong>（<strong>因为计数值包含 0</strong>：写 6 是 7 分频、写 9 是 10 分频）；例：<strong>32.768kHz 输入 + PRL＝32767 → 32768 分频 → 1Hz</strong>——<strong>DIV 初始为 0，第一个时钟到来产生溢出、DIV 变为重装值 32767，之后每个时钟自减，减到 0 再溢出并重装</strong>。<strong>闹钟（ALR）</strong>：和 CNT 等宽，<strong>CNT 的值与 ALR 设定的闹钟值相等就代表闹钟响了</strong>（可执行相应操作/申请中断）；<strong>闹钟还兼具唤醒功能</strong>——<strong>可以把设备从待机模式唤醒</strong>（例如只在中午 12 点设一个闹钟唤醒，其余时间待机省电、<strong>避免频繁换电池</strong>）；<strong>这个闹钟值只能响一次</strong>，<strong>要周期性闹钟必须在每次响应后重新设置</strong>。<strong>Overflow（溢出）中断</strong>：来源是 <strong>CNT 进位</strong>（计满溢出那一刻）。<strong>外部电路两部分</strong>：① <strong>备用电池供电</strong>——3V 纽扣电池正极接 VBAT、负极共地，<strong>数据手册 5.16 供电方案</strong>给了这个图；还有第二种方案加 <strong>0.1µF 电源滤波电容</strong>；<strong>4.1.2 电池备份区域</strong>有相关描述；<strong>如果没有外部电池</strong>，手册也给出推荐连接（电池与主电源都加）。② <strong>32.768kHz RTC 晶振</strong>——<strong>晶振不分正负极</strong>，两端分别接 OSC32_IN/OSC32_OUT，<strong>起振电容本集取 10pF</strong>（作者自己的电路取值）；<strong>数据手册 5.3.6 外部时钟源特性 / 表23 / 图22 典型应用</strong>里给了 LSE 的电气参数（CL1/CL2 典型 15pF、RF 5MΩ 等）；<strong>最小系统板自带 RTC 晶振</strong>（板上黑色元件），并从右上角端口引出（需要备用电池时接上）。<strong>RTC 操作注意事项（手册原文 4 条，写代码时必须处理）</strong>：<strong>① 使能访问</strong>——<strong>设置 <code>RCC_APB1ENR</code> 的 PWREN 和 BKPEN 位</strong>（使能 PWR 和 BKP 时钟），<strong>再设置 <code>PWR_CR</code> 的 DBP 位</strong>（使能对 BKP 和 RTC 的访问）；<strong>注意 RTC 没有单独开时钟的选项</strong>（它不挂在正常外设时钟上）。<strong>② 读前等同步</strong>——若读取 RTC 寄存器时 RTC 的 APB1 接口曾处于禁止状态，软件<strong>必须先等待 <code>RTC_CRL</code> 的 RSF 位（寄存器同步标志）被硬件置 1</strong>（代码里就是「RTC 等待同步」）。<strong>③ 写前进配置模式</strong>——<strong>必须置 <code>RTC_CRL</code> 的 CNF 位</strong>使 RTC 进入配置模式，才能写 <code>RTC_PRL</code>、<code>RTC_CNT</code>、<code>RTC_ALR</code>（每个写寄存器的库函数都会自动加上这个操作）。<strong>④ 写前等上次写完</strong>——对 RTC 任何寄存器的写操作<strong>必须等前一次写操作结束</strong>，通过查询 <strong><code>RTC_CR</code> 的 RTOFF 状态位</strong>判断是否处于更新中，<strong>仅当 RTOFF＝1 时才能写入</strong>（<strong>类似之前读写 Flash 的忙等待</strong>）。<strong>为什么有这些问题</strong>：<strong>RTC 寄存器由 RTCCLK 驱动，而 APB1 由 PCLK1 驱动，两个时钟不同步</strong>，且 <strong>PCLK1 在主电源掉电时会停止</strong>——所以要用 RSF 同步、用 RTOFF 等写完。<strong>手册精读</strong>：<strong>第 5 章 BKP</strong>（<strong>5.2 特性</strong>：20/84 字节后备寄存器、防侵入检测的控制/状态寄存器、RTC 校验值寄存器、PC13 上输出校准时钟/闹钟脉冲/秒脉冲；<strong>5.3.1 侵入检测</strong>：TAMPER 引脚信号从 0→1 或 1→0（取决于 <strong><code>BKP_CR</code> 的 TPAL 位</strong>）产生侵入事件、<strong>侵入事件清除所有数据备份寄存器</strong>、边沿检测与允许位做逻辑与（所以允许前发生的事件也能被检测）、<strong><code>BKP_CSR</code> 的 TPIE 置 1 时检测到侵入事件会产生中断</strong>、<strong>VDD 断电时侵入检测仍然有效</strong>、TAMPER 引脚应在片外接正确电平）；<strong>BKP 寄存器</strong>：DR1～DR10 @008h～028h、<strong>BKP_RTCCR @02Ch</strong>（ASOE/ASOS/CAL 的 6:0 位）、<strong>RTC_CR @030h</strong>（OWIE/ALRIE/TPIE/TPAL 等）、<strong>RTC_CSR @034h</strong>（TIF/OWF/ALRF 等）；<strong>第 16 章 RTC</strong>（功能描述、系统框图、读寄存器同步、写寄存器、<strong>图155/图156 溢出与闹钟波形示例（PR=0003）</strong>、寄存器描述：<strong><code>RTC_PRL</code> 有效 20 位</strong>、<code>RTC_DIV</code> 余数、<code>RTC_CNT</code>、<code>RTC_ALR</code>——<strong>它们都是「高 16 位 + 低 16 位」两个寄存器拼接</strong>，因为<strong>外设总线只有 16 位</strong>，这样做是<strong>简化电路设计</strong>，对这些不那么重要的外设，16 位总线已经够用）。</p>
+<h2 id="0-本集定位-理论课-bkp-rtc-外设原理-手册-5-16-章-代码在-12-3-12-4">0. 本集定位：理论课（BKP + RTC 外设原理 + 手册 5/16 章），代码在 12-3/12-4</h2>
+<ul>
+<li><strong>本集零代码、零库函数</strong>：全程 PPT + 手册 + 时钟树；只讲寄存器名和操作流程；</li>
+<li><strong>本集先讲 BKP（内容少、要求不高），再讲 RTC（本节重点）</strong>；</li>
+<li>片尾 44:42「……BKP 和 RTC 的代码部分」→ <strong>库函数写法在 [12-3]/[12-4]</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-42/01-bkp-intro.jpg" alt="图 1：PPT「BKP简介」——BKP（Backup Registers）备份寄存器；可用于存储用户应用程序数据，当 VDD（2.0～3.6V）电源被切断，他们仍然由 VBAT（1.8～3.6V）维持供电；当系统在待机模式下被唤醒，或系统复位或电源复位时，他们也不会被复位；TAMPER 引脚产生的侵入事件将所有备份寄存器内容清除；RTC 引脚输出 RTC 校准时钟、RTC 闹钟脉冲或者秒脉冲；存储 RTC 时钟校准寄存器；用户数据存储容量：20 字节（中容量和小容量）/ 84 字节（大容量和互联型）；字幕「所以BKP这部分内容比较少，要求也不高」"></p>
+<p>*图 1：PPT「BKP简介」——BKP（Backup Registers）备份寄存器；可用于存储用户应用程序数据，<strong>当 VDD（2.0～3.6V）电源被切断，他们仍然由 VBAT（1.8～3.6V）维持供电</strong>；当系统在待机模式下被唤醒，或系统复位或电源复位时，他们也不会被复位；<strong>TAMPER 引脚产生的侵入事件将所有备份寄存器内容清除</strong>；<strong>RTC 引脚输出 RTC 校准时钟、RTC 闹钟脉冲或者秒脉冲</strong>；存储 RTC 时钟校准寄存器；用户数据存储容量：<strong>20 字节（中容量和小容量）/ 84 字节（大容量和互联型）</strong>；字幕「所以BKP这部分内容比较少，要求也不高」*</p>
+<h2 id="1-bkp-备份寄存器">1. BKP 备份寄存器</h2>
+<h3 id="1-1-供电引脚与-vbat">1.1 供电引脚与 VBAT</h3>
+<ul>
+<li><strong>引脚定义图</strong>里标红的是<strong>供电引脚</strong>：<strong>VDD/VSS1～3 是内部数字部分电路供电、VDDA/VSSA 是内部模拟部分电路供电</strong>——<strong>这四组以 VDD 开头的供电都是系统的主电源</strong>，正常使用时<strong>全部要接到 3.3V</strong>；</li>
+<li><strong>VBAT 是备用电池供电引脚</strong>：<strong>要使用 STM32 内部的 BKP 和 RTC，这个引脚就必须接备用电池</strong>，<strong>用来在 VDD 主电源掉电后维持 BKP 和 RTC 的供电</strong>；</li>
+<li><strong>接法</strong>：备用电池只有一根正极供电引脚，<strong>电池正极接 VBAT，电池负极与主电源负极接在一起共地</strong>；</li>
+<li><strong>最小系统板原理图</strong>里能看到 VBAT 与主电源的接法，以及 <strong>Y3 32.768K 晶振 + 20pF 起振电容接 PC14/PC15</strong>。</li>
+</ul>
+<h3 id="1-2-vbat-的作用与-bkp-的本质">1.2 VBAT 的作用与 BKP 的本质</h3>
+<ul>
+<li><strong>VBAT 的作用</strong>：<strong>当 VDD 断电时，由 VBAT 维持 BKP 和 RTC 的运行</strong>；</li>
+<li><strong>如果 VBAT 也没电了</strong>：<strong>BKP 里的数据就会清零</strong>——<strong>因为 BKP 本质上是 RAM 存储器</strong>（掉电即失）；</li>
+<li>这一点上一集也演示过实验现象（VBAT 一断就清零）。</li>
+</ul>
+<p><img src="../assets/images/stm32-42/02-schematic-vbat.jpg" alt="图 2：最小系统板原理图（STM32F103C8T6 核心板）——U2 为核心芯片，右侧引出 VBAT、PC13-TAMPER-RTC、PC14-OSC32_IN、PC15-OSC32_OUT、PD0/PD1、OSC_IN/OSC_OUT、NRST、VSSA、VDDA、PA0-WKUP 等；Y3 32.768K 晶振与 C12/C13 20pF 起振电容接 PC14/PC15；字幕「这里，可以看到VBAT引脚」"></p>
+<p><em>图 2：最小系统板原理图（STM32F103C8T6 核心板）——U2 为核心芯片，右侧引出 VBAT、PC13-TAMPER-RTC、PC14-OSC32_IN、PC15-OSC32_OUT、PD0/PD1、OSC_IN/OSC_OUT、NRST、VSSA、VDDA、PA0-WKUP 等；<strong>Y3 32.768K 晶振与 C12/C13 20pF 起振电容接 PC14/PC15</strong>；字幕「这里，可以看到VBAT引脚」</em></p>
+<p><img src="../assets/images/stm32-42/03-pin-table.jpg" alt="图 3：STM32F103C8T6 引脚定义表——表头为 引脚号/引脚名称/类型/I-O 电平/主功能/默认复用功能/重定义功能；1=VBAT（S 电源）、2=PC13-TAMPER-RTC（I/O）、3=PC14-OSC32_IN、4=PC15-OSC32_OUT、5=OSC_IN、6=OSC_OUT、7=NRST、8=VSSA、9=VDDA、10=PA0-WKUP 等；红笔圈出 LQFP 封装与 VBAT 走线；字幕「这时BKP的数据会自动清零，并且申请中断」"></p>
+<p><em>图 3：STM32F103C8T6 引脚定义表——表头为 引脚号/引脚名称/类型/I-O 电平/主功能/默认复用功能/重定义功能；<strong>1=VBAT（S 电源）、2=PC13-TAMPER-RTC（I/O）、3=PC14-OSC32_IN、4=PC15-OSC32_OUT、5=OSC_IN、6=OSC_OUT、7=NRST、8=VSSA、9=VDDA、10=PA0-WKUP</strong> 等；红笔圈出 LQFP 封装与 VBAT 走线；字幕「这时BKP的数据会自动清零，并且申请中断」</em></p>
+<h3 id="1-3-tamper-侵入检测-pc13-三功能共用">1.3 TAMPER 侵入检测（PC13 三功能共用）</h3>
+<ul>
+<li><strong>PC13 是三个功能共用的引脚</strong>：<strong>PC13、TAMPER、RTC</strong>（引脚定义里写作 <strong><code>PC13-TAMPER-RTC</code></strong>），位置就是 <strong>VBAT 旁边的 2 号引脚</strong>；</li>
+<li><strong>应用场景</strong>：设备需要<strong>防拆</strong>、BKP 里又存了敏感数据（不能被窃取/篡改）→ <strong>使能 TAMPER 引脚的侵入检测功能</strong>；</li>
+<li><strong>电路</strong>：设计时给该引脚<strong>默认的上拉或下拉电阻</strong>，再<strong>引一根线到设备外壳的防拆开关/触点</strong>；</li>
+<li><strong>动作</strong>：<strong>别人一拆开设备就触发开关</strong> → <strong>STM32 检测到侵入事件</strong>（<strong>BKP 数据自动清零并申请中断</strong>）；</li>
+<li><strong>进一步保护</strong>：可以在<strong>中断里清除其他存储器数据、把设备锁死</strong>，从而保障设备安全——<strong>这样即使设备关机也能防拆</strong>。</li>
+</ul>
+<h3 id="1-4-rtc-相关功能与存储容量">1.4 RTC 相关功能与存储容量</h3>
+<ul>
+<li><strong>RTC 引脚（也在 PC13）</strong>：可<strong>输出 RTC 校准时钟、RTC 闹钟脉冲或秒脉冲</strong>（供外部设备测量、校准 RTC）；</li>
+<li><strong>BKP 里还存储 RTC 时钟校准寄存器</strong>：<strong>可以对 RTC 进行校准</strong>（本质是 RTC 的配置）；</li>
+<li><strong>容量</strong>：<strong>每个数据寄存器 16 位＝2 字节</strong>；<strong>中容量和小容量设备</strong>有 <strong>DR1～DR10 → 共 20 字节</strong>；<strong>大容量和互联型设备</strong>在 DR1～DR10 之外<strong>再加 DR11～DR42 → 共 84 字节</strong>；</li>
+<li><strong>BKP 的容量其实非常小</strong>（作者提醒），只适合存少量关键数据。</li>
+</ul>
+<p><img src="../assets/images/stm32-42/04-bkp-structure.jpg" alt="图 4：PPT「BKP基本结构」——左侧 VBAT→电池供电、TAMPER→侵入检测、RTC→时钟输出；右侧后备区域（蓝框内）含数据寄存器 DR1（15:0）、DR2（15:0）…DR10（15:0）、…、DR42（15:0）（大容量和互联型），以及控制寄存器、状态寄存器、RTC 时钟校准寄存器；红笔在上方画叉标注；字幕「当VDD主电源掉电时，后备区域仍然可以由VBAT的备用电池供电」"></p>
+<p><em>图 4：PPT「BKP基本结构」——左侧 VBAT→电池供电、TAMPER→侵入检测、RTC→时钟输出；右侧后备区域（蓝框内）含<strong>数据寄存器 DR1[15:0]、DR2[15:0]…DR10[15:0]、…、DR42[15:0]（大容量和互联型）</strong>，以及*<em>控制寄存器、状态寄存器、RTC 时钟校准寄存器</em></em>；红笔在上方画叉标注；字幕「当VDD主电源掉电时，后备区域仍然可以由VBAT的备用电池供电」*</p>
+<h2 id="2-rtc-实时时钟">2. RTC 实时时钟</h2>
+<h3 id="2-1-简介与特性">2.1 简介与特性</h3>
+<ul>
+<li><strong>RTC（Real Time Clock）实时时钟</strong>：<strong>是一个独立的定时器</strong>，可为系统提供<strong>时钟和日历功能</strong>；</li>
+<li><strong>RTC 和时钟配置系统处于后备区域</strong>：<strong>系统复位时数据不清零</strong>、<strong>VDD（2.0～3.6V）断电后可借助 VBAT（1.8～3.6V）供电继续走时</strong>；</li>
+<li><strong>32 位可编程计数器</strong>：<strong>可对应 Unix 时间戳的秒计数器</strong>；</li>
+<li><strong>20 位可编程预分频器</strong>：<strong>可适配不同频率的输入时钟</strong>（保证分频后输出 1Hz 给计数器）；</li>
+<li><strong>三种 RTC 时钟源</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>时钟源</th>
+<th>频率</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>HSE 时钟除以 128</strong></td>
+<td>通常 <strong>8MHz/128</strong></td>
+<td>外部高速时钟分频（作者未念出结果）</td>
+</tr>
+<tr>
+<td><strong>LSE 振荡器时钟</strong></td>
+<td>通常 <strong>32.768kHz</strong></td>
+<td>外部低速时钟（RTC 晶振），最常用</td>
+</tr>
+<tr>
+<td><strong>LSI 振荡器时钟</strong></td>
+<td><strong>40kHz</strong></td>
+<td>内部低速时钟，精度较低、不需要外部晶振</td>
+</tr>
+</tbody></table>
+<h3 id="2-2-为什么没有年月日寄存器">2.2 为什么没有年月日寄存器</h3>
+<ul>
+<li>对比以前学的 <strong>DS1302</strong>（外置 RTC 芯片）：那里面<strong>有年月日寄存器</strong>，写入对应寄存器就是修改时间、读取对应寄存器就是获取时间；</li>
+<li>看到 STM32 的 RTC 只有一个 32 位计数器，<strong>会疑惑「那年呢、月呢、日呢、小时呢、分钟呢」</strong>——<strong>因为这里用了时间戳</strong>；</li>
+<li><strong>读时间</strong>：先读 <strong>32 位秒数</strong> → 用 <strong><code>time.h</code> 的 <code>localtime()</code></strong> 转成年月日时分秒；</li>
+<li><strong>写时间</strong>：用 <strong><code>mktime()</code></strong> 把年月日转成秒数 → <strong>再写入这个 32 位计数器</strong>；</li>
+<li><strong>好处</strong>：<code>一个 32 位的秒计数器就能实现年月日时分秒的计时</code>，<strong>极大简化硬件电路设计</strong>；<strong>代价</strong>：每次读写都要花一点软件计算资源。</li>
+</ul>
+<h3 id="2-3-rcc-时钟树-rtcclk-从哪来">2.3 RCC 时钟树：RTCCLK 从哪来</h3>
+<ul>
+<li><strong>RTC 的输入时钟 RTCCLK 需要在 RCC 里配置</strong>（图62 时钟树）：<ul>
+<li><strong>OSC32_IN/OSC32_OUT → LSE OSC 32.768kHz</strong>；</li>
+<li><strong>OSC_IN/OSC_OUT → HSE 4～16MHz → /128</strong>；</li>
+<li><strong>LSI RC 40kHz</strong>；</li>
+<li>三者经 <strong>RTCSEL[1:0]</strong> 选择后接到 <strong>RTCCLK → RTC</strong>；</li>
+</ul>
+</li>
+<li><strong>为什么选 32.768kHz</strong>：<strong>32768 是 2 的 15 次方</strong>，<strong>便于分频得到 1Hz</strong>；而且这个频率<strong>是晶振工艺比较合适的频率</strong>（并非随便选的）；</li>
+<li><strong>上下两路时钟（HSE/128、LSE）在主电源断电后仍可由 VBAT 后备区域维持</strong>（LSI 是内部 RC，也在后备域）。</li>
+</ul>
+<h3 id="2-4-图154-简化的-rtc-框图">2.4 图154：简化的 RTC 框图</h3>
+<ul>
+<li><strong>APB1 总线 → APB1 接口</strong>（图上注明「<strong>待机时不供电</strong>」）——程序通过 APB1 读写 RTC 寄存器；</li>
+<li><strong>RTCCLK → RTC_PRL（重装载寄存器）→ RTC_DIV（上升沿触发）→ TR_CLK → 32 位可编程计数器 RTC_CNT</strong>；</li>
+<li>还有 <strong>RTC_ALR（闹钟值）</strong>，与 CNT 比较 → <strong>RTC_Alarm</strong>；</li>
+<li><strong>三路事件输出</strong>：<strong>RTC_Second、RTC_Overflow、RTC_Alarm</strong> → <strong><code>RTC_CR</code> 的 SECF/SECIE、OWF/OWIE、ALRF/ALRIE</strong>（F 结尾是标志位、IE 结尾是中断使能）→ <strong>NVIC 中断控制器</strong>；</li>
+<li><strong>WKUP pin（PA0）/WKP_STDBY → 退出待机模式</strong>（WKUP 引脚兼具唤醒功能，下一节再学）；</li>
+<li>图里多处标注「<strong>待机时维持供电</strong>」——说明后备区域在待机/主电源断电时由 VBAT 维持。</li>
+</ul>
+<p><img src="../assets/images/stm32-42/05-rtc-intro.jpg" alt="图 5：PPT「RTC简介」——RTC（Real Time Clock）实时时钟；RTC 是一个独立的定时器，可为系统提供时钟和日历的功能；RTC 和时钟配置系统处于后备区域，系统复位时数据不清零，VDD（2.0～3.6V）断电后可借助 VBAT（1.8～3.6V）供电继续走时；32 位的可编程计数器，可对应 Unix 时间戳的秒计数器；20 位的可编程预分频器，可适配不同频率的输入时钟；可选择三种 RTC 时钟源：HSE 时钟除以 128（通常为 8MHz/128）、LSE 振荡器时钟（通常为 32.768kHz）、LSI 振荡器时钟（40kHz）；字幕「中文意思就是实时时钟」"></p>
+<p>*图 5：PPT「RTC简介」——RTC（Real Time Clock）实时时钟；RTC 是一个独立的定时器，可为系统提供时钟和日历的功能；<strong>RTC 和时钟配置系统处于后备区域</strong>，系统复位时数据不清零，<strong>VDD（2.0～3.6V）断电后可借助 VBAT（1.8～3.6V）供电继续走时</strong>；<strong>32 位的可编程计数器，可对应 Unix 时间戳的秒计数器</strong>；<strong>20 位的可编程预分频器，可适配不同频率的输入时钟</strong>；可选择三种 RTC 时钟源：<strong>HSE 时钟除以 128（通常为 8MHz/128）、LSE 振荡器时钟（通常为 32.768kHz）、LSI 振荡器时钟（40kHz）</strong>；字幕「中文意思就是实时时钟」*</p>
+<p><img src="../assets/images/stm32-42/06-rtc-block-cnt.jpg" alt="图 6：PPT「RTC框图」图154 简化的 RTC 框图——APB1 总线→APB1 接口（待机时不供电）；RTCCLK→RTC_PRL 重装载→RTC_DIV（上升沿）→TR_CLK→32 位可编程计数器 RTC_CNT（红圈标出）；RTC_ALR；RTC_Second/RTC_Overflow/RTC_Alarm→RTC_CR（SECF/SECIE、OWF/OWIE、ALRF/ALRIE）；NVIC 中断控制器；WKUP pin/WKP_STDBY→退出待机模式；多处标注「待机时维持供电」；字幕「那年呢、月呢、日呢、小时呢、分钟呢」"></p>
+<p><em>图 6：PPT「RTC框图」图154 简化的 RTC 框图——APB1 总线→APB1 接口（待机时不供电）；RTCCLK→RTC_PRL 重装载→RTC_DIV（上升沿）→TR_CLK→<strong>32 位可编程计数器 RTC_CNT</strong>（红圈标出）；RTC_ALR；RTC_Second/RTC_Overflow/RTC_Alarm→RTC_CR（SECF/SECIE、OWF/OWIE、ALRF/ALRIE）；NVIC 中断控制器；WKUP pin/WKP_STDBY→退出待机模式；多处标注「待机时维持供电」；字幕「那年呢、月呢、日呢、小时呢、分钟呢」</em></p>
+<p><img src="../assets/images/stm32-42/07-clock-tree.jpg" alt="图 7：RCC 时钟树（图62）+ 红笔标注——OSC_IN/OUT→HSE OSC 4～16MHz（红笔写「8M」）→/128；OSC32_IN/OUT→LSE OSC 32.768kHz（红圈）→RTCSEL（1:0）→RTCCLK→RTC（红圈）；LSI RC 40kHz；右侧红笔标「H/2」；图例：HSI 高速内部时钟、HSE 高速外部时钟、LSI 低速内部时钟、LSE 低速外部时钟；字幕「或者做出来了，但体积很大，性能很差」"></p>
+<p>*图 7：RCC 时钟树（图62）+ 红笔标注——OSC_IN/OUT→HSE OSC 4～16MHz（红笔写「8M」）→/128；<strong>OSC32_IN/OUT→LSE OSC 32.768kHz（红圈）→RTCSEL[1:0]→RTCCLK→RTC（红圈）</strong>；LSI RC 40kHz；右侧红笔标「H/2」；图例：HSI 高速内部时钟、HSE 高速外部时钟、LSI 低速内部时钟、LSE 低速外部时钟；字幕「或者做出来了，但体积很大，性能很差」*</p>
+<p><img src="../assets/images/stm32-42/08-rtc-block-full.jpg" alt="图 8：图154 全图（清晰版，无标注）——APB1 总线/接口、RTCCLK、RTC_PRL 重装载、RTC_DIV 上升沿、TR_CLK、32 位可编程计数器 RTC_CNT、RTC_ALR、RTC_Second/Overflow/Alarm、RTC_CR（SECF/SECIE、OWF/OWIE、ALRF/ALRIE）、NVIC 中断控制器、WKUP pin/WKP_STDBY、退出待机模式；字幕「这一块的输入时钟是RTCCLK」"></p>
+<p><em>图 8：图154 全图（清晰版，无标注）——APB1 总线/接口、RTCCLK、RTC_PRL 重装载、RTC_DIV 上升沿、TR_CLK、32 位可编程计数器 RTC_CNT、RTC_ALR、RTC_Second/Overflow/Alarm、RTC_CR（SECF/SECIE、OWF/OWIE、ALRF/ALRIE）、NVIC 中断控制器、WKUP pin/WKP_STDBY、退出待机模式；字幕「这一块的输入时钟是RTCCLK」</em></p>
+<p><img src="../assets/images/stm32-42/09-rtc-alarm.jpg" alt="图 9：图154 + 红圈标注——RTC_CNT 与 RTC_ALR 比较处、RTC_Alarm 信号线被红圈圈出；字幕「这时就会产生RTC_Alarm闹钟信号，通往右边的中断系统」"></p>
+<p><em>图 9：图154 + 红圈标注——<strong>RTC_CNT 与 RTC_ALR 比较处</strong>、<strong>RTC_Alarm 信号线被红圈圈出</strong>；字幕「这时就会产生RTC_Alarm闹钟信号，通往右边的中断系统」</em></p>
+<h3 id="2-5-预分频器与计数器细节">2.5 预分频器与计数器细节</h3>
+<ul>
+<li><strong>预分频器由两个寄存器组成</strong>：<strong><code>RTC_PRL</code> 重装载寄存器</strong>（<strong>计数目标，决定分频值</strong>）和 <strong><code>RTC_DIV</code> 余数寄存器</strong>（<strong>自减计数器，存当前计数值</strong>）——和之前定时器的<strong>时基单元</strong>类似；</li>
+<li><strong>关键算式</strong>：<strong>写入 PRL＝N 表示 N+1 分频</strong>（<strong>因为计数值包含 0</strong>）：<ul>
+<li>写 <strong>6</strong> → <strong>7 分频</strong>；写 <strong>9</strong> → <strong>10 分频</strong>；</li>
+<li><strong>例：输入 32.768kHz，PRL＝32767 → 32768 分频 → 输出 1Hz</strong>（保证计时正确）；</li>
+</ul>
+</li>
+<li><strong>DIV 的工作过程</strong>：初始值为 0 → <strong>第一个输入时钟到来时产生溢出信号</strong>给后续电路，<strong>同时 DIV 变为重装值 32767</strong> → 第二个时钟变 32766 → …… → 减到 0 再溢出并重装，<strong>如此循环往复</strong>；</li>
+<li><strong>计数器（CNT/ALR）</strong>：<strong>CNT 是 32 位，ALR 与它等宽</strong>；<strong>当 CNT 的值与 ALR 设定的闹钟值相等时，就代表闹钟响了</strong>（会产生 RTC_Alarm、可执行相应操作）；</li>
+<li><strong>闹钟的唤醒功能</strong>：<strong>闹钟信号可以把设备从待机模式唤醒</strong>——例如只在<strong>中午 12 点</strong>设一个闹钟唤醒，<strong>其余时间芯片待机以节省电量、避免频繁换电池</strong>；</li>
+<li><strong>闹钟是一次性的</strong>：<strong>这个闹钟值只能响一次</strong>，<strong>要周期性闹钟必须在每次响应后重新设置</strong>；</li>
+<li><strong>Overflow（溢出）中断</strong>：来源是 <strong>CNT 的进位</strong>——32 位计满的那一刻触发。</li>
+</ul>
+<p><img src="../assets/images/stm32-42/10-rtc-basic-structure.jpg" alt="图 10：PPT「RTC基本结构」（作者自绘）——左侧 HSE/128 外部高速时钟、LSE 外部低速时钟、LSI 内部低速时钟（红圈）→选择器→RTCCLK；中间预分频器：PRL 重装寄存器 / DIV 余数寄存器（红圈）；右侧计数器：CNT 32 位计数器 / ALR 32 位闹钟值；输出 Second/Overflow/Alarm → 中断输出控制 → NVIC；字幕「余数寄存器是一个自减计数器，存储当前的计数值」"></p>
+<p><em>图 10：PPT「RTC基本结构」（作者自绘）——左侧 <strong>HSE/128 外部高速时钟、LSE 外部低速时钟、LSI 内部低速时钟</strong>（红圈）→选择器→<strong>RTCCLK</strong>；中间*<em>预分频器：PRL 重装寄存器 / DIV 余数寄存器</em></em>（红圈）；右侧<strong>计数器：CNT 32 位计数器 / ALR 32 位闹钟值</strong>；输出 Second/Overflow/Alarm → <strong>中断输出控制 → NVIC</strong>；字幕「余数寄存器是一个自减计数器，存储当前的计数值」*</p>
+<h2 id="3-外部电路">3. 外部电路</h2>
+<h3 id="3-1-备用电池供电">3.1 备用电池供电</h3>
+<ul>
+<li><strong>最简单方案</strong>：<strong>一个 3V 电池</strong>，<strong>正极直接引到 STM32 的 VBAT 引脚</strong>、负极与主电源共地——<strong>数据手册 5.16 供电方案</strong>里给出了这个图；</li>
+<li><strong>第二种方案</strong>：在 VBAT 处<strong>再加一个 0.1µF 的电源滤波电容</strong>；</li>
+<li><strong>相关手册小节</strong>：<strong>4.1.2 电池备份区域</strong>有详细描述；</li>
+<li><strong>如果没有外部电池</strong>：手册给出<strong>推荐连接</strong>（电池与主电源都加）。</li>
+</ul>
+<h3 id="3-2-32-768khz-rtc-晶振">3.2 32.768kHz RTC 晶振</h3>
+<ul>
+<li><strong>一个 32.768kHz 的 RTC 晶振</strong>（<strong>晶振不分正负极</strong>），<strong>两端分别接 OSC32_IN / OSC32_OUT</strong>；</li>
+<li><strong>起振电容</strong>：本集作者给的电路<strong>用 10pF</strong>（<strong>这是他自己电路的取值</strong>）；<strong>数据手册 5.3.6 外部时钟源特性 / 表23 / 图22</strong> 里给出 LSE 的电气参数与典型应用（<strong>建议的负载电容 CL1/CL2 典型值为 15pF</strong>、反馈电阻 RF 典型 5MΩ、驱动电流 1.4µA、启动时间典型 3s）；</li>
+<li><strong>实物</strong>：纽扣电池印字那面有「+」号标注，<strong>比较小的那个电极是负极</strong>；<strong>32.768kHz 晶振在钟表里很常见</strong>（拆开钟表就能看到）；</li>
+<li><strong>最小系统板</strong>：<strong>这块板自带 RTC 晶振电路</strong>（板上那个<strong>黑色元件</strong>就是这种样式的 RTC 晶振），并从<strong>右上角端口引出</strong>——<strong>需要备用电池时可以从这里接</strong>（或者把 3.3V 主电源接在这里，等于不用电池）。</li>
+</ul>
+<p><img src="../assets/images/stm32-42/11-manual-412.jpg" alt="图 11：参考手册「翻译说明」页，左侧书签高亮 4.1.2 电池备份区域——讲备用电池供电方案时定位到手册这一节；字幕「在这个4.1.2电池备份区域这一节」"></p>
+<p><em>图 11：参考手册「翻译说明」页，左侧书签高亮 <strong>4.1.2 电池备份区域</strong>——讲备用电池供电方案时定位到手册这一节；字幕「在这个4.1.2电池备份区域这一节」</em></p>
+<p><img src="../assets/images/stm32-42/12-lse-table22.jpg" alt="图 12：数据手册「表23 LSE 振荡器特性（fLSE=32.768kHz）」与「图22 使用 32.768kHz 晶体的典型应用」——表：反馈电阻 RF 典型 5MΩ、建议的负载电容与对应晶体串行阻抗（RS=30kΩ 时 CL1/CL2 典型 15pF）、LSE 驱动电流典型 1.4µA、振荡器跨导 5µA/V、启动时间典型 3s；图：OSC32_IN/OSC32_OUT、CL1/CL2、32.768kHz 谐振器、RF、增益控制、fLSE、STM32F103xx；左侧书签 5.3.6 外部时钟源特性；字幕「下面这里就是典型电路」"></p>
+<p>*图 12：数据手册「表23 LSE 振荡器特性（fLSE=32.768kHz）」与「图22 使用 32.768kHz 晶体的典型应用」——表：反馈电阻 RF 典型 5MΩ、<strong>建议的负载电容与对应晶体串行阻抗（RS=30kΩ 时 CL1/CL2 典型 15pF）</strong>、LSE 驱动电流典型 1.4µA、振荡器跨导 5µA/V、启动时间典型 3s；图：OSC32_IN/OSC32_OUT、CL1/CL2、32.768kHz 谐振器、RF、增益控制、fLSE、STM32F103xx；左侧书签 5.3.6 外部时钟源特性；字幕「下面这里就是典型电路」*</p>
+<h2 id="4-rtc-操作注意事项-手册-4-条">4. RTC 操作注意事项（手册 4 条）</h2>
+<blockquote>
+<p>这四条是<strong>从手册原文复制过来的</strong>，写代码时必须处理。</p>
+</blockquote>
+<ol>
+<li><strong>使能对 BKP 和 RTC 的访问</strong>：<strong>设置 <code>RCC_APB1ENR</code> 的 PWREN 和 BKPEN 位</strong>（使能 PWR 和 BKP 时钟），<strong>设置 <code>PWR_CR</code> 的 DBP 位</strong>（使能对 BKP 和 RTC 的访问）；<ul>
+<li><strong>注意</strong>：<strong>RTC 并没有单独「开时钟」的选项</strong>——它是后备区域外设，所以要先开 <strong>PWR + BKP</strong> 时钟，再开 <strong>DBP</strong> 访问许可；</li>
+</ul>
+</li>
+<li><strong>读前等待同步</strong>：若在读取 RTC 寄存器时，RTC 的 <strong>APB1 接口曾经处于禁止状态</strong>，则软件<strong>必须先等待 <code>RTC_CRL</code> 的 RSF 位（寄存器同步标志）被硬件置 1</strong>——对应代码里的「<strong>RTC 等待同步</strong>」；</li>
+<li><strong>写前进入配置模式</strong>：<strong>必须设置 <code>RTC_CRL</code> 的 CNF 位</strong>，使 RTC 进入配置模式后，<strong>才能写入 <code>RTC_PRL</code>、<code>RTC_CNT</code>、<code>RTC_ALR</code> 寄存器</strong>（库函数里每个写寄存器的函数都自动加了这一步）；</li>
+<li><strong>写前等待上一次写完</strong>：对 RTC 的任何寄存器写操作，<strong>都必须在前一次写操作结束后进行</strong>——通过查询 <strong><code>RTC_CR</code> 的 RTOFF 状态位</strong>判断 RTC 寄存器是否处于更新中，<strong>仅当 RTOFF 状态位是 1 时，才可以写入</strong>（<strong>类似之前读写 Flash 芯片时等待忙状态</strong>）。</li>
+</ol>
+<p><strong>为什么要这么麻烦（根因）</strong>：</p>
+<ul>
+<li><strong>RTC 寄存器由 RTCCLK 驱动，APB1 总线由 PCLK1 驱动，两个时钟不同步</strong>——直接用 PCLK1 驱动的总线去读 RTCCLK 驱动的寄存器，存在<strong>时钟不同步问题</strong>，所以要<strong>等 RSF 同步</strong>；</li>
+<li><strong>PCLK1 在主电源掉电时会停止</strong>，而 RTC 要继续走——所以访问前要让接口与 RTC 时钟对齐；</li>
+<li><strong>RTC 写操作本身需要时间</strong>（它按 RTCCLK 节拍更新），所以要<strong>等 RTOFF=1</strong> 表示上一次写入真的完成了。</li>
+</ul>
+<p><img src="../assets/images/stm32-42/13-rtc-notes.jpg" alt="图 13：PPT「RTC操作注意事项」（手册原文 4 条）——①执行以下操作将使能对 BKP 和 RTC 的访问：设置 RCC_APB1ENR 的 PWREN 和 BKPEN，使能 PWR 和 BKP 时钟；设置 PWR_CR 的 DBP，使能对 BKP 和 RTC 的访问；②若在读取 RTC 寄存器时 RTC 的 APB1 接口曾经处于禁止状态，则软件首先必须等待 RTC_CRL 寄存器中的 RSF 位（寄存器同步标志）被硬件置 1；③必须设置 RTC_CRL 寄存器中的 CNF 位，使 RTC 进入配置模式后，才能写入 RTC_PRL、RTC_CNT、RTC_ALR 寄存器；④对 RTC 任何寄存器的写操作，都必须在前一次写操作结束后进行——可以查询 RTC_CR 寄存器中的 RTOFF 状态位判断是否处于更新中，仅当 RTOFF 是 1 时才可以写入；字幕「判断RTC寄存器是否处于更新中」"></p>
+<p><em>图 13：PPT「RTC操作注意事项」（手册原文 4 条）——①执行以下操作将使能对 BKP 和 RTC 的访问：<strong>设置 RCC_APB1ENR 的 PWREN 和 BKPEN，使能 PWR 和 BKP 时钟；设置 PWR_CR 的 DBP，使能对 BKP 和 RTC 的访问</strong>；②若在读取 RTC 寄存器时 RTC 的 APB1 接口曾经处于禁止状态，则软件首先必须*<em>等待 RTC_CRL 寄存器中的 RSF 位（寄存器同步标志）被硬件置 1</em></em>；③<strong>必须设置 RTC_CRL 寄存器中的 CNF 位</strong>，使 RTC 进入配置模式后，才能写入 RTC_PRL、RTC_CNT、RTC_ALR 寄存器；④对 RTC 任何寄存器的写操作，都必须在前一次写操作结束后进行——可以查询 <strong>RTC_CR 寄存器中的 RTOFF 状态位</strong>判断是否处于更新中，<strong>仅当 RTOFF 是 1 时才可以写入</strong>；字幕「判断RTC寄存器是否处于更新中」*</p>
+<h2 id="5-手册精读">5. 手册精读</h2>
+<h3 id="5-1-第-5-章-bkp">5.1 第 5 章 BKP</h3>
+<ul>
+<li><strong>5.2 BKP 特性</strong>：<strong>20 字节数据后备寄存器（中容量和小容量产品）或 84 字节（大容量和互联型产品）</strong>；<strong>用来管理防侵入检测并具有中断功能的状态/控制寄存器</strong>；<strong>用来存储 RTC 校验值的校验寄存器</strong>；<strong>在 PC13 引脚（当该引脚不用于侵入检测时）上输出 RTC 校准时钟、RTC 闹钟脉冲或者秒脉冲</strong>；</li>
+<li><strong>5.3.1 侵入检测</strong>：<ul>
+<li><strong>当 TAMPER 引脚上的信号从 0 变成 1 或从 1 变成 0</strong>（取决于备份控制寄存器 <strong><code>BKP_CR</code> 的 TPAL 位</strong>）<strong>会产生一个侵入检测事件</strong>，<strong>侵入检测事件将所有数据备份寄存器内容清除</strong>；</li>
+<li><strong>为避免丢失侵入事件</strong>，侵入检测信号是<strong>边沿检测的信号与侵入检测允许位的逻辑与</strong>——所以<strong>在侵入检测引脚被允许之前发生的侵入事件也能被检测到</strong>；</li>
+<li><strong>当 TPAL=0 时</strong>：如果在启动侵入检测（设置 TPE 位）时该引脚已经是高电平，<strong>启动瞬间会产生一个额外的侵入事件</strong>；</li>
+<li><strong>当 TPAL=1 时</strong>：如果在启动侵入检测前该引脚已经是低电平，<strong>同样会产生一个额外的侵入事件</strong>；</li>
+<li><strong>设置 <code>BKP_CSR</code> 寄存器的 TPIE 位为 1</strong>，检测到侵入事件时<strong>就会产生一个中断</strong>；</li>
+<li><strong>注</strong>：<strong>当 VDD 电源断开时，侵入检测功能仍然有效</strong>；为了避免不必要的复位/数据备份寄存器，<strong>TAMPER 引脚应该在片外连接到正确的电平</strong>；</li>
+</ul>
+</li>
+<li><strong>BKP 寄存器</strong>：<code>BKP_DR1</code>～<code>BKP_DR10</code>（008h～028h 各 D[15:0]）、<strong><code>BKP_RTCCR</code> @02Ch</strong>（ASOE/ASOS/CAL 的 6:0 位）、<strong><code>RTC_CR</code> @030h</strong>、<strong><code>RTC_CSR</code> @034h</strong>；存储器映像里 DR1～DR10 是连在一起的，大容量/互联型还有 <strong>DR11～DR42</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-42/14-manual-bkp.jpg" alt="图 14：手册「5.2 BKP特性 / 5.3 BKP功能描述 / 5.3.1 侵入检测」——20 字节数据后备寄存器（中容量和小容量产品），或 84 字节（大容量和互联型产品）；用来管理防侵入检测并具有中断功能的状态/控制寄存器；用来存储 RTC 校验值的校验寄存器；在 PC13 引脚上输出 RTC 校准时钟、RTC 闹钟脉冲或秒脉冲；侵入检测：TAMPER 引脚信号从 0 变 1 或 1 变 0（取决于 BKP_CR 的 TPAL 位）产生侵入检测事件、侵入检测事件将所有数据备份寄存器内容清除；TPAL=0/TPAL=1 两种情况下启动检测时可能产生额外侵入事件；设置 BKP_CSR 的 TPIE 位为 1 时检测到侵入事件会产生中断；注：当 VDD 电源断开时侵入检测功能仍然有效，TAMPER 引脚应在片外接正确电平；字幕「下面这些是BKP的特性和侵入检测的具体描述」"></p>
+<p>*图 14：手册「5.2 BKP特性 / 5.3 BKP功能描述 / 5.3.1 侵入检测」——<strong>20 字节数据后备寄存器（中容量和小容量产品），或 84 字节（大容量和互联型产品）</strong>；用来管理防侵入检测并具有中断功能的状态/控制寄存器；用来存储 RTC 校验值的校验寄存器；在 PC13 引脚上输出 RTC 校准时钟、RTC 闹钟脉冲或秒脉冲；<strong>侵入检测</strong>：TAMPER 引脚信号从 0 变 1 或 1 变 0（取决于 <strong>BKP_CR 的 TPAL 位</strong>）产生侵入检测事件、<strong>侵入检测事件将所有数据备份寄存器内容清除</strong>；TPAL=0/TPAL=1 两种情况下启动检测时可能产生额外侵入事件；<strong>设置 BKP_CSR 的 TPIE 位为 1 时检测到侵入事件会产生中断</strong>；注：<strong>当 VDD 电源断开时侵入检测功能仍然有效</strong>，TAMPER 引脚应在片外接正确电平；字幕「下面这些是BKP的特性和侵入检测的具体描述」*</p>
+<p><img src="../assets/images/stm32-42/15-register-list.jpg" alt="图 15：手册 BKP/RTC 寄存器表——008h BKP_DR2 … 028h BKP_DR10（各 D（15:0））；02Ch `BKP_RTCCR`（ASOE、ASOS、CAL（6:0））；030h `RTC_CR`（TPAL、TPIE 等）；034h `RTC_CSR`（TIF、OWF、ALRF 等）；左侧为手册书签目录；字幕「里面DR1一直到DR10，还是在一起的」"></p>
+<p>*图 15：手册 BKP/RTC 寄存器表——008h <code>BKP_DR2</code> … 028h <code>BKP_DR10</code>（各 D[15:0]）；02Ch <strong><code>BKP_RTCCR</code></strong>（ASOE、ASOS、CAL[6:0]）；030h <strong><code>RTC_CR</code></strong>（TPAL、TPIE 等）；034h <strong><code>RTC_CSR</code></strong>（TIF、OWF、ALRF 等）；左侧为手册书签目录；字幕「里面DR1一直到DR10，还是在一起的」*</p>
+<h3 id="5-2-第-16-章-rtc">5.2 第 16 章 RTC</h3>
+<ul>
+<li><strong>功能描述、系统框图</strong>（16.3.2）：「这些我们都仔细分析过」；</li>
+<li><strong>读寄存器的同步</strong>、<strong>写寄存器</strong>：就是操作注意事项里那两条的详细描述；</li>
+<li><strong>图155/图156：溢出与闹钟波形示例（PR=0003）</strong>：<ul>
+<li>图155：<code>RTC_PR</code>=0003（<strong>4 分频</strong>）、<code>RTC_Second</code>、<code>RTC_CNT</code> 0000→0005 递增、<code>RTC_ALARM</code>、<code>ALRF</code>；<strong>闹钟在 CNT 等于闹钟值期间的最末尾触发</strong>（与秒信号上升沿同步），<strong>闹钟标志位 ALRF 也在此时刻置 1 挂起</strong>；</li>
+<li>图156：<code>RTC_CNT</code> 从 <strong>FFFFFFFB→FFFFFFFC→FFFFFFFD→FFFFFFFE→FFFFFFFF→0000</strong>，<strong>计满之后产生 RTC_Overflow</strong>，<strong>OWF 溢出标志置 1 挂起</strong>；</li>
+</ul>
+</li>
+<li><strong>寄存器描述</strong>：<strong><code>RTC_PRL</code> 有效 20 位</strong>（<strong>高 16 位里只有 4 位有用</strong>）、<code>RTC_DIV</code>（余数寄存器，20 位自减计数器）、<code>RTC_CNT</code>、<code>RTC_ALR</code>——<strong>都是「高 16 位 + 低 16 位」两个寄存器拼接</strong>：<ul>
+<li><strong>为什么这样设计</strong>：<strong>这个外设总线只有 16 位</strong>；<strong>为了简化电路设计</strong>，对这些不那么重要的外设，<strong>16 位的总线已经够用了</strong>；所以一个「32 位寄存器」实际上是两个 16 位寄存器。</li>
+</ul>
+</li>
+</ul>
+<p><img src="../assets/images/stm32-42/16-waveform-pr3.jpg" alt="图 16：手册「图156 RTC溢出波形图示例，PR=0003」与上方图155——RTC_PR=0003、RTC_Second、RTC_CNT 0000→0005、RTC_ALARM、ALRF（上图）；下图溢出：RTC_CNT FFFFFFFB→FFFFFFFC→FFFFFFFD→FFFFFFFE→FFFFFFFF→0000、RTC_Overflow、OWF（可由软件清除）；红笔标 FFFFFFFB 处；字幕「计满之后，在这个时刻，产生Overflow溢出信号」"></p>
+<p><em>图 16：手册「图156 RTC溢出波形图示例，PR=0003」与上方图155——<code>RTC_PR</code>=0003、<code>RTC_Second</code>、<code>RTC_CNT</code> 0000→0005、<code>RTC_ALARM</code>、<code>ALRF</code>（上图）；下图溢出：<code>RTC_CNT</code> <strong>FFFFFFFB→FFFFFFFC→FFFFFFFD→FFFFFFFE→FFFFFFFF→0000</strong>、<code>RTC_Overflow</code>、<code>OWF</code>（可由软件清除）；红笔标 FFFFFFFB 处；字幕「计满之后，在这个时刻，产生Overflow溢出信号」</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>BKP 本质是 RAM</strong>：VBAT 也没电就清零——它不是真正的「永不掉电」存储器。</li>
+<li><strong>要用 BKP/RTC 必须接备用电池到 VBAT</strong>，且<strong>电池负极与主电源共地</strong>。</li>
+<li><strong>PC13 是三功能共用引脚</strong>（PC13/TAMPER/RTC），也是 VBAT 旁边的 <strong>2 号脚</strong>——用之前要想清楚分配给谁。</li>
+<li><strong>TAMPER 侵入事件会清空所有备份寄存器</strong>：别把不重要的东西和敏感数据混在一起指望它保命。</li>
+<li><strong>容量口径</strong>：中/小容量 <strong>20 字节（DR1～DR10）</strong>、大容量/互联型 <strong>84 字节（+DR11～DR42）</strong>；<strong>每个寄存器 16 位＝2 字节</strong>。</li>
+<li><strong>RTC 没有单独开时钟的选项</strong>：要先开 <strong>PWR+BKP 时钟</strong>，再置 <strong>DBP</strong> 才能访问。</li>
+<li><strong>读 RTC 前要等 RSF</strong>（寄存器同步标志），否则读到的值可能不对（代码里对应「RTC 等待同步」）。</li>
+<li><strong>写 RTC 前要置 CNF 进配置模式</strong>，写完再退出（库函数自动做）。</li>
+<li><strong>写 RTC 前要等 RTOFF=1</strong>（上一次写真的结束），类似 Flash 忙等待。</li>
+<li><strong>PRL＝N 是 N+1 分频</strong>：32.768kHz 用 <strong>PRL=32767 → 1Hz</strong>，别写成 32768。</li>
+<li><strong>闹钟只响一次</strong>：要周期性闹钟必须每次重新设置 ALR。</li>
+<li><strong>三种时钟源</strong>：HSE/128（通常 8MHz/128）、LSE 32.768kHz、LSI 40kHz；<strong>32.768kHz 是为了方便分频到 1Hz</strong>。</li>
+<li><strong>RTC 寄存器是「高 16 位 + 低 16 位」拼接</strong>，因为外设总线只有 16 位；<strong>PRL 实际只有 20 位有效</strong>。</li>
+<li><strong>起振电容</strong>：本集作者电路用 <strong>10pF</strong>、板载最小系统板原理图为 <strong>20pF</strong>、<strong>手册表23 典型值是 15pF</strong>——三个出处别混写。</li>
+<li><strong>本集没讲中断函数/NVIC 配置，也没展开 WKUP 细节</strong>（WKUP=PA0，下一节讲）。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:02</td>
+<td>开场，先学 BKP 相关知识点</td>
+</tr>
+<tr>
+<td>0:10</td>
+<td>然后再学 RTC 的知识点</td>
+</tr>
+<tr>
+<td>0:13</td>
+<td>本节重点是 RTC</td>
+</tr>
+<tr>
+<td>0:28</td>
+<td>先看 BKP 的部分</td>
+</tr>
+<tr>
+<td>0:32</td>
+<td>BKP 英文是 Backup Registers</td>
+</tr>
+<tr>
+<td>0:45</td>
+<td>这些存储器可以存储用户应用程序数据</td>
+</tr>
+<tr>
+<td>0:53</td>
+<td>当 VDD 电源被切断</td>
+</tr>
+<tr>
+<td>0:55</td>
+<td>它们仍然由 VBAT 维持供电</td>
+</tr>
+<tr>
+<td>1:16</td>
+<td>看一下引脚定义图</td>
+</tr>
+<tr>
+<td>1:18</td>
+<td>标红色的部分是供电引脚</td>
+</tr>
+<tr>
+<td>1:21</td>
+<td>VDD 和 VSS 1、2、3 是数字部分供电</td>
+</tr>
+<tr>
+<td>1:28</td>
+<td>VDDA 和 VSSA 是模拟部分供电</td>
+</tr>
+<tr>
+<td>1:34</td>
+<td>这四组 VDD 开头的供电都是主电源</td>
+</tr>
+<tr>
+<td>1:38</td>
+<td>正常使用时这四组都要接 3.3V</td>
+</tr>
+<tr>
+<td>1:44</td>
+<td>最上面还有一个引脚 VBAT</td>
+</tr>
+<tr>
+<td>1:49</td>
+<td>这就是备用电池供电引脚</td>
+</tr>
+<tr>
+<td>1:50</td>
+<td>要用内部的 BKP 和 RTC</td>
+</tr>
+<tr>
+<td>1:54</td>
+<td>这个引脚就必须接备用电池</td>
+</tr>
+<tr>
+<td>1:56</td>
+<td>用来维持 VDD 掉电后的供电</td>
+</tr>
+<tr>
+<td>2:01</td>
+<td>备用电池只有一根正极供电引脚</td>
+</tr>
+<tr>
+<td>2:05</td>
+<td>电池正极接 VBAT</td>
+</tr>
+<tr>
+<td>2:08</td>
+<td>电池负极和主电源负极接一起共地</td>
+</tr>
+<tr>
+<td>2:13</td>
+<td>然后看最小系统板的原理图</td>
+</tr>
+<tr>
+<td>2:40</td>
+<td>VBAT 和主电源的接法</td>
+</tr>
+<tr>
+<td>2:52</td>
+<td>主电源和备用电源就清楚了</td>
+</tr>
+<tr>
+<td>2:56</td>
+<td>回到 PPT</td>
+</tr>
+<tr>
+<td>2:57</td>
+<td>VBAT 的作用是当 VDD 断电时</td>
+</tr>
+<tr>
+<td>3:06</td>
+<td>如果 VBAT 也没电呢</td>
+</tr>
+<tr>
+<td>3:09</td>
+<td>BKP 里的数据就会清零</td>
+</tr>
+<tr>
+<td>3:12</td>
+<td>因为 BKP 本质上是 RAM 存储器</td>
+</tr>
+<tr>
+<td>3:22</td>
+<td>这个特性是显然要有的</td>
+</tr>
+<tr>
+<td>3:35</td>
+<td>上一小节也演示过实验现象</td>
+</tr>
+<tr>
+<td>3:52</td>
+<td>它接到 STM32 外部的引脚</td>
+</tr>
+<tr>
+<td>3:56</td>
+<td>它的位置可以看引脚定义</td>
+</tr>
+<tr>
+<td>3:59</td>
+<td>这里是 PC13-TAMPER-RTC</td>
+</tr>
+<tr>
+<td>4:07</td>
+<td>也就是 PC13、TAMPER、RTC 三功能共用</td>
+</tr>
+<tr>
+<td>4:09</td>
+<td>引脚位置就是 VBAT 旁边的 2 号引脚</td>
+</tr>
+<tr>
+<td>4:19</td>
+<td>设备需要有防拆功能</td>
+</tr>
+<tr>
+<td>4:21</td>
+<td>BKP 里也存了些敏感数据</td>
+</tr>
+<tr>
+<td>4:24</td>
+<td>这些数据不能被窃取或篡改</td>
+</tr>
+<tr>
+<td>4:27</td>
+<td>那就可以使能 TAMPER 侵入检测</td>
+</tr>
+<tr>
+<td>4:32</td>
+<td>设计电路时用默认上拉或下拉电阻</td>
+</tr>
+<tr>
+<td>4:37</td>
+<td>然后引一根线到外壳的防拆开关</td>
+</tr>
+<tr>
+<td>4:41</td>
+<td>别人一拆开设备触发开关</td>
+</tr>
+<tr>
+<td>4:46</td>
+<td>STM32 就检测到侵入事件了</td>
+</tr>
+<tr>
+<td>4:53</td>
+<td>在中断里还可以继续保护设备</td>
+</tr>
+<tr>
+<td>4:56</td>
+<td>比如清除其他存储器数据、设备锁死</td>
+</tr>
+<tr>
+<td>4:59</td>
+<td>这样来保障设备安全</td>
+</tr>
+<tr>
+<td>5:05</td>
+<td>即使设备关机也能防拆</td>
+</tr>
+<tr>
+<td>5:08</td>
+<td>这就是 TAMPER 侵入检测的功能</td>
+</tr>
+<tr>
+<td>5:19</td>
+<td>RTC 引脚也是在 PC13 这个位置</td>
+</tr>
+<tr>
+<td>5:33</td>
+<td>外部设备可以测量 RTC 校准时钟</td>
+</tr>
+<tr>
+<td>5:56</td>
+<td>还能存储 RTC 时钟校准寄存器</td>
+</tr>
+<tr>
+<td>6:03</td>
+<td>可以对 RTC 进行校准</td>
+</tr>
+<tr>
+<td>6:07</td>
+<td>实际上就是 RTC 的配置</td>
+</tr>
+<tr>
+<td>6:31</td>
+<td>BKP 是 20 个字节</td>
+</tr>
+<tr>
+<td>6:35</td>
+<td>在大容量和互联型设备里</td>
+</tr>
+<tr>
+<td>6:43</td>
+<td>BKP 的容量其实非常小</td>
+</tr>
+<tr>
+<td>6:53</td>
+<td>下面看 BKP 的基本结构</td>
+</tr>
+<tr>
+<td>6:59</td>
+<td>BKP 处于后备区域</td>
+</tr>
+<tr>
+<td>7:01</td>
+<td>但后备区域不只有 BKP，还有 RTC 相关电路</td>
+</tr>
+<tr>
+<td>7:27</td>
+<td>BKP 是位于后备区域的</td>
+</tr>
+<tr>
+<td>7:40</td>
+<td>每个数据寄存器都是 16 位的</td>
+</tr>
+<tr>
+<td>7:43</td>
+<td>一个数据寄存器可以存 2 个字节</td>
+</tr>
+<tr>
+<td>7:46</td>
+<td>中容量和小容量设备里有 DR1</td>
+</tr>
+<tr>
+<td>7:59</td>
+<td>就是上面说的 20 字节</td>
+</tr>
+<tr>
+<td>8:02</td>
+<td>大容量和互联型设备除了 DR1 到 DR10</td>
+</tr>
+<tr>
+<td>8:07</td>
+<td>还有 DR11</td>
+</tr>
+<tr>
+<td>8:16</td>
+<td>就是上面说的 84 字节</td>
+</tr>
+<tr>
+<td>8:19</td>
+<td>BKP 还有几个功能</td>
+</tr>
+<tr>
+<td>8:28</td>
+<td>当 TAMPER 产生上升沿或下降沿时</td>
+</tr>
+<tr>
+<td>8:54</td>
+<td>继续学习 RTC 外设</td>
+</tr>
+<tr>
+<td>9:13</td>
+<td>RTC 一般指提供年月日时分秒的计时装置</td>
+</tr>
+<tr>
+<td>9:26</td>
+<td>DS1302 是外置的 RTC 芯片</td>
+</tr>
+<tr>
+<td>9:29</td>
+<td>它可以独立计时</td>
+</tr>
+<tr>
+<td>9:30</td>
+<td>设置或读取时间通过通信协议完成</td>
+</tr>
+<tr>
+<td>9:37</td>
+<td>而 STM32 内部有这个 RTC 设备</td>
+</tr>
+<tr>
+<td>9:50</td>
+<td>比如备用电池</td>
+</tr>
+<tr>
+<td>9:56</td>
+<td>RTC 和时钟配置系统处于后备区域</td>
+</tr>
+<tr>
+<td>10:00</td>
+<td>系统复位时数据不清零</td>
+</tr>
+<tr>
+<td>10:02</td>
+<td>VDD 断电后可借助 VBAT 继续走时</td>
+</tr>
+<tr>
+<td>10:13</td>
+<td>主电源断电后 RTC 走时不能停</td>
+</tr>
+<tr>
+<td>10:16</td>
+<td>RTC 时间值也不能复位</td>
+</tr>
+<tr>
+<td>10:20</td>
+<td>为了实现这些功能</td>
+</tr>
+<tr>
+<td>10:26</td>
+<td>VBAT 电池可以持续维持 BKP 和 RTC 运行</td>
+</tr>
+<tr>
+<td>10:35</td>
+<td>它对应 Unix 时间戳的秒计数器</td>
+</tr>
+<tr>
+<td>10:38</td>
+<td>可以对照这个框图来理解</td>
+</tr>
+<tr>
+<td>10:50</td>
+<td>大家可能非常疑惑</td>
+</tr>
+<tr>
+<td>10:52</td>
+<td>实时时钟外设吗</td>
+</tr>
+<tr>
+<td>10:54</td>
+<td>那年呢</td>
+</tr>
+<tr>
+<td>10:58</td>
+<td>之前学 DS1302 的时候</td>
+</tr>
+<tr>
+<td>11:00</td>
+<td>那里面可是有年月日</td>
+</tr>
+<tr>
+<td>11:07</td>
+<td>写入对应寄存器就是修改时间</td>
+</tr>
+<tr>
+<td>11:09</td>
+<td>读取对应寄存器就是获取时间</td>
+</tr>
+<tr>
+<td>11:14</td>
+<td>这让我怎么用</td>
+</tr>
+<tr>
+<td>11:22</td>
+<td>如果不了解时间戳相关的操作</td>
+</tr>
+<tr>
+<td>11:25</td>
+<td>那确实不太好用这个 RTC</td>
+</tr>
+<tr>
+<td>11:29</td>
+<td>但看一眼就明白了这个是什么意思</td>
+</tr>
+<tr>
+<td>11:32</td>
+<td>显然这个 32 位可编程计数器</td>
+</tr>
+<tr>
+<td>11:35</td>
+<td>对应的就是时间戳里的秒计数器</td>
+</tr>
+<tr>
+<td>11:38</td>
+<td>读取时间时先得到这个秒数</td>
+</tr>
+<tr>
+<td>11:41</td>
+<td>然后用 time.h 模块的 localtime 函数</td>
+</tr>
+<tr>
+<td>11:48</td>
+<td>写入时间时</td>
+</tr>
+<tr>
+<td>11:54</td>
+<td>用 mktime 函数</td>
+</tr>
+<tr>
+<td>11:57</td>
+<td>再写入到这个 32 位计数器即可</td>
+</tr>
+<tr>
+<td>12:03</td>
+<td>得益于时间戳的设计</td>
+</tr>
+<tr>
+<td>12:09</td>
+<td>要实现年月日时分秒的计时</td>
+</tr>
+<tr>
+<td>12:12</td>
+<td>一个 32 位的秒计数器即可</td>
+</tr>
+<tr>
+<td>12:25</td>
+<td>这无疑极大地简化了硬件电路设计</td>
+</tr>
+<tr>
+<td>12:31</td>
+<td>每次读写秒计数器时</td>
+</tr>
+<tr>
+<td>12:36</td>
+<td>要花一定的软件计算资源</td>
+</tr>
+<tr>
+<td>12:42</td>
+<td>接着看这里</td>
+</tr>
+<tr>
+<td>12:51</td>
+<td>这里 32 位的计数器</td>
+</tr>
+<tr>
+<td>13:09</td>
+<td>所以显然需要在这之间加一个分频器</td>
+</tr>
+<tr>
+<td>13:15</td>
+<td>保证分频器输出给计数器的频率为 1Hz</td>
+</tr>
+<tr>
+<td>13:19</td>
+<td>这样计时才是正确的</td>
+</tr>
+<tr>
+<td>13:21</td>
+<td>为了适配各种频率的 RTCCLK</td>
+</tr>
+<tr>
+<td>13:24</td>
+<td>需要一个 20 位的分频器</td>
+</tr>
+<tr>
+<td>13:32</td>
+<td>这样就可以适配不同频率的输入时钟</td>
+</tr>
+<tr>
+<td>13:39</td>
+<td>可选择三种 RTC 时钟源</td>
+</tr>
+<tr>
+<td>13:42</td>
+<td>分别是 HSE 时钟除以 128</td>
+</tr>
+<tr>
+<td>13:47</td>
+<td>通常为 8MHz/128</td>
+</tr>
+<tr>
+<td>13:52</td>
+<td>这个是固定 40kHz</td>
+</tr>
+<tr>
+<td>13:59</td>
+<td>接入到这里的 RTCCLK</td>
+</tr>
+<tr>
+<td>14:02</td>
+<td>那这三个时钟都是什么意思呢</td>
+</tr>
+<tr>
+<td>14:13</td>
+<td>整个芯片可以有 4 个时钟源</td>
+</tr>
+<tr>
+<td>14:25</td>
+<td>低速外部时钟信号</td>
+</tr>
+<tr>
+<td>14:29</td>
+<td>对于本节的 RTC</td>
+</tr>
+<tr>
+<td>14:38</td>
+<td>RTCCLK 有三个来源</td>
+</tr>
+<tr>
+<td>16:03</td>
+<td>这个晶振的值也不是随便选的</td>
+</tr>
+<tr>
+<td>16:17</td>
+<td>是这个晶振工艺比较合适的频率</td>
+</tr>
+<tr>
+<td>17:47</td>
+<td>另外 LSI 还可以提供给看门狗</td>
+</tr>
+<tr>
+<td>18:16</td>
+<td>主要作为看门狗时钟</td>
+</tr>
+<tr>
+<td>18:32</td>
+<td>上下两路时钟在主电源断电后</td>
+</tr>
+<tr>
+<td>18:57</td>
+<td>这就是三路时钟的介绍和选择问题</td>
+</tr>
+<tr>
+<td>19:00</td>
+<td>回到这里</td>
+</tr>
+<tr>
+<td>19:06</td>
+<td>接下来看 RTC 外设具体是怎么设计的</td>
+</tr>
+<tr>
+<td>19:21</td>
+<td>这块是 APB1 总线读写部分</td>
+</tr>
+<tr>
+<td>19:25</td>
+<td>这块是和 PWR 关联的部分</td>
+</tr>
+<tr>
+<td>19:36</td>
+<td>都处于后备区域</td>
+</tr>
+<tr>
+<td>19:51</td>
+<td>有关睡眠停机、待机这些低功耗内容</td>
+</tr>
+<tr>
+<td>19:58</td>
+<td>这里先了解</td>
+</tr>
+<tr>
+<td>19:59</td>
+<td>然后依次详细看分频和计数计时部分</td>
+</tr>
+<tr>
+<td>20:08</td>
+<td>RTCCLK 的来源需要在 RCC 里配置</td>
+</tr>
+<tr>
+<td>20:17</td>
+<td>因为三路时钟频率各不相同</td>
+</tr>
+<tr>
+<td>20:28</td>
+<td>这个分频器由两个寄存器组成</td>
+</tr>
+<tr>
+<td>20:31</td>
+<td>上面是重装载寄存器 RTC_PRL</td>
+</tr>
+<tr>
+<td>20:40</td>
+<td>这块跟之前定时器的时基单元类似</td>
+</tr>
+<tr>
+<td>20:58</td>
+<td>那就是几分频</td>
+</tr>
+<tr>
+<td>21:04</td>
+<td>寄存器用来不断计数</td>
+</tr>
+<tr>
+<td>21:12</td>
+<td>上面这个 PRL 就是计数目标</td>
+</tr>
+<tr>
+<td>21:16</td>
+<td>写入 6 就是 7 分频</td>
+</tr>
+<tr>
+<td>21:18</td>
+<td>写入 9 就是 10 分频</td>
+</tr>
+<tr>
+<td>21:20</td>
+<td>因为计数值包含了 0</td>
+</tr>
+<tr>
+<td>21:35</td>
+<td>DIV 的值自减</td>
+</tr>
+<tr>
+<td>21:44</td>
+<td>同时 DIV 从 PRL 获取重装值</td>
+</tr>
+<tr>
+<td>21:53</td>
+<td>输入时钟是 32.768kHz</td>
+</tr>
+<tr>
+<td>22:03</td>
+<td>这个数值始终不变</td>
+</tr>
+<tr>
+<td>22:08</td>
+<td>DIV 可以保持初始值为 0</td>
+</tr>
+<tr>
+<td>22:11</td>
+<td>输入时钟到来时</td>
+</tr>
+<tr>
+<td>22:13</td>
+<td>产生溢出信号给后续电路</td>
+</tr>
+<tr>
+<td>22:17</td>
+<td>同时 DIV 变为重装值 32767</td>
+</tr>
+<tr>
+<td>22:22</td>
+<td>然后第二个输入时钟</td>
+</tr>
+<tr>
+<td>22:27</td>
+<td>第三个时钟 DIV 变为 32765</td>
+</tr>
+<tr>
+<td>22:35</td>
+<td>输入时钟到来</td>
+</tr>
+<tr>
+<td>22:36</td>
+<td>同时 DIV 回到 32767</td>
+</tr>
+<tr>
+<td>22:42</td>
+<td>以此循环往复</td>
+</tr>
+<tr>
+<td>22:58</td>
+<td>下面看计数计时部分</td>
+</tr>
+<tr>
+<td>23:16</td>
+<td>然后在下面这里</td>
+</tr>
+<tr>
+<td>23:25</td>
+<td>和上面的 CNT 是等宽的</td>
+</tr>
+<tr>
+<td>23:27</td>
+<td>就是设置闹钟</td>
+</tr>
+<tr>
+<td>23:30</td>
+<td>设定秒数闹钟</td>
+</tr>
+<tr>
+<td>23:33</td>
+<td>当 CNT 的值和 ALR 设定的闹钟值相等</td>
+</tr>
+<tr>
+<td>23:37</td>
+<td>就是这里画的等号</td>
+</tr>
+<tr>
+<td>23:40</td>
+<td>就代表闹钟响了</td>
+</tr>
+<tr>
+<td>23:47</td>
+<td>可以执行相应的操作</td>
+</tr>
+<tr>
+<td>23:50</td>
+<td>同时这个闹钟还兼具唤醒功能</td>
+</tr>
+<tr>
+<td>23:58</td>
+<td>这个功能就可以对应待机模式</td>
+</tr>
+<tr>
+<td>24:06</td>
+<td>比如避免频繁换电池</td>
+</tr>
+<tr>
+<td>24:15</td>
+<td>其他时间为了省电、避免频繁换电池</td>
+</tr>
+<tr>
+<td>24:16</td>
+<td>芯片必须处于待机模式</td>
+</tr>
+<tr>
+<td>24:22</td>
+<td>中午 12 点的闹钟把芯片唤醒</td>
+</tr>
+<tr>
+<td>24:30</td>
+<td>另外这个闹钟值是只能响一次的</td>
+</tr>
+<tr>
+<td>24:34</td>
+<td>所以想要周期性闹钟</td>
+</tr>
+<tr>
+<td>24:37</td>
+<td>在每次闹钟响之后都要重新设置</td>
+</tr>
+<tr>
+<td>24:41</td>
+<td>这就是闹钟和闹钟唤醒</td>
+</tr>
+<tr>
+<td>24:54</td>
+<td>它的来源是 CNT 的输入时钟</td>
+</tr>
+<tr>
+<td>25:00</td>
+<td>第二个是 RTC_Overflow 溢出中断</td>
+</tr>
+<tr>
+<td>25:04</td>
+<td>它的来源是 CNT 的进位</td>
+</tr>
+<tr>
+<td>25:10</td>
+<td>会触发中断</td>
+</tr>
+<tr>
+<td>25:23</td>
+<td>如果想让程序更完善</td>
+</tr>
+<tr>
+<td>25:32</td>
+<td>可以提示当前设备过老</td>
+</tr>
+<tr>
+<td>25:45</td>
+<td>这个问题就留给后人解决</td>
+</tr>
+<tr>
+<td>25:56</td>
+<td>闹钟信号可以把设备从待机模式唤醒</td>
+</tr>
+<tr>
+<td>26:02</td>
+<td>中断信号到右边这里</td>
+</tr>
+<tr>
+<td>26:07</td>
+<td>F 结尾的是对应的中断标志位</td>
+</tr>
+<tr>
+<td>26:10</td>
+<td>IE 结尾的是中断使能</td>
+</tr>
+<tr>
+<td>26:17</td>
+<td>这个地方是不是漏画了</td>
+</tr>
+<tr>
+<td>26:20</td>
+<td>中间这个应该也是要通过或门的</td>
+</tr>
+<tr>
+<td>26:22</td>
+<td>这就是右边的中断部分</td>
+</tr>
+<tr>
+<td>26:25</td>
+<td>然后上面这部分是 APB1 总线和接口</td>
+</tr>
+<tr>
+<td>26:31</td>
+<td>可以通过 APB1 总线来完成读写</td>
+</tr>
+<tr>
+<td>26:35</td>
+<td>RTC 是 APB1 总线上的设备</td>
+</tr>
+<tr>
+<td>26:39</td>
+<td>退出待机模式还有一个 WKUP 引脚</td>
+</tr>
+<tr>
+<td>26:48</td>
+<td>WKUP 引脚可以看接线图</td>
+</tr>
+<tr>
+<td>26:53</td>
+<td>就是这里 PA0 的位置</td>
+</tr>
+<tr>
+<td>26:56</td>
+<td>它兼具唤醒功能</td>
+</tr>
+<tr>
+<td>26:57</td>
+<td>这个下一节再学习</td>
+</tr>
+<tr>
+<td>26:59</td>
+<td>到这里 RTC 外设框图就讲完了</td>
+</tr>
+<tr>
+<td>27:04</td>
+<td>下面是我给的基本结构图</td>
+</tr>
+<tr>
+<td>27:08</td>
+<td>RTC 的核心部分如图所示</td>
+</tr>
+<tr>
+<td>27:11</td>
+<td>最左边是 RTCCLK 时钟来源</td>
+</tr>
+<tr>
+<td>27:14</td>
+<td>这块需要在 RCC 里配置</td>
+</tr>
+<tr>
+<td>27:16</td>
+<td>初始化 RTCCLK</td>
+</tr>
+<tr>
+<td>27:24</td>
+<td>自减计数器存储当前的计数值</td>
+</tr>
+<tr>
+<td>27:28</td>
+<td>重装寄存器是计数目标，决定分频值</td>
+</tr>
+<tr>
+<td>27:34</td>
+<td>通向 32 位计数器</td>
+</tr>
+<tr>
+<td>27:37</td>
+<td>还有一个 32 位的闹钟值</td>
+</tr>
+<tr>
+<td>27:39</td>
+<td>可以设定闹钟</td>
+</tr>
+<tr>
+<td>27:41</td>
+<td>如果不需要闹钟的话</td>
+</tr>
+<tr>
+<td>27:57</td>
+<td>然后向 CPU 申请中断</td>
+</tr>
+<tr>
+<td>28:02</td>
+<td>我们配置这个数据选择器</td>
+</tr>
+<tr>
+<td>28:10</td>
+<td>配置 32 位闹钟值即可</td>
+</tr>
+<tr>
+<td>28:17</td>
+<td>最后写对应的中断函数即可</td>
+</tr>
+<tr>
+<td>28:19</td>
+<td>这就是 RTC 外设的主要内容</td>
+</tr>
+<tr>
+<td>28:23</td>
+<td>STM32 内部的设计清楚了</td>
+</tr>
+<tr>
+<td>28:32</td>
+<td>在最小系统电路上</td>
+</tr>
+<tr>
+<td>28:33</td>
+<td>外部电路还要额外加两部分</td>
+</tr>
+<tr>
+<td>28:40</td>
+<td>我们来看</td>
+</tr>
+<tr>
+<td>28:41</td>
+<td>首先是备用电池供电部分</td>
+</tr>
+<tr>
+<td>28:48</td>
+<td>一个 3V 的电池</td>
+</tr>
+<tr>
+<td>28:51</td>
+<td>正极直接引到 STM32 的 VBAT 引脚</td>
+</tr>
+<tr>
+<td>28:56</td>
+<td>这个供电方案非常简单</td>
+</tr>
+<tr>
+<td>28:59</td>
+<td>STM32 的数据手册</td>
+</tr>
+<tr>
+<td>29:04</td>
+<td>在 5.16 供电方案这里</td>
+</tr>
+<tr>
+<td>29:06</td>
+<td>给出了这个图</td>
+</tr>
+<tr>
+<td>29:29</td>
+<td>VBAT 供电的后备电路</td>
+</tr>
+<tr>
+<td>29:41</td>
+<td>这个设计非常简单</td>
+</tr>
+<tr>
+<td>29:44</td>
+<td>然后这里还给了第二种方案</td>
+</tr>
+<tr>
+<td>29:58</td>
+<td>一个 0.1µF 的电源滤波电容</td>
+</tr>
+<tr>
+<td>30:08</td>
+<td>在 4.1.2 电池备份区域这一节</td>
+</tr>
+<tr>
+<td>30:13</td>
+<td>有这些描述，大家可以都看看</td>
+</tr>
+<tr>
+<td>30:17</td>
+<td>是在这些情况下</td>
+</tr>
+<tr>
+<td>30:38</td>
+<td>如果在应用中没有外部电池</td>
+</tr>
+<tr>
+<td>30:49</td>
+<td>我们可以设计出右边的推荐连接</td>
+</tr>
+<tr>
+<td>30:51</td>
+<td>电池和主电源都加</td>
+</tr>
+<tr>
+<td>31:16</td>
+<td>如果你要画板子设计产品</td>
+</tr>
+<tr>
+<td>31:22</td>
+<td>好，这是 VBAT 供电部分</td>
+</tr>
+<tr>
+<td>31:30</td>
+<td>一个 32.768kHz 的 RTC 晶振</td>
+</tr>
+<tr>
+<td>31:34</td>
+<td>这个晶振不分正负极</td>
+</tr>
+<tr>
+<td>31:40</td>
+<td>然后晶振两端分别接</td>
+</tr>
+<tr>
+<td>31:51</td>
+<td>在 5.3.6 外部时钟源特性这里</td>
+</tr>
+<tr>
+<td>31:59</td>
+<td>下面这里就是典型电路</td>
+</tr>
+<tr>
+<td>32:00</td>
+<td>晶振是 32.768kHz</td>
+</tr>
+<tr>
+<td>32:21</td>
+<td>所以我给出的晶振电路是这样的</td>
+</tr>
+<tr>
+<td>32:24</td>
+<td>起振电容给的是 10pF</td>
+</tr>
+<tr>
+<td>32:40</td>
+<td>纽扣电池印字的这面有个正号标注</td>
+</tr>
+<tr>
+<td>32:46</td>
+<td>比较小的那个电极是负极</td>
+</tr>
+<tr>
+<td>32:50</td>
+<td>然后 32.768kHz 的晶振</td>
+</tr>
+<tr>
+<td>32:59</td>
+<td>大家拆开钟表</td>
+</tr>
+<tr>
+<td>33:02</td>
+<td>这就是 32.768kHz 的晶振</td>
+</tr>
+<tr>
+<td>33:13</td>
+<td>下面这个是我们的最小系统板</td>
+</tr>
+<tr>
+<td>33:15</td>
+<td>这个板子自带 RTC 晶振电路</td>
+</tr>
+<tr>
+<td>33:18</td>
+<td>这里这个黑色的元件</td>
+</tr>
+<tr>
+<td>33:22</td>
+<td>这种样式的 RTC 晶振</td>
+</tr>
+<tr>
+<td>33:33</td>
+<td>直接通过右上角这个端口引出来了</td>
+</tr>
+<tr>
+<td>33:37</td>
+<td>如果需要备用电池的话</td>
+</tr>
+<tr>
+<td>33:40</td>
+<td>或者直接把 3.3V 主电源接在这里</td>
+</tr>
+<tr>
+<td>33:50</td>
+<td>一些操作注意事项</td>
+</tr>
+<tr>
+<td>33:51</td>
+<td>这些注意事项都是从手册里复制的</td>
+</tr>
+<tr>
+<td>33:55</td>
+<td>写程序的时候需要注意这些问题</td>
+</tr>
+<tr>
+<td>34:00</td>
+<td>执行以下操作将使能对 BKP 和 RTC 的访问</td>
+</tr>
+<tr>
+<td>34:12</td>
+<td>设置 PWR_CR 的 DBP 使能访问</td>
+</tr>
+<tr>
+<td>34:18</td>
+<td>这几条就是提醒</td>
+</tr>
+<tr>
+<td>34:22</td>
+<td>但是 BKP 和 RTC 这两个外设</td>
+</tr>
+<tr>
+<td>34:26</td>
+<td>首先要设置 RCC_APB1ENR</td>
+</tr>
+<tr>
+<td>34:33</td>
+<td>要同时开启 PWR 和 BKP 的时钟</td>
+</tr>
+<tr>
+<td>34:36</td>
+<td>对于 RTC 来说并没有单独开启时钟的选项</td>
+</tr>
+<tr>
+<td>34:39</td>
+<td>然后还要设置 PWR_CR 的 DBP 位</td>
+</tr>
+<tr>
+<td>34:43</td>
+<td>来使能对 BKP 和 RTC 的访问</td>
+</tr>
+<tr>
+<td>34:49</td>
+<td>所以总结：要用 BKP 或 RTC</td>
+</tr>
+<tr>
+<td>34:55</td>
+<td>开启 PWR 和 BKP 的时钟</td>
+</tr>
+<tr>
+<td>34:58</td>
+<td>使能 BKP 和 RTC 的访问</td>
+</tr>
+<tr>
+<td>35:08</td>
+<td>若在读取 RTC 寄存器时</td>
+</tr>
+<tr>
+<td>35:10</td>
+<td>RTC 的 APB1 接口曾经处于禁止状态</td>
+</tr>
+<tr>
+<td>35:22</td>
+<td>对应代码里就是 RTC 等待同步</td>
+</tr>
+<tr>
+<td>35:30</td>
+<td>为什么需要有这一条</td>
+</tr>
+<tr>
+<td>35:31</td>
+<td>可以看一下这个图</td>
+</tr>
+<tr>
+<td>35:33</td>
+<td>这里会有两个时钟</td>
+</tr>
+<tr>
+<td>35:37</td>
+<td>PCLK1 在主电源掉电时会停止</td>
+</tr>
+<tr>
+<td>35:41</td>
+<td>所以为了保证 RTC 在主电源掉电正常工作</td>
+</tr>
+<tr>
+<td>35:49</td>
+<td>当我们用 PCLK1 驱动的总线</td>
+</tr>
+<tr>
+<td>35:51</td>
+<td>去读取 RTCCLK 驱动的寄存器时</td>
+</tr>
+<tr>
+<td>35:55</td>
+<td>有时钟不同步的问题</td>
+</tr>
+<tr>
+<td>36:16</td>
+<td>这样我们读取到的值</td>
+</tr>
+<tr>
+<td>36:18</td>
+<td>通常来说就是读取到</td>
+</tr>
+<tr>
+<td>36:21</td>
+<td>所以要求在 APB1 总线刚开启时</td>
+</tr>
+<tr>
+<td>36:36</td>
+<td>这是设计细节</td>
+</tr>
+<tr>
+<td>36:38</td>
+<td>其实我们不用管那么多</td>
+</tr>
+<tr>
+<td>36:46</td>
+<td>必须设置 RTC_CRL 寄存器中的 CNF 位</td>
+</tr>
+<tr>
+<td>36:58</td>
+<td>这条其实比较简单</td>
+</tr>
+<tr>
+<td>37:03</td>
+<td>位置 1 才设置时间</td>
+</tr>
+<tr>
+<td>37:07</td>
+<td>每个写寄存器的函数都自动加上了这个操作</td>
+</tr>
+<tr>
+<td>37:18</td>
+<td>对 RTC 任何寄存器的写操作</td>
+</tr>
+<tr>
+<td>37:19</td>
+<td>必须在前一次写操作结束后进行</td>
+</tr>
+<tr>
+<td>37:27</td>
+<td>判断 RTC 寄存器是否处于更新中</td>
+</tr>
+<tr>
+<td>37:30</td>
+<td>仅当 RTOFF 状态位是 1 时才可以写入</td>
+</tr>
+<tr>
+<td>37:37</td>
+<td>跟我们之前读写 Flash 芯片是类似的</td>
+</tr>
+<tr>
+<td>37:40</td>
+<td>写入之前要等待上一次写入完成</td>
+</tr>
+<tr>
+<td>37:50</td>
+<td>只有 RTOFF 为 1 了才表示写入完成</td>
+</tr>
+<tr>
+<td>37:54</td>
+<td>为什么要有这个操作呢</td>
+</tr>
+<tr>
+<td>38:06</td>
+<td>因为 RTC 寄存器是由 RTCCLK 驱动的</td>
+</tr>
+<tr>
+<td>38:20</td>
+<td>这个操作了解</td>
+</tr>
+<tr>
+<td>38:22</td>
+<td>等待函数的事</td>
+</tr>
+<tr>
+<td>38:25</td>
+<td>就是操作 RTC 的这些细节问题</td>
+</tr>
+<tr>
+<td>38:30</td>
+<td>写代码的时候会再给大家提</td>
+</tr>
+<tr>
+<td>38:35</td>
+<td>那有关 BKP 和 RTC 的知识点</td>
+</tr>
+<tr>
+<td>38:40</td>
+<td>最后还是照例看手册</td>
+</tr>
+<tr>
+<td>38:42</td>
+<td>本节课涉及手册的内容</td>
+</tr>
+<tr>
+<td>38:44</td>
+<td>主要是第 5 章备份寄存器 BKP</td>
+</tr>
+<tr>
+<td>38:48</td>
+<td>和第 16 章实时时钟 RTC</td>
+</tr>
+<tr>
+<td>38:50</td>
+<td>先看 BKP 的内容</td>
+</tr>
+<tr>
+<td>38:52</td>
+<td>手册里对 BKP 的介绍</td>
+</tr>
+<tr>
+<td>39:00</td>
+<td>大家可以全都再仔细看一看</td>
+</tr>
+<tr>
+<td>39:25</td>
+<td>借助 RTC 校准时钟输出和校准寄存器</td>
+</tr>
+<tr>
+<td>39:44</td>
+<td>可以在这里存储自己的数据</td>
+</tr>
+<tr>
+<td>39:46</td>
+<td>ER 引脚上输出的是秒脉冲还是闹钟脉冲</td>
+</tr>
+<tr>
+<td>39:47</td>
+<td>RTC 时钟校准寄存器</td>
+</tr>
+<tr>
+<td>39:49</td>
+<td>里面可以配置输出时钟的选择和校准值</td>
+</tr>
+<tr>
+<td>39:54</td>
+<td>主要用来配置侵入检测的功能</td>
+</tr>
+<tr>
+<td>40:01</td>
+<td>之后控制状态寄存器复位该位</td>
+</tr>
+<tr>
+<td>40:09</td>
+<td>最后是存储器映像的总表</td>
+</tr>
+<tr>
+<td>40:11</td>
+<td>里面 DR1 一直到 DR10 还在一起</td>
+</tr>
+<tr>
+<td>40:18</td>
+<td>额外还有 DR11</td>
+</tr>
+<tr>
+<td>40:23</td>
+<td>直到 DR42</td>
+</tr>
+<tr>
+<td>40:25</td>
+<td>这块是大容量和互联型设备才有的</td>
+</tr>
+<tr>
+<td>40:29</td>
+<td>这些就是 BKP 的内容</td>
+</tr>
+<tr>
+<td>40:31</td>
+<td>BKP 还是比较简单的</td>
+</tr>
+<tr>
+<td>40:34</td>
+<td>然后我们再看 RTC</td>
+</tr>
+<tr>
+<td>40:39</td>
+<td>它的开启流程和 BKP 是一样的</td>
+</tr>
+<tr>
+<td>40:44</td>
+<td>我们基本都提到过</td>
+</tr>
+<tr>
+<td>40:46</td>
+<td>一些功能描述</td>
+</tr>
+<tr>
+<td>40:48</td>
+<td>6.1.3 节还有系统框图 16.3.2</td>
+</tr>
+<tr>
+<td>40:49</td>
+<td>这些我们都仔细分析过</td>
+</tr>
+<tr>
+<td>40:50</td>
+<td>10.3 大家可以再研究研究</td>
+</tr>
+<tr>
+<td>40:55</td>
+<td>之后读取 RTC 寄存器</td>
+</tr>
+<tr>
+<td>40:57</td>
+<td>这个刚才注意事项里说过</td>
+</tr>
+<tr>
+<td>41:00</td>
+<td>这是对这个问题的详细描述</td>
+</tr>
+<tr>
+<td>41:03</td>
+<td>我们需要的就是在 APB1 开启时</td>
+</tr>
+<tr>
+<td>41:06</td>
+<td>调用等待同步的函数</td>
+</tr>
+<tr>
+<td>41:12</td>
+<td>这个也是我们说的写入时的注意事项</td>
+</tr>
+<tr>
+<td>41:19</td>
+<td>下面是一些时序图</td>
+</tr>
+<tr>
+<td>41:23</td>
+<td>我们可以稍微看</td>
+</tr>
+<tr>
+<td>41:24</td>
+<td>这里面涉及的细节还是蛮多的</td>
+</tr>
+<tr>
+<td>41:31</td>
+<td>分频器的重装值</td>
+</tr>
+<tr>
+<td>41:34</td>
+<td>就是对 RTCCLK 进行 4 分频</td>
+</tr>
+<tr>
+<td>41:38</td>
+<td>上面这一行是 RTC_PR</td>
+</tr>
+<tr>
+<td>41:41</td>
+<td>里面的值正在自减</td>
+</tr>
+<tr>
+<td>41:42</td>
+<td>当然重装值应该是始终不变的</td>
+</tr>
+<tr>
+<td>41:52</td>
+<td>这样不断自减</td>
+</tr>
+<tr>
+<td>41:54</td>
+<td>当它计到 0 之后</td>
+</tr>
+<tr>
+<td>41:59</td>
+<td>下面的 CNT 计数器自增</td>
+</tr>
+<tr>
+<td>42:08</td>
+<td>比较分频器重装的时机</td>
+</tr>
+<tr>
+<td>42:11</td>
+<td>一个 RTCCLK 时钟的间隔</td>
+</tr>
+<tr>
+<td>42:14</td>
+<td>之后 CNT</td>
+</tr>
+<tr>
+<td>42:16</td>
+<td>这时 CNT 等于闹钟值</td>
+</tr>
+<tr>
+<td>42:20</td>
+<td>那闹钟信号的触发时机呢</td>
+</tr>
+<tr>
+<td>42:22</td>
+<td>是在这个时刻</td>
+</tr>
+<tr>
+<td>42:24</td>
+<td>就是 CNT=4 期间的最末尾</td>
+</tr>
+<tr>
+<td>42:27</td>
+<td>和秒信号的上升沿是同步的</td>
+</tr>
+<tr>
+<td>42:29</td>
+<td>闹钟标志位也会在此时刻置 1 挂起</td>
+</tr>
+<tr>
+<td>42:36</td>
+<td>程序就会进入中断函数</td>
+</tr>
+<tr>
+<td>42:41</td>
+<td>这就是 RTC 里面工作的时序</td>
+</tr>
+<tr>
+<td>42:44</td>
+<td>溢出的时序图</td>
+</tr>
+<tr>
+<td>42:56</td>
+<td>FD、FE、FF</td>
+</tr>
+<tr>
+<td>43:13</td>
+<td>就是时序图体现的细节更多</td>
+</tr>
+<tr>
+<td>43:16</td>
+<td>之后就是 RTC 的寄存器描述了</td>
+</tr>
+<tr>
+<td>43:31</td>
+<td>位其实都是 16 位的</td>
+</tr>
+<tr>
+<td>43:33</td>
+<td>你看这一个寄存器明明是 32 位的</td>
+</tr>
+<tr>
+<td>43:40</td>
+<td>这个应该是为了简化电路设计</td>
+</tr>
+<tr>
+<td>43:42</td>
+<td>对于这些不是那么重要的外设</td>
+</tr>
+<tr>
+<td>43:47</td>
+<td>16 位的总线已经够用了</td>
+</tr>
+<tr>
+<td>43:50</td>
+<td>所以这里的寄存器</td>
+</tr>
+<tr>
+<td>43:59</td>
+<td>这个分频器是 20 位的</td>
+</tr>
+<tr>
+<td>44:01</td>
+<td>所以高 16 位只有 4 个有用</td>
+</tr>
+<tr>
+<td>44:07</td>
+<td>下面是预分频器余数寄存器</td>
+</tr>
+<tr>
+<td>44:14</td>
+<td>就是 20 位的自减计数器</td>
+</tr>
+<tr>
+<td>44:15</td>
+<td>计数器寄存器 CNT：高 16 位 + 低 16 位</td>
+</tr>
+<tr>
+<td>44:24</td>
+<td>高 16 位 + 低 16 位</td>
+</tr>
+<tr>
+<td>44:30</td>
+<td>最后是 RTC 寄存器的</td>
+</tr>
+<tr>
+<td>44:31</td>
+<td>这就是 RTC 的内容</td>
+</tr>
+<tr>
+<td>44:35</td>
+<td>本小节的内容就到这里</td>
+</tr>
+<tr>
+<td>44:42</td>
+<td>BKP 和 RTC 的代码部分</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，455 段），不是 ASR。错字主要是 <strong><code>晶振</code> → 「显振」</strong>（8 处）、<strong><code>数据</code> → 「数居」</strong>（5 处）、<strong><code>时间戳</code> → 「时间翟」</strong>（2 处）、<code>存储</code> → 「存诸」、<code>介绍</code> → 「乔绍」、<code>TAMPER</code> → 「TAMIPER」、<code>32位</code> → 「32为」、<code>读写</code> → 「卖写」、<code>运行</code> → 「云行」（各 1 处）；并混入手册页脚与英文正文——已按画面/上下文校正。</li>
+<li><strong>本集零代码、零库函数</strong>：全程 PPT + 手册；只出现寄存器名（<code>BKP_DR17</code>、<code>RCC_APB1ENR</code>、<code>PWR_CR</code>、<code>RTC_CRL</code>、<code>RTC_CR</code> 等），<strong><code>BKP_WriteBackupRegister</code>/<code>RTC_SetCounter</code>/<code>RTC_WaitForSynchro</code> 等库函数均未出现</strong>——笔记<strong>没有编造库函数调用序列</strong>，库函数写法留 [12-3]/[12-4]。</li>
+<li><strong>容量口径</strong>：中/小容量 <strong>20 字节（DR1～DR10）</strong>、大容量/互联型 <strong>84 字节（+DR11～DR42）</strong>；<strong>每个数据寄存器 16 位＝2 字节</strong>。</li>
+<li><strong>PC13 / TAMPER / RTC 三功能共用引脚</strong>（引脚定义第 2 脚 <code>PC13-TAMPER-RTC</code>，主功能 PC13、复用 TAMPER-RTC；TIM1_CH1 在 PA8，与本脚无关）；「VBAT 旁边的 2 号引脚」说法来自口述。</li>
+<li><strong>HSE/128 只写「通常为 8MHz/128」</strong>：作者<strong>未念出结果</strong>（按公式是 62.5kHz）——笔记不写死结果。</li>
+<li><strong>LSI 标称 40kHz</strong>：作者未提实际误差（F103 的 LSI 实际约 30～60kHz），笔记只写标称值。</li>
+<li><strong>分频规则</strong>：<strong>写入 PRL＝N 表示 N+1 分频</strong>（计数值含 0），<strong>32.768kHz 用 PRL＝32767 → 1Hz</strong>——这是本集唯一必须记住的算式。</li>
+<li><strong>闹钟（ALR）是一次性触发</strong>：要周期性闹钟必须在每次响应后重新设置。</li>
+<li><strong>本集未讲中断函数写法与 NVIC 配置</strong>（只在框图里指出 <code>RTC_CR</code> 的标志/使能位→NVIC），也<strong>未展开 WKUP 细节</strong>（WKUP=PA0，「下一节再学」）。</li>
+<li><strong>外部电路参数</strong>：备用电池为 <strong>3V 纽扣电池</strong>（正极接 VBAT、负极共地）、<strong>可选 0.1µF 滤波电容</strong>；<strong>RTC 晶振 32.768kHz、起振电容本集取 10pF（作者自己电路的取值）</strong>；<strong>数据手册表23 建议的 CL1/CL2 典型值为 15pF</strong>——<strong>两个数不要混写</strong>。</li>
+<li><strong>RTC 寄存器是「16 位总线 + 两个寄存器拼 32 位」</strong>：<code>RTC_PRL</code>/<code>CNT</code>/<code>ALR</code> 均为高 16 位 + 低 16 位两个寄存器；<strong><code>PRL</code> 实际有效 20 位</strong>（高 16 位中只有 4 位有用）；作者解释是<strong>为简化电路设计</strong>、16 位总线够用。</li>
+<li><strong>片尾 44:42</strong>「……BKP 和 RTC 的代码部分」；<strong>无下节编号预告</strong>，按课程顺序代码在 [12-3]/[12-4]。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-43.html"><span class="label">下一篇</span>[12-3] 读写备份寄存器&amp;实时时钟</a>
+    <a class="next" href="stm32-41.html"><span class="label">上一篇</span>[12-1] Unix时间戳</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-bkp-rtc-%E5%A4%96%E8%AE%BE%E5%8E%9F%E7%90%86-%E6%89%8B%E5%86%8C-5-16-%E7%AB%A0-%E4%BB%A3%E7%A0%81%E5%9C%A8-12-3-12-4">0. 本集定位：理论课（BKP + RTC 外设原理 + 手册 5/16 章），代码在 12-3/12-4</a>
+        <a class="level-2" href="#1-bkp-%E5%A4%87%E4%BB%BD%E5%AF%84%E5%AD%98%E5%99%A8">1. BKP 备份寄存器</a>
+        <a class="level-3" href="#1-1-%E4%BE%9B%E7%94%B5%E5%BC%95%E8%84%9A%E4%B8%8E-vbat">1.1 供电引脚与 VBAT</a>
+        <a class="level-3" href="#1-2-vbat-%E7%9A%84%E4%BD%9C%E7%94%A8%E4%B8%8E-bkp-%E7%9A%84%E6%9C%AC%E8%B4%A8">1.2 VBAT 的作用与 BKP 的本质</a>
+        <a class="level-3" href="#1-3-tamper-%E4%BE%B5%E5%85%A5%E6%A3%80%E6%B5%8B-pc13-%E4%B8%89%E5%8A%9F%E8%83%BD%E5%85%B1%E7%94%A8">1.3 TAMPER 侵入检测（PC13 三功能共用）</a>
+        <a class="level-3" href="#1-4-rtc-%E7%9B%B8%E5%85%B3%E5%8A%9F%E8%83%BD%E4%B8%8E%E5%AD%98%E5%82%A8%E5%AE%B9%E9%87%8F">1.4 RTC 相关功能与存储容量</a>
+        <a class="level-2" href="#2-rtc-%E5%AE%9E%E6%97%B6%E6%97%B6%E9%92%9F">2. RTC 实时时钟</a>
+        <a class="level-3" href="#2-1-%E7%AE%80%E4%BB%8B%E4%B8%8E%E7%89%B9%E6%80%A7">2.1 简介与特性</a>
+        <a class="level-3" href="#2-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E6%B2%A1%E6%9C%89%E5%B9%B4%E6%9C%88%E6%97%A5%E5%AF%84%E5%AD%98%E5%99%A8">2.2 为什么没有年月日寄存器</a>
+        <a class="level-3" href="#2-3-rcc-%E6%97%B6%E9%92%9F%E6%A0%91-rtcclk-%E4%BB%8E%E5%93%AA%E6%9D%A5">2.3 RCC 时钟树：RTCCLK 从哪来</a>
+        <a class="level-3" href="#2-4-%E5%9B%BE154-%E7%AE%80%E5%8C%96%E7%9A%84-rtc-%E6%A1%86%E5%9B%BE">2.4 图154：简化的 RTC 框图</a>
+        <a class="level-3" href="#2-5-%E9%A2%84%E5%88%86%E9%A2%91%E5%99%A8%E4%B8%8E%E8%AE%A1%E6%95%B0%E5%99%A8%E7%BB%86%E8%8A%82">2.5 预分频器与计数器细节</a>
+        <a class="level-2" href="#3-%E5%A4%96%E9%83%A8%E7%94%B5%E8%B7%AF">3. 外部电路</a>
+        <a class="level-3" href="#3-1-%E5%A4%87%E7%94%A8%E7%94%B5%E6%B1%A0%E4%BE%9B%E7%94%B5">3.1 备用电池供电</a>
+        <a class="level-3" href="#3-2-32-768khz-rtc-%E6%99%B6%E6%8C%AF">3.2 32.768kHz RTC 晶振</a>
+        <a class="level-2" href="#4-rtc-%E6%93%8D%E4%BD%9C%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9-%E6%89%8B%E5%86%8C-4-%E6%9D%A1">4. RTC 操作注意事项（手册 4 条）</a>
+        <a class="level-2" href="#5-%E6%89%8B%E5%86%8C%E7%B2%BE%E8%AF%BB">5. 手册精读</a>
+        <a class="level-3" href="#5-1-%E7%AC%AC-5-%E7%AB%A0-bkp">5.1 第 5 章 BKP</a>
+        <a class="level-3" href="#5-2-%E7%AC%AC-16-%E7%AB%A0-rtc">5.2 第 16 章 RTC</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

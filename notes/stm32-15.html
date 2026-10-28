@@ -1,0 +1,1247 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[6-3] TIM输出比较 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 第 15 集 [6-3]（纯理论课）：片头演示呼吸灯/舵机/电机三个现成工程，通篇讲输出比较——OC/IC/CC 缩写、CNT 与 CCR 比较定输出电平、4 通道各一 CCR、图125 通道电路、8 种输出模式（实用 PWM模式1）、PWM 基本结构与三公式、高级定时器死区互补、舵机 0.5～2.5ms 脉宽表、TB6612 驱动电机。本集无代码，代码在下一集 [6-4]。">
+  <meta property="og:title" content="[6-3] TIM输出比较 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 第 15 集 [6-3]（纯理论课）：片头演示呼吸灯/舵机/电机三个现成工程，通篇讲输出比较——OC/IC/CC 缩写、CNT 与 CCR 比较定输出电平、4 通道各一 CCR、图125 通道电路、8 种输出模式（实用 PWM模式1）、PWM 基本结构与三公式、高级定时器死区互补、舵机 0.5～2.5ms 脉宽表、TB6612 驱动电机。本集无代码，代码在下一集 [6-4]。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html" class="active" aria-current="page">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>57 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">PWM</span><span class="tag">输出比较</span>
+    </div>
+    <article class="prose"><h1>[6-3] TIM输出比较 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=15，44:22（2661.6 秒）</li>
+<li>素材：242 帧关键帧（<strong>每 11 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>596 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p15/frames/</code>，站内图片在 <code>assets/images/stm32-15/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>），偶有错字已按画面校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是定时器大节第二部分（输出比较/PWM）的<strong>纯理论课</strong>——片头 00:26–02:59 演示三个<strong>已经写好</strong>的工程的现象（<code>6-3 PWM驱动LED呼吸灯</code>、<code>6-4 PWM驱动舵机</code>、<code>6-5 PWM驱动直流电机</code>），02:59 起直接切 PPT，之后 41 分钟全是原理、结构图、模式表、公式、器件与接线，<strong>没有新建工程、没有写一行代码、也没有讲 <code>TIM_OCInit</code> 这类库函数</strong>。片尾原话是「我们下一小节再来学习一下 <strong>PWM 的代码部分</strong>」，所以三个程序的代码在 <strong>P16 [6-4]</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>输出比较（<strong>OC = Output Compare</strong>）就是<strong>拿计数器的值 CNT 和每个通道的比较值 CCR 比大小，再按设定的规则决定输出电平</strong>——所以它天生适合输出 PWM：时基单元让 CNT 在 0～ARR 之间循环自增，4 个通道各有自己的 CCR，输出模式控制器比较 CNT 与 CCR，<strong>PWM模式1 + 向上计数</strong>时「CNT&lt;CCR 置有效电平、CNT≥CCR 置无效电平」，得到的 OCxREF 再经<strong>极性选择（CC1P）</strong>、<strong>输出使能（CC1E）<strong>送到引脚；8 种输出模式里真正实用的就一种，其余七种（冻结、匹配时置有效/置无效、匹配时电平翻转、强制无效/有效、PWM模式2）只用了解。三个参数一次记牢：<strong>Freq = CK_PSC/(PSC+1)/(ARR+1)</strong>（PWM 频率 = 计数器更新频率）、<strong>Duty = CCR/(ARR+1)</strong>、<strong>Reso = 1/(ARR+1)</strong>（本书定义的分辨率是</strong>占空比最小变化步距，越小越好</strong>）——ARR=99、CCR=30 时一个周期是 0～99 共 100 个数，CNT 等于 30 的瞬间已经跳低，<strong>高电平只有 0～29 共 30 个数</strong>，所以占空比是 30/100=30%，分辨率 1%。PWM 能在<strong>数字系统里等效输出模拟量</strong>，靠的是「<strong>惯性系统 + 唯快不破</strong>」：LED 余晖/人眼视觉暂留、电机转动惯性，让足够快的高频通断看起来像连续的中等亮度/中等转速，5V 系统 50% 占空比等效 2.5V、20% 等效 1V，频率一般几 K～几十 KHz、分辨率 1% 通常够用。外部器件两条线：<strong>舵机</strong>把 PWM <strong>当通信协议</strong>用（周期固定 20ms，高电平 0.5～2.5ms 线性对应 180° 舵机的 -90°～+90°，给多少脉宽就停在哪个角度）；<strong>直流电机</strong>是<strong>大功率器件、GPIO 不能直接驱动</strong>，要用 <strong>TB6612 双路 H 桥</strong>——IN1/IN2 定方向、PWM 定速度（PWM 高才转、低就停，频率够快就是连续转、占空比决定快慢），STBY 是待机脚，VM 接电机电源（4.5～10V）、VCC 接逻辑电源（2.7～5.5V）。<strong>本集纯理论、没有讲代码，代码在 P16 [6-4]。</strong></p>
+<h2 id="0-本集定位-理论课-代码在下一集">0. 本集定位：理论课，代码在下一集</h2>
+<ul>
+<li>本集是定时器大节<strong>第二部分「输出比较」的理论集</strong>，主题一句话：<strong>STM32 内部是怎么产生 PWM 波形的</strong>，以及<strong>能用 PWM 控制哪些外部器件、怎么接线</strong>。</li>
+<li><strong>片头 3 分钟只有「现象」，没有「代码」</strong>：00:26「好，那我们先来看一下本小节程序的现象」，随后 00:43 / 01:21 / 02:03 依次演示 3 个程序的<strong>效果</strong>；画面里 Keil 只是开着已建好的工程（标题栏分别是 <code>6-3 PWM驱动LED呼吸灯</code>、<code>6-4 PWM驱动舵机</code>、<code>6-5 PWM驱动直流电机</code>），讲解全是「按一下按键、角度变化、OLED 显示多少」，<strong>没有任何新建工程、写代码、讲函数的镜头</strong>（图 1/2/3 的 Keil 代码区在本分辨率下也看不清，本笔记不当资料用）。</li>
+<li><strong>02:59「好，接下来我们就来看一下 PPT」起，之后 41 分钟全是 PPT 与参考手册</strong>：输出比较简介 → PWM 简介 → 图125 通用定时器输出比较通道电路 → 8 种输出模式表 → PWM 基本结构 → 参数计算 → 高级定时器通道（图78）→ 舵机简介 → 舵机硬件电路 → 直流电机与驱动简介 → TB6612 硬件电路与真值表 → 参考手册导读。</li>
+<li><strong>片尾明确预告代码在下一集</strong>：44:16「我们下一小节再来学习一下 PWM 的代码部分」；25:21 还留了一道练习题（输出 1kHz、占空比任意可调、分辨率 1% 的 PWM），说「大家可以先想一想，<strong>我们下一小节就会来实际操作一下</strong>」。</li>
+<li>所以本笔记<strong>不写配置步骤</strong>：<code>TIM_OCInit</code>、<code>TIM_OCStructInit</code>、<code>TIM_OCMode_PWM1</code>、<code>TIM_SetCompare1</code> 这些库函数<strong>本集没有出现</strong>，属于 P16 [6-4] 的内容。片头的三个程序（呼吸灯/舵机/电机）在本集里只作为「<strong>这一节要解决什么问题</strong>」的引子。</li>
+</ul>
+<h2 id="1-片头三个现象-这一节要解决什么">1. 片头三个现象：这一节要解决什么</h2>
+<p>本小节共有 <strong>3 个程序</strong>：① PWM 驱动 LED 呼吸灯、② PWM 驱动舵机、③ PWM 驱动直流电机。动机在开场就说了：<strong>「PWM 波形又是驱动电机的必要条件」</strong>，所以想做智能车、机器人这类带电机的项目，输出比较功能就要好好学（00:14）。</p>
+<h3 id="1-1-现象1-pwm-驱动-led-呼吸灯-00-43-01-21">1.1 现象①：PWM 驱动 LED 呼吸灯（00:43–01:21）</h3>
+<ul>
+<li>面包板上在 <strong>PA0 端口</strong>上接了一个 LED。</li>
+<li>老师抛出的问题：<strong>GPIO 口是一个数字输出的端口，输出的电平不是高电平就是低电平</strong>，<strong>按理说 LED 只有「完全亮」和「完全灭」两种状态</strong>，<strong>怎么能实现 LED 连续地调控亮度呢</strong>？</li>
+<li>答案就是 <strong>PWM 的功劳</strong>（本集第 3 章讲原理）：让 LED 不断地点亮、熄灭，只要频率足够快，就看不到闪烁，而是呈现出一个<strong>中等亮度</strong>；再调亮点亮与熄灭的<strong>时间比例</strong>，就能得到不同的亮度级别。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/01-breathing-led-demo.jpg" alt="图 1：现象① LED 呼吸灯——面包板上 STM32 最小系统板，PA0 上接的 LED 亮着；Keil 标题栏是 STM32Project\6-3 PWM驱动LED呼吸灯（现成工程，本集不写代码）"></p>
+<p><em>图 1：现象① LED 呼吸灯——面包板上 STM32 最小系统板，PA0 上接的 LED 亮着；Keil 标题栏是 <code>STM32Project\6-3 PWM驱动LED呼吸灯</code>（现成工程，本集不写代码）</em></p>
+<h3 id="1-2-现象2-pwm-驱动舵机-01-21-02-03">1.2 现象②：PWM 驱动舵机（01:21–02:03）</h3>
+<ul>
+<li>拿一个舵机，<strong>按一下按键</strong>，可以看到<strong>舵机输出轴的角度在不断变换</strong>，<strong>OLED 上也显示了当前的角度</strong>（画面是 <code>Angle:060</code>）。</li>
+<li><strong>每按一下，角度变量就变一次</strong>，舵机也随即<strong>跟随变化到指定的角度，然后固定下来</strong>。</li>
+<li>「当然这个角度你可以<strong>任意设置</strong>」，演示里只是用按键简单地修改。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/02-servo-demo.jpg" alt="图 2：现象② 舵机——按键修改角度，舵机输出轴转到指定角度固定，OLED 显示 Angle:060；Keil 标题栏 6-4 PWM驱动舵机"></p>
+<p><em>图 2：现象② 舵机——按键修改角度，舵机输出轴转到指定角度固定，OLED 显示 <code>Angle:060</code>；Keil 标题栏 <code>6-4 PWM驱动舵机</code></em></p>
+<h3 id="1-3-现象3-pwm-驱动直流电机-02-03-02-59">1.3 现象③：PWM 驱动直流电机（02:03–02:59）</h3>
+<ul>
+<li>电机转起来，<strong>OLED 上显示的是当前的速度值</strong>，一开始是 <strong><code>Speed:+20</code></strong>。</li>
+<li>然后一直按：<strong>+20 → +40 → +80 → +100（正向满速）</strong>；<strong>再按一下，速度由 +100 变为 -100，电机立刻变为反向满速旋转</strong>；继续按就是 <strong>-80、-60、-40、-20</strong>，然后回到 <strong>0，电机停止</strong>。</li>
+<li>结论：<strong>可以任意地控制电机旋转的方向和速度</strong>（速度值也可以按程序任意更改，演示写得比较简单）。</li>
+<li>三个现象共同指向一个问题：<strong>GPIO 只有高低两种状态，怎么做出「连续变化」的效果</strong>——这就是 PWM，也就是本集要讲的<strong>输出比较</strong>功能。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/03-motor-demo.jpg" alt="图 3：现象③ 直流电机——OLED 显示 Speed:-100，电机反向满速；Keil 标题栏 6-5 PWM驱动直流电机"></p>
+<p><em>图 3：现象③ 直流电机——OLED 显示 <code>Speed:-100</code>，电机反向满速；Keil 标题栏 <code>6-5 PWM驱动直流电机</code></em></p>
+<h2 id="2-输出比较是什么">2. 输出比较是什么</h2>
+<h3 id="2-1-三个英文缩写-oc-ic-cc">2.1 三个英文缩写：OC / IC / CC</h3>
+<ul>
+<li><strong>OC = Output Compare，输出比较</strong>，直译就是「输出比较」。</li>
+<li><strong>IC = Input Capture，输入捕获</strong>（后面的大节会讲）。</li>
+<li><strong>CC = Capture/Compare，捕获/比较</strong>，一般表示<strong>输入捕获和输出比较的单元</strong>。由此 <strong>CCR 就是 Capture/Compare Register，捕获/比较寄存器</strong>（R = Register）。</li>
+<li>为什么要专门讲缩写：<strong>在库函数里经常出现这些英文缩写</strong>，不然写个 OC 你不知道是啥意思。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/04-oc-intro.jpg" alt="图 4：PPT「输出比较简介」——OC（Output Compare）输出比较；输出比较通过比较 CNT 与 CCR 寄存器值的关系，对输出电平置1/置0/翻转，输出一定频率和占空比的 PWM 波形；每个高级/通用定时器都有 4 个输出比较通道；高级定时器前 3 个通道额外有死区生成和互补输出"></p>
+<p><em>图 4：PPT「输出比较简介」——OC（Output Compare）输出比较；输出比较通过比较 CNT 与 CCR 寄存器值的关系，对输出电平置1/置0/翻转，输出一定频率和占空比的 PWM 波形；每个高级/通用定时器都有 4 个输出比较通道；高级定时器前 3 个通道额外有死区生成和互补输出</em></p>
+<h3 id="2-2-核心功能-比较-cnt-与-ccr-输出-pwm">2.2 核心功能：比较 CNT 与 CCR，输出 PWM</h3>
+<ul>
+<li><strong>「输出比较可以通过比较 CNT 与 CCR 寄存器值的关系，来对输出电平进行置 1、置 0 或翻转的操作，用于输出一定频率和占空比的 PWM 波形。」</strong>——这是输出比较模块<strong>最主要的功能</strong>。</li>
+<li><strong>CNT 和 CCR 在哪</strong>：在通用定时器的结构图里，<strong>CNT 就是时基单元里面的计数器</strong>，<strong>CCR 就是捕获/比较寄存器（图里写作「捕获/比较寄存器」）</strong>。这个寄存器是<strong>输入捕获和输出比较共用</strong>的：用输入捕获时它是<strong>捕获寄存器</strong>，用输出比较时它是<strong>比较寄存器</strong>。</li>
+<li><strong>工作机制</strong>：这块电路会比较 <strong>CNT 和 CCR</strong>——<strong>CNT 计数自增，CCR 是我们给定的一个值</strong>；当 CNT 大于 CCR、小于 CCR 或等于 CCR 时，输出就对应地<strong>置 1、置 0、置 1、置 0</strong>，这样就能输出一个<strong>电平不断跳变的 PWM 波形</strong>。这就是输出比较的基本功能。</li>
+</ul>
+<h3 id="2-3-4-个通道-一个-cnt-基本定时器没有">2.3 4 个通道、一个 CNT、基本定时器没有</h3>
+<ul>
+<li><strong>每个高级定时器和通用定时器都拥有 4 个输出比较通道</strong>，可以<strong>同时输出 4 路 PWM 波形</strong>。</li>
+<li><strong>这 4 个通道有各自的 CCR 寄存器，但是它们共用一个 CNT 计数器</strong>——因为 <strong>CNT 属于时基单元，整个定时器只有一个</strong>，而比较值是每个通道独立的。</li>
+<li><strong>基本定时器（TIM6/TIM7）没有输出比较功能</strong>：从结构图上就看得出来，所以<strong>本小节的功能不能在基本定时器上使用</strong>。（F103C8T6 本来也没有基本定时器——这条是 [6-1] 讲过的背景。）</li>
+<li><strong>高级定时器的前 3 个输出比较通道，还额外具有「死区生成」和「互补输出」的功能</strong>，这个是用于驱动<strong>三相无刷电机</strong>的，<strong>本课程暂时不作为重点内容</strong>——本课程主要学<strong>通用定时器的输出比较</strong>（第 8 章会简单提一下高级定时器的结构，仅作了解）。</li>
+</ul>
+<h2 id="3-pwm-简介">3. PWM 简介</h2>
+<h3 id="3-1-pwm-是什么-数字信号-惯性系统">3.1 PWM 是什么：数字信号 + 惯性系统</h3>
+<ul>
+<li><strong>PWM = Pulse Width Modulation，脉冲宽度调制</strong>（画面与口述都强调这个全称）。</li>
+<li><strong>PWM 波形是一个数字输出信号，也是由高低电平组成的</strong>——就是图里那样「低、高、低、高、低」连续变化的电平信号。</li>
+<li>它的用处：<strong>「在具有惯性的系统中，可以通过对一系列脉冲的宽度进行调制，来等效地获得所需要的模拟参量，常应用于电机控速等领域。」</strong></li>
+<li>为什么必须<strong>具有惯性</strong>（08:23 起专门解释）：<ul>
+<li><strong>LED</strong>：熄灭的时候，由于<strong>余晖和人眼视觉暂留</strong>现象，LED 不会立马熄灭，而是有一定的惯性，过一小段时间才熄灭；</li>
+<li><strong>电机</strong>：当电机断电时，电机的转动不会立马停止，而是有一定的惯性，过一会才停；</li>
+<li><strong>这样具有惯性的系统，才能使用 PWM</strong>。</li>
+</ul>
+</li>
+<li>应用举例：让 LED 不断点亮、熄灭，频率足够大时 LED 不会闪烁、而是呈现中等亮度；调控点亮和熄灭的时间比例，就能得到不同的亮度级别。电机调速同理：以很快的频率给电机通电、断电，电机的速度就能维持在一个中等速度。老师总结：<strong>「PWM 的秘诀就是，天下武功，唯快不破」</strong>——只要闪得足够快，你就发现不了它到底是闪着亮的还是正常亮度。</li>
+</ul>
+<h3 id="3-2-三个参数-频率-占空比-分辨率">3.2 三个参数：频率、占空比、分辨率</h3>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>定义（画面原文）</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>频率</strong></td>
+<td><code>频率 = 1 / T_S</code></td>
+<td>T_S 是<strong>一个高低电平变换周期的时间</strong>，也就是一个完整周期；周期取倒数就是频率</td>
+</tr>
+<tr>
+<td><strong>占空比</strong></td>
+<td><code>占空比 = T_ON / T_S</code></td>
+<td>T_ON 是<strong>高电平的时间</strong>，T_ON/T_S 就是<strong>高电平时间相对于整个周期时间的比例</strong>，一般用<strong>百分比</strong>表示</td>
+</tr>
+<tr>
+<td><strong>分辨率</strong></td>
+<td><code>分辨率 = 占空比变化步距</code></td>
+<td>占空比<strong>变化的最小步距</strong>，比如只能 1%、2%、3% 跳变就是 1% 分辨率</td>
+</tr>
+</tbody></table>
+<ul>
+<li>占空比的几个极端值：<strong>50% 就是高低电平时间相等的方波</strong>；<strong>20% 就是高电平占 20%、低电平占 80%</strong>；<strong>100% 就直接是高电平不带变的</strong>；<strong>0% 就直接是低电平</strong>。</li>
+<li><strong>占空比决定等效出来的模拟电压大小</strong>：<strong>占空比越小，等效的模拟电压就越趋近于低电平</strong>；<strong>这个等效关系一般来说是线性的</strong>——<strong>高电平 5V、低电平 0V 时，50% 占空比等效于中间电压 2.5V，20% 占空比等效于 1/5 处的电压 1V</strong>。</li>
+<li><strong>频率</strong>：<strong>PWM 频率越快，等效模拟的信号就越平稳</strong>，<strong>不过同时性能开销就越大</strong>；<strong>一般来说 PWM 的频率都在几 K 到几十 KHz，这个频率就已经足够快了</strong>。</li>
+<li><strong>分辨率</strong>：需要多高要看<strong>实际项目需求</strong>；<strong>「不过一般要求不高的话，1% 的分辨率也就已经足够使用了」</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/05-pwm-intro.jpg" alt="图 5：PPT「PWM简介」——PWM（Pulse Width Modulation）脉冲宽度调制；在惯性系统中调制脉冲宽度等效获得模拟参量；PWM 参数：频率 = 1/T_S、占空比 = T_ON/T_S、分辨率 = 占空比变化步距；左下是「脉冲 → 等效模拟量」波形（u_d 与紫色虚线），右下是 T_ON/T_OFF/T_S 的定义图"></p>
+<p><em>图 5：PPT「PWM简介」——PWM（Pulse Width Modulation）脉冲宽度调制；在惯性系统中调制脉冲宽度等效获得模拟参量；PWM 参数：频率 = 1/T_S、占空比 = T_ON/T_S、分辨率 = 占空比变化步距；左下是「脉冲 → 等效模拟量」波形（u_d 与紫色虚线），右下是 T_ON/T_OFF/T_S 的定义图</em></p>
+<h3 id="3-3-用-pwm-就能在数字系统里-输出模拟量">3.3 用 PWM 就能在数字系统里「输出模拟量」</h3>
+<ul>
+<li>小结（11:41）：<strong>使用 PWM 波形，就可以在数字系统等效输出模拟量</strong>，就能实现 <strong>LED 控制亮度、电机控速</strong>等功能。</li>
+<li>这也回答了片头的问题：<strong>数字输出端口只有高低电平，但靠「足够快的通断 + 惯性系统」，就能表现出连续变化的亮度/速度</strong>。</li>
+</ul>
+<h2 id="4-通用定时器的输出比较通道电路-图125">4. 通用定时器的输出比较通道电路（图125）</h2>
+<p>接下来进入本节的正题：<strong>定时器的输出比较模块是怎么输出 PWM 波形的</strong>。视频先看高级定时器前三个通道的输出比较部分，再看<strong>通用定时器</strong>的（图125），两者的区别在第 8 章。</p>
+<h3 id="4-1-信号通路-从比较结果到引脚">4.1 信号通路：从比较结果到引脚</h3>
+<p>按图125（<code>捕获/比较通道的输出部分（通道1）</code>）从左往右：</p>
+<ol>
+<li><strong>左边是 CNT 与 CCR1 比较的结果</strong>：<code>CNT &gt; CCR1</code> 和 <code>CNT = CCR1</code> 两路信号（还有隐含的小于）送给<strong>输出模式控制器</strong>；</li>
+<li><strong>输出模式控制器</strong>（由寄存器位 <strong><code>OC1M[2:0]</code></strong> 配置，属于 <strong><code>TIMx_CCMR1</code></strong>）：<strong>它会改变输出 <code>OC1REF</code> 的高低电平</strong>。**REF 就是 reference（参考信号）**的缩写——「这个稍微记一下，之后还会见到」；</li>
+<li><strong><code>OC1REF</code> 有两个去向</strong>：<ul>
+<li><strong>往上</strong>：可以映射到<strong>主模式控制器的 <code>TRGO</code> 输出</strong>上去（<code>TRGO</code> 可以触发别的定时器/DAC/ADC）；</li>
+<li><strong>往下（主要去向）</strong>：进入<strong>极性选择</strong>电路——寄存器位 <strong><code>CC1P</code></strong>（在 <strong><code>TIMx_CCER</code></strong> 里）：<strong>写 0 信号直通，写 1 信号通过一个非门取反</strong>；</li>
+</ul>
+</li>
+<li>然后是<strong>输出使能电路</strong>（寄存器位 <strong><code>CC1E</code></strong>，也在 <code>TIMx_CCER</code>），<strong>选择要不要输出</strong>；</li>
+<li>最后是 <strong><code>OC1</code> 引脚</strong>，<strong>这个引脚就是 CH1 通道的引脚</strong>，<strong>具体对应哪个 GPIO 口，查引脚定义表就知道了</strong>。</li>
+</ol>
+<ul>
+<li>图里<strong>上方那个 <code>ETRF</code> 输入</strong>是定时器的一个小功能，<strong>一般不用、不需要了解</strong>。</li>
+<li><strong>下面还有三个同样的单元</strong>，分别输出到 <strong>CH2、CH3、CH4</strong>。</li>
+</ul>
+<h3 id="4-2-这条通路上要记的寄存器位">4.2 这条通路上要记的寄存器位</h3>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>位名</th>
+<th>所在寄存器（画面）</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>输出模式控制器</td>
+<td><code>OC1M[2:0]</code></td>
+<td><code>TIMx_CCMR1</code></td>
+<td>选 8 种输出模式中的一种，决定 REF 怎么变</td>
+</tr>
+<tr>
+<td>极性选择</td>
+<td><code>CC1P</code></td>
+<td><code>TIMx_CCER</code></td>
+<td>写 0 不反相、写 1 过非门取反</td>
+</tr>
+<tr>
+<td>输出使能</td>
+<td><code>CC1E</code></td>
+<td><code>TIMx_CCER</code></td>
+<td>决定这个通道要不要输出到引脚</td>
+</tr>
+<tr>
+<td>主模式映射</td>
+<td>—（REF→TRGO）</td>
+<td>主模式控制</td>
+<td>REF 可以映射成 TRGO 去触发别的外设</td>
+</tr>
+</tbody></table>
+<p><img src="../assets/images/stm32-15/06-oc-channel-circuit.jpg" alt="图 6：图125「捕获/比较通道的输出部分（通道1）」——左边 CNT &gt; CCR1 / CNT = CCR1 进「输出模式控制器」（OC1M 的 2:0 位，TIMx_CCMR1），输出 oc1ref；向上「至主模式控制器」，向下经「极性选择」CC1P（TIMx_CCER，0 直通/1 过非门）→「输出使能电路」CC1E → OC1 引脚"></p>
+<p><em>图 6：图125「捕获/比较通道的输出部分（通道1）」——左边 <code>CNT &gt; CCR1</code> / <code>CNT = CCR1</code> 进「输出模式控制器」（<code>OC1M[2:0]</code>，<code>TIMx_CCMR1</code>），输出 <code>oc1ref</code>；向上「至主模式控制器」，向下经「极性选择」<code>CC1P</code>（<code>TIMx_CCER</code>，0 直通/1 过非门）→「输出使能电路」<code>CC1E</code> → <code>OC1</code> 引脚</em></p>
+<h2 id="5-输出比较的-8-种模式">5. 输出比较的 8 种模式</h2>
+<h3 id="5-1-模式总表">5.1 模式总表</h3>
+<p><strong>输出模式控制器</strong>具体怎么工作——什么时候给 REF 高电平、什么时候给低电平——由下面这张表的 <strong>8 种模式</strong>决定；模式<strong>可以通过寄存器配置</strong>，需要哪个就选哪个。</p>
+<table>
+<thead>
+<tr>
+<th>模式</th>
+<th>描述（画面原文）</th>
+<th>怎么理解</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>冻结</strong></td>
+<td><code>CNT=CCR 时，REF 保持为原状态</code></td>
+<td>等于<strong>CNT、CCR 根本没用</strong>：不管谁大谁小，REF 保持上一个状态</td>
+</tr>
+<tr>
+<td><strong>匹配时置有效电平</strong></td>
+<td><code>CNT=CCR 时，REF 置有效电平</code></td>
+<td>相等那一刻把 REF 置有效（≈高）</td>
+</tr>
+<tr>
+<td><strong>匹配时置无效电平</strong></td>
+<td><code>CNT=CCR 时，REF 置无效电平</code></td>
+<td>相等那一刻把 REF 置无效（≈低）</td>
+</tr>
+<tr>
+<td><strong>匹配时电平翻转</strong></td>
+<td><code>CNT=CCR 时，REF 电平翻转</code></td>
+<td>每匹配一次翻转一次</td>
+</tr>
+<tr>
+<td><strong>强制为无效电平</strong></td>
+<td><code>CNT 与 CCR 无效，REF 强制为无效电平</code></td>
+<td>不看 CNT/CCR，直接强制成无效（≈低）</td>
+</tr>
+<tr>
+<td><strong>强制为有效电平</strong></td>
+<td><code>CNT 与 CCR 无效，REF 强制为有效电平</code></td>
+<td>不看 CNT/CCR，直接强制成有效（≈高）</td>
+</tr>
+<tr>
+<td><strong>PWM模式1</strong></td>
+<td>向上计数：<code>CNT&lt;CCR</code> 时，REF 置有效电平，<code>CNT≥CCR</code> 时，REF 置无效电平<br>向下计数：<code>CNT&gt;CCR</code> 时，REF 置无效电平，<code>CNT≤CCR</code> 时，REF 置有效电平</td>
+<td><strong>最常用</strong>：向上计数时「小于 CCR 为高、大于等于 CCR 为低」</td>
+</tr>
+<tr>
+<td><strong>PWM模式2</strong></td>
+<td>向上计数：<code>CNT&lt;CCR</code> 时，REF 置无效电平，<code>CNT≥CCR</code> 时，REF 置有效电平<br>向下计数：<code>CNT&gt;CCR</code> 时，REF 置有效电平，<code>CNT≤CCR</code> 时，REF 置无效电平</td>
+<td>大小比较关系和 PWM1 一样，<strong>只是高低反过来</strong> = PWM1 取反</td>
+</tr>
+</tbody></table>
+<p><img src="../assets/images/stm32-15/07-oc-modes-table.jpg" alt="图 7：PPT「输出比较模式」8 种模式全表——冻结 / 匹配时置有效电平 / 匹配时置无效电平 / 匹配时电平翻转 / 强制为无效电平 / 强制为有效电平 / PWM模式1 / PWM模式2，右列是「描述」原文（CNT 与 CCR 的比较关系及 REF 的取值）"></p>
+<p><em>图 7：PPT「输出比较模式」8 种模式全表——冻结 / 匹配时置有效电平 / 匹配时置无效电平 / 匹配时电平翻转 / 强制为无效电平 / 强制为有效电平 / PWM模式1 / PWM模式2，右列是「描述」原文（CNT 与 CCR 的比较关系及 REF 的取值）</em></p>
+<h3 id="5-2-逐个看-哪些有实际用途">5.2 逐个看：哪些有实际用途</h3>
+<ul>
+<li><strong>① 冻结</strong>：<code>CNT=CCR 时维持原状态</code>，其实 CNT 和 CCR 就<strong>根本没有用</strong>，也可以理解成「<strong>CNT 和 CCR 无效，REF 保持原状态</strong>」。<strong>它不管 CNT 谁大谁小，直接 REF 保持不变</strong>。用处：<strong>切换为冻结模式后，输出就暂停了，并且高低电平也维持为暂停时刻的状态</strong>（比如正好在输出 PWM 时想停一下，就切到这个模式）。</li>
+<li><strong>②③④ 匹配时置有效 / 置无效 / 电平翻转</strong>：这三个模式都是<strong>当 CNT 与 CCR 值相等时执行操作</strong>。<ul>
+<li>先说个前提：<strong>「有效电平」和「无效电平」一般是高级定时器里的说法</strong>，<strong>在这里为了理解方便，你可以直接认为「置有效电平就是置高电平、置无效电平就是置低电平」</strong>。</li>
+<li><strong>匹配时电平翻转</strong>：<code>CNT=CCR</code> 时输出电平翻转一次，<strong>每更新两次输出才为一个周期</strong>；所以<strong>高电平和低电平的时间始终相等，占空比始终为 50%</strong>；<strong>输出波形的频率 = 更新频率 / 2</strong>（更新两次才为一个周期）。改变定时器更新频率，输出波形频率也随之改变。<strong>这是这三个里唯一比较像「波形输出」的模式</strong>。</li>
+<li><strong>匹配时置有效 / 置无效</strong>：上面这两个「相等时置高/置低」，感觉<strong>用途并不是很大</strong>——它们<strong>不适合输出连续变化的波形</strong>；如果<strong>想定时输出一个一次性的信号</strong>，那可以考虑一下这两个模式。</li>
+</ul>
+</li>
+<li><strong>⑤⑥ 强制为无效 / 强制为有效电平</strong>：这两个模式和<strong>冻结模式也差不多</strong>（CNT/CCR 无效、REF 被强制），<strong>可用于紧急急停/强制输出</strong>。</li>
+<li><strong>⑦⑧ PWM模式1 / PWM模式2</strong>：<strong>这俩模式非常重要</strong>，因为它们<strong>可以用于输出频率和占空比都可调的 PWM 波形</strong>，<strong>也是我们主要使用的模式</strong>。<ul>
+<li><strong>PWM模式1（向上计数）</strong>：<code>CNT&lt;CCR</code> 时 REF 置<strong>有效电平</strong>，<code>CNT≥CCR</code> 时 REF 置<strong>无效电平</strong>；</li>
+<li><strong>PWM模式1（向下计数）</strong>：<code>CNT&gt;CCR</code> 时 REF 置<strong>无效电平</strong>，<code>CNT≤CCR</code> 时 REF 置<strong>有效电平</strong>——情况比较多，<strong>一般我们都只使用向上计数</strong>，所以向下计数的描述暂时不看；</li>
+<li><strong>PWM模式2</strong>：仔细对比会发现它的<strong>大小比较关系和 PWM模式1 这一套是一样的</strong>，<strong>区别就是输出的高低电平反过来了</strong>——<strong>所以 PWM模式2 实际上就是 PWM模式1 输出的取反</strong>。</li>
+</ul>
+</li>
+<li>另外，<strong>REF 输出之后还有一个极性配置</strong>（<code>CC1P</code>，第 4 章那张图）：<strong>输出模式里可以设置极性，最终输出之前也可以设置极性</strong>，设计得比较灵活——所以 PWM1 和 PWM2 其实可以互相等效，没必要两个都用。</li>
+</ul>
+<h3 id="5-3-结论-实际只用-pwm模式1-向上计数">5.3 结论：实际只用 PWM模式1 + 向上计数</h3>
+<ul>
+<li><strong>「所以使用的话，我们可以只使用 PWM模式1，并且是向上计数，这一种模式就行了。」</strong>——这就是本集最重要的结论之一，后面所有分析（第 6、7 章）都以这个模式为例。</li>
+</ul>
+<h2 id="6-pwm-基本结构-本节重点图">6. PWM 基本结构：本节重点图</h2>
+<h3 id="6-1-结构组成">6.1 结构组成</h3>
+<p>20:24 起给出 <strong>「输出 PWM 的基本结构」</strong>，老师说<strong>这也是本节课的重点内容</strong>：</p>
+<ul>
+<li><strong>左上角是时基单元和运行控制部分</strong>；再左边是<strong>时钟源选择</strong>，图里省略了——<strong>这些都是上一小节（[6-1]/[6-2]）的内容，在这里还需要继续使用</strong>。</li>
+<li><strong>不一样的地方</strong>：<strong>「这里更新事件的中断我们不需要了」——输出 PWM 暂时还不需要中断</strong>（时基单元照常运行，只是不用产生更新中断）。</li>
+<li>时基单元里有 <strong><code>PSC</code> 预分频器、<code>CNT</code> 计数器、<code>ARR</code> 自动重装器</strong>；<strong>配置好时基单元，CNT 就可以开始不断地自增运行</strong>。</li>
+<li><strong>下面就是输出比较单元，总共有 4 路</strong>：<strong>输出比较单元最开始的，是 CCR 捕获/比较寄存器</strong>（CCR 是我们自己设定的，CNT 不断自增运行，同时它俩还在不断进行比较）；<strong>后面这个就是输出模式控制器</strong>，这里以 <strong>PWM模式1</strong> 为例讲解它的执行逻辑（图里直接写了两行：<code>CNT&lt;CCR 时，REF 置有效电平</code>、<code>CNT≥CCR 时，REF 置无效电平</code>）。</li>
+<li>REF 再经过<strong>极性选择、输出使能</strong>，最终通向 <strong>GPIO</strong> 口。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/08-pwm-basic-structure.jpg" alt="图 8：PPT「PWM基本结构」（本节重点图）——左：时基单元（PSC 预分频器 / CNT 计数器 / ARR 自动重装器）+ 运行控制；下：输出比较单元×4（CCR 捕获/比较器 → 输出模式控制器：CNT&lt;CCR 时 REF 置有效电平、CNT≥CCR 时 REF 置无效电平）→ REF → 极性选择 输出使能 → GPIO；右上波形：蓝线 CNT 从 0 爬到 99、黄线 ARR=99、红线 CCR=30，下方绿线是输出"></p>
+<p><em>图 8：PPT「PWM基本结构」（本节重点图）——左：时基单元（PSC 预分频器 / CNT 计数器 / ARR 自动重装器）+ 运行控制；下：输出比较单元×4（CCR 捕获/比较器 → 输出模式控制器：<code>CNT&lt;CCR</code> 时 REF 置有效电平、<code>CNT≥CCR</code> 时 REF 置无效电平）→ REF → 极性选择 输出使能 → GPIO；右上波形：蓝线 CNT 从 0 爬到 99、黄线 ARR=99、红线 CCR=30，下方绿线是输出</em></p>
+<h3 id="6-2-波形图怎么读-cnt-arr-ccr-三条线">6.2 波形图怎么读：CNT、ARR、CCR 三条线</h3>
+<ul>
+<li>看右上角的波形图：<strong>蓝色线是 CNT 的值，黄色线是 ARR 的值</strong>。蓝线从 0 开始自增，<strong>一直增到 ARR（99）</strong>，<strong>之后清零继续自增</strong>——这就是计数器的溢出更新周期。</li>
+<li>在这个过程里再画一条<strong>红色线</strong>，<strong>这条红色线就是 CCR</strong>，比如<strong>设置 CCR = 30</strong>。</li>
+<li>于是：<strong>CNT 从 0 开始往上加，只要 CNT &lt; CCR，REF 就置有效电平（绿线是高）</strong>；<strong>之后 CNT ≥ CCR 了，就变为低电平</strong>；<strong>计数器清零后重新开始，又是 CNT &lt; CCR 置高、CNT ≥ CCR 置低</strong>——这样一直持续下去，<strong>REF 的电平就会不断变化</strong>。</li>
+<li><strong>占空比受 CCR 值的调控</strong>：<strong>CCR 设置高一些，输出的占空比就变大；CCR 设置低一些，输出的占空比就变小</strong>。</li>
+<li><strong>这里 REF 就是一个频率可调、占空比也可调的 PWM 波形</strong>，最终再经过极性选择、输出使能，通向 GPIO 口，完成 PWM 波形的输出。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/09-ccr-30-waveform.jpg" alt="图 9：同一张 PWM 基本结构图，红圈标出 CCR 的红色阈值线（左端标 30，红圈正好压在数字上）——CCR 线抬高占空比变大、压低占空比变小；CNT 在 0～99 之间循环，越过红线的部分输出低电平"></p>
+<p><em>图 9：同一张 PWM 基本结构图，红圈标出 CCR 的红色阈值线（左端标 <code>30</code>，红圈正好压在数字上）——CCR 线抬高占空比变大、压低占空比变小；CNT 在 0～99 之间循环，越过红线的部分输出低电平</em></p>
+<h2 id="7-pwm-的三个参数怎么算">7. PWM 的三个参数怎么算</h2>
+<h3 id="7-1-pwm-频率-计数器更新频率">7.1 PWM 频率 = 计数器更新频率</h3>
+<ul>
+<li>看波形图：<strong>从这里到这里为 PWM 的一个周期</strong>，<strong>可以看出它始终对应着计数器的一个溢出更新周期</strong>——所以<strong>PWM 的频率就等于计数器的更新频率</strong>。</li>
+<li>于是直接套用 [6-1] 的计数器更新频率公式：</li>
+</ul>
+<pre><code class="language-text">PWM 频率      Freq = CK_PSC / (PSC + 1) / (ARR + 1)
+PWM 占空比    Duty = CCR / (ARR + 1)
+PWM 分辨率    Reso = 1 / (ARR + 1)
+</code></pre>
+<h3 id="7-2-占空比-ccr-arr-1-高电平其实只有-ccr-个数">7.2 占空比 = CCR / (ARR + 1)：高电平其实只有 CCR 个数</h3>
+<ul>
+<li>再看占空比：<strong>CNT 是从 0 一直加到 ARR</strong>，比如 <strong>ARR = 99</strong>，那 <strong>CNT 总共就是计了 100 个数</strong>（0～99）。</li>
+<li>那<strong>高电平的时间</strong>呢？<strong>CNT 是从 0 一直加到 CCR</strong>，比如 <strong>CCR = 30</strong>；<strong>注意这里在等于 30 的瞬间，就已经跳变为低电平了</strong>——所以 <strong>CNT 从 0 到 29 是高电平，总共是 30 个数的时间</strong>（不是 31 个）。</li>
+<li>所以<strong>占空比 = 30 / 100 = 30%</strong>；总结成公式就是 <strong><code>占空比 = CCR / (ARR + 1)</code></strong>。</li>
+<li><strong>CCR 一般取 0 ～ ARR</strong>：<strong><code>CCR = ARR + 1</code> 时占空比正好是 100%</strong>；<strong>如果 CCR 再大一些，那占空比就始终是 100%，没有意义了</strong>。</li>
+</ul>
+<h3 id="7-3-分辨率-1-arr-1-越小越好">7.3 分辨率 = 1 / (ARR + 1)：越小越好</h3>
+<ul>
+<li><strong>分辨率就是占空比变化的步距</strong>：<strong>CCR 的变化范围取决于 ARR 的值</strong>——<strong>ARR 越大，CCR 的范围就越大，对应的分辨率就越高</strong>（步距越小）。</li>
+<li>总结公式：<strong><code>分辨率 = 1 / (ARR + 1)</code></strong>。</li>
+<li><strong>注意：这里作者定义的「分辨率」是「占空比最小的变化步距」，所以这个值是越小越好</strong>；<strong>你也可以把 CCR 的范围定义成分辨率，那就是值越大越好</strong>。总之就是<strong>占空比变化得越细腻越好</strong>。</li>
+</ul>
+<h3 id="7-4-视频留的练习题-下一集实操">7.4 视频留的练习题（下一集实操）</h3>
+<ul>
+<li><strong>「如果我要求你输出一个频率为 1kHz、占空比可任意调节、且分辨率为 1% 的 PWM 波形，那你会不会用这里的公式，来确定合适的参数呢？」</strong></li>
+<li><strong>「大家可以先想一想，我们下一小节就会来实际操作一下的。」</strong>——这道题的参数计算与代码都在 <strong>P16 [6-4]</strong>，本集只给公式。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/10-pwm-formulas.jpg" alt="图 10：PPT「参数计算」——波形图上是 CNT(蓝)/ARR=99(黄)/CCR=30(红) 与输出（绿），下面三行公式：PWM频率：Freq = CK_PSC / (PSC + 1) / (ARR + 1)、PWM占空比：Duty = CCR / (ARR + 1)、PWM分辨率：Reso = 1 / (ARR + 1)"></p>
+<p><em>图 10：PPT「参数计算」——波形图上是 CNT(蓝)/ARR=99(黄)/CCR=30(红) 与输出（绿），下面三行公式：<code>PWM频率：Freq = CK_PSC / (PSC + 1) / (ARR + 1)</code>、<code>PWM占空比：Duty = CCR / (ARR + 1)</code>、<code>PWM分辨率：Reso = 1 / (ARR + 1)</code></em></p>
+<h2 id="8-高级定时器的输出比较通道-仅作了解">8. 高级定时器的输出比较通道（仅作了解）</h2>
+<p>25:45 起回过头看<strong>高级定时器的输出比较电路（图78：捕获/比较通道的输出部分（通道1至3））</strong>，老师明确说**「这个电路大家仅作了解即可，不需要掌握」**。</p>
+<h3 id="8-1-多出来的部分-死区发生器与互补输出">8.1 多出来的部分：死区发生器与互补输出</h3>
+<ul>
+<li>对比第 4 章的通用定时器图（图125），高级定时器多出的是<strong>死区发生器</strong>和<strong>两路互补输出</strong>：<ul>
+<li>输出模式控制器出来的 <strong><code>OC1REF</code></strong>，先经过<strong>死区发生器（<code>DTG[7:0]</code>，在 <code>TIM1_BDTR</code> 寄存器）</strong>，得到 <strong><code>OC1_DT</code></strong> 和 <strong><code>OC1N_DT</code></strong> 两路；</li>
+<li>两路各自经过<strong>极性选择（<code>CC1P</code> / <code>CC1NP</code>）<strong>和</strong>输出使能（<code>CC1E</code> / <code>CC1NE</code>）</strong>，分别输出 <strong><code>OC1</code></strong> 和 <strong><code>OC1N</code></strong> 两个<strong>互补</strong>的引脚；</li>
+<li>图里还有 <code>MOE</code>、<code>OSSR</code>、<code>OSSI</code> 等位（在 <code>TIM1_BDTR</code> 里）——这些是刹车/输出使能相关的控制位，<strong>本集没有展开</strong>。</li>
+</ul>
+</li>
+<li>高级定时器的<strong>第四个通道</strong>和通用定时器的结构<strong>基本一样</strong>（没有死区/互补那一套），因为三相无刷电机只需要三路互补。</li>
+</ul>
+<h3 id="8-2-为什么要死区-先看外电路-推挽">8.2 为什么要死区：先看外电路（推挽）</h3>
+<ul>
+<li><strong>圈出来的电路有什么用，需要和外电路一起理解</strong>：它外面通常接一个<strong>推挽电路</strong>：<ul>
+<li><strong>上面是正极</strong>，接着一个<strong>大功率开关管</strong>（一般都是 <strong>MOS 管</strong>，就是一种大功率电子开关），<strong>再来一个</strong> MOS 管；</li>
+<li>下面也是一样，<strong>有一个控制极，高电平导通、低电平断开</strong>。</li>
+</ul>
+</li>
+<li>推挽的四种状态：<ul>
+<li><strong>上管导通、下管断开 → 输出高电平</strong>；</li>
+<li><strong>上管断开、下管导通 → 输出低电平</strong>；</li>
+<li><strong>上下管都导通 → 电源短路，这样是不允许的</strong>；</li>
+<li><strong>上下管都断开 → 输出高阻态</strong>。</li>
+</ul>
+</li>
+<li><strong>两个这样的推挽电路就构成 H 桥电路，可以控制直流电机正反转</strong>（第 11 章讲直流电机时还会用到这个结构）。</li>
+</ul>
+<h3 id="8-3-死区生成-延时一小段再导通">8.3 死区生成：延时一小段再导通</h3>
+<ul>
+<li>对这样的电路，<strong>如果直接用单片机来控制，就需要两个控制极，并且这两个控制极的电平是相反的（互补）</strong>——因为<strong>上管导通，下管就必须断开；下管导通，上管就必须断开</strong>。</li>
+<li>那为什么还要死区？<strong>在切换上下管导通状态时，如果在上管关断的瞬间下管立刻打开，会由于器件的不理想，出现短暂的上下管同时导通的现象</strong>——<strong>这会导致功率损耗，引起器件发热</strong>。</li>
+<li><strong>所以为了避免这个问题，就有了死区生成电路</strong>：它会在<strong>上管关闭的时候，延迟一小段时间，再导通下管</strong>；<strong>下管关闭的时候，延时一小段时间，再导通上管</strong>——这样就可以<strong>避免上下管同时导通的现象</strong>了。</li>
+<li>这就是<strong>死区生成和互补输出的用途</strong>，老师强调「我就讲这么多，大家了解一下即可」。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/11-dead-time-pushpull.jpg" alt="图 11：图78「捕获/比较通道的输出部分（通道1至3）」——红圈圈出「死区发生器」（DTG 的 7:0 位，TIM1_BDTR），输出 OC1_DT/OC1N_DT 两路经极性（CC1P/CC1NP）与输出使能（CC1E/CC1NE）得到互补的 OC1/OC1N；右侧红笔画的推挽外电路：上管接电源正极（+）、下管接地，中间输出"></p>
+<p><em>图 11：图78「捕获/比较通道的输出部分（通道1至3）」——红圈圈出「死区发生器」（<code>DTG[7:0]</code>，<code>TIM1_BDTR</code>），输出 <code>OC1_DT</code>/<code>OC1N_DT</code> 两路经极性（<code>CC1P</code>/<code>CC1NP</code>）与输出使能（<code>CC1E</code>/<code>CC1NE</code>）得到互补的 <code>OC1</code>/<code>OC1N</code>；右侧红笔画的推挽外电路：上管接电源正极（+）、下管接地，中间输出</em></p>
+<h2 id="9-舵机">9. 舵机</h2>
+<p>到这里「<strong>STM32 内部如何产生 PWM 波形</strong>」就讲完了，接下来看<strong>外部设备</strong>：舵机和直流电机——<strong>都可以用 PWM 来控制</strong>。</p>
+<h3 id="9-1-舵机是什么-内部闭环的小电机系统">9.1 舵机是什么：内部闭环的小电机系统</h3>
+<ul>
+<li><strong>「舵机是一种根据输入 PWM 信号占空比来控制输出角度的装置。」</strong></li>
+<li>套件里的舵机型号是 <strong>SG90</strong>，<strong>有三根输入线：两根是电源线、一根是信号线</strong>，<strong>我们的 PWM 就是输入到信号线来控制舵机的</strong>。</li>
+<li>舵机有一个<strong>白色的输出轴</strong>，<strong>它的轴会固定在一个指定的角度不动</strong>——<strong>固定在哪个位置，是由信号线的 PWM 信号决定的</strong>。</li>
+<li>中间的<strong>拆解图</strong>可以看到内部结构：<strong>舵机上盖、输出轴、减速齿轮组、直流电机、舵机控制板、电位器</strong>。由此可知：<strong>舵机并不是一种单独的电机</strong>，它的<strong>内部是由直流电机驱动的</strong>，里面还有一个<strong>控制电路板（电机的控制系统）</strong>。</li>
+<li><strong>内部闭环的执行逻辑</strong>（29:52）：<ol>
+<li><strong>PWM 信号输入到控制板，给控制板一个指定的目标角度</strong>；</li>
+<li><strong>电位器检测输出轴的当前角度</strong>；</li>
+<li><strong>如果大于目标角度，电机就会反转</strong>；</li>
+<li><strong>最终使输出轴固定在指定角度</strong>。</li>
+</ol>
+</li>
+<li>但不管内部怎么闭环，<strong>我们只需要知道：输入一个 PWM 波形，输出轴就固定在一个角度</strong>就行了。</li>
+</ul>
+<h3 id="9-2-输入要求-周期-20ms-高电平-0-5ms-2-5ms">9.2 输入要求：周期 20ms、高电平 0.5ms～2.5ms</h3>
+<ul>
+<li><strong>输入 PWM 信号的要求</strong>（画面第二行原文）：<strong>周期为 20ms（对应 50Hz），高电平宽度为 0.5ms～2.5ms</strong>（也就是占空比在这个范围内变化）。</li>
+<li><strong>角度约定</strong>：这是一个 <strong>180° 的舵机</strong>，<strong>输出轴的角度是 -90° 到 +90°</strong>（或者规定成 0 到 180° 也是没问题的）。</li>
+<li><strong>周期 20ms</strong> = <strong>这个上升沿到下一个上升沿之间的时间是 20ms</strong>。</li>
+<li><strong>脉宽与角度是线性对应的</strong>（画面表，口述同步）：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>输入信号脉冲宽度（周期 20ms）</th>
+<th>舵机输出轴转角（画面）</th>
+<th>口述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0.5ms</td>
+<td>-90°</td>
+<td>0.5ms 对应 -90 度</td>
+</tr>
+<tr>
+<td>1ms</td>
+<td>-45°</td>
+<td>1ms 对应 -45 度</td>
+</tr>
+<tr>
+<td>1.5ms</td>
+<td>-0°（应为 0°，见「存疑」）</td>
+<td>1.5ms 对应 0 度</td>
+</tr>
+<tr>
+<td>2ms</td>
+<td>45°（口述为 +45°）</td>
+<td>2ms 对应 +45 度</td>
+</tr>
+<tr>
+<td>2.5ms</td>
+<td>90°（口述为 +90°）</td>
+<td>2.5ms 对应 +90 度</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>0.5ms 对应 -90°，2.5ms 对应 +90°，中间的对应关系都是线性分配的、按比例来</strong>；<strong>你给个 PWM，输出轴就会固定在一个角度</strong>。</li>
+</ul>
+<h3 id="9-3-应用-pwm-在这里是-通信协议">9.3 应用：PWM 在这里是「通信协议」</h3>
+<ul>
+<li>应用：<strong>遥控车、遥控船，可以用舵机来控制方向</strong>；还有一些其他的机械结构，都可以考虑用舵机。</li>
+<li>特别强调：<strong>这里的 PWM 波形，其实是当做一个「通信协议」来使用的</strong>，跟前面说的「<strong>用 PWM 等效一个模拟输出</strong>」关系不大——<strong>把 PWM 当成一个通信协议，也是一个比较常见的应用</strong>，因为很多控制器都有 PWM 输出功能，<strong>而且 PWM 只需要一根信号线就行了</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/12-servo-pulse-table.jpg" alt="图 12：PPT「舵机简介」——舵机是根据输入 PWM 信号占空比控制输出角度的装置；输入 PWM 要求周期 20ms、高电平 0.5～2.5ms；下面三张图：SG90 舵机、舵机拆解（舵机上盖/输出轴/电机减速齿轮组/电位器/舵机控制板/直流电机）、脉宽-角度表（0.5ms→-90°、1ms→-45°、1.5ms→-0°、2ms→45°、2.5ms→90°）"></p>
+<p><em>图 12：PPT「舵机简介」——舵机是根据输入 PWM 信号占空比控制输出角度的装置；输入 PWM 要求周期 20ms、高电平 0.5～2.5ms；下面三张图：SG90 舵机、舵机拆解（舵机上盖/输出轴/电机减速齿轮组/电位器/舵机控制板/直流电机）、脉宽-角度表（0.5ms→-90°、1ms→-45°、1.5ms→-0°、2ms→45°、2.5ms→90°）</em></p>
+<h2 id="10-舵机的硬件电路">10. 舵机的硬件电路</h2>
+<h3 id="10-1-引脚与线色-黑-棕-负-红-正-黄-橙-白-信号">10.1 引脚与线色：黑/棕=负、红=正、黄/橙/白=信号</h3>
+<ul>
+<li>硬件电路比较简单，先看<strong>引脚定义图</strong>：舵机上有三根线，分别是<strong>黑、红、黄</strong>：<ul>
+<li><strong>黑色是电源负极 GND</strong>；</li>
+<li><strong>红色是电源正极</strong>，<strong>5V 舵机就接 +5V</strong>；</li>
+<li><strong>黄色是信号线，接 PWM 信号</strong>。</li>
+</ul>
+</li>
+<li>不同厂家的线色可能不一样：套件里这个舵机是<strong>棕、红、橙</strong>，右边那个是<strong>黑、红、白</strong>——<strong>但引脚顺序是一样的</strong>（黑/棕 = 负，红 = 正，黄/橙/白 = 信号）。<strong>如果不确定，就到商品页面看引脚说明</strong>。</li>
+</ul>
+<h3 id="10-2-供电-5v-是电机驱动电源-独立供电要共地">10.2 供电：5V 是电机驱动电源，独立供电要共地</h3>
+<ul>
+<li><strong>GND</strong> 就接 <strong>GND</strong>。</li>
+<li><strong>电源正的 5V 是「电机的驱动电源」</strong>：<strong>一般电机都是大功率设备，它的驱动电源也必须是一个大功率的输出设备</strong>——<strong>如果能像这样单独提供供电，那就再好不过了</strong>；<strong>如果不能，那也要注意电源的功率是不是能达标</strong>。</li>
+<li><strong>如果单独供电的话，供电的负极要和 STM32 共地</strong>，然后<strong>正极接在 5V 供电引脚上</strong>。</li>
+<li>对这套套件：<strong>可以直接从 ST-Link 的 5V 输出脚引一根线接到这里</strong>，<strong>这样就是使用 USB 的 5V 供电，也是可以带得动的</strong>。</li>
+</ul>
+<h3 id="10-3-信号线-pwm-直接接-stm32-引脚-如-pa0">10.3 信号线：PWM 直接接 STM32 引脚（如 PA0）</h3>
+<ul>
+<li><strong>信号线 PWM 就直接接到 STM32 引脚上就行了，比如 PA0</strong>。</li>
+<li>为什么信号线可以随便接：<strong>因为这个舵机内部是有驱动电路的</strong>，所以<strong>单片机的引脚可以直接接到这里来</strong>；<strong>我们给的 PWM 只是一个通信线，是不需要大功率的</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/13-servo-wiring.jpg" alt="图 13：舵机硬件电路——上：引脚定义图（(0V) GND 黑、(+5V) 红、(PWM) 信号线 黄，标注 180°）；下：接线图（舵机的 GND→GND、5V→电机电源、PWM→PA0）"></p>
+<p><em>图 13：舵机硬件电路——上：引脚定义图（<code>(0V) GND</code> 黑、<code>(+5V)</code> 红、<code>(PWM) 信号线</code> 黄，标注 180°）；下：接线图（舵机的 GND→GND、5V→电机电源、PWM→PA0）</em></p>
+<h2 id="11-直流电机与驱动芯片">11. 直流电机与驱动芯片</h2>
+<h3 id="11-1-直流电机-大功率器件-gpio-不能直接驱动">11.1 直流电机：大功率器件，GPIO 不能直接驱动</h3>
+<ul>
+<li><strong>「直流电机是一种将电能转换为机械能的装置」</strong>——<strong>通电就转</strong>。</li>
+<li>它有<strong>两个电极</strong>：<strong>当电极正接时，电机正转；当电极反接时，电机反转</strong>；<strong>把正负极对调，电机就会朝另一个方向转</strong>。</li>
+<li>套件里的电机型号是 <strong>130 直流电机</strong>。</li>
+<li><strong>「直流电机属于大功率器件，GPIO 口无法直接驱动，需要配合电机驱动电路来操作」</strong>——<strong>电机这类器件基本上都属于大功率设备，必须要加驱动电路才能控制</strong>。</li>
+<li>和舵机的区别：<strong>舵机内部自带驱动电路</strong>，所以信号线可以直接接单片机；<strong>直流电机是一个单独的电机、里面没有驱动电路</strong>，所以要<strong>外挂一个驱动电路</strong>来控制。</li>
+</ul>
+<h3 id="11-2-常见驱动芯片与-tb6612">11.2 常见驱动芯片与 TB6612</h3>
+<ul>
+<li><strong>电机驱动电路也是一个研究课题</strong>，市面上的选择很多：<strong>TB6612、DRV8833、L9110、L298N</strong> 等等，这些都是比较常见的电机驱动芯片；另外还有一些<strong>用分立元件 MOS 管搭建的电路</strong>，<strong>功率可以做得更大一些</strong>。</li>
+<li><strong>本课程直接使用 TB6612 这款电机驱动芯片</strong>来驱动电机（拿来用就行）。</li>
+<li><strong>「TB6612 是一款双路 H 桥型的直流电机驱动芯片，可以驱动两个直流电机并且控制其转速和方向。」</strong> 芯片里面有<strong>两路驱动电路</strong>，可以独立地控制两个电机；又因为它是 <strong>H 桥型</strong>驱动电路，<strong>里面一路有四个开关管，所以就可以控制正反转</strong>。（有些芯片比如 ULN2003 里面一路就只有一个开关管，所以只能控制电机在一个方向转。）</li>
+</ul>
+<h3 id="11-3-h-桥结构-两路推挽控制正反">11.3 H 桥结构：两路推挽控制正反</h3>
+<ul>
+<li>右边那个图是 <strong>H 桥电路的基本结构</strong>：<strong>它是由两路推挽电路组成的</strong>（第 8.2 章分析过推挽）。</li>
+<li><strong>左边这一路</strong>：<strong>上管导通、下管断开</strong>，那左边输出就<strong>接在 VM（电机电源正极）<strong>上；<strong>下管导通、上管断开</strong>，那就是</strong>接在 PGND（电源负极）</strong>。</li>
+<li><strong>如果有两路推挽电路，中间接一个电机</strong>：<ul>
+<li><strong>左上和右下导通</strong>，<strong>电流就从左流向右</strong>；</li>
+<li><strong>右上和左下导通</strong>，<strong>电流方向就反过来了，从右流向左</strong>；</li>
+<li><strong>H 桥可以控制电流流过的方向，所以它就能控制电机正反转</strong>。</li>
+</ul>
+</li>
+<li>这就是电机驱动芯片内部的部分电路——<strong>大概了解一下即可，应用的话不用管这么多</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/14-motor-driver-intro.jpg" alt="图 14：PPT「直流电机及驱动简介」——直流电机是电能转机械能的装置，两个电极正接正转、反接反转；属大功率器件，GPIO 口无法直接驱动，需配合电机驱动电路；TB6612 是双路 H 桥型驱动芯片；下图：130 直流电机实物、TB6612 驱动模块（TB6612FNG）、H 桥结构图（VM / O1 / O2 / PGND，四个开关管）"></p>
+<p><em>图 14：PPT「直流电机及驱动简介」——直流电机是电能转机械能的装置，两个电极正接正转、反接反转；属大功率器件，GPIO 口无法直接驱动，需配合电机驱动电路；TB6612 是双路 H 桥型驱动芯片；下图：130 直流电机实物、TB6612 驱动模块（TB6612FNG）、H 桥结构图（VM / O1 / O2 / PGND，四个开关管）</em></p>
+<h2 id="12-tb6612-的硬件电路与引脚">12. TB6612 的硬件电路与引脚</h2>
+<h3 id="12-1-引脚定义表-画面原文">12.1 引脚定义表（画面原文）</h3>
+<table>
+<thead>
+<tr>
+<th>引脚</th>
+<th>定义（画面原文）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>VM</strong></td>
+<td>驱动电压输入端（4.5～10V）</td>
+</tr>
+<tr>
+<td><strong>VCC</strong></td>
+<td>逻辑电平输入端（2.7～5.5V）</td>
+</tr>
+<tr>
+<td><strong>GND</strong></td>
+<td>电源地端</td>
+</tr>
+<tr>
+<td><strong>STBY</strong></td>
+<td>正常工作/待机状态控制输入端</td>
+</tr>
+<tr>
+<td><strong>PWMA</strong></td>
+<td>PWM 信号输入端</td>
+</tr>
+<tr>
+<td><strong>AIN1</strong></td>
+<td>电机控制模式输入端</td>
+</tr>
+<tr>
+<td><strong>AIN2</strong></td>
+<td>电机控制模式输入端</td>
+</tr>
+<tr>
+<td><strong>AO1</strong></td>
+<td>电机驱动输出端</td>
+</tr>
+<tr>
+<td><strong>AO2</strong></td>
+<td>电机驱动输出端</td>
+</tr>
+<tr>
+<td><strong>PWMB</strong></td>
+<td>PWM 信号输入端</td>
+</tr>
+<tr>
+<td><strong>BIN1</strong></td>
+<td>电机控制模式输入端</td>
+</tr>
+<tr>
+<td><strong>BIN2</strong></td>
+<td>电机控制模式输入端</td>
+</tr>
+<tr>
+<td><strong>BO1</strong></td>
+<td>电机驱动输出端</td>
+</tr>
+<tr>
+<td><strong>BO2</strong></td>
+<td>电机驱动输出端</td>
+</tr>
+</tbody></table>
+<h3 id="12-2-三个电源脚-vm-vcc-gnd">12.2 三个电源脚：VM、VCC、GND</h3>
+<ul>
+<li><strong>VM</strong>：<strong>左下角 VM 就是电机电源的正极</strong>，<strong>这个和刚才舵机的电源要求是一样的</strong>，<strong>要接一个可以输出大电流的电源</strong>。<strong>这个电压一般和你的电机额定电压保持一致</strong>——<strong>5V 的电机这里就接 5V，7.2V 的电机这里就接 7.2V</strong>。</li>
+<li><strong>VCC</strong>：<strong>逻辑电平输入端，范围是 2.7 到 5.5V</strong>，<strong>这个要和我们控制器的电源保持一致</strong>——<strong>用 STM32（3.3V 器件）就接 3.3V，用 51 单片机（5V 器件）就接 5V</strong>。<strong>这个引脚并不需要大功率，所以可以和控制器共用一个电源</strong>。</li>
+<li><strong>GND</strong>：<strong>接系统的负极就行了</strong>；<strong>板子右边还有两个 GND，这个都是一样的引脚，在板子内部都是连通的，随便选一个用就可以</strong>。</li>
+</ul>
+<h3 id="12-3-控制引脚-ain1-ain2-pwma-与-stby">12.3 控制引脚：AIN1/AIN2/PWMA 与 STBY</h3>
+<ul>
+<li><strong>A 路控制三个脚：PWMA、AIN1、AIN2</strong>——<strong>这三个引脚直接接到单片机的 GPIO 口就行了</strong>：<ul>
+<li><strong>PWMA 引脚要接 PWM 信号输出端</strong>；</li>
+<li><strong>其它两个引脚可以任意接两个普通的 GPIO</strong>；</li>
+<li>这三个引脚给一个<strong>低功率的控制信号</strong>，<strong>驱动电路就会从 VM 汲取电流</strong>，来输出到电机——<strong>这样就能完成「低功率的控制信号控制大功率设备」的目的</strong>。</li>
+</ul>
+</li>
+<li><strong>B 路完全一样</strong>：<strong>BO1、BO2 是 B 路的两个输出</strong>，控制端是 <strong>BIN1、BIN2、PWMB</strong>，<strong>两路的功能和操作方法是完全一样的</strong>（两路可以分别接两个电机）。</li>
+<li><strong>STBY（StandBy）待机控制脚</strong>：<strong>接 GND，芯片就不工作、处于待机状态</strong>；<strong>接逻辑电源 VCC，芯片就正常工作</strong>；<strong>不需要待机模式的话，可以直接接 VCC（3.3V）</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-15/15-tb6612-pinout.jpg" alt="图 15：TB6612 硬件电路——左边接线图：模块上方一排 8 个脚（PWMA、AIN2、AIN1、STBY、BIN1、BIN2、PWMB、GND）接到 STM32 的 GPIO，画面上方引出的是 PA0/PA4/PA5/PA6/PA7/PA1；下方 VM 接电机电源（左侧标「电机电源」）、VCC 接 3V3、GND 接 GND，AO1/AO2 与 BO1/BO2 分别接两个电机；右边是引脚定义表（VM 驱动电压输入端 4.5～10V、VCC 逻辑电平 2.7～5.5V、GND、STBY、PWMA、AIN1/AIN2、AO1/AO2、PWMB、BIN1/BIN2、BO1/BO2）与真值表"></p>
+<p><em>图 15：TB6612 硬件电路——左边接线图：模块上方一排 8 个脚（PWMA、AIN2、AIN1、STBY、BIN1、BIN2、PWMB、GND）接到 STM32 的 GPIO，画面上方引出的是 <code>PA0</code>/<code>PA4</code>/<code>PA5</code>/<code>PA6</code>/<code>PA7</code>/<code>PA1</code>；下方 VM 接电机电源（左侧标「电机电源」）、VCC 接 <code>3V3</code>、GND 接 GND，AO1/AO2 与 BO1/BO2 分别接两个电机；右边是引脚定义表（VM 驱动电压输入端 4.5～10V、VCC 逻辑电平 2.7～5.5V、GND、STBY、PWMA、AIN1/AIN2、AO1/AO2、PWMB、BIN1/BIN2、BO1/BO2）与真值表</em></p>
+<h2 id="13-控制真值表与调速">13. 控制真值表与调速</h2>
+<h3 id="13-1-真值表-画面原文">13.1 真值表（画面原文）</h3>
+<p>这三个脚（IN1、IN2、PWM，再加 STBY）是如何控制电机正反转和速度的？看右下角的表：</p>
+<table>
+<thead>
+<tr>
+<th>IN1</th>
+<th>IN2</th>
+<th>PWM</th>
+<th>STBY</th>
+<th>O1</th>
+<th>O2</th>
+<th>模式状态</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>H</td>
+<td>H</td>
+<td>H/L</td>
+<td>H</td>
+<td>L</td>
+<td>L</td>
+<td><strong>制动</strong></td>
+</tr>
+<tr>
+<td>L</td>
+<td>H</td>
+<td>H</td>
+<td>H</td>
+<td>L</td>
+<td>H</td>
+<td><strong>反转</strong></td>
+</tr>
+<tr>
+<td>L</td>
+<td>H</td>
+<td>L</td>
+<td>H</td>
+<td>L</td>
+<td>L</td>
+<td>制动</td>
+</tr>
+<tr>
+<td>H</td>
+<td>L</td>
+<td>H</td>
+<td>H</td>
+<td>H</td>
+<td>L</td>
+<td><strong>正转</strong></td>
+</tr>
+<tr>
+<td>H</td>
+<td>L</td>
+<td>L</td>
+<td>H</td>
+<td>L</td>
+<td>L</td>
+<td>制动</td>
+</tr>
+<tr>
+<td>L</td>
+<td>L</td>
+<td>H</td>
+<td>H</td>
+<td>OFF</td>
+<td>—</td>
+<td><strong>停止</strong></td>
+</tr>
+<tr>
+<td>H/L</td>
+<td>H/L</td>
+<td>H/L</td>
+<td>L</td>
+<td>OFF</td>
+<td>—</td>
+<td><strong>待机</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>STBY 低电平就待机、高电平就正常工作</strong>，这个不用看（表里除了最后一行，STBY 都是 H）。</li>
+<li><strong>IN1 和 IN2 全都接高电平</strong>：<strong>两个输出就都为低电平，两个输出没有电压差，电机是不会转的</strong>——模式状态是<strong>制动</strong>。</li>
+<li><strong>IN1 和 IN2 全都接低电平</strong>：<strong>输出直接关闭，这样电机也是不会转的</strong>——模式状态是<strong>停止</strong>。<strong>全高或全低，电机都不能转</strong>。</li>
+<li>剩下的就只有<strong>一高一低</strong>了：<ul>
+<li><strong>IN1 给低电平、IN2 给高电平 → 电机处于反转状态</strong>；<strong>转还是不转取决于 PWM</strong>——<strong>PWM 给高电平，输出就是一低一高、有电压差了，电机可以转</strong>（定义为反转）；<strong>PWM 给低电平，输出两个低电平，电机还是不转</strong>。这就是反转的逻辑。</li>
+<li><strong>IN1 给高、IN2 给低 → 正转状态</strong>，同样 <strong>PWM 高就正转、PWM 低就停止</strong>。</li>
+</ul>
+</li>
+</ul>
+<h3 id="13-2-调速-pwm-频率够快-连续稳定旋转">13.2 调速：PWM 频率够快 = 连续稳定旋转</h3>
+<ul>
+<li>如果 <strong>PWM 是一个不断翻转的电平信号</strong>，那电机就是<strong>快速地「反转、停止、反转、停止」</strong>——<strong>如果 PWM 频率足够快，那电机就可以连续稳定地反转了</strong>，<strong>并且速度取决于 PWM 信号的占空比</strong>。</li>
+<li><strong>正转也一样</strong>：<strong>PWM 频率足够快，电机就是连续稳定地正转，并且速度取决于 PWM 信号的占空比</strong>。</li>
+<li>老师强调：<strong>「在这里的 PWM，就是我们之前讲的、使用 PWM 来等效一个模拟量的功能了。」</strong>——也就是说：<strong>IN1/IN2 决定方向（把电流通路定下来），PWM 负责「以多快频率、多大比例通断」，从而等效出「加在电机上的平均电压」，占空比越大平均电压越高、转速越快。</strong></li>
+</ul>
+<p><img src="../assets/images/stm32-15/16-tb6612-truth-table.jpg" alt="图 16：TB6612 硬件电路页（红圈标出 PWMA/AIN2/AIN1 三个控制脚）——右下角控制真值表：输入 IN1/IN2/PWM/STBY，输出 O1/O2 与模式状态（H H H/L H→L L 制动；L H H H→L H 反转；L H L H→L L 制动；H L H H→H L 正转；H L L H→L L 制动；L L H H→OFF 停止；H/L H/L H/L L→OFF 待机）"></p>
+<p><em>图 16：TB6612 硬件电路页（红圈标出 PWMA/AIN2/AIN1 三个控制脚）——右下角控制真值表：输入 IN1/IN2/PWM/STBY，输出 O1/O2 与模式状态（H H H/L H→L L 制动；L H H H→L H 反转；L H L H→L L 制动；H L H H→H L 正转；H L L H→L L 制动；L L H H→OFF 停止；H/L H/L H/L L→OFF 待机）</em></p>
+<h2 id="14-参考手册导读与下一集">14. 参考手册导读与下一集</h2>
+<ul>
+<li><strong>本小节涉及的参考手册章节</strong>（43:01 起）：<ul>
+<li><strong>捕获/比较通道</strong>（里面有捕获/比较单元的一些电路图）；</li>
+<li><strong>14.3.7 强置输出模式</strong>（手册原文；口述常说「强制输出模式」）；</li>
+<li><strong>14.3.8 输出比较模式</strong>——就是「CNT=CCR 时 REF 是冻结、置高、置低还是翻转」的那四种模式；</li>
+<li><strong>14.3.9 PWM 模式</strong>——「这个比较重要」；</li>
+<li><strong>14.4 节里的 <code>TIMx_SMCR</code>（从模式控制寄存器）</strong>——画面停在「14.4 TIMx 寄存器描述」书签与 <code>TIMx_SMCR</code> 的 <code>TS[2:0]</code>（触发选择）/ <code>SMS[2:0]</code>（从模式选择）说明页（44:11）。</li>
+</ul>
+</li>
+<li><strong>看手册的方法</strong>：手册「可能它的语言会比较晦涩难懂」，而且「经常会像这样引用一大堆寄存器的名字」，所以<strong>看的时候要多对照寄存器介绍来理解</strong>——<strong>「把功能描述和寄存器描述都对照看看，这样才好懂一些」</strong>，而且「这些寄存器的解释也都是很重要的内容」。本集<strong>没有逐页细看手册</strong>（老师说自己基本内容都讲过了，就不再带大家细看）。</li>
+<li><strong>片尾（44:16）</strong>：「好，那本小节到这单就结束了，<strong>我们下一小节再来学习一下 PWM 的代码部分</strong>。」——<strong>代码在 P16 [6-4]</strong>；<strong>预计</strong>下一集就是把这些内容写成代码——片头三个程序（呼吸灯/舵机/直流电机），以及实际算一遍第 7.4 节那道 1kHz/1%/占空比可调的参数题（<strong>待 P16 采集时核对</strong>）。</li>
+</ul>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>本集没有代码</strong>：不要在本集找 <code>TIM_OCInit</code>、<code>TIM_OCMode_PWM1</code>、<code>TIM_SetCompare1</code> 的用法——这些<strong>全在 P16 [6-4]</strong>；片头三个工程是<strong>现成的</strong>，只是演示现象。</li>
+<li><strong>占空比是 <code>CCR/(ARR+1)</code>，不是 <code>CCR/ARR</code></strong>：分母是<strong>ARR+1</strong>（CNT 从 0 数到 ARR 共 ARR+1 个数）。ARR=99 时一个周期是 100 个数。</li>
+<li><strong>高电平只有 CCR 个数、不是 CCR+1 个</strong>：<strong>CNT 等于 CCR 的瞬间就已经跳变为低电平</strong>，所以 CCR=30、ARR=99 时高电平是 CNT 取 0～29 共 30 个数，占空比 30/100=30%。</li>
+<li><strong><code>分辨率 = 1/(ARR+1)</code> 是「步距」，越小越好</strong>：这里是本书的定义（占空比最小变化步距）；如果按「CCR 范围」来定义分辨率，那就是<strong>越大越好</strong>——两种说法别打架。</li>
+<li><strong>CCR 一般取 0～ARR</strong>：<code>CCR = ARR+1</code> 时占空比正好 100%，<strong>再大就没意义了</strong>（恒为 100%）。</li>
+<li><strong>PWM模式2 = PWM模式1 输出取反</strong>：两者大小比较关系一样，只是高低电平反过来；<strong>实际只用 PWM模式1 + 向上计数</strong>就行，不用纠结模式2。</li>
+<li><strong>「有效电平/无效电平」在这里就当高/低电平</strong>：这是高级定时器的说法，本课程为了方便理解直接当高/低；真正的电平还可以被 <code>CC1P</code> 极性位反一次。</li>
+<li><strong>8 种模式里大部分是「不是用来输出连续波形」的</strong>：冻结（输出暂停、保持原状态）、匹配时置有效/置无效（适合一次性信号）、强制无效/有效（急停/强制输出）、匹配时电平翻转（<strong>占空比恒 50%，输出频率 = 更新频率/2</strong>）——只有 PWM1/PWM2 能同时调频率和占空比。</li>
+<li><strong>基本定时器没有输出比较</strong>：TIM6/TIM7 不能用这个功能；4 个通道<strong>各有各的 CCR、但共用一个 CNT</strong>。</li>
+<li><strong>PWM 只能用在「惯性系统」</strong>：LED（余晖+视觉暂留）、电机（转动惯性）可以，别指望用它控制一个没有惯性的东西。频率要够快（一般几 K～几十 KHz），否则会看到闪烁/抖动。</li>
+<li><strong>高级定时器的死区/互补只是为了驱动推挽/H 桥</strong>：<strong>上下管同时导通 = 电源短路</strong>，死区就是在切换时<strong>延时</strong>一下避免同时导通；这部分本集只要求了解。</li>
+<li><strong>舵机的 PWM 是「通信协议」不是「等效模拟量」</strong>：周期必须 <strong>20ms</strong>（50Hz），高电平 <strong>0.5～2.5ms</strong> 对应 -90°～+90°（线性）；给错周期/脉宽，舵机要么不动要么乱转。</li>
+<li><strong>舵机三根线颜色不能记死</strong>：黑/棕是负、红是正、黄/橙/白是信号，<strong>顺序一致</strong>；不确定就查商品页。<strong>电机电源是大功率的，独立供电时负极一定要和 STM32 共地</strong>。</li>
+<li><strong>直流电机 GPIO 不能直接驱动</strong>：必须加驱动电路（TB6612/DRV8833/L9110/L298N 或分立 MOS）；<strong>PWMA 必须接 PWM 输出端</strong>，AIN1/AIN2 可以接普通 GPIO。</li>
+<li><strong>TB6612 的 VM 和 VCC 别接反</strong>：<strong>VM 是电机电源（4.5～10V，接电机额定电压、要大电流）</strong>，<strong>VCC 是逻辑电源（2.7～5.5V，和控制器一致）</strong>；<strong>STBY 接 GND 会待机、芯片不工作</strong>，不需要待机就接 VCC。</li>
+<li><strong>真值表要记两条就够</strong>：<strong>IN1=IN2 全高 = 制动（两输出都低、无压差）</strong>、<strong>全低 = 停止（输出关闭）</strong>；<strong>一高一低才可能转，且 PWM 高才转、低就停</strong>——方向由谁高谁低决定。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:03</td>
+<td>开场：本小节继续学定时器的输出比较功能</td>
+</tr>
+<tr>
+<td>0:14</td>
+<td>动机：PWM 波形是驱动电机的必要条件；做智能车、机器人等有电机的项目就要好好学</td>
+</tr>
+<tr>
+<td>0:26</td>
+<td>先看本小节程序现象：共 3 个程序——PWM 驱动 LED 呼吸灯 / 舵机 / 直流电机</td>
+</tr>
+<tr>
+<td>0:43</td>
+<td>现象①：PA0 端口接了 LED；GPIO 是数字输出端口，电平不是高就是低</td>
+</tr>
+<tr>
+<td>1:01</td>
+<td>按理说 LED 只有完全亮/完全灭，怎么能连续调节亮度？这就是 PWM 的功劳</td>
+</tr>
+<tr>
+<td>1:21</td>
+<td>现象②：PWM 驱动舵机，按按键，输出轴角度不断变换，OLED 显示当前角度</td>
+</tr>
+<tr>
+<td>1:47</td>
+<td>每按一下角度变量变一次，舵机跟随到指定角度固定下来；角度可任意设置；现象②结束</td>
+</tr>
+<tr>
+<td>2:03</td>
+<td>现象③：PWM 驱动直流电机，电机转起来，OLED 显示当前速度值，目前 +20</td>
+</tr>
+<tr>
+<td>2:25</td>
+<td>按键加速：+40、+80、+100 正向满速；再按由 +100 变为 -100，立刻反向满速</td>
+</tr>
+<tr>
+<td>2:42</td>
+<td>继续 -80、-60、-40、-20，回到 0 电机停止；可任意控制方向和速度</td>
+</tr>
+<tr>
+<td>2:59</td>
+<td>开始看 PPT：输出比较模块如何控制这些设备；先看简介</td>
+</tr>
+<tr>
+<td>3:11</td>
+<td>OC 全称 Output Compare 输出比较；库函数里常出现这些英文缩写要了解；3:28 IC=Input Capture、CC=Capture/Compare</td>
+</tr>
+<tr>
+<td>3:44</td>
+<td>输出比较：比较 CNT 与 CCR 寄存器值的关系，对输出电平置1/置0/翻转，输出一定频率和占空比的 PWM 波形</td>
+</tr>
+<tr>
+<td>4:08</td>
+<td>CNT 和 CCR 在哪：CNT 是时基单元的计数器，CCR 是捕获/比较寄存器；4:35 CC=Capture/Compare、R=Register</td>
+</tr>
+<tr>
+<td>4:46</td>
+<td>输入捕获和输出比较共用 CCR；用输出比较时它就是比较寄存器</td>
+</tr>
+<tr>
+<td>4:51</td>
+<td>电路比较 CNT 和 CCR：CNT 自增、CCR 是给定值，大于/小于/等于时对应置1/置0，得到电平不断跳变的 PWM</td>
+</tr>
+<tr>
+<td>5:14</td>
+<td>每个高级定时器和通用定时器都有 4 个输出比较通道；基本定时器没有，本功能不能在它上面用</td>
+</tr>
+<tr>
+<td>5:44</td>
+<td>4 个通道可同时输出 4 路 PWM，各有各的 CCR、但共用一个 CNT</td>
+</tr>
+<tr>
+<td>5:59</td>
+<td>高级定时器前 3 个通道额外有死区生成和互补输出，用于驱动三相无刷电机，本课程不作重点</td>
+</tr>
+<tr>
+<td>6:14</td>
+<td>输出比较用途就是输出 PWM 波形；6:25 PWM = Pulse Width Modulation 脉冲宽度调制，是数字输出信号</td>
+</tr>
+<tr>
+<td>6:53</td>
+<td>在具有惯性的系统中，对一系列脉冲的宽度进行调制，等效获得所需模拟参量，常用于电机控速</td>
+</tr>
+<tr>
+<td>7:18</td>
+<td>回到最初的问题：LED 用 PWM 不断点亮/熄灭，频率够大就不闪烁、呈中等亮度</td>
+</tr>
+<tr>
+<td>7:52</td>
+<td>调控点亮与熄灭的时间比例可得不同亮度级别；电机调速同理（快速通断电维持中等速度）</td>
+</tr>
+<tr>
+<td>8:07</td>
+<td>PWM 的秘诀：天下武功，唯快不破</td>
+</tr>
+<tr>
+<td>8:23</td>
+<td>应用场景必须是惯性系统：LED 有余晖和人眼视觉暂留，电机断电后靠惯性才停</td>
+</tr>
+<tr>
+<td>8:47</td>
+<td>高低电平跳变的数字信号可等效为中间的模拟量：高电平时间长等效量偏高，反之偏低</td>
+</tr>
+<tr>
+<td>9:14</td>
+<td>参数一：频率 = 1/T_S，T_S 是高低电平变换周期；频率越快越平稳、性能开销越大</td>
+</tr>
+<tr>
+<td>9:34</td>
+<td>一般 PWM 频率在几 K 到几十 KHz 就已经足够快了</td>
+</tr>
+<tr>
+<td>9:41</td>
+<td>参数二：占空比 = T_ON/T_S（高电平时间/周期），一般用百分比表示</td>
+</tr>
+<tr>
+<td>10:00</td>
+<td>50% 是高低电平相等的方波、20% 是高 20% 低 80%、100% 恒高、0% 恒低</td>
+</tr>
+<tr>
+<td>10:21</td>
+<td>占空比决定等效模拟电压大小、越小越趋近低电平；线性等效（5V 系统 50%→2.5V、20%→1V）</td>
+</tr>
+<tr>
+<td>10:57</td>
+<td>参数三：分辨率 = 占空比变化步距（1% 步距→1%，0.1% 步距→0.1%）</td>
+</tr>
+<tr>
+<td>11:29</td>
+<td>分辨率是占空比变化的精细程度，要求不高时 1% 足够；11:41 小结：PWM 让数字系统等效输出模拟量</td>
+</tr>
+<tr>
+<td>11:53</td>
+<td>分析输出比较模块怎么输出 PWM：上面是高级定时器前 3 通道电路、下面是通用定时器电路</td>
+</tr>
+<tr>
+<td>12:25</td>
+<td>图125：左边是 CNT 与 CCR1 比较结果，右边经 TIMx_CH1 输出到 GPIO；下面还有三个单元输出 CH2/CH3/CH4</td>
+</tr>
+<tr>
+<td>12:54</td>
+<td>CNT&gt;CCR1 或 CNT=CCR1 时给输出模式控制器信号，控制器改变 OC1REF 的高低电平</td>
+</tr>
+<tr>
+<td>13:16</td>
+<td>REF = reference 参考信号；13:23 上方 ETRF 一般不用，REF 可映射到 TRGO，但主要去向是下面一路</td>
+</tr>
+<tr>
+<td>13:46</td>
+<td>极性选择：写 0 信号直通、写 1 过非门取反（CC1P，TIMx_CCER）</td>
+</tr>
+<tr>
+<td>14:11</td>
+<td>输出使能电路决定要不要输出（CC1E），最后到 OC1 引脚，具体 GPIO 查引脚定义表</td>
+</tr>
+<tr>
+<td>14:36</td>
+<td>输出模式控制器怎么工作：8 种模式、可通过寄存器配置</td>
+</tr>
+<tr>
+<td>15:06</td>
+<td>冻结：CNT=CCR 时 REF 保持原状态，即 CNT/CCR 无效；15:42 切换后输出暂停、保持暂停时刻的电平</td>
+</tr>
+<tr>
+<td>15:53</td>
+<td>匹配时置有效/置无效/电平翻转：有效/无效电平≈高/低；16:04 三者都是 CNT=CCR 时执行操作</td>
+</tr>
+<tr>
+<td>17:01</td>
+<td>匹配时电平翻转：每更新两次输出一个周期、占空比恒 50%，输出频率 = 更新频率/2</td>
+</tr>
+<tr>
+<td>17:31</td>
+<td>匹配时置有效/置无效用途不大，适合一次性信号；18:04 强制无效/有效≈冻结，可用于急停/强制输出</td>
+</tr>
+<tr>
+<td>18:24</td>
+<td>PWM模式1/PWM模式2 非常重要（频率和占空比都可调）；18:39 PWM1 向上计数：CNT&lt;CCR 置有效、CNT≥CCR 置无效</td>
+</tr>
+<tr>
+<td>19:26</td>
+<td>PWM2 大小比较关系与 PWM1 相同、只是高低反过来 = PWM1 输出取反；19:50 输出模式与最终输出前都可设极性</td>
+</tr>
+<tr>
+<td>20:12</td>
+<td>结论：只使用 PWM模式1 + 向上计数 这一种模式</td>
+</tr>
+<tr>
+<td>20:24</td>
+<td>PWM 基本结构（本节重点图）：左上时基单元和运行控制，时钟源选择省略</td>
+</tr>
+<tr>
+<td>20:47</td>
+<td>上一小节内容继续用，只是更新中断不需要了；输出 PWM 暂时还不需要中断</td>
+</tr>
+<tr>
+<td>21:02</td>
+<td>时基单元配好后 CNT 就开始自增；下面输出比较单元共 4 路，最先是 CCR（自己设定），与 CNT 不断比较</td>
+</tr>
+<tr>
+<td>21:29</td>
+<td>后面是输出模式控制器，以 PWM模式1 为例；21:44 看波形图：蓝色线 CNT、黄色线 ARR</td>
+</tr>
+<tr>
+<td>22:00</td>
+<td>再画红色线 CCR（比如 CCR=30）；CNT≥CCR 就变为低电平，之后每次 CNT≥CCR 都置低</td>
+</tr>
+<tr>
+<td>22:37</td>
+<td>占空比受 CCR 调控（CCR 高变大、低变小）；REF 就是频率/占空比都可调的 PWM；23:02 经极性/输出使能到 GPIO</td>
+</tr>
+<tr>
+<td>23:11</td>
+<td>参数计算：PWM 频率 = 计数器更新频率（一个周期始终对应一个溢出更新周期）</td>
+</tr>
+<tr>
+<td>23:34</td>
+<td>公式：Freq = CK_PSC/(PSC+1)/(ARR+1)</td>
+</tr>
+<tr>
+<td>23:41</td>
+<td>占空比：CNT 从 0 加到 ARR（99）共 100 个数；高电平从 0 加到 CCR（30），等于 30 瞬间已跳低</td>
+</tr>
+<tr>
+<td>24:06</td>
+<td>高电平是 0～29 共 30 个数，占空比 30/100=30%；公式 Duty = CCR/(ARR+1)</td>
+</tr>
+<tr>
+<td>24:42</td>
+<td>CCR 一般取 0～ARR；CCR=ARR+1 时占空比正好 100%，再大就没意义</td>
+</tr>
+<tr>
+<td>24:53</td>
+<td>分辨率 = 1/(ARR+1)：ARR 越大 CCR 范围越大、分辨率越高（步距越小）</td>
+</tr>
+<tr>
+<td>25:06</td>
+<td>本书定义的分辨率是占空比最小变化步距，越小越好；也可把 CCR 范围当分辨率（越大越好）</td>
+</tr>
+<tr>
+<td>25:21</td>
+<td>公式汇总；练习：输出 1kHz、占空比任意可调、分辨率 1% 的 PWM，参数怎么定？（下一小节实操）</td>
+</tr>
+<tr>
+<td>25:45</td>
+<td>高级定时器输出比较电路（图78）仅作了解、不需掌握；圈出的电路要结合外电路理解</td>
+</tr>
+<tr>
+<td>26:09</td>
+<td>外电路：上面正极 → 大功率开关管（MOS）→ 再来一个 MOS；控制极高电平导通、低电平断开</td>
+</tr>
+<tr>
+<td>26:53</td>
+<td>上管通下管断 → 输出高；上断下通 → 输出低；上下都通 = 电源短路（不允许）；上下都断 = 高阻态</td>
+</tr>
+<tr>
+<td>27:05</td>
+<td>两个推挽电路构成 H 桥，可控制直流电机正反转；27:25 单片机直接控制需两个互补控制极</td>
+</tr>
+<tr>
+<td>28:08</td>
+<td>死区生成：上管关断时延时一小段时间再导通下管（反向同理），避免同时导通造成功率损耗、发热</td>
+</tr>
+<tr>
+<td>28:52</td>
+<td>舵机：根据输入 PWM 占空比控制输出角度的装置；输入要求周期 20ms、高电平 0.5～2.5ms</td>
+</tr>
+<tr>
+<td>29:05</td>
+<td>套件舵机型号 SG90、三根线（两根电源+一根信号线）；29:25 拆解：上盖/输出轴/减速齿轮组/直流电机/控制板/电位器</td>
+</tr>
+<tr>
+<td>29:52</td>
+<td>内部闭环：PWM 给控制板目标角度 → 电位器测当前角度 → 大于目标则电机反转 → 输出轴固定在指定角度</td>
+</tr>
+<tr>
+<td>30:26</td>
+<td>输入要求：周期 20ms（50Hz）、高电平 0.5～2.5ms；180° 舵机输出轴 -90°～+90°（也可规定 0～180°）</td>
+</tr>
+<tr>
+<td>31:11</td>
+<td>上升沿到下一个上升沿 20ms；脉宽 0.5ms→-90°、1ms→-45°、1.5ms→0°、2ms→+45°、2.5ms→+90°（线性分配）</td>
+</tr>
+<tr>
+<td>31:51</td>
+<td>应用：遥控车/遥控船控制方向、机械臂等；32:00 PWM 在这里当通信协议用（一根信号线），与等效模拟量关系不大</td>
+</tr>
+<tr>
+<td>32:28</td>
+<td>舵机硬件电路：黑=GND、红=+5V、黄=信号线 PWM；33:08 线色还有棕红橙/黑红白，引脚顺序一样，不确定查商品页</td>
+</tr>
+<tr>
+<td>33:28</td>
+<td>GND 接 GND；5V 是电机驱动电源（大功率），最好独立供电、独立供电时负极要共地；33:50 可从 ST-Link 的 5V 引线</td>
+</tr>
+<tr>
+<td>34:03</td>
+<td>信号线 PWM 直连 STM32 引脚如 PA0（舵机内部有驱动电路，信号线不需大功率）</td>
+</tr>
+<tr>
+<td>34:26</td>
+<td>直流电机：电能→机械能，两个电极正接正转/反接反转；套件型号 130；35:03 正负极对调则换向</td>
+</tr>
+<tr>
+<td>35:32</td>
+<td>属大功率器件、GPIO 口无法直接驱动，需配合电机驱动电路；常见芯片 TB6612、DRV8833、L9110、L298N，也可分立 MOS</td>
+</tr>
+<tr>
+<td>36:15</td>
+<td>本课程用 TB6612：双路 H 桥型，可驱动两个直流电机并控制转速和方向</td>
+</tr>
+<tr>
+<td>36:55</td>
+<td>H 桥：两路推挽；上管通→接 VM、下管通→接 PGND；左上+右下导通电流左→右，反之反向；37:28 所以能控正反转</td>
+</tr>
+<tr>
+<td>37:46</td>
+<td>TB6612 硬件电路与引脚表：VM(4.5～10V)/VCC(2.7～5.5V)/GND/STBY/PWMA/AIN1/AIN2/AO1/AO2/PWMB/BIN1/BIN2/BO1/BO2</td>
+</tr>
+<tr>
+<td>38:15</td>
+<td>VM 与电机额定电压一致（5V 电机接 5V、7.2V 接 7.2V），需能输出大电流</td>
+</tr>
+<tr>
+<td>38:40</td>
+<td>VCC 逻辑电平 2.7～5.5V，与控制器电源一致（STM32 3.3V、51 5V）；不需大功率，可与控制器共电源</td>
+</tr>
+<tr>
+<td>38:46</td>
+<td>GND 接系统负极，板上多个 GND 内部连通任选一个；两路可分别接两个电机</td>
+</tr>
+<tr>
+<td>39:25</td>
+<td>AIN1/AIN2/PWMA 接单片机 GPIO，PWMA 必须接 PWM 输出端，其余可任意接普通 GPIO</td>
+</tr>
+<tr>
+<td>40:12</td>
+<td>低功率控制信号→驱动电路从 VM 汲取电流→驱动电机（B 路同理）；STBY 接 GND 待机、接 VCC 正常工作</td>
+</tr>
+<tr>
+<td>40:36</td>
+<td>真值表：输入 IN1/IN2/PWM/STBY → 输出 O1/O2 与模式状态</td>
+</tr>
+<tr>
+<td>40:58</td>
+<td>IN1=IN2 全高 → 两输出全低、无压差，电机不转（制动）；全低 → 输出关闭（停止）</td>
+</tr>
+<tr>
+<td>41:40</td>
+<td>IN1 低、IN2 高 → 反转；PWM 高才有压差才转、PWM 低不转</td>
+</tr>
+<tr>
+<td>42:04</td>
+<td>PWM 不断翻转且频率足够快 → 连续稳定反转，速度取决于占空比；这里的 PWM 就是等效模拟量</td>
+</tr>
+<tr>
+<td>42:39</td>
+<td>正转同理：IN1 高、IN2 低，PWM 高正转、低停，频率够快即连续稳定正转</td>
+</tr>
+<tr>
+<td>43:01</td>
+<td>参考手册：捕获/比较通道、14.3.7 强置输出模式、14.3.8 输出比较模式、14.3.9 PWM 模式、14.4 TIMx_SMCR（从模式控制寄存器）</td>
+</tr>
+<tr>
+<td>43:52</td>
+<td>看手册要把功能描述与寄存器描述对照看，寄存器名晦涩很正常</td>
+</tr>
+<tr>
+<td>44:16</td>
+<td>结尾：本小节结束，下一小节学习 PWM 的代码部分</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，596 段），不是 ASR；片头 Keil 窗口的 <code>Flash Load finished at 13:54:47</code> 之类的<strong>软件提示</strong>也被当成字幕抓进来了，<strong>不是老师口述内容</strong>。典型 OCR 错字（本集实际出现）：<code>舵机</code> → 「舱机」、<code>GPIO 口</code> → 「GPlO回」、<code>比较</code> → 「此较」、<code>占空比</code> → 「占空此/占空北」、<code>时基单元</code> → 「时间单元」（20:34 画面写的是「时基单元」）、<code>几十 KHz</code> → 「机十KHz」、<code>任意</code> → 「低意」、<code>目前是+20</code> → 「自前是+20」、<code>TB6612</code> → 「B6612」、<code>ST-Link</code> → 「STLNK」、<code>L9110</code> → 「L911O」、<code>三相无刷电机</code> → 「言相无刷电机」、<code>延迟</code> → 「延退」、<code>避免</code> → 「辟免」、<code>上管</code> → 「止管」、<code>CCR</code> → 「ICCR」、<code>上面</code> → 「单面」、<code>白色</code> → 「自色」、<code>引脚</code> → 「引I脚」、<code>输出比较</code> → 「输出此较」、<code>输出频率=更新频率/2</code> → 「频率-更新频率2」等，已按画面和上下文校正。另有大量行首噪声（<code>吕一</code>、<code>吕一一</code>、<code>豆半</code>、<code>十一</code>、<code>山！</code>、<code>厂</code>、<code>门</code>、<code>三一</code> 等）直接丢弃。</li>
+<li>视频 <strong>43:01–44:22</strong> 一大段是<strong>参考手册 PDF 截图</strong>，OCR 夹带了大量手册正文（如「灵活的静态存储器控制器(FSMC)」「本译文仅供参考」等），这些<strong>不是口述内容</strong>，本笔记只引用了口述明确说到的章节号（14.3.7 强置输出模式 / 14.3.8 输出比较模式 / 14.3.9 PWM 模式 / 14.4 TIMx 寄存器描述）；其中 <code>TIMx_SMCR</code> 的具体小节号 14.4.3 在画面书签树里没有展开，是按手册编号补的。</li>
+<li><strong>素材目录号与本视频小节号不是同一套</strong>：片头三个工程的 Keil 标题栏是 <code>6-3 PWM驱动LED呼吸灯</code>、<code>6-4 PWM驱动舵机</code>、<code>6-5 PWM驱动直流电机</code>（按<strong>代码工程</strong>编号），而本视频是 <strong>[6-3] 输出比较</strong>（按<strong>视频小节</strong>编号）。所以本集只能确认「代码在下一集 [6-4]」，具体 P16 覆盖哪几个程序要等 P16 采集时再核对。</li>
+<li><strong>片头原帧里的 Keil 代码区看不清</strong>（1280px 宽、代码字体很小），视频也没有讲代码，所以图 1/2/3 的图注只写现象与工程名，不写代码内容。</li>
+<li><strong>舵机 1.5ms 的角度在画面上排成了 <code>-0°</code></strong>（不是 <code>0°</code>），2ms / 2.5ms 两行也漏了 <code>+</code> 号（画面是 <code>45°</code>、<code>90°</code>），而口述是「+45 度」「+90 度」——本笔记按口述写 -90°/-45°/0°/+45°/+90°，并在表中注明画面原样，判断是 PPT 排版/渲染问题。</li>
+<li><strong>TB6612 接线图的 VM 一侧同时出现「电机电源」与 <code>3V3</code> 两个标注</strong>：画面接线图里 VM 接左侧的「电机电源」符号、VCC 接 <code>3V3</code>、GND 接 GND，与口述一致（VM 与电机额定电压一致、VCC 与控制器电源 3.3V 一致）；不过这段线条比较密、<code>3V3</code> 与「电机电源」符号挨得近，<strong>VM 究竟接独立电机电源还是借板上 3V3 供电，画面不能 100% 确认</strong>，这里<strong>存疑</strong>；引脚定义本身（VM = 电机电源输入、VCC = 逻辑电源）不受影响。</li>
+<li><strong>本集结尾戛然而止</strong>：44:16 说完「下一小节学习 PWM 代码部分」后画面停在手册页、44:22 结束，<strong>没有片尾/「本节小结」页</strong>；本笔记的小结（第 14 章、坑与易错点）是按口述内容自行归纳的。</li>
+<li><strong>本集没有给「定时器通道 ↔ GPIO 引脚」的对应表</strong>：视频只说「具体是哪个 GPIO 口，查引脚定义表」，所以本笔记不写 TIMx_CHy ↔ PAx 的对应关系（例如 PA0 具体是哪个通道的 CHy），需要时另查 F10x 数据手册。</li>
+<li>高级定时器的 <strong><code>DTG[7:0]</code>、<code>BDTR</code>、<code>MOE/OSSR/OSSI</code></strong> 等只在图78 里出现，视频明确说「仅作了解、不需要掌握」，<strong>没有讲具体配置方法</strong>。</li>
+<li>片头演示画面里的数值（<code>Angle:060</code>、<code>Speed:+20</code>/<code>-100</code>）只是录制时刻的瞬时值，具体数字随按键次数变化，不是固定现象。</li>
+<li><strong>有两处内容落在 OCR 缺行段、没有直接文字依据</strong>（与上下文和公式一致，按推断记录）：①「<strong>CCR 一般取 0～ARR</strong>」——24:35–24:42 那段字幕整段缺行（<code>subtitle_frames.tsv</code> 同区间也无文本），本笔记是按 <code>Duty = CCR/(ARR+1)</code> 与「CCR = ARR+1 时正好 100%」反推的；②「<strong>可用于紧急急停</strong>」——18:07–18:13 字幕同样缺行，帧 f_00100（18:09）只拍到后半句「那你就可以设置这两个强制输出模式」，「紧急急停」是按上下文补的说法，未必是原话。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-16.html"><span class="label">下一篇</span>[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+    <a class="next" href="stm32-14.html"><span class="label">上一篇</span>[6-2] 定时器定时中断 / 定时器外部时钟</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E4%BB%A3%E7%A0%81%E5%9C%A8%E4%B8%8B%E4%B8%80%E9%9B%86">0. 本集定位：理论课，代码在下一集</a>
+        <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E4%B8%89%E4%B8%AA%E7%8E%B0%E8%B1%A1-%E8%BF%99%E4%B8%80%E8%8A%82%E8%A6%81%E8%A7%A3%E5%86%B3%E4%BB%80%E4%B9%88">1. 片头三个现象：这一节要解决什么</a>
+        <a class="level-3" href="#1-1-%E7%8E%B0%E8%B1%A11-pwm-%E9%A9%B1%E5%8A%A8-led-%E5%91%BC%E5%90%B8%E7%81%AF-00-43-01-21">1.1 现象①：PWM 驱动 LED 呼吸灯（00:43–01:21）</a>
+        <a class="level-3" href="#1-2-%E7%8E%B0%E8%B1%A12-pwm-%E9%A9%B1%E5%8A%A8%E8%88%B5%E6%9C%BA-01-21-02-03">1.2 现象②：PWM 驱动舵机（01:21–02:03）</a>
+        <a class="level-3" href="#1-3-%E7%8E%B0%E8%B1%A13-pwm-%E9%A9%B1%E5%8A%A8%E7%9B%B4%E6%B5%81%E7%94%B5%E6%9C%BA-02-03-02-59">1.3 现象③：PWM 驱动直流电机（02:03–02:59）</a>
+        <a class="level-2" href="#2-%E8%BE%93%E5%87%BA%E6%AF%94%E8%BE%83%E6%98%AF%E4%BB%80%E4%B9%88">2. 输出比较是什么</a>
+        <a class="level-3" href="#2-1-%E4%B8%89%E4%B8%AA%E8%8B%B1%E6%96%87%E7%BC%A9%E5%86%99-oc-ic-cc">2.1 三个英文缩写：OC / IC / CC</a>
+        <a class="level-3" href="#2-2-%E6%A0%B8%E5%BF%83%E5%8A%9F%E8%83%BD-%E6%AF%94%E8%BE%83-cnt-%E4%B8%8E-ccr-%E8%BE%93%E5%87%BA-pwm">2.2 核心功能：比较 CNT 与 CCR，输出 PWM</a>
+        <a class="level-3" href="#2-3-4-%E4%B8%AA%E9%80%9A%E9%81%93-%E4%B8%80%E4%B8%AA-cnt-%E5%9F%BA%E6%9C%AC%E5%AE%9A%E6%97%B6%E5%99%A8%E6%B2%A1%E6%9C%89">2.3 4 个通道、一个 CNT、基本定时器没有</a>
+        <a class="level-2" href="#3-pwm-%E7%AE%80%E4%BB%8B">3. PWM 简介</a>
+        <a class="level-3" href="#3-1-pwm-%E6%98%AF%E4%BB%80%E4%B9%88-%E6%95%B0%E5%AD%97%E4%BF%A1%E5%8F%B7-%E6%83%AF%E6%80%A7%E7%B3%BB%E7%BB%9F">3.1 PWM 是什么：数字信号 + 惯性系统</a>
+        <a class="level-3" href="#3-2-%E4%B8%89%E4%B8%AA%E5%8F%82%E6%95%B0-%E9%A2%91%E7%8E%87-%E5%8D%A0%E7%A9%BA%E6%AF%94-%E5%88%86%E8%BE%A8%E7%8E%87">3.2 三个参数：频率、占空比、分辨率</a>
+        <a class="level-3" href="#3-3-%E7%94%A8-pwm-%E5%B0%B1%E8%83%BD%E5%9C%A8%E6%95%B0%E5%AD%97%E7%B3%BB%E7%BB%9F%E9%87%8C-%E8%BE%93%E5%87%BA%E6%A8%A1%E6%8B%9F%E9%87%8F">3.3 用 PWM 就能在数字系统里「输出模拟量」</a>
+        <a class="level-2" href="#4-%E9%80%9A%E7%94%A8%E5%AE%9A%E6%97%B6%E5%99%A8%E7%9A%84%E8%BE%93%E5%87%BA%E6%AF%94%E8%BE%83%E9%80%9A%E9%81%93%E7%94%B5%E8%B7%AF-%E5%9B%BE125">4. 通用定时器的输出比较通道电路（图125）</a>
+        <a class="level-3" href="#4-1-%E4%BF%A1%E5%8F%B7%E9%80%9A%E8%B7%AF-%E4%BB%8E%E6%AF%94%E8%BE%83%E7%BB%93%E6%9E%9C%E5%88%B0%E5%BC%95%E8%84%9A">4.1 信号通路：从比较结果到引脚</a>
+        <a class="level-3" href="#4-2-%E8%BF%99%E6%9D%A1%E9%80%9A%E8%B7%AF%E4%B8%8A%E8%A6%81%E8%AE%B0%E7%9A%84%E5%AF%84%E5%AD%98%E5%99%A8%E4%BD%8D">4.2 这条通路上要记的寄存器位</a>
+        <a class="level-2" href="#5-%E8%BE%93%E5%87%BA%E6%AF%94%E8%BE%83%E7%9A%84-8-%E7%A7%8D%E6%A8%A1%E5%BC%8F">5. 输出比较的 8 种模式</a>
+        <a class="level-3" href="#5-1-%E6%A8%A1%E5%BC%8F%E6%80%BB%E8%A1%A8">5.1 模式总表</a>
+        <a class="level-3" href="#5-2-%E9%80%90%E4%B8%AA%E7%9C%8B-%E5%93%AA%E4%BA%9B%E6%9C%89%E5%AE%9E%E9%99%85%E7%94%A8%E9%80%94">5.2 逐个看：哪些有实际用途</a>
+        <a class="level-3" href="#5-3-%E7%BB%93%E8%AE%BA-%E5%AE%9E%E9%99%85%E5%8F%AA%E7%94%A8-pwm%E6%A8%A1%E5%BC%8F1-%E5%90%91%E4%B8%8A%E8%AE%A1%E6%95%B0">5.3 结论：实际只用 PWM模式1 + 向上计数</a>
+        <a class="level-2" href="#6-pwm-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84-%E6%9C%AC%E8%8A%82%E9%87%8D%E7%82%B9%E5%9B%BE">6. PWM 基本结构：本节重点图</a>
+        <a class="level-3" href="#6-1-%E7%BB%93%E6%9E%84%E7%BB%84%E6%88%90">6.1 结构组成</a>
+        <a class="level-3" href="#6-2-%E6%B3%A2%E5%BD%A2%E5%9B%BE%E6%80%8E%E4%B9%88%E8%AF%BB-cnt-arr-ccr-%E4%B8%89%E6%9D%A1%E7%BA%BF">6.2 波形图怎么读：CNT、ARR、CCR 三条线</a>
+        <a class="level-2" href="#7-pwm-%E7%9A%84%E4%B8%89%E4%B8%AA%E5%8F%82%E6%95%B0%E6%80%8E%E4%B9%88%E7%AE%97">7. PWM 的三个参数怎么算</a>
+        <a class="level-3" href="#7-1-pwm-%E9%A2%91%E7%8E%87-%E8%AE%A1%E6%95%B0%E5%99%A8%E6%9B%B4%E6%96%B0%E9%A2%91%E7%8E%87">7.1 PWM 频率 = 计数器更新频率</a>
+        <a class="level-3" href="#7-2-%E5%8D%A0%E7%A9%BA%E6%AF%94-ccr-arr-1-%E9%AB%98%E7%94%B5%E5%B9%B3%E5%85%B6%E5%AE%9E%E5%8F%AA%E6%9C%89-ccr-%E4%B8%AA%E6%95%B0">7.2 占空比 = CCR / (ARR + 1)：高电平其实只有 CCR 个数</a>
+        <a class="level-3" href="#7-3-%E5%88%86%E8%BE%A8%E7%8E%87-1-arr-1-%E8%B6%8A%E5%B0%8F%E8%B6%8A%E5%A5%BD">7.3 分辨率 = 1 / (ARR + 1)：越小越好</a>
+        <a class="level-3" href="#7-4-%E8%A7%86%E9%A2%91%E7%95%99%E7%9A%84%E7%BB%83%E4%B9%A0%E9%A2%98-%E4%B8%8B%E4%B8%80%E9%9B%86%E5%AE%9E%E6%93%8D">7.4 视频留的练习题（下一集实操）</a>
+        <a class="level-2" href="#8-%E9%AB%98%E7%BA%A7%E5%AE%9A%E6%97%B6%E5%99%A8%E7%9A%84%E8%BE%93%E5%87%BA%E6%AF%94%E8%BE%83%E9%80%9A%E9%81%93-%E4%BB%85%E4%BD%9C%E4%BA%86%E8%A7%A3">8. 高级定时器的输出比较通道（仅作了解）</a>
+        <a class="level-3" href="#8-1-%E5%A4%9A%E5%87%BA%E6%9D%A5%E7%9A%84%E9%83%A8%E5%88%86-%E6%AD%BB%E5%8C%BA%E5%8F%91%E7%94%9F%E5%99%A8%E4%B8%8E%E4%BA%92%E8%A1%A5%E8%BE%93%E5%87%BA">8.1 多出来的部分：死区发生器与互补输出</a>
+        <a class="level-3" href="#8-2-%E4%B8%BA%E4%BB%80%E4%B9%88%E8%A6%81%E6%AD%BB%E5%8C%BA-%E5%85%88%E7%9C%8B%E5%A4%96%E7%94%B5%E8%B7%AF-%E6%8E%A8%E6%8C%BD">8.2 为什么要死区：先看外电路（推挽）</a>
+        <a class="level-3" href="#8-3-%E6%AD%BB%E5%8C%BA%E7%94%9F%E6%88%90-%E5%BB%B6%E6%97%B6%E4%B8%80%E5%B0%8F%E6%AE%B5%E5%86%8D%E5%AF%BC%E9%80%9A">8.3 死区生成：延时一小段再导通</a>
+        <a class="level-2" href="#9-%E8%88%B5%E6%9C%BA">9. 舵机</a>
+        <a class="level-3" href="#9-1-%E8%88%B5%E6%9C%BA%E6%98%AF%E4%BB%80%E4%B9%88-%E5%86%85%E9%83%A8%E9%97%AD%E7%8E%AF%E7%9A%84%E5%B0%8F%E7%94%B5%E6%9C%BA%E7%B3%BB%E7%BB%9F">9.1 舵机是什么：内部闭环的小电机系统</a>
+        <a class="level-3" href="#9-2-%E8%BE%93%E5%85%A5%E8%A6%81%E6%B1%82-%E5%91%A8%E6%9C%9F-20ms-%E9%AB%98%E7%94%B5%E5%B9%B3-0-5ms-2-5ms">9.2 输入要求：周期 20ms、高电平 0.5ms～2.5ms</a>
+        <a class="level-3" href="#9-3-%E5%BA%94%E7%94%A8-pwm-%E5%9C%A8%E8%BF%99%E9%87%8C%E6%98%AF-%E9%80%9A%E4%BF%A1%E5%8D%8F%E8%AE%AE">9.3 应用：PWM 在这里是「通信协议」</a>
+        <a class="level-2" href="#10-%E8%88%B5%E6%9C%BA%E7%9A%84%E7%A1%AC%E4%BB%B6%E7%94%B5%E8%B7%AF">10. 舵机的硬件电路</a>
+        <a class="level-3" href="#10-1-%E5%BC%95%E8%84%9A%E4%B8%8E%E7%BA%BF%E8%89%B2-%E9%BB%91-%E6%A3%95-%E8%B4%9F-%E7%BA%A2-%E6%AD%A3-%E9%BB%84-%E6%A9%99-%E7%99%BD-%E4%BF%A1%E5%8F%B7">10.1 引脚与线色：黑/棕=负、红=正、黄/橙/白=信号</a>
+        <a class="level-3" href="#10-2-%E4%BE%9B%E7%94%B5-5v-%E6%98%AF%E7%94%B5%E6%9C%BA%E9%A9%B1%E5%8A%A8%E7%94%B5%E6%BA%90-%E7%8B%AC%E7%AB%8B%E4%BE%9B%E7%94%B5%E8%A6%81%E5%85%B1%E5%9C%B0">10.2 供电：5V 是电机驱动电源，独立供电要共地</a>
+        <a class="level-3" href="#10-3-%E4%BF%A1%E5%8F%B7%E7%BA%BF-pwm-%E7%9B%B4%E6%8E%A5%E6%8E%A5-stm32-%E5%BC%95%E8%84%9A-%E5%A6%82-pa0">10.3 信号线：PWM 直接接 STM32 引脚（如 PA0）</a>
+        <a class="level-2" href="#11-%E7%9B%B4%E6%B5%81%E7%94%B5%E6%9C%BA%E4%B8%8E%E9%A9%B1%E5%8A%A8%E8%8A%AF%E7%89%87">11. 直流电机与驱动芯片</a>
+        <a class="level-3" href="#11-1-%E7%9B%B4%E6%B5%81%E7%94%B5%E6%9C%BA-%E5%A4%A7%E5%8A%9F%E7%8E%87%E5%99%A8%E4%BB%B6-gpio-%E4%B8%8D%E8%83%BD%E7%9B%B4%E6%8E%A5%E9%A9%B1%E5%8A%A8">11.1 直流电机：大功率器件，GPIO 不能直接驱动</a>
+        <a class="level-3" href="#11-2-%E5%B8%B8%E8%A7%81%E9%A9%B1%E5%8A%A8%E8%8A%AF%E7%89%87%E4%B8%8E-tb6612">11.2 常见驱动芯片与 TB6612</a>
+        <a class="level-3" href="#11-3-h-%E6%A1%A5%E7%BB%93%E6%9E%84-%E4%B8%A4%E8%B7%AF%E6%8E%A8%E6%8C%BD%E6%8E%A7%E5%88%B6%E6%AD%A3%E5%8F%8D">11.3 H 桥结构：两路推挽控制正反</a>
+        <a class="level-2" href="#12-tb6612-%E7%9A%84%E7%A1%AC%E4%BB%B6%E7%94%B5%E8%B7%AF%E4%B8%8E%E5%BC%95%E8%84%9A">12. TB6612 的硬件电路与引脚</a>
+        <a class="level-3" href="#12-1-%E5%BC%95%E8%84%9A%E5%AE%9A%E4%B9%89%E8%A1%A8-%E7%94%BB%E9%9D%A2%E5%8E%9F%E6%96%87">12.1 引脚定义表（画面原文）</a>
+        <a class="level-3" href="#12-2-%E4%B8%89%E4%B8%AA%E7%94%B5%E6%BA%90%E8%84%9A-vm-vcc-gnd">12.2 三个电源脚：VM、VCC、GND</a>
+        <a class="level-3" href="#12-3-%E6%8E%A7%E5%88%B6%E5%BC%95%E8%84%9A-ain1-ain2-pwma-%E4%B8%8E-stby">12.3 控制引脚：AIN1/AIN2/PWMA 与 STBY</a>
+        <a class="level-2" href="#13-%E6%8E%A7%E5%88%B6%E7%9C%9F%E5%80%BC%E8%A1%A8%E4%B8%8E%E8%B0%83%E9%80%9F">13. 控制真值表与调速</a>
+        <a class="level-3" href="#13-1-%E7%9C%9F%E5%80%BC%E8%A1%A8-%E7%94%BB%E9%9D%A2%E5%8E%9F%E6%96%87">13.1 真值表（画面原文）</a>
+        <a class="level-3" href="#13-2-%E8%B0%83%E9%80%9F-pwm-%E9%A2%91%E7%8E%87%E5%A4%9F%E5%BF%AB-%E8%BF%9E%E7%BB%AD%E7%A8%B3%E5%AE%9A%E6%97%8B%E8%BD%AC">13.2 调速：PWM 频率够快 = 连续稳定旋转</a>
+        <a class="level-2" href="#14-%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C%E5%AF%BC%E8%AF%BB%E4%B8%8E%E4%B8%8B%E4%B8%80%E9%9B%86">14. 参考手册导读与下一集</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

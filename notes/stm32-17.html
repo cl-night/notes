@@ -1,0 +1,913 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[6-5] TIM输入捕获 · 我的学习笔记</title>
+  <meta name="description" content="江协科技 STM32 第 17 集 [6-5]（理论课）：片头演示两个成品工程（自测 PWM 频率、PWMI 同时测频率占空比），随后讲输入捕获——引脚跳变把 CNT 锁存进 CCR、与输出比较共用 CCR/引脚、测频法 fx=N/T 与测周法 fx=fc/N、中界频率 fm=√(fc/T)、总结构图与图123 通道、主从触发自动清 CNT、PWMI 占空比=CCR2/CCR1。代码在 P18。">
+  <meta property="og:title" content="[6-5] TIM输入捕获 · 我的学习笔记">
+  <meta property="og:description" content="江协科技 STM32 第 17 集 [6-5]（理论课）：片头演示两个成品工程（自测 PWM 频率、PWMI 同时测频率占空比），随后讲输入捕获——引脚跳变把 CNT 锁存进 CCR、与输出比较共用 CCR/引脚、测频法 fx=N/T 与测周法 fx=fc/N、中界频率 fm=√(fc/T)、总结构图与图123 通道、主从触发自动清 CNT、PWMI 占空比=CCR2/CCR1。代码在 P18。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html" class="active" aria-current="page">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>44 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">输入捕获</span>
+    </div>
+    <article class="prose"><h1>[6-5] TIM输入捕获 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=17，38:54（2334 秒）</li>
+<li>素材：259 帧关键帧（<strong>每 9 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>675 段</strong>）；关键截图 15 张随笔记收录（源图在 <code>vidsum_out/stm32_p17/frames/</code>，站内图片在 <code>assets/images/stm32-17/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；本集字幕里混入了不少<strong>参考手册正文</strong>（讲手册那几段）和 Keil 输出，这些行<strong>不是老师口述内容</strong>，已剔除，错字已按画面校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是定时器大节<strong>第三部分（输入捕获）的理论课</strong>——00:00 直接是 PPT 标题页，00:09–03:45 演示两个<strong>已经写好</strong>的工程的现象（<code>6-6 输入捕获模式测频率</code>、<code>6-7 PWMI模式测频率占空比</code>，代码在片头一闪而过、只看到 <code>IC_Init()</code> / <code>IC_GetFreq()</code> 的调用），03:45 起回 PPT，之后到 38:54 全是<strong>原理、结构图、手册寄存器</strong>。片尾原话是「我们下一小节来学习<strong>输入捕获的代码部分</strong>」，所以本集<strong>不写 <code>TIM_ICInit</code> 等配置</strong>，代码在 <strong>P18 [6-6]</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p>输入捕获（<strong>IC = Input Capture</strong>）在原理上就一句话：<strong>当通道输入引脚出现指定的电平跳变（上升沿或下降沿，可配置）时，把当前 CNT 的值锁存到 CCR 里</strong>——也就是「<strong>把某个时刻的计数值拍个快照存起来</strong>」。所以它能测 PWM 的<strong>频率、占空比、脉冲间隔、电平持续时间</strong>：测频用<strong>测周法</strong>——两个上升沿之间 CNT 从 0 数到 N（<strong>N 就是周期对应的计数值</strong>），因为 CNT 由标准频率 <code>fc = 72MHz/(PSC+1)</code> 驱动，所以 <code>fx = fc/N</code>，而波形频率低、周期长时测周法计次数多、误差小（高频才适合测频法 <code>fx = N/T</code>，两法的分界是中界频率 <code>fm = √(fc/T)</code>）；关键配套是<strong>主从触发模式</strong>——<strong>触发源选 TI1FP1 + 从模式选 Reset</strong>，就能让每次上升沿捕获之后<strong>硬件自动把 CNT 清零</strong>，整个测量<strong>不进中断、不占软件</strong>，程序只要读 <code>CCR1</code> 再算 <code>fc/CCR1</code>；而 <strong>PWMI 模式</strong>更巧：用同一个引脚的<strong>上升沿（TI1FP1，捕周期、清 CNT）<strong>和</strong>下降沿（TI1FP2，捕高电平时间）<strong>分别触发通道 1 和通道 2，于是 <code>CCR1</code> = 一个周期的计数值、<code>CCR2</code> = 高电平的计数值，<strong>占空比 = CCR2/CCR1</strong>，频率和占空比一次全测。硬件上要注意：输入捕获和输出比较</strong>共用 4 个 CCR 和 CH1～CH4 引脚，同一路不能同时用</strong>；每个高级/通用定时器都有 4 个通道、基本定时器没有；通道上还有**滤波器（ICF，fDTS 采样、连续 N 个相同才翻转）、边沿极性（CC1P）、数据选择器（CC1S，可交叉）、预分频（IC1PSC /1～/8）、使能（CC1E）**这些环节；<strong>从模式的触发源只有 TI1FP1/TI2FP2</strong>（没有 TI3/TI4），所以 CH3/CH4 想清零 CNT 只能靠捕获中断手动做（烦、耗软件）；<code>ARR</code> 一般设成最大 <strong>65535</strong>，否则信号频率太低时 CNT 会溢出。<strong>本集一行 IC 代码都没写，代码在 P18 [6-6]。</strong></p>
+<h2 id="0-本集定位-理论课-片头是成品工程-代码在-6-6-p18">0. 本集定位：理论课（片头是成品工程），代码在 [6-6] P18</h2>
+<ul>
+<li><strong>本集是纯理论课</strong>：片头 3 分半只是<strong>两个现成工程的现象演示</strong>，03:45 起「接下来我们回到 PPT，看一下输入捕获的理论部分」，之后 35 分钟全是 PPT 与参考手册。</li>
+<li><strong>片头两个程序</strong>（就是 P18 要写的两个）：<ol>
+<li><strong><code>6-6 输入捕获模式测频率</code></strong>：用上一节的 PWM 模块在 <strong>PA0</strong> 输出频率/占空比可调的波形，<strong>一根线把 PA0 与 PA6 连起来</strong>（PA6 是本节的测量输入口），OLED 显示 <code>Freq:01000Hz</code>——自己测自己。</li>
+<li><strong><code>6-7 PWMI模式测频率占空比</code></strong>：OLED 第一行频率、第二行占空比（<code>Freq:01000Hz</code> / <code>Duty:50%</code>），改参数后测出 <code>200Hz / 20%</code>。</li>
+</ol>
+</li>
+<li>片头的 main.c 里已经能看到 <code>IC_Init()</code>、<code>IC_GetFreq()</code> 这些调用（图 2），但 <strong><code>IC.c</code> 是怎么写的，本集没有讲</strong>——留到 P18；程序二的 main.c 本集没拍到，<code>IC_GetDuty()</code> 是按功能推断（存疑里注明）。</li>
+<li><strong>不要在本笔记里找 <code>TIM_ICInit</code> 的成员值</strong>：<code>TIM_ICInit</code>、<code>TIM_PWMIConfig</code>、<code>TIM_SelectInputTrigger</code>、<code>TIM_SelectSlaveMode</code> 这些<strong>本集都没有出现</strong>，属于 P18 的内容。</li>
+<li>编号对照：本集视频是 <strong>[6-5]</strong>，片头两个<strong>工程目录</strong>却叫 <code>6-6</code> / <code>6-7</code>（作者按「代码小节」编号）——和 P15/P16 一样，两套编号不是一回事。</li>
+</ul>
+<h2 id="1-片头两个程序的现象">1. 片头两个程序的现象</h2>
+<h3 id="1-1-程序一-输入捕获模式测频率-00-09-01-35">1.1 程序一：输入捕获模式测频率（00:09–01:35）</h3>
+<ul>
+<li>要<strong>测外部信号的频率</strong>，先得有个<strong>信号源</strong>、产生一个频率和占空比可调的波形；考虑到大家可能没有信号发生器，作者<strong>借用了上一小节的代码</strong>：先用 <strong>PWM 模块在 PA0 端口输出</strong>频率和占空比可调的波形。</li>
+<li>本节的测量输入口是 <strong>PA6</strong>，所以<strong>直接用一根线把 PA0 和 PA6 连在一起</strong>，就能测量自己 PWM 模块产生波形的频率。</li>
+<li>如果有<strong>示波器</strong>，可以把探头也接在这根线上核对频率值；如果有<strong>信号发生器</strong>，就不需要 PA0 自己输出波形，直接把可调测试信号接在 PA6 即可。</li>
+<li>现象：<strong>OLED 上显示的频率是 1000Hz</strong>——说明通过 PA6 的测试，PA0 输出的是一个 1000Hz 的信号。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/01-capture-demo.jpg" alt="图 1：程序一现象——Keil 工程 6-6 输入捕获模式测频率，面包板上 PA0 的 PWM 输出用一根线接到 PA6（自测），OLED 显示 Freq:01000Hz；右侧代码区隐约可见 72M / (PSC + 1) / 100 与 CCR / 100"></p>
+<p><em>图 1：程序一现象——Keil 工程 <code>6-6 输入捕获模式测频率</code>，面包板上 PA0 的 PWM 输出用一根线接到 PA6（自测），OLED 显示 <code>Freq:01000Hz</code>；右侧代码区隐约可见 <code>72M / (PSC + 1) / 100</code> 与 <code>CCR / 100</code></em></p>
+<ul>
+<li>回到程序看<strong>频率和占空比的参数调节部分</strong>：当前预分频系数是 720，代入公式算出来就是 <strong>1000Hz</strong>；加大预分频（扩大 10 倍 → 7200）输出频率就是 <strong>100Hz</strong>，改 3600 就是 <strong>200Hz</strong>——OLED 上的测量值跟着变（100Hz、200Hz），说明测量正确。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/02-capture-main.jpg" alt="图 2：程序一 main.c——OLED_Init(); PWM_Init(); IC_Init();，OLED_ShowString(1, 1, &quot;Freq:00000Hz&quot;)，信号源参数 PWM_SetPrescaler(7200 - 1); //Freq = 72M / (PSC + 1) / 100、PWM_SetCompare1(50); //Duty = CCR / 100，主循环 OLED_ShowNum(1, 6, IC_GetFreq(), 5);（IC 模块本集不讲，代码在 P18）"></p>
+<p><em>图 2：程序一 main.c——<code>OLED_Init(); PWM_Init(); IC_Init();</code>，<code>OLED_ShowString(1, 1, &quot;Freq:00000Hz&quot;)</code>，信号源参数 <code>PWM_SetPrescaler(7200 - 1); //Freq = 72M / (PSC + 1) / 100</code>、<code>PWM_SetCompare1(50); //Duty = CCR / 100</code>，主循环 <code>OLED_ShowNum(1, 6, IC_GetFreq(), 5);</code>（IC 模块本集不讲，代码在 P18）</em></p>
+<h3 id="1-2-程序二-pwmi-模式测频率和占空比-02-35-03-45">1.2 程序二：PWMI 模式测频率和占空比（02:35–03:45）</h3>
+<ul>
+<li>第一个程序<strong>只能测频率，还不能测占空比</strong>。要同时测频率和占空比，STM32 的输入捕获还设计了 <strong>PWMI 模式（PWM 输入模式）</strong>。</li>
+<li>现象：<strong>OLED 第一行显示频率 1000Hz，第二行显示占空比 50%</strong>；对应程序里的 PWM 参数：当前频率 = 72M/分频系数 720/100 = 1000Hz，占空比 = CCR 50/100 = 50%。</li>
+<li>改参数：分频系数给 3600 → 频率 200Hz，CCR 给 20 → 占空比 20%；实测**「目前看到测量得到的频率 200Hz，占空比 20%，没问题」**。</li>
+<li>作者说可以自行改参数尝试，或者用信号发生器测试，都可以。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/03-pwmi-demo.jpg" alt="图 3：程序二现象——Keil 工程 6-7 PWMI模式测频率占空比，OLED 第一行 Freq:01000Hz、第二行 Duty:50%；字幕「OLED第一行显示频率，当前是1000Hz」"></p>
+<p><em>图 3：程序二现象——Keil 工程 <code>6-7 PWMI模式测频率占空比</code>，OLED 第一行 <code>Freq:01000Hz</code>、第二行 <code>Duty:50%</code>；字幕「OLED第一行显示频率，当前是1000Hz」</em></p>
+<p><img src="../assets/images/stm32-17/04-pwmi-demo-200hz.jpg" alt="图 4：程序二改参数后——OLED 显示 Freq:00200Hz / Duty:20%（PSC 改 3600、CCR 改 20）；字幕「目前看到测量得到的频率200Hz，占空比20%，没问题」"></p>
+<p><em>图 4：程序二改参数后——OLED 显示 <code>Freq:00200Hz</code> / <code>Duty:20%</code>（PSC 改 3600、CCR 改 20）；字幕「目前看到测量得到的频率200Hz，占空比20%，没问题」</em></p>
+<h2 id="2-输入捕获是什么">2. 输入捕获是什么</h2>
+<h3 id="2-1-核心定义">2.1 核心定义</h3>
+<ul>
+<li><strong>IC = Input Capture，输入捕获（直译）</strong>。</li>
+<li><strong>「输入捕获模式下，当通道输入引脚出现指定电平跳变时，当前 CNT 的值将被锁存到 CCR 中」</strong>——这个<strong>指定的电平跳变就是上升沿或者下降沿</strong>，可以通过程序配置。</li>
+<li><strong>「锁存到 CCR」的意思</strong>就是：<strong>把当前 CNT 的值读出来、写入到 CCR 中去</strong>。</li>
+<li>用途：<strong>可用于测量 PWM 波形的频率、占空比、脉冲间隔、电平持续时间等参数</strong>（脉冲间隔和频率差不多是一个意思，电平持续时间和占空比差不多）。</li>
+<li>资源：<strong>每个高级定时器和通用定时器都拥有 4 个输入捕获通道</strong>；<strong>基本定时器没有输入捕获功能</strong>（通用定时器和高级定时器的输入捕获电路<strong>没有区别，都是一样的</strong>）。</li>
+<li>还有两个配套功能：<strong>可配置为 PWMI 模式，同时测量频率和占空比</strong>；<strong>可配合主从触发模式，实现硬件全自动测量</strong>——「把这两个功能结合起来，测量频率占空比就是<strong>硬件全自动执行</strong>，软件不需要进行任何干预，也<strong>不需要进中断</strong>，需要测量的时候直接读取 CCR 寄存器就行了」。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/05-ic-intro.jpg" alt="图 5：PPT「输入捕获简介」——IC（Input Capture）输入捕获；输入捕获模式下，当通道输入引脚出现指定电平跳变时，当前 CNT 的值将被锁存到 CCR 中，可用于测量 PWM 波形的频率、占空比、脉冲间隔、电平持续时间等参数；每个高级/通用定时器都有 4 个输入捕获通道；可配置为 PWMI 模式、可配合主从触发模式实现硬件全自动测量"></p>
+<p><em>图 5：PPT「输入捕获简介」——IC（Input Capture）输入捕获；输入捕获模式下，当通道输入引脚出现指定电平跳变时，当前 CNT 的值将被锁存到 CCR 中，可用于测量 PWM 波形的频率、占空比、脉冲间隔、电平持续时间等参数；每个高级/通用定时器都有 4 个输入捕获通道；可配置为 PWMI 模式、可配合主从触发模式实现硬件全自动测量</em></p>
+<h3 id="2-2-与输出比较的关系-共用-ccr-和引脚">2.2 与输出比较的关系：共用 CCR 和引脚</h3>
+<ul>
+<li>在定时器的整体结构图里，<strong>左边一部分是输入捕获电路，右边是之前讲过的输出比较电路</strong>。</li>
+<li><strong>输入捕获和输出比较通道共用 4 个 CCR 寄存器</strong>；<strong>它们的 CH1～CH4 四个通道引脚也是共用的</strong>。</li>
+<li>所以<strong>对于同一个定时器，输入捕获和输出比较只能使用其中一个，不能同时使用</strong>。</li>
+</ul>
+<h3 id="2-3-与输出比较-外部中断的对比">2.3 与输出比较、外部中断的对比</h3>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th>输出比较</th>
+<th>输入捕获</th>
+<th>外部中断</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>引脚方向</td>
+<td><strong>输出</strong>端</td>
+<td><strong>输入</strong>端</td>
+<td>输入</td>
+</tr>
+<tr>
+<td>触发来源</td>
+<td><strong>CNT 与 CCR 的大小关系</strong></td>
+<td><strong>输入引脚的电平跳变</strong></td>
+<td>输入引脚的电平跳变</td>
+</tr>
+<tr>
+<td>触发后做什么</td>
+<td>根据比较结果<strong>输出高低电平</strong></td>
+<td><strong>把当前 CNT 锁存到 CCR</strong>（并产生捕获事件）</td>
+<td><strong>向 CPU 请求中断</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li>输入捕获的<strong>执行流程</strong>：输入引脚出现<strong>指定电平跳变</strong> → <strong>输入滤波和边沿检测电路</strong>检测到这个沿 → 让输入捕获电路产生动作 → <strong>当前 CNT 的值锁存到 CCR 寄存器</strong> → 同时产生<strong>捕获事件</strong>（状态寄存器置标志位，也可以产生中断）。</li>
+<li>所以<strong>这一块的作用和外部中断差不多，都是检测电平跳变、然后执行动作</strong>，只不过外部中断执行的动作是<strong>向 CPU 申请中断</strong>，而这里电路执行的动作是<strong>控制后续电路</strong>（把 CNT 锁存进 CCR）。</li>
+</ul>
+<h3 id="2-4-一句话记住">2.4 一句话记住</h3>
+<ul>
+<li><strong>输出比较：引脚是输出端，按 CNT 与 CCR 的大小关系执行输出动作。</strong></li>
+<li><strong>输入捕获：引脚是输入端，接收到输入信号后执行「CNT 锁存到 CCR」的动作。</strong></li>
+</ul>
+<h2 id="3-频率测量基础">3. 频率测量基础</h2>
+<p>既然要测 PWM 信号的频率，就得先补一点<strong>频率测量的通用知识</strong>（08:35～18:35，这一段是本集的重点之一）。</p>
+<h3 id="3-1-前提-stm32-只能测数字信号">3.1 前提：STM32 只能测数字信号</h3>
+<ul>
+<li>图示是一个<strong>频率逐渐降低的方波</strong>：越往左频率越高，越往右频率越低；<strong>这些都是只有高低电平的数字信号</strong>。</li>
+<li><strong>对 STM32 测频率而言，它也是只能测量数字信号的</strong>：<ul>
+<li>要测<strong>正弦波</strong>，得先搭<strong>信号预处理电路</strong>——最简单的是<strong>用运放搭一个比较器</strong>，把正弦波转换为数字信号，再输入给 STM32；</li>
+<li>如果测量的<strong>信号电压非常高</strong>，还要考虑<strong>隔离</strong>问题——比如用<strong>隔离放大器、电压互感器</strong>等元件隔离高压端和低压端，保证电路安全。</li>
+</ul>
+</li>
+<li>总之，<strong>经过处理最终输入给 STM32 的信号，要是高低电平信号：高电平 3.3V、低电平 0V</strong>。</li>
+</ul>
+<h3 id="3-2-测频法-闸门时间内数上升沿">3.2 测频法：闸门时间内数上升沿</h3>
+<ul>
+<li>执行流程：<strong>在闸门时间 T 内，对上升沿计次</strong>，得到 N，则待测信号频率 <strong><code>fx = N / T</code></strong>。<ul>
+<li>计次下降沿也可以，只是极性不同而已，都是一样的；为了描述方便，<strong>统一以上升沿为一个周期的开始</strong>。</li>
+</ul>
+</li>
+<li>原理：<strong>1s 内来了多少个周期，频率就是多少 Hz</strong>——这符合频率的基本定义（1s 内出现了多少个重复的周期）。</li>
+<li><strong>闸门时间不必为 1s</strong>：T=1s 时计次值 N <strong>直接就是频率（Hz）</strong>；T=2s 时计次值<strong>除以 2</strong>；T=0.5s 时计次值<strong>乘以 2</strong>。</li>
+</ul>
+<h3 id="3-3-测周法-两个上升沿之间数标准频率">3.3 测周法：两个上升沿之间数标准频率</h3>
+<ul>
+<li>执行流程：<strong>两个上升沿内，以标准频率 fc 计次</strong>，得到 N，则频率 <strong><code>fx = fc / N</code></strong>。</li>
+<li>原理：<strong>周期的倒数就是频率</strong>——如果能测出一个周期的时间，再取倒数就是频率；而我们<strong>没有精度无穷大的秒表</strong>，所以<strong>测量时间实际上也是定时器计次</strong>：用一个<strong>已知标准频率 fc 的计次时钟</strong>驱动计数器，<strong>从一个上升沿开始从 0 计，直计到下一个上升沿停止</strong>；计一个数的时间是 1/fc，计 N 个数的时间就是 <strong>N/fc</strong>，这就是<strong>周期</strong>，取倒数就得到 <strong><code>fx = fc / N</code></strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/06-freq-measure.jpg" alt="图 6：PPT「频率测量」——波形上标出「闸门时间 T / 中界频率 fm / 标准频率 fc」和两次「计次 N」；三个公式：测频法 fx = N/T、测周法 fx = fc/N、中界频率 fm = √(fc/T)"></p>
+<p><em>图 6：PPT「频率测量」——波形上标出「闸门时间 T / 中界频率 fm / 标准频率 fc」和两次「计次 N」；三个公式：测频法 <code>fx = N/T</code>、测周法 <code>fx = fc/N</code>、中界频率 <code>fm = √(fc/T)</code></em></p>
+<h3 id="3-4-两法对比">3.4 两法对比</h3>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th>测频法 <code>fx = N/T</code></th>
+<th>测周法 <code>fx = fc/N</code></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>适合的信号</td>
+<td><strong>高频</strong>（闸门内上升沿多，N 大误差小）</td>
+<td><strong>低频</strong>（周期长，计次数多）</td>
+</tr>
+<tr>
+<td>不适合</td>
+<td>频率太低：1s 内只有寥寥几个沿甚至 0 个沿，误差极大</td>
+<td>频率太高：fc=1MHz、待测 500kHz 时一个周期只能计一两个数，甚至一个数也计不到</td>
+</tr>
+<tr>
+<td>结果更新速度</td>
+<td><strong>慢</strong>：闸门时间内测多个周期，<strong>1s 才出一次结果</strong></td>
+<td><strong>快</strong>：只测一个周期就出一次结果（出结果速度取决于待测信号频率，一般几百几千 Hz 时更新更快）</td>
+</tr>
+<tr>
+<td>结果平滑度</td>
+<td><strong>平滑</strong>：测的是多个周期，<strong>自带均值滤波</strong>，是这段时间的平均频率</td>
+<td><strong>波动大</strong>：只测一个周期，<strong>受噪声影响</strong></td>
+</tr>
+</tbody></table>
+<h3 id="3-5-1-计数误差-两法都固有-n-越大影响越小">3.5 ±1 计数误差：两法都固有，N 越大影响越小</h3>
+<ul>
+<li><strong>测频法</strong>：闸门时间内并不是每个周期信号都是完整的——假设闸门时间到了，可能有一个周期刚出现一半，<strong>这半个周期只能舍弃、或者当成一整个周期来看</strong>，因为<strong>计次只有整数，不可能计 0.5 个数</strong>。</li>
+<li><strong>测周法</strong>：标准频率 fc 计次，最后时刻有可能数到一半时间就结束了，<strong>这半个数也只能舍弃、或者按一整个数来算</strong>。</li>
+<li>所以**「±1 误差」是这两种方法都固有的误差**；要想减小它的影响，<strong>只能尽量多计一些数</strong>——<strong>N 越大，±1 对 N 的相对影响越小</strong>。</li>
+<li>作者打了个比方：一瓶水本来 2 块、商家卖 3 块，你觉得黑心；一台电脑本来 5000 块、商家卖 5001，你可能就觉得无所谓了。</li>
+</ul>
+<h3 id="3-6-中界频率-两法误差相等的分界点">3.6 中界频率：两法误差相等的分界点</h3>
+<ul>
+<li><strong>中界频率就是「测频法与测周法误差相等的频率点」</strong>——当待测频率等于它时，两法的计次 N 相同、误差相同。</li>
+<li>推导（口述）：<strong>测频法的 N</strong> 与<strong>测周法的 N</strong> 列出来，<strong>令两个 N 相等，把 f 解出来</strong>，就得到 <strong><code>fm = √(fc / T)</code></strong>。</li>
+<li>结论：<strong>当待测信号频率小于中界频率时，测周法误差更小、选用测周法更合适；大于中界频率时，测频法误差更小、选用测频法更合适。</strong></li>
+</ul>
+<h3 id="3-7-stm32-上怎么实现这两种方法">3.7 STM32 上怎么实现这两种方法</h3>
+<ul>
+<li><strong>测频法</strong>：用之前学过的外设就能实现——写过「对射式红外传感器计次」「定时器外部时钟」的代码，<strong>每来一个上升沿计次 +1</strong>，再用一个定时器<strong>定一个 1s 的定时中断</strong>，在中断里<strong>每隔 1s 取一下计次值、同时清零</strong>，这样每次读取的计次值<strong>直接就是频率</strong>。作者明确说「这部分代码应该也不难实现吧，<strong>大家可以自行研究，我就不再演示了</strong>」。</li>
+<li><strong>测周法</strong>：<strong>本集输入捕获测频率，使用的方法就是测周法</strong>——<strong>测量两个上升沿之间的时间</strong>，来进行频率测量。接下来分析电路怎么实现它。</li>
+</ul>
+<h2 id="4-输入捕获总结构图-通用定时器框图">4. 输入捕获总结构图（通用定时器框图）</h2>
+<p>回到定时器框图，从左到右看输入捕获的各部分电路：</p>
+<ol>
+<li><strong>最左边是四个通道的引脚</strong>（TIMx_CH1～CH4）——具体复用在哪，<strong>参考引脚定义表</strong>。</li>
+<li><strong>引脚进来先过一个「三输入异或门」</strong>：它的输入接在<strong>通道 1、2、3</strong> 上；异或门的逻辑是<strong>当三个输入引脚的任何一个有电平翻转时，输出引脚就产生一次电平翻转</strong>。之后输出通过数据选择器到达<strong>输入捕获通道 1</strong>——数据选择器选上面一个，通道 1 的输入就是 3 个引脚的异或值；选下面一个，异或门就没用、4 个通道各用各的引脚。<strong>这个异或门是为三相无刷电机服务的</strong>：无刷电机有 3 个霍尔传感器检测转子位置、据此换相，有了这个异或门就可以在前三个通道接霍尔传感器，让定时器作为无刷电机的接口定时器去驱动换相电路（本课暂时不涉及）。</li>
+<li><strong>输入滤波器和边沿检测器</strong>：<strong>滤波器对信号滤波，避免一些高频的毛刺信号误触发</strong>；<strong>边沿检测器</strong>和外部中断那里一样，可以选择上升沿/下降沿（极性），出现指定电平时触发后续电路。</li>
+<li><strong>两套滤波和边沿检测电路</strong>：第一套经过滤波和极性选择得到 <strong><code>TI1FP1</code></strong>（TI1 Filter Polarity 1），第二套得到 <strong><code>TI1FP2</code></strong>；同理<strong>通道 2</strong> 的信号进来也经过两套，得到 <strong><code>TI2FP1</code>、<code>TI2FP2</code></strong>。其中 <strong>TI2FP1 输入给上面（通道 1 后续）、TI2FP2 输入给下面（通道 2 后续）</strong>——两个信号进来可以各走各的，也可以<strong>交叉</strong>。</li>
+<li><strong>交叉连接的目的</strong>（20:56）：①<strong>灵活切换后续捕获电路的输入</strong>（一会儿想以 CH1 为输入、一会儿想以 CH2 为输入）；②<strong>把一个引脚的输入同时映射到两个捕获单元</strong>——<strong>这就是 PWMI 模式的经典结构</strong>：第一个捕获通道用上升沿触发、捕周期，第二个通道用下降沿触发、捕占空比，两个通道同时对<strong>一个引脚</strong>捕获，就能同时测量频率和占空比。通道 3、4 也是同样的结构（可独立、可交叉）。</li>
+<li><strong>TRC 信号</strong>也可以作为捕获部分的输入（来源于从模式控制器），同样是为无刷电机驱动设计的，暂时不用。</li>
+<li><strong>预分频器</strong>：每个通道各有一个，可以对前面的信号分频；分频之后的触发信号才可以触发捕获电路。</li>
+<li><strong>捕获动作</strong>：<strong>每来一个触发信号，CNT 的值就会向 CCR 转运一次</strong>；<strong>转运的同时会产生一个「捕获事件」</strong>（状态寄存器置标志位，也可以产生中断）——如果需要在捕获瞬间处理一些事情，就可以开启捕获中断。</li>
+</ol>
+<p><img src="../assets/images/stm32-17/07-ic-structure.jpg" alt="图 7：输入捕获总结构图（通用定时器框图）——红圈标出左边的 4 个通道引脚 TIMx_CH1～CH4；引脚进来是三输入异或门，然后「输入滤波器和边沿检测器」得到 TI1FP1/TI1FP2（TI2FP1/TI2FP2 可交叉），经预分频器进入「捕获/比较寄存器」，另有 TRC 输入"></p>
+<p><em>图 7：输入捕获总结构图（通用定时器框图）——红圈标出左边的 4 个通道引脚 TIMx_CH1～CH4；引脚进来是三输入异或门，然后「输入滤波器和边沿检测器」得到 TI1FP1/TI1FP2（TI2FP1/TI2FP2 可交叉），经预分频器进入「捕获/比较寄存器」，另有 TRC 输入</em></p>
+<h3 id="4-1-这和图123-的关系">4.1 这和图123 的关系</h3>
+<ul>
+<li>上面这张图是总结构，24:36 的<strong>图123「捕获/比较通道（如：通道 1 输入部分）」<strong>是它的</strong>细化结构</strong>，基本功能一样（第 5 章专门讲）。</li>
+<li>把图123 和测周法对应起来就是：<strong>上升沿用于触发输入捕获，CNT 用于计数计时</strong>；每来一个上升沿，取一下 CNT 的值、自动存在 CCR 里，<strong>CCR 捕获到的值就是计数值 N</strong>，<strong>CNT 的驱动时钟就是 fc</strong>，<code>fc/N</code> 就得到待测信号的频率。</li>
+<li>还有一个细节：<strong>每次捕获之后都要把 CNT 清零</strong>，这样下次上升沿再捕获时，取出的 CNT 才是<strong>两个上升沿之间的时间间隔</strong>——这个「捕获后自动清零 CNT」可以用<strong>主从触发模式</strong>自动完成（第 6 章）。</li>
+</ul>
+<h2 id="5-图123-输入捕获通道的细节">5. 图123：输入捕获通道的细节</h2>
+<h3 id="5-1-一条完整通路">5.1 一条完整通路</h3>
+<p>以通道 1 为例（23:51～27:20），信号从左往右：</p>
+<table>
+<thead>
+<tr>
+<th>环节</th>
+<th>说明</th>
+<th>寄存器位</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>TI1</td>
+<td>CH1 的输入引脚</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>滤波器</strong></td>
+<td>输入是 TI1，输出是滤波后的 TI1F；<strong>fDTS 是滤波器的采样时钟来源</strong>，滤波参数由 <strong><code>ICF</code></strong> 位控制</td>
+<td><code>ICF[3:0]</code>，<code>TIMx_CCMR1</code></td>
+</tr>
+<tr>
+<td><strong>边沿检测器</strong></td>
+<td>捕获上升沿或下降沿（TI1F_Rising / TI1F_Falling），用 <strong><code>CC1P</code></strong> 选极性</td>
+<td><code>CC1P</code>，<code>TIMx_CCER</code></td>
+</tr>
+<tr>
+<td><strong>数据选择器</strong></td>
+<td>由 <code>CC1S[1:0]</code> 选进入后续捕获电路的信号：<code>01</code>→TI1FP1、<code>10</code>→TI2FP1、<code>11</code>→TRC；<code>00</code> 表示该通道配置为<strong>输出</strong>（不走捕获）。注意 <strong>TI1F_ED 不进数据选择器</strong>，它是直接送给从模式控制器的信号</td>
+<td><strong><code>CC1S[1:0]</code></strong>，<code>TIMx_CCMR1</code></td>
+</tr>
+<tr>
+<td><strong>分频器</strong></td>
+<td><strong>不分频 / 2 分频 / 4 分频 / 8 分频</strong></td>
+<td><strong><code>IC1PSC</code></strong>，<code>TIMx_CCMR1</code></td>
+</tr>
+<tr>
+<td><strong>输出使能</strong></td>
+<td>控制使能/失能，使能后指定边沿经层层电路到达，就能让 <strong>CNT 的值转运到 CCR</strong></td>
+<td><strong><code>CC1E</code></strong>，<code>TIMx_CCER</code></td>
+</tr>
+</tbody></table>
+<ul>
+<li>另外，<strong>TI1FP1 信号和 TI1 的边沿信号都可以通向从模式控制器</strong>——所以 TI1FP1 的上升沿<strong>既能触发捕获，又能同时触发从模式</strong>（第 6 章）。</li>
+<li>图里画的是通道 1；实际上<strong>还有一套一样的电路得到 <code>TI1FP2</code>、连到通道 2 的后续电路</strong>（图里没画），通道 2 也有 <code>TI2FP1</code>（连通道 1）和 <code>TI2FP2</code>（连通道 2），<strong>总共 4 种连接方式</strong>。</li>
+</ul>
+<h3 id="5-2-滤波器怎么工作-连续-n-个相同才翻转">5.2 滤波器怎么工作：连续 N 个相同才翻转</h3>
+<ul>
+<li>手册描述：这几位定义了 TI1 输入的<strong>采样频率及数字滤波长度</strong>；<strong>数字滤波器由事件计数器组成，它记到 N 个事件后才会产生一次输出的跳变</strong>。</li>
+<li>通俗理解：<strong>以采样频率对输入信号进行采样</strong>，<strong>当连续 N 个值都为高电平，输出才为高电平；连续 N 个值都为低电平，输出才为低电平</strong>；如果信号出现<strong>高频抖动</strong>，导致连续采样 N 个值不全都一样，<strong>那输出就不会变化</strong>——这样就达到了滤波效果。</li>
+<li><strong>采样频率越低、采样个数 N 越大，滤波效果就越好</strong>；实际应用中如果波形噪声比较大，就<strong>把这个参数设置大一些</strong>，就可以过滤噪声了。</li>
+</ul>
+<h3 id="5-3-手册里的-icf-表与-cc2s">5.3 手册里的 ICF 表与 CC2S</h3>
+<ul>
+<li><strong><code>ICF[3:0]</code>（输入捕获滤波器）</strong>：<code>0000</code> 无滤波器、以 fDTS 采样；<code>0001</code> 采样频率 <code>fCK_INT</code>、N=2；<code>0010</code> <code>fCK_INT</code>、N=4；<code>0011</code> <code>fCK_INT</code>、N=8；<code>0100</code> <code>fDTS/2</code>、N=6；<code>0101</code> <code>fDTS/2</code>、N=8；<code>0110</code> <code>fDTS/4</code>、N=6；<code>0111</code> <code>fDTS/4</code>、N=8；<code>1000</code> <code>fDTS/8</code>、N=6；<code>1001</code> <code>fDTS/8</code>、N=8；<code>1010</code> <code>fDTS/16</code>、N=5；<code>1011</code> <code>fDTS/16</code>、N=6；<code>1100</code> <code>fDTS/16</code>、N=8；<code>1101</code> <code>fDTS/32</code>、N=5；<code>1110</code> <code>fDTS/32</code>、N=6；<code>1111</code> <code>fDTS/32</code>、N=8。</li>
+<li><strong><code>CC2S[1:0]</code>（捕获/比较 2 选择）</strong>：<code>00</code> 输出；<code>01</code> 输入、IC2 映射在 <strong>TI2</strong> 上；<code>10</code> 输入、IC2 映射在 <strong>TI1</strong> 上；<code>11</code> 输入、IC2 映射在 <strong>TRC</strong> 上（此模式仅工作在内部触发器输入被选中时，由 SMCR 的 TS 位选择）。</li>
+<li><strong><code>IC1PSC[1:0]</code></strong>：输入/捕获 1 的<strong>预分频器</strong>系数。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/08-fig123-channel.jpg" alt="图 8：图123「捕获/比较通道（如：通道1输入部分）」——TI1 → 滤波器（fDTS、ICF（3:0），TIMx_CCMR1）→ 边沿检测器 → CC1P 极性 → TI1FP1/TI1FP2；TI1F_ED → 至从模式控制器；数据选择器 CC1S（1:0）（可选 TI1FP1/TI2FP1/TI1F_ED/TRC）→ 分频器 /1、/2、/4、/8（IC1PSC）→ CC1E 使能 → IC1PS"></p>
+<p><em>图 8：图123「捕获/比较通道（如：通道1输入部分）」——TI1 → 滤波器（fDTS、ICF（3:0），TIMx_CCMR1）→ 边沿检测器 → CC1P 极性 → TI1FP1/TI1FP2；TI1F_ED → 至从模式控制器；数据选择器 CC1S（1:0）（可选 TI1FP1/TI2FP1/TI1F_ED/TRC）→ 分频器 /1、/2、/4、/8（IC1PSC）→ CC1E 使能 → IC1PS</em></p>
+<p><img src="../assets/images/stm32-17/09-filter-table.jpg" alt="图 9：手册 CCMR2——CC2S（1:0）（00 输出 / 01 IC2 映射 TI2 / 10 IC2 映射 TI1 / 11 IC2 映射 TRC）、IC2F（3:0） 输入捕获滤波器表（0000 无滤波器、0001 fCK_INT N=2 …… 1111 fDTS/32 N=8）、IC1PSC（1:0） 输入捕获预分频器；字幕「这几位定义了 TI1 输入的采样频率及数字滤波长度」"></p>
+<p><em>图 9：手册 CCMR2——<code>CC2S[1:0]</code>（00 输出 / 01 IC2 映射 TI2 / 10 IC2 映射 TI1 / 11 IC2 映射 TRC）、<code>IC2F[3:0]</code> 输入捕获滤波器表（0000 无滤波器、0001 fCK_INT N=2 …… 1111 fDTS/32 N=8）、<code>IC1PSC[1:0]</code> 输入捕获预分频器；字幕「这几位定义了 TI1 输入的采样频率及数字滤波长度」</em></p>
+<h2 id="6-主从触发模式-硬件自动化的关键">6. 主从触发模式：硬件自动化的关键</h2>
+<h3 id="6-1-主从触发模式-是三个功能的简称">6.1 「主从触发模式」是三个功能的简称</h3>
+<ul>
+<li>先说明：<strong>「主从触发模式」这个名字是作者自己起的，手册里并没有这个描述</strong>。它就是<strong>主模式 + 从模式 + 触发源选择</strong>这三个功能的简称：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>作用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>主模式</strong></td>
+<td>把定时器<strong>内部的信号映射到 TRGO 引脚</strong>，用于<strong>触发别的外设</strong>（Reset / Enable / Update / OC1 / OC1REF / OC2REF / OC3REF / OC4REF）</td>
+</tr>
+<tr>
+<td><strong>触发源选择</strong></td>
+<td>选择从模式的<strong>触发信号源</strong>，得到 <strong>TRGI</strong>（ITR0～ITR3 / TI1F_ED / TI1FP1 / TI2FP2 / ETRF）</td>
+</tr>
+<tr>
+<td><strong>从模式</strong></td>
+<td>接收其他外设或自身外设的信号，<strong>控制自身定时器的运行</strong>（被 TRGI 触发后执行操作：Closed / Encoder1～3 / Reset / Gated / Trigger / External1）</td>
+</tr>
+</tbody></table>
+<ul>
+<li>所以可以这样串起来：<strong>主模式</strong>把内部信号映射成 <strong>TRGO</strong> → 触发别的外设（或别的定时器）；而<strong>从模式</strong>是「被 TRGI 控制」——<strong>触发源选择</strong>挑一个信号得到 <strong>TRGI</strong>，<strong>TRGI 去触发从模式</strong>，从模式在列表里选一项操作自动执行。在库函数里也非常简单：<strong>这三块东西对应三个函数，调用函数给个参数就行了</strong>。</li>
+</ul>
+<h3 id="6-2-我们的任务-让-ti1fp1-自动清零-cnt">6.2 我们的任务：让 TI1FP1 自动清零 CNT</h3>
+<ul>
+<li>想让 <strong>TI1FP1 信号自动触发 CNT 清零</strong>：<strong>触发源选择选 <code>TI1FP1</code></strong>，<strong>从模式执行的操作选 <code>Reset</code></strong>——这样 TI1FP1 的信号就可以自动触发从模式，<strong>从模式自动清零 CNT</strong>，实现<strong>硬件全自动测量</strong>。</li>
+<li>这也是<strong>主从触发模式的用途</strong>：作者特别说，<strong>从模式就是完成自动化操作的利器</strong>。</li>
+<li>除了清 CNT，<strong>主从触发还能做定时器级联</strong>：一个定时器<strong>主模式输出更新信号到 TRGO</strong>，另一个定时器<strong>从模式选外部时钟模式 1</strong>，就能实现级联。<strong>其他很多高级功能也都可以用主从触发模式来实现，使用非常灵活</strong>；这些信号的具体含义「不用特别去记，知道有这个功能就行了，需要用的时候再来看看」。</li>
+</ul>
+<h3 id="6-3-手册-smcr-ts-2-0-与-sms-2-0">6.3 手册 SMCR：TS[2:0] 与 SMS[2:0]</h3>
+<table>
+<thead>
+<tr>
+<th>位</th>
+<th>名称</th>
+<th>取值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>位 6:4</td>
+<td><strong><code>TS[2:0]</code> 触发选择</strong></td>
+<td><code>000</code> ITR0（内部触发 0，TIM1）、<code>001</code> ITR1（TIM2）、<code>010</code> ITR2（TIM3）、<code>011</code> ITR3（TIM4）、<code>100</code> TI1 的边沿检测器（<strong>TI1F_ED</strong>）、<code>101</code> 滤波后的定时器输入 1（<strong>TI1FP1</strong>）、<code>110</code> 滤波后的定时器输入 2（<strong>TI2FP2</strong>）、<code>111</code> 外部触发输入（ETRF）</td>
+</tr>
+<tr>
+<td>位 2:0</td>
+<td><strong><code>SMS[2:0]</code> 从模式选择</strong></td>
+<td><code>000</code> 关闭（CEN=1 时预分频器由内部时钟驱动）、<code>001</code> 编码器模式 1、<code>010</code> 编码器模式 2、<code>011</code> 编码器模式 3、<strong><code>100</code> 复位模式</strong>（选中触发输入 TRGI 的上升沿<strong>重新初始化计数器</strong>并产生一个更新事件）、<code>101</code> 门控模式、<code>110</code> 触发模式、<code>111</code> 外部时钟模式 1</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>复位模式</strong>执行的「重新初始化计数器」，<strong>是不是就是清零 CNT 的意思</strong>？——是的，这就是我们要的从模式操作。</li>
+<li>注意手册的补充：<strong>TS 位只能在未用到（SMS=000）时被改变</strong>，以避免改变时产生错误的边沿检测；从模式选择时，选中的触发输入 TRGI 的有效边沿与外部输入极性相关。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/10-master-slave.jpg" alt="图 10：PPT「主从触发模式」三张图——主模式（Reset/Enable/Update/OC1/OC1REF～OC4REF → TRGO）、触发源选择（ITR0～ITR3/TI1F_ED/TI1FP1/TI2FP2/ETRF → TRGI）、从模式（Closed/Encoder1～3/Reset/Gated/Trigger/External1）；字幕「手册里并没有这个描述」"></p>
+<p><em>图 10：PPT「主从触发模式」三张图——主模式（Reset/Enable/Update/OC1/OC1REF～OC4REF → TRGO）、触发源选择（ITR0～ITR3/TI1F_ED/TI1FP1/TI2FP2/ETRF → TRGI）、从模式（Closed/Encoder1～3/Reset/Gated/Trigger/External1）；字幕「手册里并没有这个描述」</em></p>
+<p><img src="../assets/images/stm32-17/11-smcr-ts-sms.jpg" alt="图 11：手册 SMCR——TS（2:0） 触发选择（000 ITR0 …… 100 TI1F_ED、101 TI1FP1、110 TI2FP2、111 ETRF）与 SMS（2:0） 从模式选择（000 关闭、001～011 编码器、100 复位模式、101 门控、…）；字幕「这里有从模式触发源的可选信号」"></p>
+<p><em>图 11：手册 SMCR——<code>TS[2:0]</code> 触发选择（000 ITR0 …… 100 TI1F_ED、101 TI1FP1、110 TI2FP2、111 ETRF）与 <code>SMS[2:0]</code> 从模式选择（000 关闭、001～011 编码器、100 复位模式、101 门控、…）；字幕「这里有从模式触发源的可选信号」</em></p>
+<h2 id="7-输入捕获基本结构-单通道测频率-本节重点图">7. 输入捕获基本结构（单通道测频率，本节重点图）</h2>
+<p>把前面所有东西组合起来，就是本集第一个重点图——<strong>输入捕获基本结构</strong>（对应程序一 <code>6-6</code> 的逻辑）：</p>
+<ul>
+<li><strong>只用了一个通道，所以它只能测量频率</strong>。</li>
+<li><strong>右上角是时基单元</strong>：配置好、启动定时器，<strong>CNT 就在预分频之后的时钟驱动下不断自增</strong>；这个 CNT 就是<strong>测周法用来计数计时的东西</strong>。</li>
+<li><strong>经过预分频之后这个位置的时钟频率，就是驱动 CNT 的标准频率 fc</strong>，所以 <strong><code>fc = 72M / (PSC + 1)</code></strong>（预分频系数 = PSC+1）。</li>
+<li><strong>下面输入捕获通道 1</strong>：GPIO 输入一个方波 → 经滤波器和边沿检测 → <strong>选 TI1FP1 为上升沿触发</strong> → 输入选择直连通道、分频器选不分频 → 当 TI1FP1 出现上升沿后，<strong>CNT 的当前计数值转运到 CCR1</strong>；<strong>同时</strong>触发源选中 TI1FP1、从模式选复位，TI1FP1 的上升沿还会通过上面这一路<strong>去触发 CNT 清零</strong>。</li>
+<li><strong>两条路的先后顺序</strong>：<strong>肯定是先转运 CNT 的值到 CCR，再触发从模式给 CNT 清零</strong>（或者两者非阻塞地同时转移），<strong>绝不会先清零再捕获</strong>——要不然捕获值肯定都是 0 了。</li>
+<li><strong>工作过程</strong>（左上波形）：上一个上升沿 → <code>CCR1 = CNT</code>、<code>CNT = 0</code>（捕获自动执行、清零由从模式自动执行）→ CNT 在标准时钟驱动下从 0 开始自增，<strong>一直到下一个上升沿</strong> → 再次 <code>CCR1 = CNT</code>、<code>CNT = 0</code>……所以**<code>CCR1</code> 的值始终保持为最新一个周期的计数值**，这个值就是测周法里的 <strong>N</strong>。</li>
+<li><strong>公式与读法</strong>：<strong><code>fx = fc / N</code></strong>，其中 <strong><code>N = CCR1</code></strong>——所以<strong>想读频率，只需要读 CCR1 得到 N、再算 fc/N 就行了</strong>；不需要读的时候，<strong>整个电路全自动测量，不占任何软件资源</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/12-ic-basic-structure.jpg" alt="图 12：PPT「输入捕获基本结构」（本节重点图）——右上时基单元（PSC 预分频器 → CNT 计数器、ARR 自动重装器）；下面输入捕获单元1：GPIO → 滤波器 → 边沿检测极性选择 → TI1FP1 → 分频器 → CCR1 捕获/比较器；TI1FP1 同时经「触发源选择 → 从模式 Reset」清零 CNT；左上波形标注 CCR1 = CNT / CNT = 0 与 CNT ++"></p>
+<p><em>图 12：PPT「输入捕获基本结构」（本节重点图）——右上时基单元（PSC 预分频器 → CNT 计数器、ARR 自动重装器）；下面输入捕获单元1：GPIO → 滤波器 → 边沿检测极性选择 → TI1FP1 → 分频器 → CCR1 捕获/比较器；TI1FP1 同时经「触发源选择 → 从模式 Reset」清零 CNT；左上波形标注 <code>CCR1 = CNT / CNT = 0</code> 与 <code>CNT ++</code></em></p>
+<h3 id="7-1-两个必须注意的点">7.1 两个必须注意的点</h3>
+<ul>
+<li><strong>① <code>ARR</code> 一般设置为最大 65535</strong>：因为 CNT 的值有上限——<strong>CNT 最大只能计 65535 个数</strong>；如果信号频率太低，一个周期要计的数超过上限，<strong>CNT 计数值就会溢出</strong>（测周法就出错了）。所以把 ARR 设成最大，让可测周期尽量长。</li>
+<li><strong>② 从模式的触发源只有 <code>TI1FP1</code> 和 <code>TI2FP2</code>，没有 TI3/TI4 的信号</strong>：所以<strong>想用从模式自动清零 CNT，就只能用通道 1 和通道 2</strong>；<strong>通道 3、通道 4 只能开启捕获中断、在中断里手动清零</strong>——不过这样<strong>程序就会处于频繁中断的状态，比较消耗软件资源</strong>。</li>
+</ul>
+<h2 id="8-pwmi-基本结构-同时测频率和占空比-本节重点图">8. PWMI 基本结构（同时测频率和占空比，本节重点图）</h2>
+<p>PWMI（PWM 输入）模式<strong>使用两个通道同时捕获一个引脚</strong>，可以同时测量<strong>周期</strong>和<strong>占空比</strong>（对应程序二 <code>6-7</code> 的逻辑）：</p>
+<ul>
+<li>上面这部分结构和刚才的输入捕获基本结构一样；<strong>下面多了一个通道</strong>。</li>
+<li>首先，<strong>TI1FP1 配置为上升沿触发</strong>：触发捕获<strong>和</strong>清零 CNT，正常地捕获周期——<strong><code>CCR1</code> = 一整个周期的计数值</strong>。</li>
+<li>然后，<strong>TI1FP2 配置为下降沿触发</strong>，<strong>通过交叉通道去触发通道 2 的捕获单元</strong>。</li>
+<li>结果（看左上波形）：最开始上升沿 → <code>CCR1</code> 捕获、同时清零 CNT → CNT 一直 ++ → <strong>在下降沿这个时刻，触发 CCR2 捕获</strong>，所以 <strong><code>CCR2</code> 的值就是从上升沿到下降沿这段（高电平期间）的计数值</strong>；<strong>CCR2 捕获并不触发 CNT 清零</strong>，所以 CNT 继续 ++，直到<strong>下一次上升沿</strong> → <code>CCR1</code> 捕获周期、CNT 清零……</li>
+<li>于是：<strong><code>CCR1</code> 就是一整个周期的计数值，<code>CCR2</code> 就是高电平期间的计数值</strong>，所以 <strong><code>占空比 = CCR2 / CCR1</code></strong>。</li>
+<li><strong>两种接法可以灵活切换</strong>：可以让两个通道<strong>同时捕获第一个引脚</strong>（用 TI1FP1/TI1FP2，通道 2 前面那一部分没用到），也可以配置成<strong>两个通道同时捕获第二个引脚</strong>的输入（那就用 TI2FP1/TI2FP2 这两个信号）。</li>
+<li>这就是 PWMI 模式用两个通道捕获频率和占空比的思路，也是「<strong>一个引脚同时映射到两个捕获单元</strong>」这个交叉设计的主要用途。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/13-pwmi-structure.jpg" alt="图 13：PPT「PWMI 基本结构」（本节重点图）——上半部分同输入捕获基本结构；多出下面一个通道：TI1FP2 经分频器 → CCR2 捕获/比较器；左上波形上升沿标 CCR1 = CNT / CNT = 0、下降沿标 CCR2 = CNT（不触发清零）"></p>
+<p><em>图 13：PPT「PWMI 基本结构」（本节重点图）——上半部分同输入捕获基本结构；多出下面一个通道：TI1FP2 经分频器 → CCR2 捕获/比较器；左上波形上升沿标 <code>CCR1 = CNT / CNT = 0</code>、下降沿标 <code>CCR2 = CNT</code>（不触发清零）</em></p>
+<p><img src="../assets/images/stm32-17/14-pwmi-annotated.jpg" alt="图 14：同一张 PWMI 结构图上的红笔标注——红线标出上升沿 CCR1 = CNT、CNT = 0、下降沿 CCR2 = CNT，以及 TI1FP1（上升沿）与 TI1FP2（下降沿，交叉进通道2）两路的走向；字幕「直到下一次上升沿，CCR1捕获周期，CNT清零」"></p>
+<p><em>图 14：同一张 PWMI 结构图上的红笔标注——红线标出上升沿 <code>CCR1 = CNT</code>、<code>CNT = 0</code>、下降沿 <code>CCR2 = CNT</code>，以及 TI1FP1（上升沿）与 TI1FP2（下降沿，交叉进通道2）两路的走向；字幕「直到下一次上升沿，CCR1捕获周期，CNT清零」</em></p>
+<h2 id="9-手册导读与下一集">9. 手册导读与下一集</h2>
+<ul>
+<li><strong>本节内容在手册里主要对应两节</strong>：<strong>「输入捕获模式」和「PWM 输入模式」</strong>——他这里也是对这两种模式的一些介绍；<strong>不过手册里的描述全都是寄存器的方式</strong>，「还是不太好理解的」——「听完我的讲解，再来看一下他的描述，应该就比较容易明白是啥意思了吧」。</li>
+<li>手册里还有 <strong>PWMI 模式的例子</strong>（TIMx_CH1 通道捕获周期也就是频率、通道 2 捕获脉宽也就是占空比）。</li>
+<li><strong>本节还讲了主从触发模式</strong>，它在手册的**「定时器同步」**一节有介绍（包括「使用一个定时器作为另一个定时器的预分频器」「一个定时器使能另一个定时器」「一个定时器启动另一个定时器」等，支持定时器级联）；作者说「这些定时器同步的功能比较高级，了解一下就行了」，<strong>主要还是理解从模式在这里配合输入捕获完成硬件自动化的用途</strong>。</li>
+<li><strong>结尾（38:49）</strong>：「好，那本小节的内容到这里就结束了，<strong>我们下一小节来学习输入捕获的代码部分</strong>。」——代码在 <strong>P18 [6-6]</strong>（就是片头这两个工程 <code>6-6 输入捕获模式测频率</code>、<code>6-7 PWMI模式测频率占空比</code>）。</li>
+</ul>
+<p><img src="../assets/images/stm32-17/15-ending.jpg" alt="图 15：结尾画面——仍停在「PWMI 基本结构」页，38:49 说完「我们下一小节来学习输入捕获的代码部分」后 38:54 结束（本集没有片尾总结页）"></p>
+<p><em>图 15：结尾画面——仍停在「PWMI 基本结构」页，38:49 说完「我们下一小节来学习输入捕获的代码部分」后 38:54 结束（本集没有片尾总结页）</em></p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>输入捕获和输出比较共用 4 个 CCR 和 CH1～CH4 引脚</strong>：同一个定时器上<strong>两者只能二选一</strong>，不能同时用——想同时输出 PWM 又测频率，就得用不同定时器或不同引脚（后半句「换定时器/换引脚」是延伸结论）。</li>
+<li><strong>「锁存到 CCR」≠「清零 CNT」</strong>：捕获只把当前 CNT 的值<strong>复制</strong>进 CCR，<strong>CNT 不会自己清零</strong>；要继续测下一个周期，必须用<strong>从模式 Reset 自动清零</strong>（或中断手动清零）。</li>
+<li><strong>先捕获、后清零</strong>：顺序绝不能反——<strong>如果先清零再捕获，CCR 里永远是 0</strong>；实现上是「CNT 转运到 CCR」与「从模式清 CNT」同时/先后紧接发生。</li>
+<li><strong>测周法公式是 <code>fx = fc/N</code>，N 是 CCR1 里那个计数值</strong>；而 <code>fc = 72M/(PSC+1)</code>——<strong>标准频率是预分频之后驱动 CNT 的时钟</strong>，不是 72MHz 本身；千万别直接拿 72M 当 fc 用（除非 PSC=0）。</li>
+<li><strong>测频法与测周法别用反</strong>：高频适合<strong>测频法</strong>（闸门内沿多），低频适合<strong>测周法</strong>（周期长计次多）；分界是<strong>中界频率 <code>fm = √(fc/T)</code></strong>。</li>
+<li><strong><code>ARR</code> 要设成最大 65535</strong>（测周法）：CNT 只能计 65535 个数，频率太低时一个周期的计数值会<strong>溢出</strong>。</li>
+<li><strong>从模式触发源只有 TI1FP1 / TI2FP2</strong>：想硬件自动清零 CNT，<strong>只能用通道 1、2</strong>；<strong>CH3/CH4 没有</strong>，只能开捕获中断手动清零（频繁中断、耗软件资源）。</li>
+<li><strong>滤波器 ICF 是「连续 N 个相同才翻转」</strong>：不是简单的低通；<strong>采样越慢/N 越大，滤波越强、但响应越慢</strong>——噪声大才设大，信号变化快时设大可能把有效边沿也滤掉（后半句是延伸结论）。</li>
+<li><strong><code>CC1S[1:0]</code> 决定数据选择器</strong>：<code>00</code> 是输出模式（给输出比较用），<strong><code>01</code> 输入且 IC1 映射 TI1、<code>10</code> 输入且 IC1 映射 TI2、<code>11</code> 输入且 IC1 映射 TRC</strong>（手册原文，注意别和 <code>CC2S</code> 的 01→TI2、10→TI1 记混）——<strong>输入捕获时必须配成 01/10/11</strong>，否则这路根本不是在捕获。</li>
+<li><strong>交叉连接的两大目的别只记一个</strong>：①灵活切换输入 ②<strong>一个引脚同时给两个捕获单元（PWMI 的基础）</strong>——PWMI 能测占空比靠的就是第②点（TI1FP1 捕上升沿、TI1FP2 捕下降沿）。</li>
+<li><strong>占空比公式是 <code>CCR2/CCR1</code></strong>：CCR1 是<strong>一个周期</strong>的计数值、CCR2 是<strong>高电平时间</strong>的计数值；两者用的是<strong>同一个 CNT 的同一套标准频率</strong>，所以比值才直接是占空比。</li>
+<li><strong>PWMI 里只有上升沿那一路清 CNT</strong>：<strong>CCR2 捕获不会清零 CNT</strong>，所以 CNT 才能从上升沿一直数到下一个上升沿（CCR1 才是整周期）。</li>
+<li><strong>「主从触发模式」是作者自造的名字</strong>：手册里没有这个词，不要拿它去手册搜索；对应的是**主模式（MMS）+ 触发源选择（TS）+ 从模式（SMS）**三组寄存器位。</li>
+<li><strong><code>TS</code> 位只能在 <code>SMS=000</code>（从模式关闭）时修改</strong>：手册明确写了「这几位只能在未用到时被改变，以避免在改变时产生错误的边沿检测」——改触发源前先把从模式关掉。</li>
+<li><strong>本集没有 IC 代码</strong>：<code>TIM_ICInit</code>、<code>TIM_PWMIConfig</code>、<code>TIM_SelectInputTrigger</code>、<code>TIM_SelectSlaveMode</code> 这些<strong>本集一个都没出现</strong>，全在 P18 [6-6]；片头工程是现成的，只演示了现象。</li>
+<li><strong>它只能测数字信号</strong>：正弦要先比较器整形、高压要隔离，最终输入的必须是 0V/3.3V 的高低电平——别指望直接接交流信号。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:01</td>
+<td>开场：本小节学定时器的第三部分——输入捕获功能</td>
+</tr>
+<tr>
+<td>0:09</td>
+<td>先看现象：输入捕获共两个程序——① 输入捕获模式测频率 ② PWMI 模式测频率和占空比</td>
+</tr>
+<tr>
+<td>0:26</td>
+<td>先看程序一；测频率需要信号源，借用上一节 PWM 模块在 PA0 输出可调波形</td>
+</tr>
+<tr>
+<td>0:48</td>
+<td>本节测量输入口是 PA6，一根线把 PA0 与 PA6 连起来自测；有示波器可接这根线核对，有信号发生器就直接接 PA6</td>
+</tr>
+<tr>
+<td>1:19</td>
+<td>现象：OLED 显示 1000Hz ⇒ PA0 输出的是 1000Hz 信号；回程序看参数调节部分</td>
+</tr>
+<tr>
+<td>1:44</td>
+<td>预分频 720 算出 1000Hz；改成 7200 → 100Hz，测到 100Hz</td>
+</tr>
+<tr>
+<td>2:07</td>
+<td>改成 3600 → 200Hz，测到 200Hz；程序一只能测频率，不能测占空比</td>
+</tr>
+<tr>
+<td>2:35</td>
+<td>程序二 PWMI 模式测频率占空比：OLED 第一行 1000Hz、第二行 50%（PSC 720、CCR 50）</td>
+</tr>
+<tr>
+<td>3:09</td>
+<td>改参数：PSC 3600 → 200Hz、CCR 20 → 20%</td>
+</tr>
+<tr>
+<td>3:30</td>
+<td>实测 200Hz / 20% 没问题；可自行改参数或用信号发生器测试</td>
+</tr>
+<tr>
+<td>3:41</td>
+<td>现象演示结束，回 PPT 看输入捕获的理论部分</td>
+</tr>
+<tr>
+<td>3:49</td>
+<td>IC = Input Capture；对应定时器结构图：左边输入捕获、右边输出比较</td>
+</tr>
+<tr>
+<td>4:09</td>
+<td>两者共用 4 个 CCR 和 CH1～CH4 引脚 ⇒ 同一定时器只能二选一</td>
+</tr>
+<tr>
+<td>4:32</td>
+<td>回顾输出比较：比较 CNT 与 CCR 大小关系，对输出电平置1/置0/翻转</td>
+</tr>
+<tr>
+<td>5:11</td>
+<td>输入捕获描述：引脚出现指定电平跳变时，当前 CNT 锁存到 CCR（4:28 只是引出句）</td>
+</tr>
+<tr>
+<td>5:23</td>
+<td>输入捕获：跳变可以是上升沿或下降沿（可配置）；「锁存到 CCR」= 把 CNT 读出写入 CCR</td>
+</tr>
+<tr>
+<td>5:45</td>
+<td>结构图中 4 个输入引脚 → 滤波和边沿检测电路；作用和外部中断差不多（都检测跳变）</td>
+</tr>
+<tr>
+<td>6:09</td>
+<td>区别：外部中断向 CPU 申请中断，这里控制后续电路让 CNT 锁存到 CCR</td>
+</tr>
+<tr>
+<td>6:17</td>
+<td>对比：输出比较引脚是输出端、输入捕获引脚是输入端</td>
+</tr>
+<tr>
+<td>6:44</td>
+<td>用处：测 PWM 频率、占空比、脉冲间隔、电平持续时间</td>
+</tr>
+<tr>
+<td>7:15</td>
+<td>每个高级/通用定时器 4 个输入捕获通道，两者电路没区别；基本定时器没有</td>
+</tr>
+<tr>
+<td>7:43</td>
+<td>PWMI 模式（PWM 输入模式）专为测 PWM 频率和占空比设计；配合主从触发可实现硬件全自动（不干预、不进中断、直接读 CCR）</td>
+</tr>
+<tr>
+<td>8:37</td>
+<td>要测频率，先补频率测量知识：图中是频率逐渐降低的方波（越左越高）</td>
+</tr>
+<tr>
+<td>8:52</td>
+<td>STM32 只能测数字信号：正弦要用运放比较器整形，高压要隔离（隔离放大器/电压互感器），最终输入 3.3V/0V</td>
+</tr>
+<tr>
+<td>9:35</td>
+<td>测频法：闸门时间 T 内对上升沿计次得 N，fx=N/T；T 通常 1s（计次值直接是 Hz），2s 除 2、0.5s 乘 2</td>
+</tr>
+<tr>
+<td>10:46</td>
+<td>频率定义：1s 内来多少个周期，频率就是多少 Hz</td>
+</tr>
+<tr>
+<td>11:18</td>
+<td>测周法：两个上升沿内以标准频率 fc 计次得 N，fx=fc/N</td>
+</tr>
+<tr>
+<td>11:56</td>
+<td>没有无限精度的秒表，测量时间也是定时器计次：1/fc × N = 周期，取倒数得 fx=fc/N</td>
+</tr>
+<tr>
+<td>12:30</td>
+<td>两法区别：测频法适合高频（闸门内沿多、N 大误差小；沿太少误差极大）</td>
+</tr>
+<tr>
+<td>13:20</td>
+<td>测周法适合低频（周期长计次多）；fc=1MHz、待测 500kHz 时一个周期只计一两个数</td>
+</tr>
+<tr>
+<td>13:57</td>
+<td>测频法更新慢但平滑（自带均值滤波，1s 出一次）；测周法更新快但受噪声影响波动大</td>
+</tr>
+<tr>
+<td>14:50</td>
+<td>引出中界频率：测频法与测周法误差相等的频率点</td>
+</tr>
+<tr>
+<td>15:05</td>
+<td>±1 误差：两法都有（末尾半个周期只能舍弃或取整），N 越大影响越小</td>
+</tr>
+<tr>
+<td>16:30</td>
+<td>推导：令两法 N 相等解出 f ⇒ fm = √(fc/T)；小于 fm 用测周法、大于用测频法</td>
+</tr>
+<tr>
+<td>17:20</td>
+<td>频率测量讲完，开始用 STM32 实现</td>
+</tr>
+<tr>
+<td>17:25</td>
+<td>测频法可用外部计数 + 1s 定时中断实现（红外计次/定时器外部时钟改进），作者说自行研究不演示</td>
+</tr>
+<tr>
+<td>18:14</td>
+<td>本集输入捕获测频率用测周法：测两个上升沿之间的时间</td>
+</tr>
+<tr>
+<td>18:36</td>
+<td>总结构图：最左 4 个通道引脚（查引脚定义表）</td>
+</tr>
+<tr>
+<td>18:44</td>
+<td>三输入异或门（输入接 CH1/2/3）：任一引脚翻转输出就翻转（为三相无刷电机霍尔服务）</td>
+</tr>
+<tr>
+<td>19:02</td>
+<td>选上面则通道 1 输入是 3 引脚异或值，选下面则各用各的；本课不涉及无刷电机</td>
+</tr>
+<tr>
+<td>19:42</td>
+<td>输入滤波器和边沿检测器：滤波防毛刺，边沿检测选上升沿/下降沿（同外部中断）</td>
+</tr>
+<tr>
+<td>20:09</td>
+<td>两套滤波+边沿检测：TI1FP1 / TI1FP2；通道 2 也得 TI2FP1（给上面）、TI2FP2（给下面）</td>
+</tr>
+<tr>
+<td>20:40</td>
+<td>两信号可各走各的也可交叉（CH2→通道1、CH1→通道2）</td>
+</tr>
+<tr>
+<td>20:56</td>
+<td>交叉目的①灵活切换后续捕获电路的输入</td>
+</tr>
+<tr>
+<td>21:20</td>
+<td>②一个引脚同时映射到两个捕获单元 = PWMI 模式的经典结构</td>
+</tr>
+<tr>
+<td>21:58</td>
+<td>通道 3/4 同样结构；另有 TRC 信号（来自从模式控制器，为无刷电机设计，暂不用）</td>
+</tr>
+<tr>
+<td>22:22</td>
+<td>预分频器（每通道一个）→ 触发信号触发捕获；每来一个触发 CNT 向 CCR 转运一次</td>
+</tr>
+<tr>
+<td>22:46</td>
+<td>转运同时产生捕获事件（置标志位、可产生中断）；需要时开捕获中断</td>
+</tr>
+<tr>
+<td>23:07</td>
+<td>上升沿触发捕获：CNT 由内部标准时钟驱动 ⇒ CNT 值可记录两个上升沿间的时间（周期）</td>
+</tr>
+<tr>
+<td>23:30</td>
+<td>取倒数即测周法的频率；CCR 捕获到的值就是 N，CNT 驱动时钟就是 fc</td>
+</tr>
+<tr>
+<td>23:51</td>
+<td>细节：每次捕获后要清 CNT，下次沿捕获才是间隔；自动清零可用主从触发模式</td>
+</tr>
+<tr>
+<td>24:30</td>
+<td>图123（更详细的框图）是刚才框图的细化；引脚先过滤波器（TI1→TI1F，fDTS 采样）</td>
+</tr>
+<tr>
+<td>25:00</td>
+<td>CCMR1 的 ICF 位控制滤波参数；滤波器怎么工作看手册 CCMR1</td>
+</tr>
+<tr>
+<td>25:21</td>
+<td>手册 ICF[3:0]：定义 TI1 采样频率及数字滤波长度；数字滤波器记到 N 个事件才产生输出跳变</td>
+</tr>
+<tr>
+<td>25:38</td>
+<td>原理：以采样频率采样，连续 N 个都为高输出才高、都为低才低；噪声抖动时输出不变 ⇒ 滤波</td>
+</tr>
+<tr>
+<td>26:07</td>
+<td>采样越慢/N 越大滤波越强；噪声大就把参数设大</td>
+</tr>
+<tr>
+<td>26:20</td>
+<td>滤波后进边沿检测器，CCER 的 CC1P 选极性得 TI1FP1；经数据选择器进后续捕获电路</td>
+</tr>
+<tr>
+<td>27:02</td>
+<td>数据选择器由 CC1S 选；IC1PSC 配分频（不分频/2/4/8）；CC1E 控制输出使能</td>
+</tr>
+<tr>
+<td>27:35</td>
+<td>每捕获一次要清 CNT；硬件电路可自动完成；TI1FP1 和 TI1 边沿信号通向从模式控制器</td>
+</tr>
+<tr>
+<td>28:10</td>
+<td>从模式就是完成自动化操作的利器；接下来研究主从触发模式</td>
+</tr>
+<tr>
+<td>28:25</td>
+<td>「主从触发模式」是作者自起的名字（手册没有），是主模式+从模式+触发源选择的简称</td>
+</tr>
+<tr>
+<td>28:38</td>
+<td>主模式把内部信号映射到 TRGO 触发别的外设；从模式接收信号控制自身运行</td>
+</tr>
+<tr>
+<td>29:00</td>
+<td>触发源选择得到 TRGI 去触发从模式；从模式在列表里选操作执行</td>
+</tr>
+<tr>
+<td>29:20</td>
+<td>想让 TI1FP1 自动清 CNT：触发源选 TI1FP1、从模式选 Reset ⇒ 硬件全自动测量</td>
+</tr>
+<tr>
+<td>29:47</td>
+<td>信号具体含义看手册；主从触发还能做定时器级联（一个 TRGO 更新 → 另一个外部时钟模式1）</td>
+</tr>
+<tr>
+<td>30:30</td>
+<td>主模式还可选复位/使能/比较脉冲/4 个 OCREF 作 TRGO 输出；不用特别记</td>
+</tr>
+<tr>
+<td>31:05</td>
+<td>手册：复位模式 = 触发输入 TRGI 上升沿重新初始化计数器（就是清零 CNT）</td>
+</tr>
+<tr>
+<td>31:15</td>
+<td>回到 PPT：主模式/触发源选择/从模式三张图，库函数对应三个函数给参数即可</td>
+</tr>
+<tr>
+<td>31:30</td>
+<td>输入捕获基本结构：只用一个通道 ⇒ 只能测频率</td>
+</tr>
+<tr>
+<td>31:40</td>
+<td>时基单元配置启动后 CNT 在预分频后的时钟驱动下自增；fc = 72M/预分频系数</td>
+</tr>
+<tr>
+<td>32:05</td>
+<td>输入捕获通道1：GPIO→滤波→边沿检测选 TI1FP1 上升沿→直连通道、不分频</td>
+</tr>
+<tr>
+<td>32:20</td>
+<td>上升沿后 CNT 转运到 CCR1；同时触发源 TI1FP1 + 从模式 Reset 清 CNT</td>
+</tr>
+<tr>
+<td>32:50</td>
+<td>顺序：先转运 CNT→CCR 再清 CNT（或非阻塞同时），绝不能先清零</td>
+</tr>
+<tr>
+<td>33:05</td>
+<td>波形：CCR1=CNT、CNT=0；CNT 从 0 自增到下一个上升沿，CCR1 始终是最新周期计数值 N</td>
+</tr>
+<tr>
+<td>34:23</td>
+<td>fc/N 就是频率；读 CCR1 得 N 再算 fc/N；不读时全自动、不占软件资源</td>
+</tr>
+<tr>
+<td>34:47</td>
+<td>注意1：ARR 一般设最大 65535（CNT 上限），频率太低会溢出</td>
+</tr>
+<tr>
+<td>34:58</td>
+<td>注意2：从模式触发源只有 TI1FP1/TI2FP2（没有 TI3/TI4）</td>
+</tr>
+<tr>
+<td>35:02</td>
+<td>所以硬件清零只能用 CH1/CH2；CH3/CH4 只能开捕获中断手动清零（频繁中断耗软件）</td>
+</tr>
+<tr>
+<td>35:20</td>
+<td>最后一个 PPT：PWMI 基本结构，两个通道同时捕获一个引脚</td>
+</tr>
+<tr>
+<td>35:41</td>
+<td>TI1FP1 上升沿触发捕获+清 CNT（捕周期，CCR1=整周期计数值）</td>
+</tr>
+<tr>
+<td>35:53</td>
+<td>TI1FP2 下降沿经交叉通道触发通道2 捕获（CCR2=高电平计数值）</td>
+</tr>
+<tr>
+<td>36:15</td>
+<td>波形：上升沿 CCR1 捕获+清 CNT → CNT++ → 下降沿触发 CCR2 捕获（不清 CNT）→ CNT++ → 下个上升沿</td>
+</tr>
+<tr>
+<td>36:36</td>
+<td>CCR1 是整周期计数值、CCR2 是高电平计数值 ⇒ 占空比 = CCR2/CCR1</td>
+</tr>
+<tr>
+<td>37:00</td>
+<td>也可两个通道同时捕获第二个引脚（TI2FP1/TI2FP2），两种输入可切换</td>
+</tr>
+<tr>
+<td>37:11</td>
+<td>内容差不多结束，最后大致看手册：对应「输入捕获模式」和「PWM 输入模式」两节</td>
+</tr>
+<tr>
+<td>37:30</td>
+<td>手册描述全是寄存器方式不太好理解；PWMI 例子：通道1 捕周期、通道2 捕脉宽</td>
+</tr>
+<tr>
+<td>38:00</td>
+<td>还涉及主从触发（「定时器同步」一节，含定时器级联），功能比较高级了解即可</td>
+</tr>
+<tr>
+<td>38:49</td>
+<td>结尾：下一小节学习输入捕获的代码部分</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，675 段），不是 ASR。<strong>讲参考手册那几段混入了大量手册正文</strong>（如「输入捕获模式可以用来测量脉冲宽度或频率」「一旦 CC1E=0（TIMx_CCER 寄存器中）则预分频器复位」「本译文仅供参考，如有翻译错误，请以英文原稿为准」等），这些<strong>不是口述内容</strong>；Keil 的输出（<code>Flash Load finished at 19:41:26</code>、<code>Application running ...</code>）也被抓进字幕。典型 OCR 错字（本集实际出现）：<code>本小节</code> → 「本小范」、<code>缩写是 IC</code> → 「缩写是C」、<code>Input Capture</code> → 「lnouit Captume/InputCapture」、<code>PWMI 模式</code> → 「PWM1模式/PWM模式」、<code>TI1FP1</code> → 「Tl1FP1/T1FP1」、<code>IC1PSC/IC1F</code> → 「ICPS/ICF位」、<code>比较</code> → 「此较」、<code>引脚</code> → 「引I脚/引1脚」、<code>手册在 CCMR1</code> → 「手册积在CCMR1」以及大量行首噪声（<code>宫</code>、<code>门</code>、<code>山</code>、<code>三</code>、<code>豆</code>、<code>」</code>、<code>厂</code>、<code>开</code>）等，已按画面和上下文校正。</li>
+<li><strong>本集没有写输入捕获的代码</strong>：片头两个工程是<strong>成品</strong>（main.c 里已经调用 <code>IC_Init()</code>、<code>IC_GetFreq()</code>），而 <strong><code>IC.c/IC.h</code> 的内容本集没有展示</strong>；所以本笔记里<strong>没有 <code>TIM_ICInit</code> 的成员值</strong>（<code>IC_Polarity</code>、<code>IC_Selection</code> 等）、也没有 <code>TIM_PWMIConfig</code>/<code>TIM_SelectInputTrigger</code>/<code>TIM_SelectSlaveMode</code> 的用法，这些全在 <strong>P18 [6-6]</strong>。</li>
+<li><strong>中界频率的推导只有口述</strong>：画面（图 6）只给了 <code>fm = √(fc/T)</code> 这个公式，推导过程（「把两法的 N 提出来、令相等、解出 f」）是口述的，PPT 上没有展开；本笔记按口述写推导思路，没有补额外数学。</li>
+<li><strong>测频法在 STM32 上的实现没有演示</strong>：作者明确说「可以自行研究，我就不再演示了」，本集<strong>没有任何测频法的代码或波形</strong>。</li>
+<li><strong>滤波器具体选哪一档没有给建议</strong>：只讲了原理和手册 ICF 表，没有说实际项目该用哪个值（要看 P18 的代码）。</li>
+<li><strong>「从模式触发源只有 TI1FP1/TI2FP2」是口述结论</strong>：图 11（SMCR 的 TS 表）能间接印证（TS 只有 100 TI1F_ED、101 TI1FP1、110 TI2FP2、111 ETRF 这几个输入源），但 PPT 没有专门一页强调这条。</li>
+<li><strong>片头与理论之间剪辑比较跳</strong>：0:00 是 PPT 标题页 → 0:09 切到工程现象 → 03:45 又回 PPT，中间没有章节提示字幕；本笔记时间轴以口述为准。</li>
+<li><strong>本集画面里没有示波器</strong>：P15/P16 有示波器读数，本集只有 <strong>OLED 显示</strong>，所以「1000Hz / 100Hz / 200Hz / 50% / 20%」的验证依据是<strong>OLED 画面 + 口述</strong>，不是示波器实测。</li>
+<li><strong>视频没有片尾总结页</strong>：38:42 画面还停在 PWMI 结构（图 15），38:49 一句预告后 38:54 结束。</li>
+<li><strong>工程目录号与视频小节号不同套</strong>：本集是 <strong>[6-5]</strong>，片头两个工程目录叫 <code>6-6</code> / <code>6-7</code>（代码小节编号）——与 P15/P16 的情况一致。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-18.html"><span class="label">下一篇</span>[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+    <a class="next" href="stm32-16.html"><span class="label">上一篇</span>[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E7%89%87%E5%A4%B4%E6%98%AF%E6%88%90%E5%93%81%E5%B7%A5%E7%A8%8B-%E4%BB%A3%E7%A0%81%E5%9C%A8-6-6-p18">0. 本集定位：理论课（片头是成品工程），代码在 [6-6] P18</a>
+        <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E4%B8%A4%E4%B8%AA%E7%A8%8B%E5%BA%8F%E7%9A%84%E7%8E%B0%E8%B1%A1">1. 片头两个程序的现象</a>
+        <a class="level-3" href="#1-1-%E7%A8%8B%E5%BA%8F%E4%B8%80-%E8%BE%93%E5%85%A5%E6%8D%95%E8%8E%B7%E6%A8%A1%E5%BC%8F%E6%B5%8B%E9%A2%91%E7%8E%87-00-09-01-35">1.1 程序一：输入捕获模式测频率（00:09–01:35）</a>
+        <a class="level-3" href="#1-2-%E7%A8%8B%E5%BA%8F%E4%BA%8C-pwmi-%E6%A8%A1%E5%BC%8F%E6%B5%8B%E9%A2%91%E7%8E%87%E5%92%8C%E5%8D%A0%E7%A9%BA%E6%AF%94-02-35-03-45">1.2 程序二：PWMI 模式测频率和占空比（02:35–03:45）</a>
+        <a class="level-2" href="#2-%E8%BE%93%E5%85%A5%E6%8D%95%E8%8E%B7%E6%98%AF%E4%BB%80%E4%B9%88">2. 输入捕获是什么</a>
+        <a class="level-3" href="#2-1-%E6%A0%B8%E5%BF%83%E5%AE%9A%E4%B9%89">2.1 核心定义</a>
+        <a class="level-3" href="#2-2-%E4%B8%8E%E8%BE%93%E5%87%BA%E6%AF%94%E8%BE%83%E7%9A%84%E5%85%B3%E7%B3%BB-%E5%85%B1%E7%94%A8-ccr-%E5%92%8C%E5%BC%95%E8%84%9A">2.2 与输出比较的关系：共用 CCR 和引脚</a>
+        <a class="level-3" href="#2-3-%E4%B8%8E%E8%BE%93%E5%87%BA%E6%AF%94%E8%BE%83-%E5%A4%96%E9%83%A8%E4%B8%AD%E6%96%AD%E7%9A%84%E5%AF%B9%E6%AF%94">2.3 与输出比较、外部中断的对比</a>
+        <a class="level-3" href="#2-4-%E4%B8%80%E5%8F%A5%E8%AF%9D%E8%AE%B0%E4%BD%8F">2.4 一句话记住</a>
+        <a class="level-2" href="#3-%E9%A2%91%E7%8E%87%E6%B5%8B%E9%87%8F%E5%9F%BA%E7%A1%80">3. 频率测量基础</a>
+        <a class="level-3" href="#3-1-%E5%89%8D%E6%8F%90-stm32-%E5%8F%AA%E8%83%BD%E6%B5%8B%E6%95%B0%E5%AD%97%E4%BF%A1%E5%8F%B7">3.1 前提：STM32 只能测数字信号</a>
+        <a class="level-3" href="#3-2-%E6%B5%8B%E9%A2%91%E6%B3%95-%E9%97%B8%E9%97%A8%E6%97%B6%E9%97%B4%E5%86%85%E6%95%B0%E4%B8%8A%E5%8D%87%E6%B2%BF">3.2 测频法：闸门时间内数上升沿</a>
+        <a class="level-3" href="#3-3-%E6%B5%8B%E5%91%A8%E6%B3%95-%E4%B8%A4%E4%B8%AA%E4%B8%8A%E5%8D%87%E6%B2%BF%E4%B9%8B%E9%97%B4%E6%95%B0%E6%A0%87%E5%87%86%E9%A2%91%E7%8E%87">3.3 测周法：两个上升沿之间数标准频率</a>
+        <a class="level-3" href="#3-4-%E4%B8%A4%E6%B3%95%E5%AF%B9%E6%AF%94">3.4 两法对比</a>
+        <a class="level-3" href="#3-5-1-%E8%AE%A1%E6%95%B0%E8%AF%AF%E5%B7%AE-%E4%B8%A4%E6%B3%95%E9%83%BD%E5%9B%BA%E6%9C%89-n-%E8%B6%8A%E5%A4%A7%E5%BD%B1%E5%93%8D%E8%B6%8A%E5%B0%8F">3.5 ±1 计数误差：两法都固有，N 越大影响越小</a>
+        <a class="level-3" href="#3-6-%E4%B8%AD%E7%95%8C%E9%A2%91%E7%8E%87-%E4%B8%A4%E6%B3%95%E8%AF%AF%E5%B7%AE%E7%9B%B8%E7%AD%89%E7%9A%84%E5%88%86%E7%95%8C%E7%82%B9">3.6 中界频率：两法误差相等的分界点</a>
+        <a class="level-3" href="#3-7-stm32-%E4%B8%8A%E6%80%8E%E4%B9%88%E5%AE%9E%E7%8E%B0%E8%BF%99%E4%B8%A4%E7%A7%8D%E6%96%B9%E6%B3%95">3.7 STM32 上怎么实现这两种方法</a>
+        <a class="level-2" href="#4-%E8%BE%93%E5%85%A5%E6%8D%95%E8%8E%B7%E6%80%BB%E7%BB%93%E6%9E%84%E5%9B%BE-%E9%80%9A%E7%94%A8%E5%AE%9A%E6%97%B6%E5%99%A8%E6%A1%86%E5%9B%BE">4. 输入捕获总结构图（通用定时器框图）</a>
+        <a class="level-3" href="#4-1-%E8%BF%99%E5%92%8C%E5%9B%BE123-%E7%9A%84%E5%85%B3%E7%B3%BB">4.1 这和图123 的关系</a>
+        <a class="level-2" href="#5-%E5%9B%BE123-%E8%BE%93%E5%85%A5%E6%8D%95%E8%8E%B7%E9%80%9A%E9%81%93%E7%9A%84%E7%BB%86%E8%8A%82">5. 图123：输入捕获通道的细节</a>
+        <a class="level-3" href="#5-1-%E4%B8%80%E6%9D%A1%E5%AE%8C%E6%95%B4%E9%80%9A%E8%B7%AF">5.1 一条完整通路</a>
+        <a class="level-3" href="#5-2-%E6%BB%A4%E6%B3%A2%E5%99%A8%E6%80%8E%E4%B9%88%E5%B7%A5%E4%BD%9C-%E8%BF%9E%E7%BB%AD-n-%E4%B8%AA%E7%9B%B8%E5%90%8C%E6%89%8D%E7%BF%BB%E8%BD%AC">5.2 滤波器怎么工作：连续 N 个相同才翻转</a>
+        <a class="level-3" href="#5-3-%E6%89%8B%E5%86%8C%E9%87%8C%E7%9A%84-icf-%E8%A1%A8%E4%B8%8E-cc2s">5.3 手册里的 ICF 表与 CC2S</a>
+        <a class="level-2" href="#6-%E4%B8%BB%E4%BB%8E%E8%A7%A6%E5%8F%91%E6%A8%A1%E5%BC%8F-%E7%A1%AC%E4%BB%B6%E8%87%AA%E5%8A%A8%E5%8C%96%E7%9A%84%E5%85%B3%E9%94%AE">6. 主从触发模式：硬件自动化的关键</a>
+        <a class="level-3" href="#6-1-%E4%B8%BB%E4%BB%8E%E8%A7%A6%E5%8F%91%E6%A8%A1%E5%BC%8F-%E6%98%AF%E4%B8%89%E4%B8%AA%E5%8A%9F%E8%83%BD%E7%9A%84%E7%AE%80%E7%A7%B0">6.1 「主从触发模式」是三个功能的简称</a>
+        <a class="level-3" href="#6-2-%E6%88%91%E4%BB%AC%E7%9A%84%E4%BB%BB%E5%8A%A1-%E8%AE%A9-ti1fp1-%E8%87%AA%E5%8A%A8%E6%B8%85%E9%9B%B6-cnt">6.2 我们的任务：让 TI1FP1 自动清零 CNT</a>
+        <a class="level-3" href="#6-3-%E6%89%8B%E5%86%8C-smcr-ts-2-0-%E4%B8%8E-sms-2-0">6.3 手册 SMCR：TS[2:0] 与 SMS[2:0]</a>
+        <a class="level-2" href="#7-%E8%BE%93%E5%85%A5%E6%8D%95%E8%8E%B7%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84-%E5%8D%95%E9%80%9A%E9%81%93%E6%B5%8B%E9%A2%91%E7%8E%87-%E6%9C%AC%E8%8A%82%E9%87%8D%E7%82%B9%E5%9B%BE">7. 输入捕获基本结构（单通道测频率，本节重点图）</a>
+        <a class="level-3" href="#7-1-%E4%B8%A4%E4%B8%AA%E5%BF%85%E9%A1%BB%E6%B3%A8%E6%84%8F%E7%9A%84%E7%82%B9">7.1 两个必须注意的点</a>
+        <a class="level-2" href="#8-pwmi-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84-%E5%90%8C%E6%97%B6%E6%B5%8B%E9%A2%91%E7%8E%87%E5%92%8C%E5%8D%A0%E7%A9%BA%E6%AF%94-%E6%9C%AC%E8%8A%82%E9%87%8D%E7%82%B9%E5%9B%BE">8. PWMI 基本结构（同时测频率和占空比，本节重点图）</a>
+        <a class="level-2" href="#9-%E6%89%8B%E5%86%8C%E5%AF%BC%E8%AF%BB%E4%B8%8E%E4%B8%8B%E4%B8%80%E9%9B%86">9. 手册导读与下一集</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,1002 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[15-2] 读写内部FLASH&amp;读取芯片ID · 我的学习笔记</title>
+  <meta name="description" content="STM32 [15-2]（代码课，分层封装）：应用层→Store（数组+Init/Save/Clear）→MyFLASH（读/擦/写，Unlock→库→Lock）；Store_Data[512] 第 0 个是标志位 0xA5A5、存 0x0800FC00；8/16/32 位读 0x08000010 得 69/0569/08000569；IROM1 规划；15-2 读 F_SIZE/UID。">
+  <meta property="og:title" content="[15-2] 读写内部FLASH&amp;读取芯片ID · 我的学习笔记">
+  <meta property="og:description" content="STM32 [15-2]（代码课，分层封装）：应用层→Store（数组+Init/Save/Clear）→MyFLASH（读/擦/写，Unlock→库→Lock）；Store_Data[512] 第 0 个是标志位 0xA5A5、存 0x0800FC00；8/16/32 位读 0x08000010 得 69/0569/08000569；IROM1 规划；15-2 读 F_SIZE/UID。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html" class="active" aria-current="page">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>27 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">FLASH</span><span class="tag">分层封装</span><span class="tag">MyFLASH</span><span class="tag">Store</span><span class="tag">代码</span>
+    </div>
+    <article class="prose"><h1>[15-2] 读写内部FLASH&amp;读取芯片ID — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=49，53:40（3220 秒）</li>
+<li>素材：248 帧关键帧（<strong>每 13 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>475 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p49/frames/</code>，站内图片在 <code>assets/images/stm32-49/</code>）</li>
+<li>字幕情况：本集<strong>字幕自动探测又失败</strong>（探测条带落在画面底部黑边，首跑只得 3 段噪声），采集端已用 <code>redo_ocr.py</code> 强制条带（1080p 下 y≈935～1015）重跑得到 <strong>475 段</strong>（自检 <code>ratio=99.9%</code>），噪声版留档 <code>transcript.bad.txt</code>。文本错字主要是 <strong><code>数据</code> → 「数居」</strong>（5 处）、<strong><code>页起始</code> → 「贡起始」</strong>（3 处）、<code>解锁和加锁</code> → 「解锁和助加锁」、<code>基地址</code> → 「基地」——已按画面校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：<strong>代码课</strong>——承接上一集（P48 理论），<strong>两个工程</strong>从复制到写完、下载验证：<strong><code>15-1 读写内部FLASH</code>（复制 OLED 显示屏工程）</strong>、<strong><code>15-2 读取芯片ID</code>（复制 <code>15-1</code> 改名）</strong>；接线 = <strong>OLED（I2C）+ 两个按键</strong>。本集是<strong>整门课最完整的一套「分层封装」示范</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>三级分层架构（作者红笔三框）</strong>：最上层 <strong>应用层</strong>（只管把参数写进 <code>Store</code> 的数组、什么时候保存）→ 中间 <strong><code>Store</code> 层</strong>（一个 <code>uint16_t Store_Data[512]</code> 数组 + <code>Store_Init</code> / <code>Store_Save</code> / <code>Store_Clear</code>，负责「存哪些、什么时候存、首次怎么初始化」）→ 最底层 <strong><code>MyFLASH</code> 层</strong>（只做<strong>读 / 擦除 / 编程</strong>这些原始操作，把库函数再包一层）——目标是「<strong>应用层不关心存在哪、怎么擦、什么读写策略</strong>」。<strong>⚠ 作者原话：「这个思路是我自己想的，并不是固定的」</strong>——这是<strong>一种推荐做法</strong>，不是官方范式。<strong><code>MyFLASH</code> 模块</strong>：<strong>没有 <code>Init</code> 函数</strong>（<strong>FLASH 不需要初始化</strong>）；三个读函数都是<strong>一句返回</strong>——<code>MyFLASH_ReadWord</code>：<code>return *((__IO uint32_t *)(Address));</code>、<code>ReadHalfWord</code>（uint16）、<code>ReadByte</code>（uint8）——<strong>地址直接用参数、不需要加任何偏移</strong>（不像外设寄存器要加偏移量）；擦除/编程四个函数<strong>全是同一套路三行</strong>：<strong><code>FLASH_Unlock();</code> → 调对应库函数 → <code>FLASH_Lock();</code></strong>（作者点评「我们就是再包装一下，并没有太多操作」）。<strong><code>FLASH_Status</code> 五个状态</strong>（<code>stm32f10x_flash.h</code>）：<strong><code>FLASH_BUSY = 1</code></strong>、<code>FLASH_ERROR_PG</code>、<code>FLASH_ERROR_WRP</code>、<code>FLASH_COMPLETE</code>、<strong><code>FLASH_TIMEOUT</code></strong>（等待超时）——擦除/编程函数都返回它；<strong>这些库函数内部已经包含「等待忙」（<code>FLASH_WaitForLastOperation</code>），但不含解锁/加锁</strong>，所以<strong>解锁加锁要自己调</strong>。<strong><code>Store</code> 模块（关键设计）</strong>：<strong><code>uint16_t Store_Data[512];</code></strong>（<strong>类型与闪存半字统一</strong>）；<strong>第 0 个元素当标志位、千万不要当数据使用</strong>；标志值 <strong><code>0xA5A5</code></strong>（因为<strong>闪存擦除后默认全是 <code>FF</code></strong>，据此判断是不是首次上电）；<strong><code>Store_Init()</code></strong> 做两件事——①<strong>首次运行</strong>：读第 0 个半字 ≠ <code>0xA5A5</code> 就<strong>擦页 + 写标志 <code>0xA5A5</code> + 其余 511 个半字全写 0</strong>；②<strong>每次上电</strong>：<code>for</code> 循环把<strong>整个闪存区数据转存到 SRAM 数组</strong>（<code>Store_Data[i] = MyFLASH_ReadHalfWord(0x0800FC00 + i * 2);</code>）；<strong><code>Store_Save()</code></strong>＝<strong><code>MyFLASH_ErasePage(0x0800FC00)</code> + <code>for</code> 循环把整个数组写回闪存</strong>；<strong><code>Store_Clear()</code></strong> 清空；<strong>存储起始地址 <code>0x0800FC00</code>（C8T6 最后一页＝页 63）</strong>。<strong>读取自证实验（很值得保留）</strong>：从 <strong><code>0x08000010</code>（程序自身起始）<strong>分别按 <strong>32 / 16 / 8 位</strong>读同一地址 → OLED 显示 <strong><code>08000569</code> / <code>0569</code> / <code>69</code></strong>——既验证「用程序读程序自己」，又演示了</strong>小端字节序</strong>（内存里是 <code>69 05 00 08</code>）。<strong>应用层 main</strong>：<code>OLED_Init(); Key_Init(); Store_Init();</code>；<strong>Key1</strong> → <code>Store_Data[1] ++; Store_Data[2] += 2; Store_Data[3] += 3; Store_Data[4] += 4; Store_Save();</code>；<strong>Key2</strong> → <code>Store_Clear();</code>；主循环显示 <code>Store_Data[0]～Store_Data[4]</code>。<strong>现象</strong>：断电/复位后数据保持；每次按键递增后 Save，再断电重启值仍在——<strong>与 P48 片头演示一致</strong>。<strong>地址规划（实战要点）</strong>：把「存储区起始地址」<strong>抽成宏</strong>（<code>STORE_START_ADDRESS</code> 之类）替换所有硬编码 <code>0x0800FC00</code>——<strong>大量出现的可配置参数一定要定义宏</strong>；<strong>用 Keil <code>Target → Read/Only Memory Areas</code> 看 IROM1 范围</strong>（<strong><code>0x8000000</code> / Size <code>0x10000</code> ＝ 默认全部 64K</strong>）、IRAM1（<code>0x20000000</code>/<code>0x5000</code>），再看编译输出 <strong>Program Size</strong>（本例 <strong>2664 字节 ≈ 2.6KB</strong>）——<strong>据此规划用户数据区，避开程序区</strong>。<strong><code>15-2 读取芯片ID</code></strong>：复制 <code>15-1</code> 改名；<code>OLED_ShowString(1, 1, &quot;F_SIZE:&quot;)</code> + <code>OLED_ShowHexNum(1, 8, *((__IO uint16_t *)(0x1FFFF7E0)), 4)</code> → 显示 <strong><code>0040</code>＝64K</strong>；<code>OLED_ShowString(2, 1, &quot;U_ID:&quot;)</code> + 按 <strong>16 位</strong>分别读 <code>0x1FFFF7E8</code>、<code>+0x02</code>（再往下可 <code>+0x04</code>），再按 <strong>32 位</strong>读（偏移 <strong>0x08</strong>、显示长度 8）——<strong>地址偏移运算必须加括号</strong>（否则指针强制类型转换的优先级出错）。<strong>实测每片芯片数据都不一样</strong>。</p>
+<h2 id="0-本集定位-代码课-分层封装-两个工程">0. 本集定位：代码课（分层封装 + 两个工程）</h2>
+<ul>
+<li><strong><code>15-1 读写内部FLASH</code></strong>：<strong>复制 OLED 显示屏工程</strong> → 改名 → 分层规划 → 讲库函数 → <strong>新建 <code>MyFLASH.c/h</code>、<code>Store.c/h</code> 两个模块</strong>逐段写码 → 下载验证；</li>
+<li><strong><code>15-2 读取芯片ID</code></strong>：<strong>复制 <code>15-1</code> 改名</strong> → 写读 <code>F_SIZE</code> / <code>UID</code> 的代码；</li>
+<li>接线：<strong>OLED（I2C）+ 两个按键</strong>（一个保存/变换数据、一个清零）。</li>
+</ul>
+<h2 id="1-分层架构规划">1. 分层架构规划</h2>
+<ul>
+<li>作者在 main.c 上用<strong>红笔画出三个框</strong>：<strong>应用层 → Store → MyFLASH</strong>（箭头表示调用方向）；</li>
+<li><strong>分工</strong>：<ul>
+<li><strong>应用层</strong>：只管「<strong>把要保存的参数写到 Store 层的数组里</strong>」、什么时候调用保存；</li>
+<li><strong><code>Store</code> 层</strong>：维护数组 + 提供 <code>Init / Save / Clear</code>，决定「<strong>存哪些、怎么组织、首次怎么初始化</strong>」；</li>
+<li><strong><code>MyFLASH</code> 层</strong>：只做<strong>读 / 擦除 / 编程</strong>的原始操作；</li>
+</ul>
+</li>
+<li><strong>好处</strong>：应用层完全<strong>不关心数据存在哪个地址、怎么擦、什么读写策略</strong>——这就是「分层封装」的意义；</li>
+<li><strong>⚠ 作者原话：「这个思路是我自己想的，并不是固定的」</strong>——<strong>这是推荐做法，不是固定范式</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-49/01-layers-marked.jpg" alt="图 1：main.c + 红笔三框分层规划——左侧应用层（OLED_Init(); while(1){}）、中间 Store 层、右侧 MyFLASH 层，红箭头标出调用方向；字幕「想要保存参数，就写到 Store 层的数组」"></p>
+<p><em>图 1：main.c + 红笔三框分层规划——左侧应用层（<code>OLED_Init(); while(1){}</code>）、中间 <strong>Store 层</strong>、右侧 <strong>MyFLASH 层</strong>，红箭头标出调用方向；字幕「想要保存参数，就写到 Store 层的数组」</em></p>
+<h2 id="2-先回顾-flash-读写流程与工具">2. 先回顾 Flash 读写流程与工具</h2>
+<ul>
+<li><strong>PPT 回顾 P48 的流程图</strong>（读 / 页擦除 / 全擦除 / 编程 + 选项字节），强调「<strong>这些功能分别对应一个库函数</strong>」；</li>
+<li><strong>选项字节本课不作要求</strong>：手工配置更简单——用 <strong>ST-LINK Utility</strong> 的 <code>Target → Option Bytes</code> 勾选后 <code>Apply</code> 即可；</li>
+<li><strong>⚠ 芯片自锁风险（本集最有价值的坑）</strong>：<strong>用代码配置读写保护容易把芯片锁死</strong>——写了写保护但<strong>程序里没预留解除代码</strong>，芯片就<strong>无法再下载程序</strong>；此时<strong>只能靠 ST-LINK Utility 打开 <code>Target → Option Bytes</code>、去掉读写保护后 <code>Apply</code> 来救活</strong>。所以作者的结论是：<strong>选项字节本课不作要求，少量需求直接用这个软件配置更方便</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-49/02-stlink-utility.jpg" alt="图 2：ST-LINK Utility 读闪存——Memory display：Address 0x08000000、Size 0x10000、Data Width 下拉可选 8 bits / 16 bits / 32 bits；右侧信息 Device STM32F10xx Medium-density、Device ID 0x410、`Flash size 64KBytes`；下方地址 0x08000000～0x08000070 的数据表与日志（Connected via SWD、SWD Frequency = 4.0 MHz）；字幕「还是以16位或8位的形式显示」"></p>
+<p><em>图 2：ST-LINK Utility 读闪存——<code>Memory display</code>：Address <code>0x08000000</code>、Size <code>0x10000</code>、<strong>Data Width 下拉可选 8 bits / 16 bits / 32 bits</strong>；右侧信息 <code>Device STM32F10xx Medium-density</code>、<code>Device ID 0x410</code>、<strong><code>Flash size 64KBytes</code></strong>；下方地址 <code>0x08000000～0x08000070</code> 的数据表与日志（<code>Connected via SWD</code>、<code>SWD Frequency = 4.0 MHz</code>）；字幕「还是以16位或8位的形式显示」</em></p>
+<h2 id="3-库函数速览-stm32f10x-flash">3. 库函数速览（stm32f10x_flash）</h2>
+<h3 id="3-1-文件头说明">3.1 文件头说明</h3>
+<ul>
+<li><code>stm32f10x_flash.c</code> 文件头：<code>This driver provides functions to configure and program the Flash memory of all STM32F10x devices…</code>；</li>
+<li><strong>XL 大容量是双 bank</strong>（<code>bank1: fixed size of 512 Kbytes (256 pages of 2Kbytes each)</code>、<code>bank2: up to 512 Kbytes</code>）<strong>支持 RWW（读写同时）</strong>；<strong>其他型号只有单 bank、最大 512K</strong>；</li>
+<li><strong>V3.3.0 起</strong>部分函数兼容所有型号、部分<strong>仅 XL 专用</strong>。</li>
+</ul>
+<h3 id="3-2-flash-status-五值">3.2 <code>FLASH_Status</code> 五值</h3>
+<pre><code class="language-c">typedef enum
+{
+  FLASH_BUSY = 1,      /* 忙 */
+  FLASH_ERROR_PG,      /* 编程错误 */
+  FLASH_ERROR_WRP,     /* 写保护错误 */
+  FLASH_COMPLETE,      /* 完成 */
+  FLASH_TIMEOUT        /* 等待超时 */
+} FLASH_Status;
+</code></pre>
+<ul>
+<li><strong>擦除/编程函数都返回这个枚举</strong>告知操作状态（不想关心状态可以忽略）。</li>
+</ul>
+<h3 id="3-3-主要库函数">3.3 主要库函数</h3>
+<table>
+<thead>
+<tr>
+<th>函数</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>FLASH_SetLatency</code> / <code>FLASH_PrefetchBufferCmd</code> / <code>FLASH_HalfCycleAccessCmd</code></td>
+<td><strong>与内核执行代码有关，不用管</strong></td>
+</tr>
+<tr>
+<td><strong><code>FLASH_Unlock()</code> / <code>FLASH_Lock()</code></strong></td>
+<td><strong>解锁 / 加锁</strong>（键寄存器写 KEY1、KEY2 / 置 LOCK 位）</td>
+</tr>
+<tr>
+<td><strong><code>FLASH_ErasePage(Page_Address)</code></strong></td>
+<td>页擦除（<strong>需给页起始地址</strong>）</td>
+</tr>
+<tr>
+<td><strong><code>FLASH_EraseAllPages()</code></strong></td>
+<td>全擦除</td>
+</tr>
+<tr>
+<td><code>FLASH_EraseOptionBytes()</code></td>
+<td>擦除选项字节</td>
+</tr>
+<tr>
+<td><strong><code>FLASH_ProgramWord(Address, Data)</code></strong></td>
+<td>字编程（<strong>内部就是写两次半字</strong>）</td>
+</tr>
+<tr>
+<td><strong><code>FLASH_ProgramHalfWord(Address, Data)</code></strong></td>
+<td>半字编程</td>
+</tr>
+<tr>
+<td><code>FLASH_ProgramOptionByteData</code> + 选项字节 4 个写函数 + <code>FLASH_GetReadOutProtectionStatus</code> / <code>GetWriteProtectionOptionByte</code></td>
+<td>选项字节相关</td>
+</tr>
+<tr>
+<td><code>FLASH_GetFlagStatus</code> / <code>FLASH_ClearFlag</code></td>
+<td>标志位</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>关键：这些函数内部已经包含「等待忙」</strong>：<ul>
+<li><code>FLASH_ErasePage</code> 内部＝<strong>事前等待 → 置 PER → 写 <code>FLASH_AR</code> → 置 STRT → 事后等待 → 最后把 PER 清零</strong>；</li>
+<li><code>FLASH_ProgramHalfWord</code> 内部＝<strong>事前等待 → 置 PG → 地址强转指针再取内容赋值 → 事后等待</strong>；</li>
+</ul>
+</li>
+<li><strong>均不含解锁/加锁</strong>——要自己调 <code>FLASH_Unlock()</code> / <code>FLASH_Lock()</code>。</li>
+</ul>
+<p><img src="../assets/images/stm32-49/03-flash-c-header.jpg" alt="图 3：stm32f10x_flash.c 文件头注释——This driver provides functions to configure and program the Flash memory of all STM32F10x devices, including the latest STM32F10x XL density devices.；STM32F10x XL devices feature up to 1 Mbyte with dual bank architecture for read-while-write (RWW) capability: - bank1: fixed size of 512 Kbytes (256 pages of 2Kbytes each) - bank2: up to 512 Kbytes；While other STM32F10x devices features only one bank with memory up to 512 Kbytes.；In version V3.3.0, some functions were updated and new ones were added to support STM32F10x XL devices.；字幕「之后，加大容量XL才推出」"></p>
+<p><em>图 3：<code>stm32f10x_flash.c</code> 文件头注释——<code>This driver provides functions to configure and program the Flash memory of all STM32F10x devices, including the latest STM32F10x XL density devices.</code>；<code>STM32F10x XL devices feature up to 1 Mbyte with dual bank architecture for read-while-write (RWW) capability: - bank1: fixed size of 512 Kbytes (256 pages of 2Kbytes each) - bank2: up to 512 Kbytes</code>；<code>While other STM32F10x devices features only one bank with memory up to 512 Kbytes.</code>；<code>In version V3.3.0, some functions were updated and new ones were added to support STM32F10x XL devices.</code>；字幕「之后，加大容量XL才推出」</em></p>
+<p><img src="../assets/images/stm32-49/04-flash-status.jpg" alt="图 4：stm32f10x_flash.h 的 FLASH_Status 枚举——FLASH_BUSY = 1、FLASH_ERROR_PG、FLASH_ERROR_WRP、FLASH_COMPLETE、`FLASH_TIMEOUT`（高亮）；字幕「返回第五个，表示等待超时」"></p>
+<p><em>图 4：<code>stm32f10x_flash.h</code> 的 <code>FLASH_Status</code> 枚举——<code>FLASH_BUSY = 1</code>、<code>FLASH_ERROR_PG</code>、<code>FLASH_ERROR_WRP</code>、<code>FLASH_COMPLETE</code>、<strong><code>FLASH_TIMEOUT</code>（高亮）</strong>；字幕「返回第五个，表示等待超时」</em></p>
+<p><img src="../assets/images/stm32-49/05-eraseallpages-src.jpg" alt="图 5：FLASH_EraseAllPages 源码（else 非 XL 分支）——/* Wait for last operation to be completed */ status = FLASH_WaitForLastOperation(EraseTimeout);、if(status == FLASH_COMPLETE) { /* if the previous operation is completed, proceed to erase all pages */ FLASH-&gt;CR |= CR_MER_Set; FLASH-&gt;CR |= CR_STRT_Set; status = FLASH_WaitForLastOperation(EraseTimeout); /* Disable the MER Bit */ FLASH-&gt;CR &amp;= CR_MER_Reset; }、return status;；字幕「第一步，事前等待」"></p>
+<p><em>图 5：<code>FLASH_EraseAllPages</code> 源码（<code>else</code> 非 XL 分支）——<code>/* Wait for last operation to be completed */ status = FLASH_WaitForLastOperation(EraseTimeout);</code>、<code>if(status == FLASH_COMPLETE) { /* if the previous operation is completed, proceed to erase all pages */ FLASH-&gt;CR |= CR_MER_Set; FLASH-&gt;CR |= CR_STRT_Set; status = FLASH_WaitForLastOperation(EraseTimeout); /* Disable the MER Bit */ FLASH-&gt;CR &amp;= CR_MER_Reset; }</code>、<code>return status;</code>；字幕「第一步，事前等待」</em></p>
+<h2 id="4-写-myflash-模块-底层原始操作">4. 写 MyFLASH 模块（底层原始操作）</h2>
+<h3 id="4-1-建模块与-无-init">4.1 建模块与「无 Init」</h3>
+<ul>
+<li>在工程 <strong>System 组</strong>下新建 <strong><code>MyFLASH.c</code> / <code>MyFLASH.h</code></strong>；</li>
+<li><strong><code>MyFLASH</code> 没有 <code>Init</code> 函数</strong>——<strong>FLASH 不需要初始化</strong>（原话「FLASH 不需要初始化」）。</li>
+</ul>
+<h3 id="4-2-三个读函数-一句返回-地址不加偏移">4.2 三个读函数（一句返回，地址不加偏移）</h3>
+<pre><code class="language-c">uint32_t MyFLASH_ReadWord(uint32_t Address)
+{
+    return *((__IO uint32_t *)(Address));
+}
+
+uint16_t MyFLASH_ReadHalfWord(uint32_t Address)
+{
+    return *((__IO uint16_t *)(Address));
+}
+
+uint8_t MyFLASH_ReadByte(uint32_t Address)
+{
+    return *((__IO uint8_t *)(Address));
+}
+</code></pre>
+<ul>
+<li><strong>地址直接用参数、不需要加偏移</strong>（与外设寄存器「基地址+偏移」的写法不同——这里就是绝对地址）；</li>
+<li><strong>main 里测试</strong>：从 <strong><code>0x08000000</code></strong> 分别用三种宽度读同一地址并显示。</li>
+</ul>
+<h3 id="4-3-擦除-编程-三行式封装">4.3 擦除 / 编程（三行式封装）</h3>
+<pre><code class="language-c">void MyFLASH_EraseAllPages(void)
+{
+    FLASH_Unlock();
+    FLASH_EraseAllPages();
+    FLASH_Lock();
+}
+
+void MyFLASH_ErasePage(uint32_t PageAddress)
+{
+    FLASH_Unlock();
+    FLASH_ErasePage(PageAddress);
+    FLASH_Lock();
+}
+
+void MyFLASH_ProgramWord(uint32_t Address, uint32_t Data)
+{
+    FLASH_Unlock();
+    FLASH_ProgramWord(Address, Data);
+    FLASH_Lock();
+}
+
+void MyFLASH_ProgramHalfWord(uint32_t Address, uint16_t Data)
+{
+    FLASH_Unlock();
+    FLASH_ProgramHalfWord(Address, Data);
+    FLASH_Lock();
+}
+</code></pre>
+<ul>
+<li><strong>四个函数全是同一套路</strong>：<strong>解锁 → 调库函数 → 加锁</strong>（作者点评「我们就是再包装一下，并没有太多操作」）；</li>
+<li><strong>⚠ 提示</strong>：<strong>写字节很麻烦</strong>，最好用「<strong>缓冲区</strong>」方式实现——<strong>先在 SRAM 改好整块，再整页写回</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-49/06-read-funcs-main.jpg" alt="图 6：MyFLASH.c 与 main 测试——工程树 System 组下新增 `MyFLASH.c` / `MyFLASH.h`；main：#include &quot;MyFLASH.h&quot;、OLED_ShowHexNum(1, 1, MyFLASH_ReadWord(0x08000000), 8);、OLED_ShowHexNum(2, 1, MyFLASH_ReadHalfWord(0x08000000), 4);、OLED_ShowHexNum(3, 1, MyFLASH_ReadByte(0x08000000), 2);；字幕「看一下，以不同形式读出来」"></p>
+<p>*图 6：<code>MyFLASH.c</code> 与 main 测试——工程树 System 组下新增 <strong><code>MyFLASH.c</code> / <code>MyFLASH.h</code></strong>；main：<code>#include &quot;MyFLASH.h&quot;</code>、<code>OLED_ShowHexNum(1, 1, MyFLASH_ReadWord(0x08000000), 8);</code>、<code>OLED_ShowHexNum(2, 1, MyFLASH_ReadHalfWord(0x08000000), 4);</code>、<code>OLED_ShowHexNum(3, 1, MyFLASH_ReadByte(0x08000000), 2);</code>；字幕「看一下，以不同形式读出来」*</p>
+<p><img src="../assets/images/stm32-49/07-read-phenomenon.jpg" alt="图 7：读取自证实验现象——OLED 三行显示 `08000569` / `0569` / `69`（同一地址 0x08000010 分别按 32/16/8 位读），同时演示小端字节序（图 6 首测读的是 `0x08000000`；本图现象是三行代码把地址改成 `0x08000010` 后读到的）（内存中为 69 05 00 08）；字幕「当前OLED显示的数值并没有消失」"></p>
+<p>*图 7：读取自证实验现象——OLED 三行显示 <strong><code>08000569</code> / <code>0569</code> / <code>69</code></strong>（同一地址 <code>0x08000010</code> 分别按 32/16/8 位读），<strong>同时演示小端字节序</strong>（<strong>图 6 首测读的是 <code>0x08000000</code>；本图现象是三行代码把地址改成 <code>0x08000010</code> 后读到的</strong>）（内存中为 <code>69 05 00 08</code>）；字幕「当前OLED显示的数值并没有消失」*</p>
+<p><img src="../assets/images/stm32-49/08-mylfash-wrappers.jpg" alt="图 8：MyFLASH.c 擦除/编程的三行式封装——MyFLASH_EraseAllPages：FLASH_Unlock(); FLASH_EraseAllPages(); FLASH_Lock();；MyFLASH_ErasePage(uint32_t PageAddress)：FLASH_Unlock(); FLASH_ErasePage(PageAddress); FLASH_Lock();；MyFLASH_ProgramWord(uint32_t Address, uint32_t Data)：FLASH_Unlock(); FLASH_ProgramWord(Address, Data); FLASH_Lock();；字幕「其实可以看出」"></p>
+<p><em>图 8：<code>MyFLASH.c</code> 擦除/编程的三行式封装——<code>MyFLASH_EraseAllPages</code>：<code>FLASH_Unlock(); FLASH_EraseAllPages(); FLASH_Lock();</code>；<code>MyFLASH_ErasePage(uint32_t PageAddress)</code>：<code>FLASH_Unlock(); FLASH_ErasePage(PageAddress); FLASH_Lock();</code>；<code>MyFLASH_ProgramWord(uint32_t Address, uint32_t Data)</code>：<code>FLASH_Unlock(); FLASH_ProgramWord(Address, Data); FLASH_Lock();</code>；字幕「其实可以看出」</em></p>
+<h3 id="4-4-编程测试与全擦除的-自杀-现象">4.4 编程测试与全擦除的「自杀」现象</h3>
+<pre><code class="language-c">OLED_ShowHexNum(1, 1, MyFLASH_ReadWord(0x08000010), 8);
+OLED_ShowHexNum(2, 1, MyFLASH_ReadHalfWord(0x08000010), 4);
+OLED_ShowHexNum(3, 1, MyFLASH_ReadByte(0x08000010), 2);
+
+MyFLASH_ErasePage(0x0800FC00);                       /* 先擦最后一页 */
+MyFLASH_ProgramWord(0x0800FC00, 0x12345678);         /* 写字 */
+MyFLASH_ProgramHalfWord(0x0800FC10, 0xABCD);         /* 写半字 */
+
+while (1)
+{
+    KeyNum = Key_GetNum();
+    if (KeyNum == 1) { MyFLASH_EraseAllPages(); }     /* ⚠ 全擦除：连程序自己也被擦掉 */
+    if (KeyNum == 2) { … }                            /* 页擦除：换地址擦不同页 */
+}
+</code></pre>
+<ul>
+<li><strong>用 ST-LINK Utility 观察闪存内容</strong>（可切 <strong>8/16/32 bits</strong> 显示宽度）验证写入结果；</li>
+<li><strong>⚠ 全擦除会把程序自己擦掉</strong>——演示中按 Key1 全擦除后「<strong>无论按什么键都没反应</strong>」（程序已不存在）；<strong>这既是现象、也是风险</strong>；</li>
+<li>页擦除测试：先擦 <code>0x08000000</code>（第 1 页）→ 再改 <code>0x08000400</code> 擦第 2 页，观察数据变化。</li>
+</ul>
+<p><img src="../assets/images/stm32-49/09-program-test.jpg" alt="图 9：编程测试代码——OLED_ShowHexNum(1, 1, MyFLASH_ReadWord(0x08000010), 8); 等三行读、MyFLASH_ErasePage(0x0800FC00);、MyFLASH_ProgramWord(0x0800FC00, 0x12345678);、MyFLASH_ProgramHalfWord(0x0800FC10, …（参数提示 void MyFLASH_ProgramHalfWord(uint32_t Address, uint16_t Data)）、while(1){ KeyNum = Key_GetNum(); if (KeyNum == 1) { MyFLASH_EraseAllPages(); } … }；字幕「比如0xABCD」"></p>
+<p><em>图 9：编程测试代码——<code>OLED_ShowHexNum(1, 1, MyFLASH_ReadWord(0x08000010), 8);</code> 等三行读、<code>MyFLASH_ErasePage(0x0800FC00);</code>、<code>MyFLASH_ProgramWord(0x0800FC00, 0x12345678);</code>、<code>MyFLASH_ProgramHalfWord(0x0800FC10, …</code>（参数提示 <code>void MyFLASH_ProgramHalfWord(uint32_t Address, uint16_t Data)</code>）、<code>while(1){ KeyNum = Key_GetNum(); if (KeyNum == 1) { MyFLASH_EraseAllPages(); } … }</code>；字幕「比如0xABCD」</em></p>
+<h2 id="5-写-store-模块-中间层">5. 写 Store 模块（中间层）</h2>
+<h3 id="5-1-数组与首元素标志位">5.1 数组与首元素标志位</h3>
+<pre><code class="language-c">#include &quot;stm32f10x.h&quot;
+#include &quot;MyFLASH.h&quot;
+
+uint16_t Store_Data[512];     /* 类型与闪存半字统一 */
+</code></pre>
+<ul>
+<li><strong>数组元素类型用 <code>uint16_t</code></strong>，因为<strong>闪存只能按半字写</strong>（统一后最方便）；</li>
+<li><strong>数组第 0 个元素是「标志位」，千万不要当数据使用</strong>；</li>
+<li>标志值 <strong><code>0xA5A5</code></strong>——因为<strong>闪存擦除后默认全是 <code>FF</code></strong>，用它判断「是否已经初始化过」。</li>
+</ul>
+<h3 id="5-2-store-init-首次初始化-每次上电转存">5.2 <code>Store_Init</code>：首次初始化 + 每次上电转存</h3>
+<pre><code class="language-c">void Store_Init(void)
+{
+    /* ① 首次上电：闪存还没初始化（第 0 个半字不是 0xA5A5） */
+    if (MyFLASH_ReadHalfWord(0x0800FC00) != 0xA5A5)
+    {
+        MyFLASH_ErasePage(0x0800FC00);                 /* 先擦整页 */
+        MyFLASH_ProgramHalfWord(0x0800FC00, 0xA5A5);   /* 写标志位 */
+
+        for (uint16_t i = 1; i &lt; 512; i ++)            /* 其余 511 个半字清零 */
+        {
+            MyFLASH_ProgramHalfWord(0x0800FC00 + i * 2, 0x0000);
+        }
+    }
+
+    /* ② 每次上电：把闪存里的数据整体转存到 SRAM 数组 */
+    for (uint16_t i = 0; i &lt; 512; i ++)
+    {
+        Store_Data[i] = MyFLASH_ReadHalfWord(0x0800FC00 + i * 2);
+    }
+}
+</code></pre>
+<ul>
+<li><strong>存储起始地址 <code>0x0800FC00</code></strong>＝<strong>C8T6 的最后一页（页 63）</strong>；</li>
+<li>注意偏移是 <strong><code>+ i * 2</code></strong>（半字＝2 字节）。</li>
+</ul>
+<h3 id="5-3-store-save-与-store-clear">5.3 <code>Store_Save</code> 与 <code>Store_Clear</code></h3>
+<pre><code class="language-c">void Store_Save(void)
+{
+    MyFLASH_ErasePage(0x0800FC00);                     /* 整页擦除 */
+
+    for (uint16_t i = 0; i &lt; 512; i ++)                /* 整块写回 */
+    {
+        MyFLASH_ProgramHalfWord(0x0800FC00 + i * 2, Store_Data[i]);
+    }
+}
+
+void Store_Clear(void)
+{
+    for (uint16_t i = 1; i &lt; 512; i ++) { Store_Data[i] = 0x0000; }   /* 保留第 0 个标志位 */
+    Store_Save();
+}
+</code></pre>
+<ul>
+<li><strong><code>Store_Save</code> = 擦页 + 整块写回</strong>——所以<strong>保存一次就要擦写整页</strong>，别高频调用（闪存寿命 + CPU 暂停）；</li>
+<li><strong><code>Store_Clear</code> 不要清掉第 0 个标志位</strong>（否则下次初始化会重新擦写）。</li>
+</ul>
+<p><img src="../assets/images/stm32-49/10-store-begin.jpg" alt="图 10：Store.c 开头（工程树已同时有 MyFLASH.c/h 与 Store.c/h）——#include &quot;stm32f10x.h&quot;、#include &quot;MyFLASH.h&quot;、`uint16_t Store_Data（512）;`、void Store_Init(void) { if (MyFLASH_ReadHalfWord(0x0800FC00)（正在输入）；下方 Build Output 有 fatal error: MyFLASH.h file not found（中间态，随后补头文件路径）；字幕「读取第一个半字」"></p>
+<p><em>图 10：<code>Store.c</code> 开头（工程树已同时有 <code>MyFLASH.c/h</code> 与 <code>Store.c/h</code>）——<code>#include &quot;stm32f10x.h&quot;</code>、<code>#include &quot;MyFLASH.h&quot;</code>、<strong><code>uint16_t Store_Data[512];</code></strong>、<code>void Store_Init(void) { if (MyFLASH_ReadHalfWord(0x0800FC00)</code>（正在输入）；下方 Build Output 有 <code>fatal error: MyFLASH.h file not found</code>（<strong>中间态</strong>，随后补头文件路径）；字幕「读取第一个半字」</em></p>
+<p><img src="../assets/images/stm32-49/11-store-init-flag.jpg" alt="图 11：Store_Init 的标志位判断——if (MyFLASH_ReadHalfWord(0x0800FC00) != 0xA5A5)、{ MyFLASH_ErasePage(0x0800FC00); MyFLASH_ProgramHalfWord(0x0800FC00, 0xA5A5); for (uint16_t i = 1; i &lt; 512; i ++) { MyFLASH_ProgramHalfWord(0x0800FC00 …；字幕「然后每个循环，加上i」"></p>
+<p><em>图 11：<code>Store_Init</code> 的标志位判断——<code>if (MyFLASH_ReadHalfWord(0x0800FC00) != 0xA5A5)</code>、<code>{ MyFLASH_ErasePage(0x0800FC00); MyFLASH_ProgramHalfWord(0x0800FC00, 0xA5A5); for (uint16_t i = 1; i &lt; 512; i ++) { MyFLASH_ProgramHalfWord(0x0800FC00 …</code>；字幕「然后每个循环，加上i」</em></p>
+<p><img src="../assets/images/stm32-49/12-store-save.jpg" alt="图 12：Store.c 核心——循环清零 MyFLASH_ProgramHalfWord(0x0800FC00 + i * 2, 0x0000);；上电转存 for (uint16_t i = 0; i &lt; 512; i ++) { Store_Data（i） = MyFLASH_ReadHalfWord(0x0800FC00 + i * 2); }；void Store_Save(void) { MyFLASH_ErasePage(0x0800FC00); for (uint16_t i = 0; i &lt; 512; i ++) { MyFLASH_ProgramHalfWord(0x0800FC00 + i * 2, Store_Data（i）); } }（高亮）；字幕「到这里，我们这个模块实现的就差不多了」"></p>
+<p><em>图 12：<code>Store.c</code> 核心——循环清零 <code>MyFLASH_ProgramHalfWord(0x0800FC00 + i * 2, 0x0000);</code>；<strong>上电转存</strong> <code>for (uint16_t i = 0; i &lt; 512; i ++) { Store_Data[i] = MyFLASH_ReadHalfWord(0x0800FC00 + i * 2); }</code>；<code>void Store_Save(void) { MyFLASH_ErasePage(0x0800FC00); for (uint16_t i = 0; i &lt; 512; i ++) { MyFLASH_ProgramHalfWord(0x0800FC00 + i * 2, Store_Data[i]); } }</code>（高亮）；字幕「到这里，我们这个模块实现的就差不多了」</em></p>
+<h2 id="6-应用层与地址规划">6. 应用层与地址规划</h2>
+<h3 id="6-1-main-应用层">6.1 main（应用层）</h3>
+<pre><code class="language-c">int main(void)
+{
+    OLED_Init();
+    Key_Init();
+    Store_Init();
+
+    while (1)
+    {
+        KeyNum = Key_GetNum();
+
+        if (KeyNum == 1)
+        {
+            Store_Data[1] ++;
+            Store_Data[2] += 2;
+            Store_Data[3] += 3;
+            Store_Data[4] += 4;
+            Store_Save();
+        }
+        if (KeyNum == 2)
+        {
+            Store_Clear();
+        }
+
+        OLED_ShowHexNum(1, 6, Store_Data[0], 4);
+        OLED_ShowHexNum(3, 1, Store_Data[1], 4);
+        OLED_ShowHexNum(3, 6, Store_Data[2], 4);
+        OLED_ShowHexNum(4, 1, Store_Data[3], 4);
+        OLED_ShowHexNum(4, 6, Store_Data[4], 4);
+    }
+}
+</code></pre>
+<ul>
+<li><strong>现象</strong>：按键递增 → 断电/复位 → 数值保持；再按键继续递增并 Save，再断电仍在——<strong>符合预期</strong>（与 P48 片头演示一致）；</li>
+<li><strong>应用层只碰 <code>Store_Data[]</code> 与 <code>Store_Save()/Store_Clear()</code></strong>，完全不关心底层地址与擦写。</li>
+</ul>
+<h3 id="6-2-地址规划-把地址抽成宏-看-irom1">6.2 地址规划（把地址抽成宏 + 看 IROM1）</h3>
+<ul>
+<li><strong>把「存储区起始地址」定义成宏</strong>（如 <code>#define STORE_START_ADDRESS 0x0800FC00</code>）替换所有硬编码——<strong>大量出现的可配置参数一定要定义宏</strong>；</li>
+<li><strong>规划依据</strong>：Keil <code>Options for Target → Target</code> 页的 <strong>Read/Only Memory Areas</strong>：<strong>IROM1 Start <code>0x8000000</code>、Size <code>0x10000</code>（默认全部 64K）</strong>、IRAM1 <code>0x20000000</code>/<code>0x5000</code>；</li>
+<li><strong>再看编译输出的 <code>Program Size</code></strong>（本例 <strong>2664 字节 ≈ 2.6KB</strong>，十六进制 0xA68 量级）——<strong>据此选用户数据区，避开程序占用空间</strong>；</li>
+<li><strong>小技巧</strong>：如果想更稳妥，可以在 <code>IROM1</code> 里<strong>把 Size 改小</strong>（只给程序用），把剩余空间「留出来」给用户数据——防止程序长大后覆盖到数据区。</li>
+</ul>
+<p><img src="../assets/images/stm32-49/13-app-layer.jpg" alt="图 13：应用层调用 Store——OLED_Init(); Key_Init(); Store_Init();；if (KeyNum == 1) { Store_Data（1） = 0x1234; Store_Data（2） = 0xABCD; Store_S…（补全下拉显示 Store_Save）；字幕「来个Store_Save();」"></p>
+<p><em>图 13：应用层调用 Store——<code>OLED_Init(); Key_Init(); Store_Init();</code>；<code>if (KeyNum == 1) { Store_Data[1] = 0x1234; Store_Data[2] = 0xABCD; Store_S…</code>（补全下拉显示 <code>Store_Save</code>）；字幕「来个Store_Save();」</em></p>
+<p><img src="../assets/images/stm32-49/14-irom1.jpg" alt="图 14：Keil 工程选项 Options for Target &#39;Target 1&#39; → Target 页——Read/Only Memory Areas：IROM1 Start `0x8000000`、Size `0x10000`；IRAM1 Start `0x20000000`、Size `0x5000`；芯片 STM32F10xxC8、Xtal 12.0 MHz；背景是 Store.c；字幕「是0x10000，默认全部的64K闪存」"></p>
+<p>*图 14：Keil 工程选项 <code>Options for Target &#39;Target 1&#39;</code> → <code>Target</code> 页——<strong>Read/Only Memory Areas：IROM1 Start <code>0x8000000</code>、Size <code>0x10000</code>；IRAM1 Start <code>0x20000000</code>、Size <code>0x5000</code></strong>；芯片 <code>STM32F10xxC8</code>、<code>Xtal 12.0 MHz</code>；背景是 <code>Store.c</code>；字幕「是0x10000，默认全部的64K闪存」*</p>
+<p><img src="../assets/images/stm32-49/15-main-final.jpg" alt="图 15：最终应用层 main.c——if (KeyNum == 1) { Store_Data（1） ++; Store_Data（2） += 2; Store_Data（3） += 3; Store_Data（4） += 4; Store_Save(); }、if (KeyNum == 2) { Store_Clear(); }、OLED_ShowHexNum(1, 6, Store_Data（0）, 4); OLED_ShowHexNum(3, 1, Store_Data（1）, 4); OLED_ShowHexNum(3, 6, Store_Data（2）, 4); OLED_ShowHexNum(4, 1, Store_Data（3）, 4); OLED_ShowHexNum(4, 6, Store_Data（4）, 4);；字幕「我就全部讲完了」"></p>
+<p><em>图 15：最终应用层 main.c——<code>if (KeyNum == 1) { Store_Data[1] ++; Store_Data[2] += 2; Store_Data[3] += 3; Store_Data[4] += 4; Store_Save(); }</code>、<code>if (KeyNum == 2) { Store_Clear(); }</code>、<code>OLED_ShowHexNum(1, 6, Store_Data[0], 4); OLED_ShowHexNum(3, 1, Store_Data[1], 4); OLED_ShowHexNum(3, 6, Store_Data[2], 4); OLED_ShowHexNum(4, 1, Store_Data[3], 4); OLED_ShowHexNum(4, 6, Store_Data[4], 4);</code>；字幕「我就全部讲完了」</em></p>
+<h2 id="7-程序2-15-2-读取芯片id">7. 程序②：<code>15-2 读取芯片ID</code></h2>
+<ul>
+<li><strong>复制 <code>15-1</code> 工程 → 改名 <code>15-2 读取芯片ID</code></strong> → 编译；</li>
+</ul>
+<pre><code class="language-c">OLED_Init();
+
+OLED_ShowString(1, 1, &quot;F_SIZE:&quot;);
+OLED_ShowHexNum(1, 8, *((__IO uint16_t *)(0x1FFFF7E0)), 4);        /* 闪存容量 */
+
+OLED_ShowString(2, 1, &quot;U_ID:&quot;);
+OLED_ShowHexNum(2, 6,  *((__IO uint16_t *)(0x1FFFF7E8)), 4);       /* UID 低 16 位 */
+OLED_ShowHexNum(2, 11, *((__IO uint16_t *)(0x1FFFF7E8 + 0x02)), 4);/* UID 次 16 位 */
+OLED_ShowHexNum(3, 1,  *((__IO uint32_t *)(0x1FFFF7E8 + 0x08)), 8);/* 32 位读：偏移 0x08、长度 8 */
+
+while (1) { }
+</code></pre>
+<ul>
+<li><strong><code>F_SIZE</code>（<code>0x1FFFF7E0</code>，16 位）</strong> → 显示 <strong><code>0040</code>＝64K</strong>；</li>
+<li><strong><code>UID</code>（<code>0x1FFFF7E8</code>，96 位）</strong> → 先按<strong>半字</strong>读两次（<code>0x00</code>、<code>+0x02</code>），再按<strong>全字</strong>读（<code>+0x08</code>，显示长度 8）；</li>
+<li><strong>⚠ 地址偏移运算必须加括号</strong>：<code>(0x1FFFF7E8 + 0x02)</code>——否则<strong>指针强制类型转换的优先级</strong>会出错（作者反复强调）；</li>
+<li><strong>实测每片芯片数据都不一样</strong>——这也是 UID 用于加密的基础。</li>
+</ul>
+<p><img src="../assets/images/stm32-49/16-chipid-main.jpg" alt="图 16：程序② 15-2 读取芯片ID 的 main.c——OLED_ShowString(1, 1, &quot;F_SIZE:&quot;);、OLED_ShowHexNum(1, 8, *((__IO uint16_t *)(0x1FFFF7E0)), 4);、OLED_ShowString(2, 1, &quot;U_ID:&quot;);、OLED_ShowHexNum(2, 6, *((__IO uint16_t *)(0x1FFFF7E8)), 4);、OLED_ShowHexNum(2, 11, *((__IO uint16_t *)(0x1FFFF7E8 + 0x02)), 4);、OLED_ShowHexNum(3, 1, *((__IO uint32_t *)(0x1FFFF7E8 + 0x02)), 4);（末行为中间态：偏移仍 +0x02、长度仍 4，口述为 +0x08、32 位、长度 8）；字幕「8位、16位也都可以」"></p>
+<p><em>图 16：程序② <code>15-2 读取芯片ID</code> 的 main.c——<code>OLED_ShowString(1, 1, &quot;F_SIZE:&quot;);</code>、<code>OLED_ShowHexNum(1, 8, *((__IO uint16_t *)(0x1FFFF7E0)), 4);</code>、<code>OLED_ShowString(2, 1, &quot;U_ID:&quot;);</code>、<code>OLED_ShowHexNum(2, 6, *((__IO uint16_t *)(0x1FFFF7E8)), 4);</code>、<code>OLED_ShowHexNum(2, 11, *((__IO uint16_t *)(0x1FFFF7E8 + 0x02)), 4);</code>、<code>OLED_ShowHexNum(3, 1, *((__IO uint32_t *)(0x1FFFF7E8 + 0x02)), 4);</code>（末行为*<em>中间态</em></em>：偏移仍 <code>+0x02</code>、长度仍 <code>4</code>，口述为 <code>+0x08</code>、32 位、长度 8）；字幕「8位、16位也都可以」*</p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>分层思路是作者自创的</strong>（原话「这个思路是我自己想的，并不是固定的」）——<strong>推荐做法，不是固定范式</strong>。</li>
+<li><strong><code>MyFLASH</code> 没有 Init 函数</strong>：<strong>FLASH 不需要初始化</strong>。</li>
+<li><strong>读函数的地址直接用参数、不加偏移</strong>（与外设寄存器写法不同）。</li>
+<li><strong><code>FLASH_Status</code> 五值写准</strong>：<code>FLASH_BUSY = 1</code>、<code>ERROR_PG</code>、<code>ERROR_WRP</code>、<code>COMPLETE</code>、<code>TIMEOUT</code>；<strong>擦除/编程函数内部已含等待忙，但不含解锁/加锁</strong>。</li>
+<li><strong>四个封装函数都是三行式</strong>：<code>FLASH_Unlock()</code> → 库函数 → <code>FLASH_Lock()</code>。</li>
+<li><strong><code>Store_Data[512]</code> 第 0 个元素是标志位</strong>，<strong>千万不要当数据用</strong>；标志 <strong><code>0xA5A5</code></strong>（擦除后全 <code>FF</code> 可判首次）。</li>
+<li><strong>存储地址 <code>0x0800FC00</code></strong>＝C8T6 最后一页（页 63）；半字偏移是 <strong><code>i * 2</code></strong>。</li>
+<li><strong><code>Store_Init</code> 做两件事</strong>：首次擦页+写标志+清零；<strong>每次上电整体转存到 SRAM</strong>。</li>
+<li><strong><code>Store_Save</code> = 擦整页 + 整块写回</strong>——别高频调用（闪存寿命 + CPU 暂停）。</li>
+<li><strong><code>Store_Clear</code> 别清第 0 个标志位</strong>，否则下次上电会重走初始化。</li>
+<li><strong>全擦除会把程序自己擦掉</strong>（按 Key1 后按键全无反应）——<strong>既是现象也是风险</strong>。</li>
+<li><strong>代码配读写保护容易芯片自锁</strong>：只能靠 ST-LINK Utility → <code>Target → Option Bytes</code> → 去掉保护后 <code>Apply</code> 救活；故<strong>选项字节本课不作要求</strong>。</li>
+<li><strong>地址偏移必须加括号</strong>：<code>(0x1FFFF7E8 + 0x02)</code>，否则指针类型转换优先级出错。</li>
+<li><strong>存储区起始地址要抽成宏</strong>，并用 <strong>IROM1 <code>0x8000000</code>/<code>0x10000</code></strong> + <strong>Program Size（本例 2664B≈2.6KB）</strong> 规划，避免与程序区冲突。</li>
+<li><strong>8/16/32 位读同一地址得 <code>69</code>/<code>0569</code>/<code>08000569</code></strong>——顺带验证<strong>小端字节序</strong>（内存 <code>69 05 00 08</code>）。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:01</td>
+<td>大家好，欢迎回来</td>
+</tr>
+<tr>
+<td>0:04</td>
+<td>这一小节学习闪存的代码部分</td>
+</tr>
+<tr>
+<td>0:07</td>
+<td>先看一下接线图</td>
+</tr>
+<tr>
+<td>0:10</td>
+<td>OLED 加两个按键</td>
+</tr>
+<tr>
+<td>0:22</td>
+<td>和上节课接线一样</td>
+</tr>
+<tr>
+<td>0:26</td>
+<td>回到工程文件夹</td>
+</tr>
+<tr>
+<td>0:34</td>
+<td>复制 OLED 显示屏工程</td>
+</tr>
+<tr>
+<td>0:43</td>
+<td>改名 15-1 读写内部 FLASH</td>
+</tr>
+<tr>
+<td>0:56</td>
+<td>编译一下</td>
+</tr>
+<tr>
+<td>1:00</td>
+<td>先规划整体架构</td>
+</tr>
+<tr>
+<td>1:07</td>
+<td>最底层是 MyFLASH</td>
+</tr>
+<tr>
+<td>1:18</td>
+<td>中间是 Store</td>
+</tr>
+<tr>
+<td>1:24</td>
+<td>最上面是应用层</td>
+</tr>
+<tr>
+<td>2:06</td>
+<td>想要保存参数就写到 Store 数组</td>
+</tr>
+<tr>
+<td>2:30</td>
+<td>这个思路是我自己想的</td>
+</tr>
+<tr>
+<td>2:50</td>
+<td>并不是固定的范式</td>
+</tr>
+<tr>
+<td>3:20</td>
+<td>简单回顾 Flash 读写流程</td>
+</tr>
+<tr>
+<td>3:50</td>
+<td>读、页擦除、全擦除、编程</td>
+</tr>
+<tr>
+<td>4:10</td>
+<td>每个功能对应一个库函数</td>
+</tr>
+<tr>
+<td>4:30</td>
+<td>用 ST-LINK Utility 看闪存</td>
+</tr>
+<tr>
+<td>4:50</td>
+<td>可以选 8 位 16 位 32 位</td>
+</tr>
+<tr>
+<td>5:10</td>
+<td>选项字节本课不作要求</td>
+</tr>
+<tr>
+<td>5:30</td>
+<td>用软件配置更简单</td>
+</tr>
+<tr>
+<td>5:50</td>
+<td>用代码配保护容易锁死芯片</td>
+</tr>
+<tr>
+<td>6:21</td>
+<td>并不是固定的</td>
+</tr>
+<tr>
+<td>6:36</td>
+<td>这些功能分别对应一个库函数</td>
+</tr>
+<tr>
+<td>6:48</td>
+<td>可以选 8 位 16 位 32 位显示</td>
+</tr>
+<tr>
+<td>6:57</td>
+<td>目标选项字节里勾选后应用</td>
+</tr>
+<tr>
+<td>6:58</td>
+<td>用代码配置容易把芯片锁死</td>
+</tr>
+<tr>
+<td>7:12</td>
+<td>只能靠这个软件去掉保护救活</td>
+</tr>
+<tr>
+<td>7:14</td>
+<td>所以选项字节不作要求</td>
+</tr>
+<tr>
+<td>8:08</td>
+<td>打开 flash.c 看文件头</td>
+</tr>
+<tr>
+<td>8:26</td>
+<td>说明这个驱动的作用</td>
+</tr>
+<tr>
+<td>8:32</td>
+<td>大容量 XL 是双 bank</td>
+</tr>
+<tr>
+<td>9:17</td>
+<td>其他型号只有单 bank</td>
+</tr>
+<tr>
+<td>9:36</td>
+<td>从 V3.3.0 开始兼容</td>
+</tr>
+<tr>
+<td>9:40</td>
+<td>看 flash.h 的状态枚举</td>
+</tr>
+<tr>
+<td>9:49</td>
+<td>FLASH_Status 五个值</td>
+</tr>
+<tr>
+<td>10:22</td>
+<td>擦除编程函数都会返回状态</td>
+</tr>
+<tr>
+<td>11:50</td>
+<td>看全擦除函数内部</td>
+</tr>
+<tr>
+<td>11:54</td>
+<td>第一步事前等待</td>
+</tr>
+<tr>
+<td>12:16</td>
+<td>然后置 MER 和 STRT</td>
+</tr>
+<tr>
+<td>12:40</td>
+<td>最后把 MER 清零</td>
+</tr>
+<tr>
+<td>13:10</td>
+<td>库函数里包含等待忙</td>
+</tr>
+<tr>
+<td>13:40</td>
+<td>但不含解锁和加锁</td>
+</tr>
+<tr>
+<td>14:53</td>
+<td>新建 MyFLASH 模块</td>
+</tr>
+<tr>
+<td>15:02</td>
+<td>System 组下建两个文件</td>
+</tr>
+<tr>
+<td>15:04</td>
+<td>FLASH 不需要初始化</td>
+</tr>
+<tr>
+<td>15:07</td>
+<td>所以没有 Init 函数</td>
+</tr>
+<tr>
+<td>15:08</td>
+<td>写三个读函数</td>
+</tr>
+<tr>
+<td>16:47</td>
+<td>读取一个字</td>
+</tr>
+<tr>
+<td>16:58</td>
+<td>读取半字和字节</td>
+</tr>
+<tr>
+<td>17:57</td>
+<td>地址直接用参数不用加偏移</td>
+</tr>
+<tr>
+<td>18:01</td>
+<td>在 main 里测试读取</td>
+</tr>
+<tr>
+<td>18:03</td>
+<td>分别按三种宽度读</td>
+</tr>
+<tr>
+<td>18:30</td>
+<td>下载看现象</td>
+</tr>
+<tr>
+<td>19:30</td>
+<td>三个宽度读出同一个数</td>
+</tr>
+<tr>
+<td>20:00</td>
+<td>同时说明内存是小端存放</td>
+</tr>
+<tr>
+<td>20:40</td>
+<td>接着封装擦除函数</td>
+</tr>
+<tr>
+<td>21:10</td>
+<td>先解锁再调用再上锁</td>
+</tr>
+<tr>
+<td>21:40</td>
+<td>页擦除函数写法相同</td>
+</tr>
+<tr>
+<td>22:13</td>
+<td>再写擦除函数</td>
+</tr>
+<tr>
+<td>23:20</td>
+<td>页擦除函数也是一样</td>
+</tr>
+<tr>
+<td>23:50</td>
+<td>编程函数同样封装</td>
+</tr>
+<tr>
+<td>24:20</td>
+<td>编程测试</td>
+</tr>
+<tr>
+<td>24:50</td>
+<td>现象是三个不同宽度读数</td>
+</tr>
+<tr>
+<td>25:46</td>
+<td>页擦除也是一样</td>
+</tr>
+<tr>
+<td>26:20</td>
+<td>写字节很麻烦</td>
+</tr>
+<tr>
+<td>26:50</td>
+<td>建议用缓冲区方式</td>
+</tr>
+<tr>
+<td>27:20</td>
+<td>全擦除和页擦除测试</td>
+</tr>
+<tr>
+<td>28:47</td>
+<td>同时演示了小端字节序</td>
+</tr>
+<tr>
+<td>29:34</td>
+<td>三行式封装很清楚</td>
+</tr>
+<tr>
+<td>29:37</td>
+<td>按 Key1 全擦除</td>
+</tr>
+<tr>
+<td>29:56</td>
+<td>程序自己也被擦掉</td>
+</tr>
+<tr>
+<td>30:01</td>
+<td>之后按键就没反应了</td>
+</tr>
+<tr>
+<td>31:31</td>
+<td>编程测试写字和半字</td>
+</tr>
+<tr>
+<td>31:48</td>
+<td>用 ST-LINK Utility 验证</td>
+</tr>
+<tr>
+<td>31:53</td>
+<td>新建 Store 模块</td>
+</tr>
+<tr>
+<td>32:15</td>
+<td>在 System 组下建文件</td>
+</tr>
+<tr>
+<td>32:19</td>
+<td>定义 512 个半字的数组</td>
+</tr>
+<tr>
+<td>33:00</td>
+<td>数组和闪存半字统一</td>
+</tr>
+<tr>
+<td>34:19</td>
+<td>第 0 个是标志位</td>
+</tr>
+<tr>
+<td>34:48</td>
+<td>读第一个半字判断</td>
+</tr>
+<tr>
+<td>34:52</td>
+<td>不是 A5A5 就初始化</td>
+</tr>
+<tr>
+<td>35:07</td>
+<td>擦页写标志再清零</td>
+</tr>
+<tr>
+<td>35:10</td>
+<td>每次上电转存到 SRAM</td>
+</tr>
+<tr>
+<td>36:11</td>
+<td>到这里模块差不多</td>
+</tr>
+<tr>
+<td>36:40</td>
+<td>写 Store_Save</td>
+</tr>
+<tr>
+<td>37:10</td>
+<td>先擦整页再整块写回</td>
+</tr>
+<tr>
+<td>37:40</td>
+<td>再写 Store_Clear</td>
+</tr>
+<tr>
+<td>38:10</td>
+<td>回到应用层调用 Store</td>
+</tr>
+<tr>
+<td>39:02</td>
+<td>擦页再整块写回</td>
+</tr>
+<tr>
+<td>39:08</td>
+<td>写 Store_Clear</td>
+</tr>
+<tr>
+<td>39:44</td>
+<td>回到应用层调用</td>
+</tr>
+<tr>
+<td>39:49</td>
+<td>按键改数组再保存</td>
+</tr>
+<tr>
+<td>39:57</td>
+<td>补充 Store_Save</td>
+</tr>
+<tr>
+<td>41:20</td>
+<td>断电重启数据还在</td>
+</tr>
+<tr>
+<td>43:16</td>
+<td>地址要抽成宏</td>
+</tr>
+<tr>
+<td>44:06</td>
+<td>大量出现的参数要定义宏</td>
+</tr>
+<tr>
+<td>45:03</td>
+<td>打开 Keil 工程选项</td>
+</tr>
+<tr>
+<td>45:05</td>
+<td>看 Read Only Memory Areas</td>
+</tr>
+<tr>
+<td>45:11</td>
+<td>IROM1 起始和大小</td>
+</tr>
+<tr>
+<td>45:20</td>
+<td>看 Keil 工程的 IROM 范围</td>
+</tr>
+<tr>
+<td>45:30</td>
+<td>是 0x10000 默认全部 64K</td>
+</tr>
+<tr>
+<td>45:45</td>
+<td>还有编译输出的程序大小</td>
+</tr>
+<tr>
+<td>47:38</td>
+<td>本例程序约 2.6KB</td>
+</tr>
+<tr>
+<td>47:48</td>
+<td>据此规划用户数据区</td>
+</tr>
+<tr>
+<td>48:10</td>
+<td>复制 15-1 改名 15-2</td>
+</tr>
+<tr>
+<td>48:54</td>
+<td>读取芯片 ID</td>
+</tr>
+<tr>
+<td>49:26</td>
+<td>显示 F_SIZE</td>
+</tr>
+<tr>
+<td>50:19</td>
+<td>显示 0040 也就是 64K</td>
+</tr>
+<tr>
+<td>51:01</td>
+<td>读 UID 前 16 位</td>
+</tr>
+<tr>
+<td>51:07</td>
+<td>继续读后面几位</td>
+</tr>
+<tr>
+<td>51:40</td>
+<td>地址偏移要加括号</td>
+</tr>
+<tr>
+<td>52:11</td>
+<td>32 位读偏移 0x08</td>
+</tr>
+<tr>
+<td>52:25</td>
+<td>每片芯片都不一样</td>
+</tr>
+<tr>
+<td>52:26</td>
+<td>本集内容讲完</td>
+</tr>
+<tr>
+<td>53:34</td>
+<td>到这里也就结束了</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li><strong>采集侧说明</strong>：本集<strong>字幕自动探测又失败</strong>（条带落在底部黑边，首跑仅 3 段噪声），采集端已用 <code>redo_ocr.py</code> 强制重跑得到 <strong>475 段</strong>（自检 <code>ratio=99.9%</code>）；噪声版留档 <code>transcript.bad.txt</code>。<strong>注</strong>：我最初误把控制台显示乱码当成文件编码问题（P47/P48 也误判过），实际 <code>transcript.txt</code> 与 <code>subtitle_frames.tsv</code> 均为<strong>正常 UTF-8 中文</strong>——无需修复，前两集的重建也是用同一份内容、不影响正确性。</li>
+<li>文本错字（grep 实际命中）：<strong><code>数据</code> → 「数居」</strong>（5 处）、<strong><code>页起始</code> → 「贡起始」</strong>（3 处）、<code>解锁和加锁</code> → 「解锁和助加锁」（1 处）、<code>基地址</code> → 「基地」（1 处）；另有 Keil 输出噪声行——已按画面校正。</li>
+<li><strong>分层思路是作者自创</strong>（「这个思路是我自己想的，并不是固定的」）——笔记已注明是<strong>推荐做法</strong>。</li>
+<li><strong>复制来源</strong>：<code>15-1</code>←<strong>OLED 显示屏工程</strong>；<code>15-2</code>←<strong>复制 <code>15-1</code> 改名</strong>；接线 = OLED + <strong>两个按键</strong>。</li>
+<li><strong><code>FLASH_Status</code> 五值</strong>：<code>FLASH_BUSY = 1</code>、<code>FLASH_ERROR_PG</code>、<code>FLASH_ERROR_WRP</code>、<code>FLASH_COMPLETE</code>、<code>FLASH_TIMEOUT</code>；<strong>库函数内含等待忙、不含解锁/加锁</strong>。</li>
+<li><strong><code>MyFLASH</code> 无 Init</strong>、<strong>读函数地址不加偏移</strong>、<strong>四个封装都是「Unlock→库函数→Lock」</strong>。</li>
+<li><strong><code>Store</code> 关键设计</strong>：<code>uint16_t Store_Data[512]</code>；<strong>第 0 个是标志位不可当数据</strong>；标志 <strong><code>0xA5A5</code></strong>；<strong>存储地址 <code>0x0800FC00</code>（最后一页/页 63）</strong>；<code>Store_Init</code> = 首次初始化 + 每次上电转存；<code>Store_Save</code> = 擦页 + 整块写回。</li>
+<li><strong>读取自证实验</strong>（建议保留）：<code>0x08000010</code> 按 32/16/8 位读 → <code>08000569</code>/<code>0569</code>/<code>69</code>，顺带演示<strong>小端字节序</strong>。</li>
+<li><strong>全擦除会把程序自己擦掉</strong>（按 Key1 后按键全无反应）——既是现象也是风险。</li>
+<li><strong>芯片自锁风险</strong>：代码配读写保护写进去却没预留解除代码 → 无法再下载，只能靠 <strong>ST-LINK Utility → Target → Option Bytes → 去掉保护后 Apply</strong> 救活；故<strong>选项字节本课不作要求</strong>。</li>
+<li><strong>地址规划</strong>：存储起始地址抽成宏；IROM1 <code>0x8000000</code>/<code>0x10000</code>（默认 64K）+ <strong>Program Size 2664 字节≈2.6KB</strong> 用来避开程序区。</li>
+<li><strong>中间态帧</strong>：<code>f_00240</code> 末行仍是 <code>*((__IO uint32_t *)(0x1FFFF7E8 + 0x02))</code>、长度 <code>4</code>（<strong>未改完</strong>），而口述为「<strong>偏移 0x08、32 位读、显示长度 8</strong>」——笔记以口述/最终运行为准，已在该图注中标注。</li>
+<li><strong>「地址偏移要加括号」是反复强调点</strong>（否则指针类型转换优先级出错）。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-05.html"><span class="label">下一篇</span>[3-1] GPIO输出</a>
+    <a class="next" href="stm32-48.html"><span class="label">上一篇</span>[15-1] FLASH闪存</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E5%88%86%E5%B1%82%E5%B0%81%E8%A3%85-%E4%B8%A4%E4%B8%AA%E5%B7%A5%E7%A8%8B">0. 本集定位：代码课（分层封装 + 两个工程）</a>
+        <a class="level-2" href="#1-%E5%88%86%E5%B1%82%E6%9E%B6%E6%9E%84%E8%A7%84%E5%88%92">1. 分层架构规划</a>
+        <a class="level-2" href="#2-%E5%85%88%E5%9B%9E%E9%A1%BE-flash-%E8%AF%BB%E5%86%99%E6%B5%81%E7%A8%8B%E4%B8%8E%E5%B7%A5%E5%85%B7">2. 先回顾 Flash 读写流程与工具</a>
+        <a class="level-2" href="#3-%E5%BA%93%E5%87%BD%E6%95%B0%E9%80%9F%E8%A7%88-stm32f10x-flash">3. 库函数速览（stm32f10x_flash）</a>
+        <a class="level-3" href="#3-1-%E6%96%87%E4%BB%B6%E5%A4%B4%E8%AF%B4%E6%98%8E">3.1 文件头说明</a>
+        <a class="level-3" href="#3-2-flash-status-%E4%BA%94%E5%80%BC">3.2 FLASH_Status 五值</a>
+        <a class="level-3" href="#3-3-%E4%B8%BB%E8%A6%81%E5%BA%93%E5%87%BD%E6%95%B0">3.3 主要库函数</a>
+        <a class="level-2" href="#4-%E5%86%99-myflash-%E6%A8%A1%E5%9D%97-%E5%BA%95%E5%B1%82%E5%8E%9F%E5%A7%8B%E6%93%8D%E4%BD%9C">4. 写 MyFLASH 模块（底层原始操作）</a>
+        <a class="level-3" href="#4-1-%E5%BB%BA%E6%A8%A1%E5%9D%97%E4%B8%8E-%E6%97%A0-init">4.1 建模块与「无 Init」</a>
+        <a class="level-3" href="#4-2-%E4%B8%89%E4%B8%AA%E8%AF%BB%E5%87%BD%E6%95%B0-%E4%B8%80%E5%8F%A5%E8%BF%94%E5%9B%9E-%E5%9C%B0%E5%9D%80%E4%B8%8D%E5%8A%A0%E5%81%8F%E7%A7%BB">4.2 三个读函数（一句返回，地址不加偏移）</a>
+        <a class="level-3" href="#4-3-%E6%93%A6%E9%99%A4-%E7%BC%96%E7%A8%8B-%E4%B8%89%E8%A1%8C%E5%BC%8F%E5%B0%81%E8%A3%85">4.3 擦除 / 编程（三行式封装）</a>
+        <a class="level-3" href="#4-4-%E7%BC%96%E7%A8%8B%E6%B5%8B%E8%AF%95%E4%B8%8E%E5%85%A8%E6%93%A6%E9%99%A4%E7%9A%84-%E8%87%AA%E6%9D%80-%E7%8E%B0%E8%B1%A1">4.4 编程测试与全擦除的「自杀」现象</a>
+        <a class="level-2" href="#5-%E5%86%99-store-%E6%A8%A1%E5%9D%97-%E4%B8%AD%E9%97%B4%E5%B1%82">5. 写 Store 模块（中间层）</a>
+        <a class="level-3" href="#5-1-%E6%95%B0%E7%BB%84%E4%B8%8E%E9%A6%96%E5%85%83%E7%B4%A0%E6%A0%87%E5%BF%97%E4%BD%8D">5.1 数组与首元素标志位</a>
+        <a class="level-3" href="#5-2-store-init-%E9%A6%96%E6%AC%A1%E5%88%9D%E5%A7%8B%E5%8C%96-%E6%AF%8F%E6%AC%A1%E4%B8%8A%E7%94%B5%E8%BD%AC%E5%AD%98">5.2 Store_Init：首次初始化 + 每次上电转存</a>
+        <a class="level-3" href="#5-3-store-save-%E4%B8%8E-store-clear">5.3 Store_Save 与 Store_Clear</a>
+        <a class="level-2" href="#6-%E5%BA%94%E7%94%A8%E5%B1%82%E4%B8%8E%E5%9C%B0%E5%9D%80%E8%A7%84%E5%88%92">6. 应用层与地址规划</a>
+        <a class="level-3" href="#6-1-main-%E5%BA%94%E7%94%A8%E5%B1%82">6.1 main（应用层）</a>
+        <a class="level-3" href="#6-2-%E5%9C%B0%E5%9D%80%E8%A7%84%E5%88%92-%E6%8A%8A%E5%9C%B0%E5%9D%80%E6%8A%BD%E6%88%90%E5%AE%8F-%E7%9C%8B-irom1">6.2 地址规划（把地址抽成宏 + 看 IROM1）</a>
+        <a class="level-2" href="#7-%E7%A8%8B%E5%BA%8F2-15-2-%E8%AF%BB%E5%8F%96%E8%8A%AF%E7%89%87id">7. 程序②：15-2 读取芯片ID</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

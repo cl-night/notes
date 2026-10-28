@@ -1,0 +1,1191 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>[10-2] MPU6050简介 · 我的学习笔记</title>
+  <meta name="description" content="STM32 [10-2]（理论课，代码在 10-3/10-4）：6 轴姿态传感器；加速度计/陀螺仪原理与互补融合；参数（16 位 ADC、±2～±16g、±250～±2000°/s、地址 0x68/0xD0/0xD1）；电路与引脚；电气特性；关键寄存器 SMPLRT_DIV/CONFIG/GYRO_CONFIG/ACCEL_CONFIG/数据寄存器/PWR_MGMT_1/2/WHO_AM_I。">
+  <meta property="og:title" content="[10-2] MPU6050简介 · 我的学习笔记">
+  <meta property="og:description" content="STM32 [10-2]（理论课，代码在 10-3/10-4）：6 轴姿态传感器；加速度计/陀螺仪原理与互补融合；参数（16 位 ADC、±2～±16g、±250～±2000°/s、地址 0x68/0xD0/0xD1）；电路与引脚；电气特性；关键寄存器 SMPLRT_DIV/CONFIG/GYRO_CONFIG/ACCEL_CONFIG/数据寄存器/PWR_MGMT_1/2/WHO_AM_I。">
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem("note-theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (error) {}
+    })();
+  </script>
+</head>
+<body>
+<div class="reading-progress"></div>
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">✳</span>
+      <span>我的学习笔记</span>
+    </a>
+    <nav class="header-nav">
+      <a href="../index.html">全部笔记</a>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
+    </nav>
+  </div>
+</header>
+<div class="note-layout">
+  <aside class="sidebar">
+    <p class="sidebar-title">全部笔记</p>
+    <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html" class="active" aria-current="page">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
+        <a href="stm32-05.html">[3-1] GPIO输出</a>
+        <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
+        <a href="stm32-07.html">[3-3] GPIO输入</a>
+        <a href="stm32-08.html">[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
+        <a href="stm32-09.html">[4-1] OLED调试工具</a>
+        <a href="stm32-10.html">[4-2] OLED显示屏</a>
+        <a href="stm32-11.html">[5-1] EXTI外部中断</a>
+        <a href="stm32-12.html">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
+        <a href="stm32-01.html">[1-1] 课程简介</a>
+        <a href="stm32-02.html">[1-2] STM32简介</a>
+        <a href="stm32-03.html">[2-1] 软件安装</a>
+        <a href="stm32-04.html">[2-2] 新建工程</a>
+        <a href="stm32-course-map.html">STM32 课程地图与学习路线</a>
+    </nav>
+  </aside>
+  <main class="note-main">
+    <div class="note-meta">
+      <a class="back" href="../index.html">← 全部笔记</a>
+      <time datetime="2026-10-27">2026-10-27</time>
+      <span>44 分钟</span>
+      <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">I2C</span><span class="tag">MPU6050</span><span class="tag">姿态传感器</span><span class="tag">寄存器</span>
+    </div>
+    <article class="prose"><h1>[10-2] MPU6050简介 — 学习笔记</h1>
+<ul>
+<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
+<li>视频：BV1th411z7sn?p=32，50:27（3027 秒）</li>
+<li>素材：252 帧关键帧（<strong>每 12 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>642 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p32/frames/</code>，站内图片在 <code>assets/images/stm32-32/</code>）</li>
+<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>）；错字主要是 <strong><code>I2C</code> 被识成「12C」</strong>（18 处）、<code>加速度</code>→「功速度/加可速度」、<code>偏航</code>→「扁航」、<code>详细</code>→「洋细」、<code>看到</code>→「香到」，并混入了<strong>手册页面水印</strong>（<code>CONFIDENTIAL &amp; PROPRIETARY</code>、<code>PRELIMINARY</code>、<code>InvenSense</code>）与整句英文正文——这些<strong>不是老师口述</strong>，已剔除/校正（清单见文末「存疑」）。</li>
+<li><strong>本集定位</strong>：这是<strong>模块 10 的理论课（芯片精读）</strong>——承接上集 I2C 时序，<strong>把 MPU6050 这颗芯片讲清楚</strong>：全程 <strong>PPT + 两份 PDF 手册</strong>（产品说明书 <code>PS-MPU-6000A-00 Rev 3.2</code>、寄存器映像 <code>RM-MPU-6000A-00 Rev 3.2</code>）逐页翻读，<strong>本集没有写一行代码</strong>；片尾 50:12「接下来的任务就是实现 I2C 通信，读写这里的寄存器来操控 MPU6050」——<strong>软件 I2C 代码在 [10-3]、硬件 I2C 在 [10-4]</strong>。</li>
+</ul>
+<h2 id="一句话结论">一句话结论</h2>
+<p><strong>MPU6050 是一个 6 轴姿态传感器</strong>：能测<strong>芯片自身 X/Y/Z 三轴的加速度（加速度计）和三轴的角速度（陀螺仪）</strong>，经<strong>数据融合</strong>可得到<strong>姿态角（欧拉角）</strong>，常用于<strong>平衡车、飞行器</strong>等需要感知自身姿态的场景；再集成 3 轴磁场就是 <strong>9 轴</strong>、再加气压计就是 <strong>10 轴</strong>。<strong>欧拉角</strong>是机体相对初始三个轴的夹角（飞机机头左右转的那个轴的夹角叫<strong>偏航角 Yaw</strong>，另有横滚/俯仰）——<strong>本集重点是 I2C，不涉及姿态解算</strong>。<strong>加速度计</strong>的原理：机械模型是<strong>弹簧 + 电位器</strong>，滑块受加速度移动带动电位器、测分压电压，由 <strong>F = ma</strong> 用「测到的力」反推加速度；芯片内可想象成<strong>六个测力计组成的正方体 + 单位质量小球</strong>——<strong>静置水平时 X/Y 为 0、Z 为 +1g</strong>（小球压底面），<strong>自由落体时三轴全 0</strong>，<strong>向左倾斜时底面和左面同时受力</strong>；<strong>只用加速度计求倾角只在静止时准确</strong>（运动加速度会干扰，如汽车加速、斜坡停车）。<strong>陀螺仪</strong>的机械模型是<strong>旋转轮 + 平衡环 + 电位器</strong>，靠<strong>角动量守恒</strong>保持转轴方向，外部转动时平衡环产生角度偏差；<strong>但要注意：MPU6050 内部的陀螺仪测的是「角速度」而不是角度</strong>（结构/工艺差异），<strong>角速度积分可得到角度，但误差会累积、时间长了会漂移</strong>——所以<strong>加速度计是「静态稳定」、陀螺仪是「动态稳定」，两者特性正好互补</strong>，实际是<strong>取长补短做数据融合</strong>（本集只讲思路）。<strong>参数</strong>：<strong>16 位 ADC</strong>，量化范围 <strong>−32768～32767</strong>（二进制补码，两个字节）；<strong>加速度计满量程 ±2/±4/±8/±16 g</strong>（满量程越小分辨率越细）；<strong>陀螺仪满量程 ±250/±500/±1000/±2000 °/s</strong>；可配置<strong>数字低通滤波器、时钟源、采样分频</strong>；<strong>I2C 从机地址：7 位 1101000（AD0=0）/ 1101001（AD0=1）</strong>——用十六进制表示就是 <strong>0x68</strong>；<strong>若把读写位也并进来</strong>则是 <strong>0xD0（写）/ 0xD1（读）</strong>（作者偏爱的表示法）。<strong>硬件电路</strong>：模块上有 <strong>3.3V LDO</strong>（<strong>VDD 只能 2.375～3.46V，不能直接接 5V</strong>，模块 VCC 端可接 3.3～5V）、<strong>SCL/SDA 各 4.7KΩ 上拉</strong>、电源指示灯、排针；<strong>引脚功能</strong>：<strong>VCC/GND 电源、SCL/SDA I2C 通信、XCL/XDA 主机 I2C 通信（扩展磁力计/气压计用）、AD0 从机地址最低位（电路默认弱下拉到 GND）、INT 中断信号输出</strong>。<strong>框图</strong>：三轴加速度计与三轴陀螺仪各经 <strong>ADC</strong> 进 <strong>Sensor Registers</strong>，另有 <strong>Temp Sensor</strong>、<strong>Self test（自测/验芯片好坏）</strong>、<strong>电荷泵（CPOUT 外接电容，陀螺仪需升压）</strong>、<strong>FIFO</strong>、<strong>Config Registers</strong>、<strong>Slave I2C and SPI Serial Interface</strong>（和 STM32 通信）、<strong>Master I2C Serial Interface + 接口旁路选择器</strong>（去控制扩展设备）、<strong>DMP（数字运动处理器，硬件姿态解算）</strong>、<strong>Bias &amp; LDO</strong>。<strong>产品说明书</strong>要点：<strong>电气特性表</strong>（VDD 2.375/3.46V、温度传感器 −40～+85℃、灵敏度 <strong>340 LSB/℃</strong>、零点偏移 <strong>−521 LSB</strong>）、<strong>绝对最大额定值 VDD −0.5～+6V</strong>（超 6V 损坏）、<strong>I2C 通信时序表</strong>（Single-Byte Write：<code>S + AD+W + RA + DATA + P</code>，从机三个 ACK；Burst Write 连续多字节；指定地址读最后一个数据给<strong>非应答</strong>）。<strong>寄存器</strong>是本集重点：<strong>总表</strong>（Addr Hex/Dec、Register Name、Serial I/F、Bit7～Bit0）；<strong>SMPLRT_DIV（0x19 / 25）</strong>：<code>Sample Rate = 陀螺仪输出率 / (1 + SMPLRT_DIV)</code>，<strong>DLPF 关＝8kHz、开＝1kHz</strong>，加速度计固定 1kHz；<strong>CONFIG（0x1A / 26）</strong>：EXT_SYNC_SET（外部同步）+ <strong>DLPF_CFG（数字低通滤波，抖动大就开）</strong>；<strong>GYRO_CONFIG（0x1B / 27）</strong>：XG_ST/YG_ST/ZG_ST 自测位 + <strong>FS_SEL[1:0] 满量程</strong>（0=±250、1=±500、2=±1000、3=±2000 °/s）；<strong>ACCEL_CONFIG（0x1C / 28）</strong>：XA_ST/YA_ST/ZA_ST + <strong>AFS_SEL</strong>（0=±2g→<strong>16384 LSB/mg</strong>、1=±4g→8192、2=±8g→4096、3=±16g→2048）+ ACCEL_HPF 高通滤波；<strong>数据寄存器</strong>：加速度/温度/陀螺仪各轴均为 <strong>16 位、二进制补码</strong>，<code>_H</code> 高字节、<code>_L</code> 低字节，读出来<strong>把高 8 位左移 8 位再或上低 8 位、存进 int16 就得到有符号值</strong>；<strong>PWR_MGMT_1（0x6B / 107）</strong>：DEVICE_RESET / <strong>SLEEP</strong> / CYCLE / TEMP_DIS / <strong>CLKSEL</strong>（上电默认内部 8MHz 振荡器，<strong>强烈建议改用陀螺仪 PLL 作时钟源</strong>更稳；CLKSEL：0=内部 8M、1～3=XYZ 陀螺 PLL、4=外部 32.768k、5=外部 19.2M、6=保留、7=停时钟）；<strong>PWR_MGMT_2（0x6C / 108）</strong>：LP_WAKE_CTRL 唤醒频率（1.25/2.5/5/10Hz）+ STBY_XA/YA/ZA/XG/YG/ZG 各轴待机；<strong>WHO_AM_I（0x75 / 117）</strong>：<strong>只读、固定 0x68</strong>（中间 6 位就是 I2C 地址、AD0 不影响它）；<strong>手册注释：除 Register 107 复位值 0x40、Register 117 复位值 0x68 外，其余寄存器复位值都是 0x00</strong>——<strong>也就是说芯片上电默认处于睡眠模式（SLEEP=1），必须先清 SLEEP 才能操作其它寄存器</strong>。</p>
+<h2 id="0-本集定位-理论课-芯片手册精读-代码在-10-3-10-4">0. 本集定位：理论课（芯片手册精读），代码在 10-3/10-4</h2>
+<ul>
+<li><strong>本集是纯理论课</strong>：00:00 承接上集最后一页（I2C「指定地址读」时序），之后全程 <strong>PPT + 两份 PDF 手册</strong>逐页精读，<strong>没有打开 Keil 写代码</strong>。</li>
+<li><strong>本集讲什么</strong>：MPU6050 这颗芯片——<strong>它是什么（6 轴姿态传感器）、怎么测（加速度计/陀螺仪原理）、有哪些参数、模块电路与引脚、内部框图、手册里的电气特性与 I2C 时序、以及要操作的寄存器</strong>。</li>
+<li><strong>片尾 50:12</strong>：「接下来的任务就是实现 I2C 通信，读写这里的寄存器来操控 MPU6050」——<strong>软件 I2C 代码在 [10-3]，硬件 I2C 在 [10-4]</strong>。</li>
+<li>本集<strong>不涉及</strong>：姿态解算的具体算法/DMP 库使用、SPI 时序细节、FIFO 的用法（作者明确说「本节暂时不用」）。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/01-i2c-timing-recap.jpg" alt="图 1：开场承接上集——PPT「I2C时序」页（指定地址读：对于指定设备、在指定地址下读取从机数据）与上集的整帧波形；字幕「这样，即使这个外挂芯片的各种寄存器不在STM32内部」"></p>
+<p><em>图 1：开场承接上集——PPT「I2C时序」页（指定地址读：对于指定设备、在指定地址下读取从机数据）与上集的整帧波形；字幕「这样，即使这个外挂芯片的各种寄存器不在STM32内部」</em></p>
+<h2 id="1-资料-两份手册">1. 资料：两份手册</h2>
+<ul>
+<li>资料「MPU6050」文件夹里有两份手册：<ul>
+<li><strong>产品说明书（PS-MPU-6000A-00，Revision 3.2，11/16/2011）</strong>——芯片是什么、有什么特性、电气参数、时序图；</li>
+<li><strong>寄存器映像手册（RM-MPU-6000A-00，Revision 3.2）</strong>——<strong>Register Map 总表 + 每个寄存器每一位的详细解释</strong>；</li>
+</ul>
+</li>
+<li><strong>写代码、实际操作硬件的时候，寄存器描述是必不可少的</strong>；英文不好可以用翻译软件辅助看。</li>
+</ul>
+<h2 id="2-mpu6050-简介与姿态传感原理">2. MPU6050 简介与姿态传感原理</h2>
+<h3 id="2-1-6-轴姿态传感器">2.1 6 轴姿态传感器</h3>
+<ul>
+<li><strong>MPU6050 是一个 6 轴姿态传感器</strong>：可以测量<strong>芯片自身 X、Y、Z 三轴的加速度和角速度</strong>，<strong>通过数据融合可以进一步得到姿态角</strong>，常用于<strong>平衡车、飞行器</strong>等需要检测自身姿态的场景；</li>
+<li>组成：<strong>3 轴加速度计（Accelerometer）</strong> 测 X/Y/Z 加速度 + <strong>3 轴陀螺仪传感器（Gyroscope）</strong> 测 X/Y/Z 角速度；芯片上标注了 <strong>XYZ 轴的定义方向</strong>（垂直于芯片表面的轴为 Z 轴）；</li>
+<li><strong>轴数是怎么算的</strong>：<strong>3 轴加速度 + 3 轴角速度 = 6 轴</strong>；<strong>再集成 3 轴磁场强度测量 → 9 轴姿态传感器</strong>；<strong>再加一个气压传感器 → 10 轴</strong>（气压值反映高度，海拔越高气压越低，所以气压计单独测垂直地面的高度信息）。</li>
+</ul>
+<h3 id="2-2-欧拉角与偏航角">2.2 欧拉角与偏航角</h3>
+<ul>
+<li>通过<strong>数据融合</strong>得到的姿态角通常就叫<strong>欧拉角</strong>——<strong>欧拉角就是机体相对于初始三个轴的夹角</strong>；</li>
+<li>以飞机为例：机身保持水平、<strong>机头向左或向右转，这个轴的夹角叫作偏航（Yaw）</strong>；类似地还有横滚、俯仰（本集只提偏航这一个名字）；</li>
+<li><strong>欧拉角能清晰表达物体此刻的姿态</strong>——所以做飞行器、平衡车时，得到精确稳定的欧拉角至关重要；</li>
+<li><strong>但本集侧重点是 I2C 通信</strong>，姿态解算的内容暂时不涉及。</li>
+</ul>
+<h3 id="2-3-加速度计原理">2.3 加速度计原理</h3>
+<ul>
+<li><strong>机械模型</strong>：中间一个<strong>可以左右滑动的小滑块</strong>，两边各有一根<strong>弹簧</strong>，滑块上带动<strong>滑动电位器</strong>——<strong>滑块移动 → 电位器分压变化 → 输出电压变化</strong>，<strong>测这个电压就能得到滑块所受的加速度</strong>；</li>
+<li><strong>根据牛顿第二定律 F = ma</strong>：想测加速度 a，就去<strong>测它所受的力 F</strong>（m 已知为滑块质量）——「所以你听这个名字感觉很高大上，其实就是测力」；</li>
+<li><strong>芯片内的等效模型</strong>：想象芯片里有<strong>六个测力的「秤」组成一个正方体</strong>、中间放一个<strong>大小正好的单位质量小球</strong>，小球压在那个秤面上，那个面就有读数——<strong>正方体六个面测到的力，就是三轴的加速度值</strong>：<ul>
+<li><strong>静置水平</strong>放在地球上：只有<strong>底面</strong>受小球压力 → <strong>X/Y 轴输出为 0，Z 轴输出为 +1g</strong>；</li>
+<li><strong>自由落体</strong>：所有面都不受力 → <strong>X/Y/Z 全为 0</strong>；</li>
+<li><strong>向左倾斜放置</strong>：<strong>底面和左面同时受力</strong> → 由这两个面的分量可以用三角函数算出「向左的倾角」；</li>
+</ul>
+</li>
+<li><strong>⚠ 只用加速度计求倾角，只在芯片静置时正确</strong>：加速度分<strong>重力加速度</strong>和<strong>运动加速度</strong>，物体运动时（汽车突然加速、停在斜坡上）会同时受座椅底面和靠背的力，<strong>三角函数算出的倾角会被运动加速度干扰</strong>——「当物体运动起来了，这个角度会受影响而变得不准确」。</li>
+</ul>
+<h3 id="2-4-陀螺仪原理">2.4 陀螺仪原理</h3>
+<ul>
+<li><strong>机械模型</strong>：外部是<strong>三个轴的平衡环</strong>，中间是<strong>高速旋转的旋转轮</strong>，连接处有<strong>电位器</strong>；</li>
+<li><strong>角动量守恒</strong>：旋转轮高速旋转时<strong>具有保持原有角动量的趋势</strong>，这个趋势<strong>能保持旋转轴方向不变</strong>——<strong>当外部物体方向转动时，内部的旋转轴方向并不转动</strong>，于是<strong>在平衡环连接处产生角度偏差</strong>；</li>
+<li>从机械模型看，<strong>陀螺仪似乎可以直接得到角度</strong>；<strong>但 MPU6050 内部这颗陀螺仪，由于结构差异/工艺限制，测的实际上是「角速度」</strong>（务必注意）：<ul>
+<li>它测的是<strong>绕 X/Y/Z 轴旋转的角速度</strong>；</li>
+<li>可以想象成<strong>游乐园的旋转飞椅</strong>：转起来时，<strong>对向两个椅子飞起来的距离或夹角</strong>就反映<strong>绕该轴的角速度</strong>；</li>
+</ul>
+</li>
+<li><strong>想由角速度得到角度</strong>：<strong>对角速度做积分</strong>即可；<strong>但误差会不断累积</strong>——「角速度积分得到的角度，经不起时间的考验」；</li>
+<li><strong>互补特性</strong>：<strong>加速度计是「静态稳定」</strong>（运动时不准，但长期不漂），<strong>陀螺仪是「动态稳定」</strong>（运动时准确，但积分会漂）——<strong>两种传感器特性正好互补</strong>，所以实际做法是<strong>取长补短做数据融合</strong>（大致思路：静止时信加速度计、运动时信陀螺仪）；<strong>实际的姿态解算会更复杂</strong>，本集不展开。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/02-mpu6050-intro.jpg" alt="图 2：PPT「MPU6050简介」——MPU6050 是一个 6 轴姿态传感器，可测量芯片自身 X/Y/Z 的加速度、角速度，通过数据融合可进一步得到姿态角，常用于平衡车、飞行器等；3 轴加速度计（Accelerometer）测 X/Y/Z 加速度；3 轴陀螺仪传感器（Gyroscope）测 X/Y/Z 角速度；下方三张图：MPU-6000/MPU-6050 的 XYZ 轴定义、加速度计示意图（弹簧 + 电位器，红笔圈标）、陀螺仪机械模型（标注旋转轴、平衡环、旋转轮）；字幕「所以你听这个名字，加速度计」"></p>
+<p><em>图 2：PPT「MPU6050简介」——MPU6050 是一个 6 轴姿态传感器，可测量芯片自身 X/Y/Z 的加速度、角速度，通过数据融合可进一步得到姿态角，常用于平衡车、飞行器等；3 轴加速度计（Accelerometer）测 X/Y/Z 加速度；3 轴陀螺仪传感器（Gyroscope）测 X/Y/Z 角速度；下方三张图：MPU-6000/MPU-6050 的 XYZ 轴定义、加速度计示意图（弹簧 + 电位器，红笔圈标）、陀螺仪机械模型（标注旋转轴、平衡环、旋转轮）；字幕「所以你听这个名字，加速度计」</em></p>
+<h2 id="3-参数与分辨率">3. 参数与分辨率</h2>
+<p>对比上一节学的 ADC，这里的「AD 值 ↔ 物理量」同样是线性的，只是<strong>参考量变成了「满量程」</strong>：满量程对应 AD 最大值。</p>
+<table>
+<thead>
+<tr>
+<th>项目</th>
+<th>数值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ADC 位数</td>
+<td><strong>16 位</strong></td>
+<td>量化输出 2 的 16 次方 = 65536 个数；<strong>因为有正负，所以是有符号数，范围 −32768～32767</strong></td>
+</tr>
+<tr>
+<td>加速度计满量程</td>
+<td><strong>±2 / ±4 / ±8 / ±16（g）</strong></td>
+<td>1 g = 9.8 m/s²；运动剧烈选大量程、要精细选小量程</td>
+</tr>
+<tr>
+<td>陀螺仪满量程</td>
+<td><strong>±250 / ±500 / ±1000 / ±2000（°/sec）</strong></td>
+<td>同上</td>
+</tr>
+<tr>
+<td>可配置项</td>
+<td><strong>数字低通滤波器、时钟源、采样分频</strong></td>
+<td>低通滤波让输出更平滑；时钟源经分频决定 AD 转换快慢</td>
+</tr>
+<tr>
+<td>从机地址</td>
+<td><strong>1101000（AD0=0）/ 1101001（AD0=1）</strong></td>
+<td>7 位地址</td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>满量程越大、分辨率越粗</strong>：例如选 ±16g 时，AD 最大值 32767 对应 16g；选 ±2g 时 32768 对应 2g → <strong>满量程越小，测量越细腻</strong>（要把满量程选择留够余量，别让正常数据超量程）。</li>
+</ul>
+<h3 id="3-1-地址的两种表示-0x68-与-0xd0-0xd1">3.1 地址的两种表示（0x68 与 0xD0/0xD1）</h3>
+<ul>
+<li><strong>7 位二进制地址 1101000 换算成十六进制就是 0x68</strong>——所以有的地方说「MPU6050 的从机地址是 0x68」；</li>
+<li>但回忆 I2C 时序：<strong>发送的 1 个字节里，高 7 位是从机地址、最低位是读写位</strong>——<strong>如果认为 0x68 是从机地址</strong>，发送时就要<strong>先把 0x68 左移 1 位、再按位或上读写位（读 1 写 0）</strong>：<code>0x68 &lt;&lt; 1 = 0xD0</code>，<strong>0xD0 是写地址、0xD1 是读地址</strong>；</li>
+<li><strong>两种表示方式在实际中都有出现</strong>：手册/官方多用「<strong>0x68 + 读写位</strong>」，作者个人<strong>比较喜欢把读写位并入的 0xD0/0xD1 表示</strong>——本课程后续代码用的是 0xD0/0xD1。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/03-mpu6050-params.jpg" alt="图 3：PPT「MPU6050参数」——16 位 ADC 采集传感器模拟信号、量化范围 −32768～32767；加速度计满量程 ±2、±4、±8、±16（g）；陀螺仪满量程 ±250、±500、±1000、±2000（°/sec）；可配置的数字低通滤波器、时钟源、采样分频；I2C 从机地址 1101000（AD0=0）/ 1101001（AD0=1）；字幕「量化范围是-32768～32767」"></p>
+<p><em>图 3：PPT「MPU6050参数」——16 位 ADC 采集传感器模拟信号、量化范围 −32768～32767；加速度计满量程 ±2、±4、±8、±16（g）；陀螺仪满量程 ±250、±500、±1000、±2000（°/sec）；可配置的数字低通滤波器、时钟源、采样分频；I2C 从机地址 1101000（AD0=0）/ 1101001（AD0=1）；字幕「量化范围是-32768～32767」</em></p>
+<h2 id="4-硬件电路与引脚">4. 硬件电路与引脚</h2>
+<h3 id="4-1-模块原理图">4.1 模块原理图</h3>
+<ul>
+<li>左侧是<strong>模块原理图</strong>：一个 <strong>LDO（低压差线性稳压器）</strong> 把 VCC_5V 稳压成 3.3V、<strong>一个 LED 电源指示灯</strong>、<strong>SCL/SDA 各接一个 4.7KΩ 上拉电阻</strong>、MPU6050 芯片本身（芯片引脚很多，很多是<strong>最小系统里的固定连接</strong>，抄参考电路即可），最后把关键信号引到<strong>排针</strong>（VCC_5V、VCC_3V3、SCL、SDA、XDA、XCL、AD0、INT、GND）；</li>
+<li><strong>SCL/SDA 直接接 STM32 的 GPIO 即可</strong>（模块上已经带上拉电阻）；</li>
+<li><strong>供电</strong>：手册查得 <strong>MPU6050 芯片 VDD 供电 2.375～3.46V</strong>——是<strong>3.3V 器件，不能直接接 5V</strong>；所以模块设计者加了 <strong>3.3V 稳压器</strong>，<strong>模块的 VCC 输入端可以接 3.3V～5V</strong>，经 LDO 输出稳定 3.3V；<strong>电源指示灯按需保留</strong>（如果已有稳定 3.3V 电源，可以不要这个模块的稳压部分）。</li>
+</ul>
+<h3 id="4-2-引脚功能表">4.2 引脚功能表</h3>
+<table>
+<thead>
+<tr>
+<th>引脚</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>VCC、GND</strong></td>
+<td><strong>电源</strong></td>
+</tr>
+<tr>
+<td><strong>SCL、SDA</strong></td>
+<td><strong>I2C 通信引脚</strong>（接 STM32 的 GPIO）</td>
+</tr>
+<tr>
+<td><strong>XCL、XDA</strong></td>
+<td><strong>主机 I2C 通信引脚</strong>（MPU6050 作为主机去控制扩展设备）</td>
+</tr>
+<tr>
+<td><strong>AD0</strong></td>
+<td><strong>从机地址最低位</strong>（板上默认弱下拉到 GND）</td>
+</tr>
+<tr>
+<td><strong>INT</strong></td>
+<td><strong>中断信号输出</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>XCL/XDA 的用途</strong>：6 轴姿态融合出的姿态角有缺陷——<strong>绕 Z 轴的偏航角 Yaw 会漂移、无法用加速度计纠正</strong>（相当于坐在车里不看窗外、转弯后就迷失方向），所以可以<strong>外接磁力计当「指南针」<strong>来纠正；做无人机要定高时还可以</strong>外接气压计</strong>；<ul>
+<li>把扩展芯片的数据读到 MPU6050 里，<strong>由内部 DMP 单元做数据融合和姿态解算</strong>；</li>
+<li><strong>如果不需要 MPU6050 的解算功能</strong>，也可以把磁力计/气压计<strong>直接挂到同一条 I2C 总线上</strong>（I2C 本来就支持多设备）；</li>
+</ul>
+</li>
+<li><strong>AD0</strong>：<strong>电路上默认弱下拉到低电平</strong>——所以<strong>引脚悬空时地址就是 1101000（0x68）</strong>；把它拉高就是 1101001；</li>
+<li><strong>INT</strong>：<strong>中断输出引脚</strong>——数据准备好了、自由落体检测、运动检测、零运动检测等事件发生时，都可以让 INT 引脚产生电平跳变；<strong>不需要的话这个引脚也不用接</strong>（中断相关配置后面再讲）。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/04-hardware-circuit.jpg" alt="图 4：PPT「硬件电路」——左侧模块原理图（3.3V LDO、LED 电源灯、SCL/SDA 各 4.7K 上拉、MPU-6050 芯片与 J1/J2 排针）；右侧引脚功能表：VCC、GND = 电源；SCL、SDA = I2C 通信引脚；XCL、XDA = 主机 I2C 通信引脚；AD0 = 从机地址最低位；INT = 中断信号输出；字幕「其中右边这个是MPU6050的芯片」"></p>
+<p><em>图 4：PPT「硬件电路」——左侧模块原理图（3.3V LDO、LED 电源灯、SCL/SDA 各 4.7K 上拉、MPU-6050 芯片与 J1/J2 排针）；右侧引脚功能表：VCC、GND = 电源；SCL、SDA = I2C 通信引脚；XCL、XDA = 主机 I2C 通信引脚；AD0 = 从机地址最低位；INT = 中断信号输出；字幕「其中右边这个是MPU6050的芯片」</em></p>
+<h2 id="5-内部框图">5. 内部框图</h2>
+<ul>
+<li><strong>时钟部分</strong>：<strong>CLKIN / CLKOUT</strong> 时钟输入/输出脚（一般用<strong>内部时钟</strong>：模块电路里 CLKIN 直接接 GND、CLKOUT 不引出）；</li>
+<li><strong>传感器部分</strong>：<strong>X/Y/Z 加速度计、X/Y/Z 陀螺仪</strong>各有自己的 <strong>Self test（自测）</strong> 单元，信号经 <strong>ADC</strong> 进 <strong>Sensor Registers</strong>；<strong>Temp Sensor（温度传感器）</strong> 同样经 ADC；<strong>Charge Pump（电荷泵，CPOUT 引脚需外接电容）</strong> 给陀螺仪升压；</li>
+<li><strong>数字部分</strong>：<strong>Config Registers（配置寄存器）</strong>、<strong>Interrupt Status Register（中断状态）→ INT 引脚</strong>、<strong>FIFO（先入先出寄存器，可缓存数据流，本集不用）</strong>、<strong>Factory Calibration</strong>；</li>
+<li><strong>接口部分</strong>：<ul>
+<li><strong>Slave I2C and SPI Serial Interface</strong>：<strong>作为从机与 STM32 通信</strong>（MPU-6000 支持 SPI + I2C，<strong>MPU-6050 仅支持 I2C</strong>）；</li>
+<li><strong>Master I2C Serial Interface + Serial Interface Bypass Mux（接口旁路选择器）</strong>：<strong>作为主机去和扩展设备通信</strong>（AUX_CL / AUX_DA）——旁路选择器拨到一边时<strong>辅助 I2C 引脚直接和主 I2C 总线并到一起</strong>（STM32 可以直接访问所有设备，STM32 是「大哥」）；拨到另一边时<strong>辅助 I2C 由 MPU6050 控制</strong>（MPU6050 是 STM32 的小弟、又是扩展设备的大哥）；</li>
+</ul>
+</li>
+<li><strong>DMP（Digital Motion Processor，数字运动处理器）</strong>：<strong>硬件姿态解算</strong>，配合官方 DMP 库，姿态解算会方便很多（本集只介绍、不深入）；</li>
+<li><strong>Bias &amp; LDO</strong>：偏置与稳压（VLOGIC/REGOUT 等引脚）。</li>
+</ul>
+<h3 id="5-1-传感器本质与-adc-全自动转换">5.1 传感器本质与 ADC 全自动转换</h3>
+<ul>
+<li><strong>这么多传感器本质上都相当于「可变电阻」</strong>：物理量变化 → 电阻变化 → <strong>分压输出变化的模拟电压</strong> → <strong>ADC 量化</strong>；</li>
+<li><strong>芯片内部的转换是全自动的</strong>，类似之前学的「<strong>AD 连续转换 + DMA 转运</strong>」——不用手动启动/搬运，<strong>也不存在数据覆盖问题</strong>，非常方便。</li>
+</ul>
+<h3 id="5-2-自测-self-test">5.2 自测（Self test）</h3>
+<ul>
+<li>每个传感器都有<strong>自测单元</strong>，用来<strong>验证芯片好坏</strong>；</li>
+<li>做法：<strong>先使能自测、读取一次数据；再失能自测、读取一次数据；两者相减得到「自测响应」</strong>——<strong>如果自测响应落在手册给定的范围内，就说明芯片没问题</strong>。</li>
+</ul>
+<h3 id="5-3-电荷泵-升压">5.3 电荷泵（升压）</h3>
+<ul>
+<li><strong>电荷泵（充电泵）是一种升压电路</strong>（OLED 模块里也有）；<strong>CPOUT 引脚需要外接电容</strong>（手册有说明）；</li>
+<li><strong>升压原理</strong>：先<strong>电池与电容并联充电</strong>（电容充到电池电压）；再<strong>改成串联</strong>——<strong>电池 5V + 电容 5V → 输出 10V</strong>；「凭空把电压升高到两倍」；因为电容电荷少，要<strong>趁它没放完电及时并联充电</strong>，后面再加电源滤波；</li>
+<li><strong>陀螺仪内部需要电荷泵升压</strong>，所以框图里有这个 CPOUT。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/05-block-diagram.jpg" alt="图 5：PPT「MPU6050框图」——标 MPU-60X0 的内部结构：CLKIN/CLKOUT → CLOCK；X/Y/Z Accel 与 X/Y/Z Gyro 各带 Self test → ADC → Sensor Registers；Temp Sensor→ADC；Charge Pump（CPOUT）；Interrupt Status Register → INT；FIFO；Config Registers；Factory Calibration；Slave I2C and SPI Serial Interface（AD0/SDIO、SCL/SCLK、SDA/SDIO、CS）；Master I2C Serial Interface → Serial Interface Bypass Mux → AUX_CL/AUX_DA；FSYNC；Digital Motion Processor（DMP）；Bias &amp; LDO（VDD、GND、REGOUT、VLOGIC）；字幕「硬件电路这里」"></p>
+<p><em>图 5：PPT「MPU6050框图」——标 MPU-60X0 的内部结构：CLKIN/CLKOUT → CLOCK；X/Y/Z Accel 与 X/Y/Z Gyro 各带 Self test → ADC → Sensor Registers；Temp Sensor→ADC；Charge Pump（CPOUT）；Interrupt Status Register → INT；FIFO；Config Registers；Factory Calibration；Slave I2C and SPI Serial Interface（AD0/SDIO、SCL/SCLK、SDA/SDIO、CS）；Master I2C Serial Interface → Serial Interface Bypass Mux → AUX_CL/AUX_DA；FSYNC；Digital Motion Processor（DMP）；Bias &amp; LDO（VDD、GND、REGOUT、VLOGIC）；字幕「硬件电路这里」</em></p>
+<p><img src="../assets/images/stm32-32/06-charge-pump.jpg" alt="图 6：同一页上的红笔——画了「电池 + 电容 + 5V」的示意，讲电荷泵把并联改串联来升压；字幕「然后我再来个电容」"></p>
+<p><em>图 6：同一页上的红笔——画了「电池 + 电容 + 5V」的示意，讲电荷泵把并联改串联来升压；字幕「然后我再来个电容」</em></p>
+<h2 id="6-产品说明书要点">6. 产品说明书要点</h2>
+<h3 id="6-1-概述与型号差异">6.1 概述与型号差异</h3>
+<ul>
+<li>芯片是 <strong>3 轴 MEMS 陀螺仪 + 3 轴 MEMS 加速度计</strong>，内置 <strong>DMP</strong>；</li>
+<li><strong>MPU-6000 支持 SPI + I2C，MPU-6050 仅支持 I2C</strong>（引脚上也有差异）；</li>
+<li>特性列表里有 9 轴运动融合（配合扩展磁力计）等内容，本集不深入。</li>
+</ul>
+<h3 id="6-2-电气特性-6-3-节">6.2 电气特性（6.3 节）</h3>
+<ul>
+<li><strong>VDD = 2.375 ～ 3.46V</strong>（VLOGIC 仅 MPU-6050 有，为 1.8V ±5% 或 VDD）；</li>
+<li><strong>温度传感器</strong>：范围 <strong>−40 ～ +85 ℃</strong>、灵敏度 <strong>340 LSB/℃</strong>、零点偏移 <strong>−521 LSB</strong>、线性度 ±1℃；</li>
+<li><strong>各工作模式电流</strong>（陀螺+加速度+DMP 约 3.9mA 等）；</li>
+<li><strong>绝对最大额定值</strong>：<strong>VDD −0.5 ～ +6V</strong>——<strong>超过 6V 就会损坏</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/07-electrical-spec.jpg" alt="图 7：产品说明书 6.3 Electrical and Other Common Specifications（PS-MPU-6000A-00 Rev 3.2、11/16/2011、13 of 57）——VDD = 2.375V～3.46V、VLOGIC = 1.8V±5% 或 VDD；温度传感器 Range −40～+85℃、Sensitivity 340 LSB/℃、Temperature Offset −521 LSB、Linearity ±1℃；VDD POWER SUPPLY 工作电压 2.375～3.46V（黄框）；各模式电流 3.9mA 等；字幕「超过电气特性的供电范围，芯片可能无法正常工作」"></p>
+<p><em>图 7：产品说明书 6.3 Electrical and Other Common Specifications（PS-MPU-6000A-00 Rev 3.2、11/16/2011、13 of 57）——VDD = 2.375V～3.46V、VLOGIC = 1.8V±5% 或 VDD；温度传感器 Range −40～+85℃、Sensitivity 340 LSB/℃、Temperature Offset −521 LSB、Linearity ±1℃；VDD POWER SUPPLY 工作电压 2.375～3.46V（黄框）；各模式电流 3.9mA 等；字幕「超过电气特性的供电范围，芯片可能无法正常工作」</em></p>
+<h3 id="6-3-i2c-通信时序表">6.3 I2C 通信时序表</h3>
+<ul>
+<li><strong>Single-Byte Write（单字节写）</strong>：<strong>Master：<code>S</code> → <code>AD+W</code> → <code>RA</code> → <code>DATA</code> → <code>P</code></strong>；<strong>Slave：在 <code>AD+W</code>、<code>RA</code>、<code>DATA</code> 之后各回一个 <code>ACK</code></strong>；</li>
+<li><strong>Burst Write（连续写）</strong>：<code>S</code> → <code>AD+W</code> → <code>RA</code> → <code>DATA</code> → <code>DATA</code> → … → <code>P</code>（每个 DATA 后都有 ACK）；<strong>写多个字节时从机会自动递增寄存器地址</strong>；</li>
+<li><strong>指定地址读</strong>：先写地址（<code>S</code> + <code>AD+W</code> + <code>RA</code>），再重复起始转读，<strong>最后一个数据要给「非应答」再停止</strong>——与上集 PPT 的时序完全一致；</li>
+<li><strong>I2C 时序特性表</strong>：给出 SCL 频率上限、电平上升/下降沿时间等要求——不过<strong>I2C 是同步时序，对时间要求不严格</strong>，速率可以慢，只要电平变化不是快到转瞬即逝，芯片都能跟上；SPI 时序部分本集跳过。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/08-i2c-sequences.jpg" alt="图 8：产品说明书里的 I2C 写时序——正文「To write the internal MPU-60X0 registers, the master transmits the start condition (S), followed by the I2C address and the write bit (0)… the master puts the register address (RA)… followed by ACK… register data… stop condition (P)」；Single-Byte Write Sequence（Master：S、AD+W、RA、DATA、P；Slave：ACK、ACK、ACK）与 Burst Write Sequence（Master：S、AD+W、RA、DATA、DATA、P；Slave：ACK×4）；页脚 38 of 57；字幕「这个是指定地址读的一个时序」"></p>
+<p><em>图 8：产品说明书里的 I2C 写时序——正文「To write the internal MPU-60X0 registers, the master transmits the start condition (S), followed by the I2C address and the write bit (0)… the master puts the register address (RA)… followed by ACK… register data… stop condition (P)」；<strong>Single-Byte Write Sequence</strong>（Master：S、AD+W、RA、DATA、P；Slave：ACK、ACK、ACK）与 <strong>Burst Write Sequence</strong>（Master：S、AD+W、RA、DATA、DATA、P；Slave：ACK×4）；页脚 38 of 57；字幕「这个是指定地址读的一个时序」</em></p>
+<h2 id="7-寄存器-寄存器映像手册精读">7. 寄存器（寄存器映像手册精读）</h2>
+<blockquote>
+<p><strong>STM32 有库函数封装</strong>，对这个芯片则要<strong>自己研究寄存器</strong>——「研究一下寄存器还是很有必要的」。寄存器映像手册开头是 <strong>Register Map 总表</strong>，之后是每个寄存器每一页的详细说明；<strong>每个寄存器都是 8 位</strong>。</p>
+</blockquote>
+<h3 id="7-1-register-map-总表">7.1 Register Map 总表</h3>
+<ul>
+<li>列：<strong>Addr(Hex) / Addr(Dec) / Register Name / Serial I/F / Bit7 ～ Bit0</strong>；</li>
+<li>帧内可见的部分（总表前半段）：<strong>0x19/25 <code>SMPLRT_DIV</code></strong>、<strong>0x1A/26 <code>CONFIG</code></strong>、<strong>0x1B/27 <code>GYRO_CONFIG</code></strong>、<strong>0x1C/28 <code>ACCEL_CONFIG</code></strong>、0x1D/29 <code>FF_THR</code>、0x1E/30 <code>FF_DUR</code>、0x1F/31 <code>MOT_THR</code>、0x20/32 <code>MOT_DUR</code>、0x21/33 <code>ZRMOT_THR</code>、0x22/34 <code>ZRMOT_DUR</code>、0x23/35 <code>FIFO_EN</code>、0x24/36 <code>I2C_MST_CTRL</code>、0x25/37 <code>I2C_SLV0_ADDR</code> … 0x2C/44 <code>I2C_SLV2_REG</code>；</li>
+<li>总表<strong>后半段</strong>（另一帧）：0x69/105 <code>MOT_DETECT_CTRL</code>、0x6A/106 <code>USER_CTRL</code>、<strong>0x6B/107 <code>PWR_MGMT_1</code></strong>、<strong>0x6C/108 <code>PWR_MGMT_2</code></strong>、0x72/114 <code>FIFO_COUNTH</code>、0x73/115 <code>FIFO_COUNTL</code>、0x74/116 <code>FIFO_R_W</code>、<strong>0x75/117 <code>WHO_AM_I</code></strong>；</li>
+<li><strong><code>_H</code> / <code>_L</code> 后缀</strong>：表示<strong>内部寄存器值的高字节 / 低字节</strong>（例如 ACCEL_XOUT_H 含 16 位 X 轴加速度的最高 8 位）；</li>
+<li><strong>⚠ 注意</strong>：<strong>本集帧里的总表只覆盖了前半段与后半段，数据寄存器段（如 ACCEL_XOUT_H 那一组）地址没有出现在画面中</strong>——需要时<strong>以寄存器映像手册为准</strong>（详见存疑）。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/09-register-map.jpg" alt="图 9：寄存器映像手册「3 Register Map」总表——列 Addr(Hex)/Addr(Dec)/Register Name/Serial I/F/Bit7～Bit0；可见 0x01 AUX_VDDIO、0x19 SMPLRT_DIV（黄色高亮，SMPLRT_DIV 的 7:0 位）、0x1A CONFIG（EXT_SYNC_SET 的 2:0 位、DLPF_CFG 的 2:0 位）、0x1B GYRO_CONFIG（FS_SEL 的 1:0 位）、0x1C ACCEL_CONFIG（XA_ST/YA_ST/ZA_ST、AFS_SEL 的 1:0 位、ACCEL_HPF 的 2:0 位）、0x1D FF_THR、0x1E FF_DUR、0x1F MOT_THR、0x20 MOT_DUR、0x21～0x22 ZRMOT、0x23 FIFO_EN、0x24 I2C_MST_CTRL … 0x2C I2C_SLV2_REG；左侧书签可见 SMPLRT_DIV/CONFIG/GYRO_CONFIG/ACCEL_CONFIG/ACCEL_XOUT_H/TEMP_OUT_H/GYRO_XOUT_H/PWR_MGMT_1/PWR_MGMT_2/WHO_AM_I；字幕「所以研究一下寄存器还是很有必要的」"></p>
+<p><em>图 9：寄存器映像手册「3 Register Map」总表——列 Addr(Hex)/Addr(Dec)/Register Name/Serial I/F/Bit7～Bit0；可见 0x01 AUX_VDDIO、<strong>0x19 SMPLRT_DIV</strong>（黄色高亮，SMPLRT_DIV 的 7:0 位）、<strong>0x1A CONFIG</strong>（EXT_SYNC_SET 的 2:0 位、DLPF_CFG 的 2:0 位）、<strong>0x1B GYRO_CONFIG</strong>（FS_SEL 的 1:0 位）、<strong>0x1C ACCEL_CONFIG</strong>（XA_ST/YA_ST/ZA_ST、AFS_SEL 的 1:0 位、ACCEL_HPF 的 2:0 位）、0x1D FF_THR、0x1E FF_DUR、0x1F MOT_THR、0x20 MOT_DUR、0x21～0x22 ZRMOT、0x23 FIFO_EN、0x24 I2C_MST_CTRL … 0x2C I2C_SLV2_REG；左侧书签可见 SMPLRT_DIV/CONFIG/GYRO_CONFIG/ACCEL_CONFIG/ACCEL_XOUT_H/TEMP_OUT_H/GYRO_XOUT_H/PWR_MGMT_1/PWR_MGMT_2/WHO_AM_I；字幕「所以研究一下寄存器还是很有必要的」</em></p>
+<h3 id="7-2-smplrt-div-采样率分频-0x19-25-读写">7.2 SMPLRT_DIV（采样率分频，0x19 / 25，读写）</h3>
+<ul>
+<li><strong>公式</strong>：<strong><code>Sample Rate = Gyroscope Output Rate / (1 + SMPLRT_DIV)</code></strong>——采样率（数据刷新率）由陀螺仪输出时钟频率除以「1 + 分频值」得到；</li>
+<li><strong>陀螺仪输出率</strong>：<strong>DLPF 关闭时为 8kHz</strong>、<strong>DLPF 开启时为 1kHz</strong>；</li>
+<li><strong>加速度计输出率固定为 1kHz</strong>（当采样率高于 1kHz 时，同一个加速度采样可能被重复输出到 FIFO/DMP/传感器寄存器）；</li>
+<li>这里的「时钟」就是 PWR_MGMT_1 里选的时钟源（手册这一页直接以陀螺仪晶振作例子）。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/10-smplrt-div.jpg" alt="图 10：手册「4.2 Register 25 – Sample Rate Divider SMPLRT_DIV」——Type Read/Write，Register(Hex) 19 / Register(Decimal) 25 / Bit7～Bit0 = SMPLRT_DIV 的 7:0 位；正文给出 Sample Rate = Gyroscope Output Rate / (1 + SMPLRT_DIV)，并说明 Gyroscope Output Rate = 8kHz（DLPF 关闭，DLPF_CFG = 0 或 7）/ 1kHz（DLPF 开启），加速度计输出率固定 1kHz；字幕「这里直接是以陀螺仪晶振作为例子了」"></p>
+<p>*图 10：手册「4.2 Register 25 – Sample Rate Divider SMPLRT_DIV」——Type Read/Write，Register(Hex) 19 / Register(Decimal) 25 / Bit7～Bit0 = SMPLRT_DIV 的 7:0 位；正文给出 <strong>Sample Rate = Gyroscope Output Rate / (1 + SMPLRT_DIV)</strong>，并说明 Gyroscope Output Rate = 8kHz（DLPF 关闭，DLPF_CFG = 0 或 7）/ 1kHz（DLPF 开启），加速度计输出率固定 1kHz；字幕「这里直接是以陀螺仪晶振作为例子了」*</p>
+<h3 id="7-3-config-0x1a-26-读写">7.3 CONFIG（0x1A / 26，读写）</h3>
+<ul>
+<li>内容：<strong>EXT_SYNC_SET[2:0] 外部同步</strong> 设置 + <strong>DLPF_CFG[2:0] 数字低通滤波</strong>配置；</li>
+<li><strong>低通滤波器的作用</strong>：<strong>让输出数据更平滑</strong>——「如果你觉得输出数据抖动太厉害，就开低通滤波」；DLPF 开启/关闭还会影响陀螺仪输出率（1kHz/8kHz，见 7.2）；</li>
+<li>（具体档位表本集没有逐档念，需要时查手册。）</li>
+</ul>
+<h3 id="7-4-gyro-config-0x1b-27-读写">7.4 GYRO_CONFIG（0x1B / 27，读写）</h3>
+<ul>
+<li>位：<strong>XG_ST / YG_ST / ZG_ST（三轴陀螺自测位）</strong> + <strong>FS_SEL[1:0]（满量程选择）</strong>，Bit2～Bit0 保留；</li>
+<li><strong>自测响应定义</strong>：<strong><code>Self-test response = 使能自测时的传感器输出 − 不使能自测时的传感器输出</code></strong>——落在手册电气特性表给的范围之内就算通过；</li>
+<li><strong>FS_SEL 满量程表</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>FS_SEL</th>
+<th>满量程</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>0</strong></td>
+<td><strong>±250 °/s</strong></td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>±500 °/s</strong></td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><strong>±1000 °/s</strong></td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><strong>±2000 °/s</strong></td>
+</tr>
+</tbody></table>
+<p><img src="../assets/images/stm32-32/11-gyro-config.jpg" alt="图 11：手册 GYRO_CONFIG（Register Hex 1B / Decimal 27）页——Bit 位为 XG_ST、YG_ST、ZG_ST、FS_SEL 的 1:0 位；正文说明陀螺自测与「Self-test response = Sensor output with self-test enabled − Sensor output without self-test enabled」；FS_SEL 表：0=±250 °/s、1=±500 °/s、2=±1000 °/s、3=±2000 °/s；Bits 2 through 0 are reserved；字幕「两者相减，得到自测响应」"></p>
+<p><em>图 11：手册 GYRO_CONFIG（Register Hex 1B / Decimal 27）页——Bit 位为 XG_ST、YG_ST、ZG_ST、FS_SEL 的 1:0 位；正文说明陀螺自测与「Self-test response = Sensor output with self-test enabled − Sensor output without self-test enabled」；<strong>FS_SEL 表：0=±250 °/s、1=±500 °/s、2=±1000 °/s、3=±2000 °/s</strong>；Bits 2 through 0 are reserved；字幕「两者相减，得到自测响应」</em></p>
+<h3 id="7-5-accel-config-0x1c-28-读写-与加速度数据寄存器">7.5 ACCEL_CONFIG（0x1C / 28，读写）与加速度数据寄存器</h3>
+<ul>
+<li>位：<strong>XA_ST / YA_ST / ZA_ST（三轴加速度自测位）</strong> + <strong>AFS_SEL[1:0]（满量程）</strong> + <strong>ACCEL_HPF[2:0]（高通滤波）</strong>；</li>
+<li><strong>AFS_SEL 满量程与灵敏度表</strong>（手册原表）：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>AFS_SEL</th>
+<th>满量程</th>
+<th>灵敏度</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>0</strong></td>
+<td><strong>±2 g</strong></td>
+<td><strong>16384 LSB/mg</strong></td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>±4 g</strong></td>
+<td><strong>8192 LSB/mg</strong></td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><strong>±8 g</strong></td>
+<td><strong>4096 LSB/mg</strong></td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><strong>±16 g</strong></td>
+<td><strong>2048 LSB/mg</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>数据寄存器读法</strong>：加速度 <strong>ACCEL_XOUT / YOUT / ZOUT</strong> 每个都是 <strong>16 位、二进制补码</strong>存储，<strong>高字节 <code>_H</code> + 低字节 <code>_L</code></strong>——读出高 8 位<strong>左移 8 位、或上低 8 位</strong>，存进 <strong>int16</strong> 变量里，就得到有符号的数据；</li>
+<li><strong>温度传感器数据</strong>同理（16 位、补码）；<strong>内部有一套寄存器集、还有一套用户读的寄存器集</strong>（双缓冲），保证一次突发读取拿到的是同一采样时刻的数据。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/12-accel-data.jpg" alt="图 12：手册加速度数据寄存器页——AFS_SEL 表：0=±2g / 16384 LSB/mg、1=±4g / 8192 LSB/mg、2=±8g / 4096 LSB/mg、3=±16g / 2048 LSB/mg；下方 Parameters 说明 ACCEL_XOUT/YOUT/ZOUT 都是 16-bit 2&#39;s complement value（最近一次 X/Y/Z 轴加速度测量值）；页脚 31 of 50；字幕「以二进制补码的方式存储」"></p>
+<p><em>图 12：手册加速度数据寄存器页——<strong>AFS_SEL 表：0=±2g / 16384 LSB/mg、1=±4g / 8192 LSB/mg、2=±8g / 4096 LSB/mg、3=±16g / 2048 LSB/mg</strong>；下方 Parameters 说明 ACCEL_XOUT/YOUT/ZOUT 都是 <strong>16-bit 2&#39;s complement value</strong>（最近一次 X/Y/Z 轴加速度测量值）；页脚 31 of 50；字幕「以二进制补码的方式存储」</em></p>
+<h3 id="7-6-pwr-mgmt-1-电源管理-1-0x6b-107-读写">7.6 PWR_MGMT_1（电源管理 1，0x6B / 107，读写）</h3>
+<ul>
+<li>位：<strong>DEVICE_RESET（写 1 复位所有寄存器到默认值）、SLEEP、CYCLE、TEMP_DIS（禁用内部温度传感器）、CLKSEL[2:0]</strong>；</li>
+<li><strong>SLEEP = 1 → 低功耗睡眠模式</strong>；<strong>CYCLE = 1 且 SLEEP 关闭 → Cycle Mode</strong>（睡眠/唤醒交替，按 LP_WAKE_CTRL 设定的频率唤醒采一次数据），比较省电；</li>
+<li><strong>CLKSEL 时钟源表</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>CLKSEL</th>
+<th>时钟源</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>0</strong></td>
+<td><strong>内部 8MHz 振荡器（上电默认）</strong></td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td>PLL with X axis gyroscope reference</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>PLL with Y axis gyroscope reference</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>PLL with Z axis gyroscope reference</td>
+</tr>
+<tr>
+<td><strong>4</strong></td>
+<td>PLL with external 32.768kHz reference</td>
+</tr>
+<tr>
+<td><strong>5</strong></td>
+<td>PLL with external 19.2MHz reference</td>
+</tr>
+<tr>
+<td><strong>6</strong></td>
+<td>Reserved</td>
+</tr>
+<tr>
+<td><strong>7</strong></td>
+<td>Stops the clock and keeps the timing generator in reset</td>
+</tr>
+</tbody></table>
+<ul>
+<li>手册原话：<strong>上电默认用内部振荡器，但「强烈建议」改用某一个陀螺仪（或外部时钟）作时钟参考，以提高稳定性</strong>——因为<strong>陀螺仪晶振更精确</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/13-clksel.jpg" alt="图 13：手册 PWR_MGMT_1 页的 CLKSEL 时钟源表——0=Internal 8MHz oscillator、1=PLL with X axis gyroscope reference、2=Y、3=Z、4=PLL with external 32.768kHz reference、5=PLL with external 19.2MHz reference、6=Reserved、7=Stops the clock and keeps the timing generator in reset；上方正文「Upon power up, the MPU-60X0 clock source defaults to the internal oscillator. However, it is highly recommended that the device be configured to use one of the gyroscopes (or an external clock source) as the clock reference for improved stability」"></p>
+<p><em>图 13：手册 PWR_MGMT_1 页的 <strong>CLKSEL 时钟源表</strong>——0=Internal 8MHz oscillator、1=PLL with X axis gyroscope reference、2=Y、3=Z、4=PLL with external 32.768kHz reference、5=PLL with external 19.2MHz reference、6=Reserved、7=Stops the clock and keeps the timing generator in reset；上方正文「Upon power up, the MPU-60X0 clock source defaults to the internal oscillator. However, it is highly recommended that the device be configured to use one of the gyroscopes (or an external clock source) as the clock reference for improved stability」</em></p>
+<p><img src="../assets/images/stm32-32/14-pwr-mgmt1.jpg" alt="图 14：同一页的描述段——SLEEP 置 1 进低功耗睡眠；CYCLE 置 1 且 SLEEP 关闭进 Cycle Mode（在睡眠与唤醒之间循环、按 LP_WAKE_CTRL 的频率唤醒采样）；时钟源可选内部 8MHz/陀螺时钟/外部时钟；字幕「写的是，非常建议我们选择陀螺仪的晶振」"></p>
+<p><em>图 14：同一页的描述段——SLEEP 置 1 进低功耗睡眠；CYCLE 置 1 且 SLEEP 关闭进 Cycle Mode（在睡眠与唤醒之间循环、按 LP_WAKE_CTRL 的频率唤醒采样）；时钟源可选内部 8MHz/陀螺时钟/外部时钟；字幕「写的是，非常建议我们选择陀螺仪的晶振」</em></p>
+<h3 id="7-7-pwr-mgmt-2-电源管理-2-0x6c-108-读写">7.7 PWR_MGMT_2（电源管理 2，0x6C / 108，读写）</h3>
+<ul>
+<li>位：<strong>LP_WAKE_CTRL[1:0]（低功耗模式下的唤醒频率）</strong> + <strong>STBY_XA / STBY_YA / STBY_ZA / STBY_XG / STBY_YG / STBY_ZG（各轴待机位）</strong>；</li>
+<li><strong>LP_WAKE_CTRL 唤醒频率表</strong>：</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>LP_WAKE_CTRL</th>
+<th>唤醒频率</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>0</strong></td>
+<td><strong>1.25 Hz</strong></td>
+</tr>
+<tr>
+<td><strong>1</strong></td>
+<td><strong>2.5 Hz</strong></td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td><strong>5 Hz</strong></td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td><strong>10 Hz</strong></td>
+</tr>
+</tbody></table>
+<ul>
+<li><strong>STBY_x 位置 1 就使对应轴进入待机</strong>；注意手册提醒：<strong>如果某个陀螺轴正被用作时钟源、又把该轴置为待机，时钟源会自动切回内部 8MHz 振荡器</strong>。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/15-pwr-mgmt2.jpg" alt="图 15：手册 PWR_MGMT_2 页——LP_WAKE_CTRL 表：0=1.25 Hz、1=2.5 Hz、2=5 Hz、3=10 Hz；Parameters 说明 LP_WAKE_CTRL 是 2 位无符号数，STBY_XA/YA/ZA/XG/YG/ZG 置 1 分别让 X/Y/Z 加速度计、X/Y/Z 陀螺仪进入待机；字幕「这就是电源管理寄存器2」"></p>
+<p><em>图 15：手册 PWR_MGMT_2 页——<strong>LP_WAKE_CTRL 表：0=1.25 Hz、1=2.5 Hz、2=5 Hz、3=10 Hz</strong>；Parameters 说明 LP_WAKE_CTRL 是 2 位无符号数，STBY_XA/YA/ZA/XG/YG/ZG 置 1 分别让 X/Y/Z 加速度计、X/Y/Z 陀螺仪进入待机；字幕「这就是电源管理寄存器2」</em></p>
+<h3 id="7-8-who-am-i-0x75-117-只读-与复位值">7.8 WHO_AM_I（0x75 / 117，只读）与复位值</h3>
+<ul>
+<li><strong>WHO_AM_I 只读、地址不可改</strong>：<strong>ID 号中间 6 位固定为 110100（就是芯片的 I2C 地址的一部分），最高位和最低位都是 0</strong>——所以<strong>读这个寄存器，值固定为 0x68</strong>；<strong>用 AD0 引脚改地址也不影响它</strong>（AD0 改变的是 I2C 寻址地址，不是 WHO_AM_I 的值）；</li>
+<li><strong>手册注释</strong>：<strong>除 Register 107（PWR_MGMT_1）复位值 0x40、Register 117（WHO_AM_I）复位值 0x68 外，其余寄存器复位值都是 0x00</strong>；</li>
+<li><strong>由此推出：芯片上电默认处于睡眠模式</strong>——因为 PWR_MGMT_1 复位值 0x40 = 0100 0000，<strong>次高位 SLEEP = 1</strong>；<strong>所以操作其它寄存器之前，必须先清 SLEEP（写 PWR_MGMT_1）</strong>，否则操作无效。</li>
+</ul>
+<p><img src="../assets/images/stm32-32/16-who-am-i.jpg" alt="图 16：寄存器总表后半段 + 复位值注释——0x69/105 MOT_DETECT_CTRL、0x6A/106 USER_CTRL、0x6B/107 PWR_MGMT_1（黄色，DEVICE_RESET/SLEEP/CYCLE/TEMP_DIS/CLKSEL 的 2:0 位）、0x6C/108 PWR_MGMT_2（黄色，LP_WAKE_CTRL 的 1:0 位 与 STBY_XA…STBY_ZG）、0x72/114 FIFO_COUNTH、0x73/115 FIFO_COUNTL、0x74/116 FIFO_R_W、0x75/117 WHO_AM_I；下方注释「Reset value is 0x00 for all registers other than the registers below: Register 107: 0x40 / Register 117: 0x68」；字幕「上面看一下」"></p>
+<p>*图 16：寄存器总表后半段 + 复位值注释——0x69/105 MOT_DETECT_CTRL、0x6A/106 USER_CTRL、<strong>0x6B/107 PWR_MGMT_1（黄色，DEVICE_RESET/SLEEP/CYCLE/TEMP_DIS/CLKSEL 的 2:0 位）</strong>、<strong>0x6C/108 PWR_MGMT_2（黄色，LP_WAKE_CTRL 的 1:0 位 与 STBY_XA…STBY_ZG）</strong>、0x72/114 FIFO_COUNTH、0x73/115 FIFO_COUNTL、0x74/116 FIFO_R_W、0x75/117 WHO_AM_I；下方注释「Reset value is 0x00 for all registers other than the registers below: Register 107: 0x40 / Register 117: 0x68」；字幕「上面看一下」*</p>
+<h2 id="坑与易错点">坑与易错点</h2>
+<ol>
+<li><strong>MPU6050 的陀螺仪测的是「角速度」不是角度</strong>：要得到角度必须积分，而积分会累积漂移——这也是要和加速度计融合的原因。</li>
+<li><strong>只用加速度计算倾角只在静止时准</strong>：运动加速度（汽车加速、斜坡停车）会让结果跑偏。</li>
+<li><strong>满量程别设太小</strong>：数据超量程会削顶；但也别设太大——满量程越大分辨率越粗（±16g 时 2048 LSB/g，±2g 时 16384 LSB/g）。</li>
+<li><strong>地址两种表示别混</strong>：7 位地址 <strong>0x68</strong>；发字节时用 <strong>0xD0（写）/0xD1（读）</strong>。若把 0x68 直接当发送字节用就错了。</li>
+<li><strong>AD0 引脚默认弱下拉到 GND</strong>：所以悬空时地址是 0x68；拉高变 0x69（1101001）。</li>
+<li><strong>VDD 不能接 5V</strong>：芯片 VDD 只 2.375～3.46V，<strong>绝对最大 6V</strong>；模块能接 5V 是靠板上的 3.3V LDO，千万别把 5V 直接怼到芯片 VDD 上。</li>
+<li><strong>SCL/SDA 要接 GPIO 并配开漏/带上拉</strong>：模块已带 4.7K 上拉，SCL/SDA 不是推挽。</li>
+<li><strong>上电默认 SLEEP（PWR_MGMT_1 复位值 0x40）</strong>：不清 SLEEP 就操作其它寄存器是无效的——这是后面写代码的第一个坑。</li>
+<li><strong>CLKSEL 建议改成陀螺仪 PLL</strong>：手册明确「强烈建议」，默认内部 8MHz 振荡器不够稳。</li>
+<li><strong>数据寄存器是 16 位补码</strong>：必须 <code>_H</code> 左移 8 位或 <code>_L</code>，再存进 <strong>int16</strong>；直接拼成 uint16 会把负值读成很大的正数。</li>
+<li><strong>加速度灵敏度单位是 LSB/mg</strong>：16384 LSB/mg 的「mg」是毫 g，换算数据时注意（本集未展开换算）。</li>
+<li><strong>温度传感器不是主用途</strong>：量程 −40～+85℃、340 LSB/℃、偏移 −521 LSB；本集<strong>没有给完整换算公式</strong>，需要时查手册。</li>
+<li><strong>DMP/FIFO/XCL·XDA 扩展本集都没用到</strong>：FIFO「本节暂时不用」，DMP 只介绍，XCL/XDA 讲用途不写代码。</li>
+<li><strong>寄存器地址以手册为准</strong>：本集画面里的总表只截到部分地址段，写代码时按寄存器映像手册核对（尤其数据寄存器组）。</li>
+</ol>
+<h2 id="时间轴">时间轴</h2>
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0:01</td>
+<td>开场：本小节继续学习 I2C 通信</td>
+</tr>
+<tr>
+<td>0:15</td>
+<td>即使外挂芯片的各种寄存器不在 STM32 内部，仍可通过通信协议读写</td>
+</tr>
+<tr>
+<td>0:45</td>
+<td>打开 MPU6050 资料文件夹，里面有两份手册</td>
+</tr>
+<tr>
+<td>0:49</td>
+<td>一份是产品说明书，一份是 RM 寄存器映像</td>
+</tr>
+<tr>
+<td>1:10</td>
+<td>产品说明书封面：InvenSense MPU-6000/6050，Revision 3.2，11/16/2011</td>
+</tr>
+<tr>
+<td>1:15</td>
+<td>再打开寄存器映像手册</td>
+</tr>
+<tr>
+<td>1:28</td>
+<td>总表之后是每个寄存器、每一位的详细解释</td>
+</tr>
+<tr>
+<td>1:43</td>
+<td>写代码、实际操作硬件时，寄存器描述必不可少</td>
+</tr>
+<tr>
+<td>2:09</td>
+<td>英文不好可以用翻译软件辅助</td>
+</tr>
+<tr>
+<td>2:23</td>
+<td>回到 PPT，先对芯片有个大体认识</td>
+</tr>
+<tr>
+<td>2:33</td>
+<td>MPU6050 简介：一个 6 轴姿态传感器</td>
+</tr>
+<tr>
+<td>2:40</td>
+<td>可以测量芯片自身 XYZ 三轴的加速度和角速度</td>
+</tr>
+<tr>
+<td>2:55</td>
+<td>再集成 3 轴磁场就是 9 轴姿态传感器</td>
+</tr>
+<tr>
+<td>3:14</td>
+<td>再加气压传感器就是 10 轴，气压反映高度信息</td>
+</tr>
+<tr>
+<td>3:47</td>
+<td>通过数据融合可得到姿态角，也叫欧拉角</td>
+</tr>
+<tr>
+<td>4:01</td>
+<td>欧拉角是机体相对于初始三个轴的夹角</td>
+</tr>
+<tr>
+<td>4:26</td>
+<td>机头左右转这个轴的夹角叫偏航（Yaw）</td>
+</tr>
+<tr>
+<td>4:34</td>
+<td>欧拉角能表达物体此刻的姿态</td>
+</tr>
+<tr>
+<td>4:48</td>
+<td>得到精确稳定的欧拉角至关重要</td>
+</tr>
+<tr>
+<td>5:22</td>
+<td>本集侧重点是 I2C 通信，姿态解算暂时不涉及</td>
+</tr>
+<tr>
+<td>6:03</td>
+<td>3 轴加速度计，英文 Accelerometer</td>
+</tr>
+<tr>
+<td>6:27</td>
+<td>加速度计的作用，看左下角的图</td>
+</tr>
+<tr>
+<td>6:45</td>
+<td>XYZ 轴定义：垂直于芯片的轴为 Z 轴</td>
+</tr>
+<tr>
+<td>6:56</td>
+<td>中间图是加速度计的结构图：滑块 + 弹簧 + 电位器</td>
+</tr>
+<tr>
+<td>7:23</td>
+<td>滑块移动带动电位器，测分压电压得到加速度</td>
+</tr>
+<tr>
+<td>7:40</td>
+<td>根据牛顿第二定律 F = ma，测力就能得到加速度</td>
+</tr>
+<tr>
+<td>8:00</td>
+<td>芯片内想象成六个测力计组成的正方体 + 单位质量小球</td>
+</tr>
+<tr>
+<td>8:40</td>
+<td>静置水平时只有底面受力：XY=0、Z=+1g</td>
+</tr>
+<tr>
+<td>8:59</td>
+<td>自由落体时所有面都不受力：XYZ 全 0</td>
+</tr>
+<tr>
+<td>9:08</td>
+<td>向左倾斜时底面和左面同时受力，可算倾角</td>
+</tr>
+<tr>
+<td>9:22</td>
+<td>但只用加速度计求倾角，只在静置时正确</td>
+</tr>
+<tr>
+<td>9:30</td>
+<td>加速度分重力加速度和运动加速度，运动会干扰</td>
+</tr>
+<tr>
+<td>9:55</td>
+<td>汽车突然加速、停在斜坡上都会让座椅底面和靠背同时受力</td>
+</tr>
+<tr>
+<td>10:21</td>
+<td>陀螺仪，英文 Gyroscope</td>
+</tr>
+<tr>
+<td>10:34</td>
+<td>右下角图是陀螺仪的机械模型：旋转轮 + 平衡环</td>
+</tr>
+<tr>
+<td>10:45</td>
+<td>旋转轮高速旋转，靠角动量守恒保持转轴方向</td>
+</tr>
+<tr>
+<td>11:05</td>
+<td>外部转动时内部转轴不转，平衡环连接处产生角度偏差</td>
+</tr>
+<tr>
+<td>11:11</td>
+<td>测电位器电压就能得到角度偏差</td>
+</tr>
+<tr>
+<td>11:16</td>
+<td>但 MPU6050 的陀螺仪测的是角速度，注意</td>
+</tr>
+<tr>
+<td>11:25</td>
+<td>测 XYZ 轴角速度，可想象成游乐园的旋转飞椅</td>
+</tr>
+<tr>
+<td>12:06</td>
+<td>角速度积分可得到角度，但误差会累积漂移</td>
+</tr>
+<tr>
+<td>12:40</td>
+<td>陀螺仪动态稳定，加速度计静态稳定，特性互补</td>
+</tr>
+<tr>
+<td>13:04</td>
+<td>所以取长补短做数据融合，实际解算更复杂</td>
+</tr>
+<tr>
+<td>13:13</td>
+<td>加速度计和陀螺仪原理讲完</td>
+</tr>
+<tr>
+<td>13:17</td>
+<td>接下来看几个 MPU6050 参数</td>
+</tr>
+<tr>
+<td>13:29</td>
+<td>16 位 ADC 采集模拟信号，量化范围 −32768～32767</td>
+</tr>
+<tr>
+<td>13:47</td>
+<td>传感器本质是可变电阻→分压→ADC</td>
+</tr>
+<tr>
+<td>14:25</td>
+<td>16 位数据分两个字节存储</td>
+</tr>
+<tr>
+<td>15:11</td>
+<td>满量程对应 AD 最大值，就像 ADC 的参考电压</td>
+</tr>
+<tr>
+<td>15:41</td>
+<td>加速度计满量程可选 ±2、±4、±8、±16 g</td>
+</tr>
+<tr>
+<td>16:03</td>
+<td>运动剧烈选大量程，要精细选小量程</td>
+</tr>
+<tr>
+<td>16:21</td>
+<td>满量程越小，测量越细腻；AD 值与物理量线性</td>
+</tr>
+<tr>
+<td>16:51</td>
+<td>数字低通滤波器：输出抖动大就开</td>
+</tr>
+<tr>
+<td>17:38</td>
+<td>可配置的时钟源和采样分频，配合使用控制 AD 转换快慢</td>
+</tr>
+<tr>
+<td>18:06</td>
+<td>从机地址：AD0=0 时 1101000，AD0=1 时 1101001</td>
+</tr>
+<tr>
+<td>18:25</td>
+<td>1101000 转十六进制是 0x68</td>
+</tr>
+<tr>
+<td>18:45</td>
+<td>若认为 0x68 是地址，发字节时要左移 1 位再或读写位</td>
+</tr>
+<tr>
+<td>19:34</td>
+<td>0x68 左移 1 位是 0xD0，0xD0 写、0xD1 读</td>
+</tr>
+<tr>
+<td>19:46</td>
+<td>两种表示方式都有出现，作者喜欢含读写位的写法</td>
+</tr>
+<tr>
+<td>20:56</td>
+<td>参数看完，看硬件电路</td>
+</tr>
+<tr>
+<td>21:01</td>
+<td>左边是模块原理图，有 LDO 低压差线性稳压器</td>
+</tr>
+<tr>
+<td>21:19</td>
+<td>芯片本身引脚很多，很多是最小系统的固定连接</td>
+</tr>
+<tr>
+<td>21:38</td>
+<td>引出的引脚：两个是电源，SCL/SDA 是 I2C 通信</td>
+</tr>
+<tr>
+<td>21:57</td>
+<td>接线时直接把 SCL/SDA 接 GPIO 即可</td>
+</tr>
+<tr>
+<td>22:06</td>
+<td>还有 XCL 和 XDA，是主机 I2C 通信引脚</td>
+</tr>
+<tr>
+<td>22:16</td>
+<td>设计这两个引脚是为了扩展芯片功能</td>
+</tr>
+<tr>
+<td>22:24</td>
+<td>6 轴融合的姿态角有缺陷：偏航角漂移无法用加速度计纠正</td>
+</tr>
+<tr>
+<td>22:45</td>
+<td>所以要外接磁力计当参考，做无人机还要气压计</td>
+</tr>
+<tr>
+<td>23:19</td>
+<td>扩展芯片数据读到 MPU6050 里，由 DMP 做融合解算</td>
+</tr>
+<tr>
+<td>23:38</td>
+<td>也可以把扩展设备直接挂同一条 I2C 总线</td>
+</tr>
+<tr>
+<td>24:11</td>
+<td>然后是 AD0，从机地址最低位</td>
+</tr>
+<tr>
+<td>24:25</td>
+<td>电路中默认弱下拉到低电平，悬空时地址是 0x68</td>
+</tr>
+<tr>
+<td>24:39</td>
+<td>INT 是中断输出引脚，数据就绪、自由落体检测等可触发</td>
+</tr>
+<tr>
+<td>25:11</td>
+<td>LDO 部分供电逻辑：VDD 2.375～3.46V，不能直接接 5V</td>
+</tr>
+<tr>
+<td>25:30</td>
+<td>模块加了 3.3V 稳压器，VCC 端可接 3.3～5V</td>
+</tr>
+<tr>
+<td>25:47</td>
+<td>电源指示灯按项目需要决定要不要</td>
+</tr>
+<tr>
+<td>26:15</td>
+<td>看芯片的模块框图</td>
+</tr>
+<tr>
+<td>26:24</td>
+<td>有时钟输入/输出脚，一般用内部时钟</td>
+</tr>
+<tr>
+<td>26:51</td>
+<td>这么多传感器本质上都是可变电阻→分压→ADC</td>
+</tr>
+<tr>
+<td>27:13</td>
+<td>内部转换全自动，类似 AD 连续转换 + DMA</td>
+</tr>
+<tr>
+<td>27:40</td>
+<td>每个传感器都有自测单元，用来验证芯片好坏</td>
+</tr>
+<tr>
+<td>27:57</td>
+<td>自测：使能读一次、失能读一次，相减得自测响应</td>
+</tr>
+<tr>
+<td>28:22</td>
+<td>电荷泵，CPOUT 引脚需要外接电容</td>
+</tr>
+<tr>
+<td>28:47</td>
+<td>电荷泵升压原理：电池与电容并联充电，再串联升压</td>
+</tr>
+<tr>
+<td>29:24</td>
+<td>陀螺仪内部需要电荷泵升压</td>
+</tr>
+<tr>
+<td>30:06</td>
+<td>FIFO 是先入先出寄存器，本节暂时不用</td>
+</tr>
+<tr>
+<td>30:12</td>
+<td>配置寄存器可以对内部各电路进行配置</td>
+</tr>
+<tr>
+<td>30:28</td>
+<td>DMP 是数字运动处理器，配合官方 DMP 库做姿态解算</td>
+</tr>
+<tr>
+<td>30:59</td>
+<td>从机 I2C/SPI 接口用来和 STM32 通信</td>
+</tr>
+<tr>
+<td>31:06</td>
+<td>主机 I2C 接口用来和扩展设备通信</td>
+</tr>
+<tr>
+<td>31:16</td>
+<td>接口旁路选择器可把两路总线并在一起</td>
+</tr>
+<tr>
+<td>31:49</td>
+<td>本节不会用到扩展功能</td>
+</tr>
+<tr>
+<td>32:09</td>
+<td>PPT 介绍完，开始看两份手册</td>
+</tr>
+<tr>
+<td>32:25</td>
+<td>先看产品说明书</td>
+</tr>
+<tr>
+<td>32:41</td>
+<td>概述：3 轴 MEMS 陀螺仪 + 3 轴 MEMS 加速度计</td>
+</tr>
+<tr>
+<td>33:45</td>
+<td>型号差异：MPU-6000 支持 SPI+I2C，MPU-6050 仅支持 I2C</td>
+</tr>
+<tr>
+<td>34:14</td>
+<td>下面是产品特性列表</td>
+</tr>
+<tr>
+<td>34:25</td>
+<td>然后是电气特性表，查具体指标在这里找</td>
+</tr>
+<tr>
+<td>34:41</td>
+<td>I2C 时序特性：SCL 超过数值芯片就跟不上</td>
+</tr>
+<tr>
+<td>34:58</td>
+<td>同步时序对时间要求不严格，速率可以慢</td>
+</tr>
+<tr>
+<td>35:12</td>
+<td>SPI 时序要求，本集不看</td>
+</tr>
+<tr>
+<td>35:34</td>
+<td>绝对最大额定值 VDD −0.5～+6V，超 6V 损坏</td>
+</tr>
+<tr>
+<td>36:07</td>
+<td>下面是应用信息、XYZ 轴定义、引脚描述</td>
+</tr>
+<tr>
+<td>36:32</td>
+<td>参考电路：电容取值有参考示例</td>
+</tr>
+<tr>
+<td>36:52</td>
+<td>中断章节：自由落体检测、运动检测、零运动检测</td>
+</tr>
+<tr>
+<td>37:01</td>
+<td>发生时可在 INT 引脚输出电平跳变</td>
+</tr>
+<tr>
+<td>38:02</td>
+<td>高通滤波器用来滤除静置时的重力加速度</td>
+</tr>
+<tr>
+<td>39:05</td>
+<td>手册里给出 I2C 地址、时序介绍</td>
+</tr>
+<tr>
+<td>39:57</td>
+<td>Single-Byte Write：S + AD+W + RA + DATA + P，从机应答</td>
+</tr>
+<tr>
+<td>40:15</td>
+<td>Burst Write 连续写多字节，地址自动递增</td>
+</tr>
+<tr>
+<td>40:18</td>
+<td>指定地址读：开始、地址+写、寄存器地址</td>
+</tr>
+<tr>
+<td>40:35</td>
+<td>最后要给非应答，然后停止</td>
+</tr>
+<tr>
+<td>40:48</td>
+<td>SPI 接口部分不看了</td>
+</tr>
+<tr>
+<td>41:29</td>
+<td>最后是尺寸信息和 PCB 布线参考</td>
+</tr>
+<tr>
+<td>41:54</td>
+<td>寄存器还是非常重要，研究一下很有必要</td>
+</tr>
+<tr>
+<td>42:16</td>
+<td>寄存器映像手册前面有寄存器总表</td>
+</tr>
+<tr>
+<td>42:30</td>
+<td>总表列：地址 Hex/Dec、名称、Serial I/F、位 7～0</td>
+</tr>
+<tr>
+<td>42:42</td>
+<td>后面是每个寄存器每一位的名字，每个寄存器都是 8 位</td>
+</tr>
+<tr>
+<td>43:35</td>
+<td>采样频率分频器 SMPLRT_DIV（0x19/25）</td>
+</tr>
+<tr>
+<td>43:39</td>
+<td>公式：采样频率 = 陀螺仪输出时钟频率 / (1 + 分频值)</td>
+</tr>
+<tr>
+<td>43:45</td>
+<td>DLPF 关闭时陀螺输出 8kHz，开启时 1kHz</td>
+</tr>
+<tr>
+<td>44:14</td>
+<td>CONFIG（0x1A/26）：外部同步设置和低通滤波器配置</td>
+</tr>
+<tr>
+<td>44:34</td>
+<td>低通滤波让输出数据更平滑</td>
+</tr>
+<tr>
+<td>44:47</td>
+<td>GYRO_CONFIG（0x1B/27）：自测位和满量程选择</td>
+</tr>
+<tr>
+<td>45:35</td>
+<td>自测响应范围在电气特性表里查</td>
+</tr>
+<tr>
+<td>46:08</td>
+<td>FS_SEL：0=±250、1=±500、2=±1000、3=±2000 °/s</td>
+</tr>
+<tr>
+<td>46:13</td>
+<td>ACCEL_CONFIG（0x1C/28）</td>
+</tr>
+<tr>
+<td>46:23</td>
+<td>AFS_SEL：</td>
+</tr>
+<tr>
+<td>46:32</td>
+<td>数据寄存器是 16 位有符号数、二进制补码</td>
+</tr>
+<tr>
+<td>46:44</td>
+<td>读出高低 8 位</td>
+</tr>
+<tr>
+<td>46:56</td>
+<td>温度传感器数据同样操作</td>
+</tr>
+<tr>
+<td>47:09</td>
+<td>电源管理寄存器 1（0x6B/107）：DEVICE_RESET/SLEEP/CYCLE/CLKSEL</td>
+</tr>
+<tr>
+<td>47:22</td>
+<td>CLKSEL 时钟源：内部 8M、XYZ 陀螺 PLL、外部 32.768k、19.2M</td>
+</tr>
+<tr>
+<td>47:55</td>
+<td>强烈建议选陀螺仪晶振作时钟源，更精确稳定</td>
+</tr>
+<tr>
+<td>48:24</td>
+<td>电源管理寄存器 2（0x6C/108）：唤醒频率和待机位</td>
+</tr>
+<tr>
+<td>48:40</td>
+<td>LP_WAKE_CTRL：0=1.25Hz、1=2.5Hz、2=5Hz、3=10Hz</td>
+</tr>
+<tr>
+<td>48:57</td>
+<td>STBY_x 各位置 1 让对应轴待机</td>
+</tr>
+<tr>
+<td>49:05</td>
+<td>WHO_AM_I（0x75/117）是只读寄存器</td>
+</tr>
+<tr>
+<td>49:12</td>
+<td>ID 号中间 6 位固定 110100，即芯片 I2C 地址</td>
+</tr>
+<tr>
+<td>49:20</td>
+<td>最高位最低位都是 0，所以读出固定为 0x68</td>
+</tr>
+<tr>
+<td>49:25</td>
+<td>AD0 改的是 I2C 寻址地址，不影响 WHO_AM_I</td>
+</tr>
+<tr>
+<td>49:36</td>
+<td>手册注释：除 107 复位值 0x40、117 复位值 0x68，其余都是 0x00</td>
+</tr>
+<tr>
+<td>49:47</td>
+<td>PWR_MGMT_1 复位值 0x40，次高位 SLEEP=1</td>
+</tr>
+<tr>
+<td>50:00</td>
+<td>所以芯片上电默认是睡眠模式</td>
+</tr>
+<tr>
+<td>50:05</td>
+<td>要先清 SLEEP，否则操作其它寄存器无效</td>
+</tr>
+<tr>
+<td>50:12</td>
+<td>接下来的任务：实现 I2C 通信、读写这些寄存器来操控 MPU6050</td>
+</tr>
+</tbody></table>
+<h2 id="存疑">存疑</h2>
+<ul>
+<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，642 段），不是 ASR。错字：<strong><code>I2C</code> → 「12C」</strong>（18 处）、<code>加速度</code> → 「功速度/加可速度」、<code>偏航</code> → 「扁航」、<code>详细</code> → 「洋细」、<code>看到</code> → 「香到」、<code>引脚</code> → 「引1脚」；另有<strong>手册页面水印与英文正文</strong>（<code>CONFIDENTIAL &amp; PROPRIETARY</code>、<code>PRELIMINARY</code>、<code>InvenSense</code>、整句英文描述）混入，这些<strong>不是口述内容</strong>，已剔除/校正。</li>
+<li><strong>本集无代码</strong>：全程 PPT + PDF 手册精读，没有 Keil 操作；<strong>软件 I2C 代码在 [10-3]、硬件 I2C 在 [10-4]</strong>。</li>
+<li><strong>数据寄存器组的地址没有帧证据</strong>：本集总表帧只覆盖 <strong>0x01～0x2C</strong> 与 <strong>0x61～0x75</strong> 两段，<strong>数据寄存器组只在图 16 的 Notes 段出现过十进制 <code>Register 59</code>（=0x3B），画面没有出现十六进制地址、口述也没有报数字</strong>——本笔记<strong>只写「高字节 <code>_H</code> + 低字节 <code>_L</code>」的读法，没有写具体地址</strong>；实际用到时必须再查寄存器映像手册。</li>
+<li><strong>陀螺仪 LSB 灵敏度数值本集没有出现</strong>：只看到 <strong>FS_SEL 满量程表（±250/±500/±1000/±2000 °/s）</strong>，<strong>没有 131 / 65.5 / 32.8 / 16.4 LSB/(°/s) 这类数字</strong>（加速度计的 16384/8192/4096/2048 LSB/mg 是手册画面里有的）——本笔记不写这些数值。</li>
+<li><strong>温度换算只有参数、没有公式</strong>：手册画面给出 <strong>340 LSB/℃、偏移 −521 LSB</strong>，但<strong>完整的温度换算公式本集没有讲</strong>，本笔记不补公式。</li>
+<li><strong>DLPF_CFG 的具体档位表没有逐一核对</strong>：本集只讲「DLPF 关＝8kHz、开＝1kHz」「抖动大就开低通」，<strong>没有逐档念档位数值</strong>——本笔记不抄档位表。</li>
+<li><strong>地址的两种表述并存</strong>：<strong>官方手册用「0x68 + 读写位」</strong>，<strong>作者偏爱「0xD0/0xD1（含读写位）」</strong>——本笔记两种都写并说明来源，代码里用哪种以 [10-3]/[10-4] 实际代码为准。</li>
+<li><strong>寄存器复位值</strong>：<strong>Register 107 = 0x40、Register 117 = 0x68</strong> 有帧证据（注释截图）；其余「0x00」是手册原文（同一句注释）。</li>
+<li><strong>自测的具体范围值</strong>只在电气特性表里（本集翻到但未逐条念），笔记只写「落在手册范围内即正常」。</li>
+<li><strong>片尾 50:12</strong> 明确说「接下来实现 I2C 通信、读写寄存器操控 MPU6050」，<strong>没有点名下集编号</strong>；按课程顺序软件 I2C 代码在 [10-3]。</li>
+</ul>
+</article>
+    <nav class="pager">
+    <a href="stm32-33.html"><span class="label">下一篇</span>[10-3] 软件I2C读写MPU6050</a>
+    <a class="next" href="stm32-31.html"><span class="label">上一篇</span>[10-1] I2C通信协议</a>
+  </nav>
+  </main>
+  <aside class="toc">
+    <p class="toc-title">目录</p>
+    <nav>
+        <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E8%8A%AF%E7%89%87%E6%89%8B%E5%86%8C%E7%B2%BE%E8%AF%BB-%E4%BB%A3%E7%A0%81%E5%9C%A8-10-3-10-4">0. 本集定位：理论课（芯片手册精读），代码在 10-3/10-4</a>
+        <a class="level-2" href="#1-%E8%B5%84%E6%96%99-%E4%B8%A4%E4%BB%BD%E6%89%8B%E5%86%8C">1. 资料：两份手册</a>
+        <a class="level-2" href="#2-mpu6050-%E7%AE%80%E4%BB%8B%E4%B8%8E%E5%A7%BF%E6%80%81%E4%BC%A0%E6%84%9F%E5%8E%9F%E7%90%86">2. MPU6050 简介与姿态传感原理</a>
+        <a class="level-3" href="#2-1-6-%E8%BD%B4%E5%A7%BF%E6%80%81%E4%BC%A0%E6%84%9F%E5%99%A8">2.1 6 轴姿态传感器</a>
+        <a class="level-3" href="#2-2-%E6%AC%A7%E6%8B%89%E8%A7%92%E4%B8%8E%E5%81%8F%E8%88%AA%E8%A7%92">2.2 欧拉角与偏航角</a>
+        <a class="level-3" href="#2-3-%E5%8A%A0%E9%80%9F%E5%BA%A6%E8%AE%A1%E5%8E%9F%E7%90%86">2.3 加速度计原理</a>
+        <a class="level-3" href="#2-4-%E9%99%80%E8%9E%BA%E4%BB%AA%E5%8E%9F%E7%90%86">2.4 陀螺仪原理</a>
+        <a class="level-2" href="#3-%E5%8F%82%E6%95%B0%E4%B8%8E%E5%88%86%E8%BE%A8%E7%8E%87">3. 参数与分辨率</a>
+        <a class="level-3" href="#3-1-%E5%9C%B0%E5%9D%80%E7%9A%84%E4%B8%A4%E7%A7%8D%E8%A1%A8%E7%A4%BA-0x68-%E4%B8%8E-0xd0-0xd1">3.1 地址的两种表示（0x68 与 0xD0/0xD1）</a>
+        <a class="level-2" href="#4-%E7%A1%AC%E4%BB%B6%E7%94%B5%E8%B7%AF%E4%B8%8E%E5%BC%95%E8%84%9A">4. 硬件电路与引脚</a>
+        <a class="level-3" href="#4-1-%E6%A8%A1%E5%9D%97%E5%8E%9F%E7%90%86%E5%9B%BE">4.1 模块原理图</a>
+        <a class="level-3" href="#4-2-%E5%BC%95%E8%84%9A%E5%8A%9F%E8%83%BD%E8%A1%A8">4.2 引脚功能表</a>
+        <a class="level-2" href="#5-%E5%86%85%E9%83%A8%E6%A1%86%E5%9B%BE">5. 内部框图</a>
+        <a class="level-3" href="#5-1-%E4%BC%A0%E6%84%9F%E5%99%A8%E6%9C%AC%E8%B4%A8%E4%B8%8E-adc-%E5%85%A8%E8%87%AA%E5%8A%A8%E8%BD%AC%E6%8D%A2">5.1 传感器本质与 ADC 全自动转换</a>
+        <a class="level-3" href="#5-2-%E8%87%AA%E6%B5%8B-self-test">5.2 自测（Self test）</a>
+        <a class="level-3" href="#5-3-%E7%94%B5%E8%8D%B7%E6%B3%B5-%E5%8D%87%E5%8E%8B">5.3 电荷泵（升压）</a>
+        <a class="level-2" href="#6-%E4%BA%A7%E5%93%81%E8%AF%B4%E6%98%8E%E4%B9%A6%E8%A6%81%E7%82%B9">6. 产品说明书要点</a>
+        <a class="level-3" href="#6-1-%E6%A6%82%E8%BF%B0%E4%B8%8E%E5%9E%8B%E5%8F%B7%E5%B7%AE%E5%BC%82">6.1 概述与型号差异</a>
+        <a class="level-3" href="#6-2-%E7%94%B5%E6%B0%94%E7%89%B9%E6%80%A7-6-3-%E8%8A%82">6.2 电气特性（6.3 节）</a>
+        <a class="level-3" href="#6-3-i2c-%E9%80%9A%E4%BF%A1%E6%97%B6%E5%BA%8F%E8%A1%A8">6.3 I2C 通信时序表</a>
+        <a class="level-2" href="#7-%E5%AF%84%E5%AD%98%E5%99%A8-%E5%AF%84%E5%AD%98%E5%99%A8%E6%98%A0%E5%83%8F%E6%89%8B%E5%86%8C%E7%B2%BE%E8%AF%BB">7. 寄存器（寄存器映像手册精读）</a>
+        <a class="level-3" href="#7-1-register-map-%E6%80%BB%E8%A1%A8">7.1 Register Map 总表</a>
+        <a class="level-3" href="#7-2-smplrt-div-%E9%87%87%E6%A0%B7%E7%8E%87%E5%88%86%E9%A2%91-0x19-25-%E8%AF%BB%E5%86%99">7.2 SMPLRT_DIV（采样率分频，0x19 / 25，读写）</a>
+        <a class="level-3" href="#7-3-config-0x1a-26-%E8%AF%BB%E5%86%99">7.3 CONFIG（0x1A / 26，读写）</a>
+        <a class="level-3" href="#7-4-gyro-config-0x1b-27-%E8%AF%BB%E5%86%99">7.4 GYRO_CONFIG（0x1B / 27，读写）</a>
+        <a class="level-3" href="#7-5-accel-config-0x1c-28-%E8%AF%BB%E5%86%99-%E4%B8%8E%E5%8A%A0%E9%80%9F%E5%BA%A6%E6%95%B0%E6%8D%AE%E5%AF%84%E5%AD%98%E5%99%A8">7.5 ACCEL_CONFIG（0x1C / 28，读写）与加速度数据寄存器</a>
+        <a class="level-3" href="#7-6-pwr-mgmt-1-%E7%94%B5%E6%BA%90%E7%AE%A1%E7%90%86-1-0x6b-107-%E8%AF%BB%E5%86%99">7.6 PWR_MGMT_1（电源管理 1，0x6B / 107，读写）</a>
+        <a class="level-3" href="#7-7-pwr-mgmt-2-%E7%94%B5%E6%BA%90%E7%AE%A1%E7%90%86-2-0x6c-108-%E8%AF%BB%E5%86%99">7.7 PWR_MGMT_2（电源管理 2，0x6C / 108，读写）</a>
+        <a class="level-3" href="#7-8-who-am-i-0x75-117-%E5%8F%AA%E8%AF%BB-%E4%B8%8E%E5%A4%8D%E4%BD%8D%E5%80%BC">7.8 WHO_AM_I（0x75 / 117，只读）与复位值</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
+        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
+        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
+    </nav>
+  </aside>
+</div>
+<footer class="site-footer">
+  <span>© 2026 XZH</span>
+  <span>用 Markdown 写成 · 由 DSH 构建</span>
+</footer>
+<script src="../assets/app.js" defer></script>
+</body>
+</html>

@@ -38,6 +38,25 @@
   <aside class="sidebar">
     <p class="sidebar-title">全部笔记</p>
     <nav class="note-list">
+        <a href="stm32-31.html">[10-1] I2C通信协议</a>
+        <a href="stm32-32.html">[10-2] MPU6050简介</a>
+        <a href="stm32-33.html">[10-3] 软件I2C读写MPU6050</a>
+        <a href="stm32-34.html">[10-4] I2C通信外设</a>
+        <a href="stm32-35.html">[10-5] 硬件I2C读写MPU6050</a>
+        <a href="stm32-36.html">[11-1] SPI通信协议</a>
+        <a href="stm32-37.html">[11-2] W25Q64简介</a>
+        <a href="stm32-38.html">[11-3] 软件SPI读写W25Q64</a>
+        <a href="stm32-39.html">[11-4] SPI通信外设</a>
+        <a href="stm32-40.html">[11-5] 硬件SPI读写W25Q64</a>
+        <a href="stm32-41.html">[12-1] Unix时间戳</a>
+        <a href="stm32-42.html">[12-2] BKP备份寄存器&amp;RTC实时时钟</a>
+        <a href="stm32-43.html">[12-3] 读写备份寄存器&amp;实时时钟</a>
+        <a href="stm32-44.html">[13-1] PWR电源控制</a>
+        <a href="stm32-45.html">[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</a>
+        <a href="stm32-46.html">[14-1] WDG看门狗</a>
+        <a href="stm32-47.html">[14-2] 独立看门狗&amp;窗口看门狗</a>
+        <a href="stm32-48.html">[15-1] FLASH闪存</a>
+        <a href="stm32-49.html">[15-2] 读写内部FLASH&amp;读取芯片ID</a>
         <a href="stm32-05.html">[3-1] GPIO输出</a>
         <a href="stm32-06.html">[3-2] LED闪烁 / LED流水灯 / 蜂鸣器</a>
         <a href="stm32-07.html">[3-3] GPIO输入</a>
@@ -46,6 +65,25 @@
         <a href="stm32-10.html">[4-2] OLED显示屏</a>
         <a href="stm32-11.html">[5-1] EXTI外部中断</a>
         <a href="stm32-12.html" class="active" aria-current="page">[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
+        <a href="stm32-13.html">[6-1] TIM定时中断</a>
+        <a href="stm32-14.html">[6-2] 定时器定时中断 / 定时器外部时钟</a>
+        <a href="stm32-15.html">[6-3] TIM输出比较</a>
+        <a href="stm32-16.html">[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机</a>
+        <a href="stm32-17.html">[6-5] TIM输入捕获</a>
+        <a href="stm32-18.html">[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比</a>
+        <a href="stm32-19.html">[6-7] TIM编码器接口</a>
+        <a href="stm32-20.html">[6-8] 编码器接口测速</a>
+        <a href="stm32-21.html">[7-1] ADC模数转换器</a>
+        <a href="stm32-22.html">[7-2] AD单通道与AD多通道</a>
+        <a href="stm32-23.html">[8-1] DMA直接存储器存取</a>
+        <a href="stm32-24.html">[8-2] DMA数据转运与DMA+AD多通道</a>
+        <a href="stm32-25.html">[9-1] USART串口协议</a>
+        <a href="stm32-26.html">[9-2] USART串口外设</a>
+        <a href="stm32-27.html">[9-3] USART串口发送与接收</a>
+        <a href="stm32-28.html">[9-4] USART串口数据包</a>
+        <a href="stm32-29.html">[9-5] 串口收发HEX数据包与文本数据包</a>
+        <a href="stm32-30.html">[9-6] FlyMcu串口下载与STLINK Utility</a>
+        <a href="stm32-50.html">结课寄语与后续预告</a>
         <a href="stm32-01.html">[1-1] 课程简介</a>
         <a href="stm32-02.html">[1-2] STM32简介</a>
         <a href="stm32-03.html">[2-1] 软件安装</a>
@@ -169,8 +207,8 @@ GPIO_Init(GPIOB, &amp;GPIO_InitStructure);
 <pre><code class="language-c">GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource14);   // 把 PB14 接到 EXTI 第 14 号线
 </code></pre>
 <ul>
-<li>第一个参数是 <code>GPIO_PortSourceGPIOx</code>（x 为 A~G），这里选 <code>GPIO_PortSourceGPIOB</code>；</li>
-<li>第二个参数是 <code>GPIO_PinSourcex</code>（x 为 0~15），这里选 <code>GPIO_PinSource14</code>；</li>
+<li>第一个参数是 <code>GPIO_PortSourceGPIOx</code>（x 为 A～G），这里选 <code>GPIO_PortSourceGPIOB</code>；</li>
+<li>第二个参数是 <code>GPIO_PinSourcex</code>（x 为 0～15），这里选 <code>GPIO_PinSource14</code>；</li>
 <li>执行后，<strong>AFIO 的第 14 个数据选择器就被拨到了 GPIOB 上（对应 PB14），输出端固定接 EXTI 第 14 个中断线路</strong>——PB14 的电平信号就能通过 AFIO 进入后级 EXTI 电路。</li>
 <li>注意这个函数虽然以 <code>GPIO</code> 开头，但函数体内操作的是 <strong>AFIO 的寄存器</strong>（<code>AFIO-&gt;EXTICR</code>），实际是 AFIO 的函数。</li>
 </ul>
@@ -206,7 +244,7 @@ EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;     // 下降沿触发
 EXTI_Init(&amp;EXTI_InitStructure);
 </code></pre>
 <ul>
-<li><code>EXTI_Line</code> 可以是 <code>EXTI_Lines</code> 的任意组合（<code>EXTI_Line0</code>~<code>EXTI_Line15</code>，也可以用按位或同时选多条）；</li>
+<li><code>EXTI_Line</code> 可以是 <code>EXTI_Lines</code> 的任意组合（<code>EXTI_Line0</code>～<code>EXTI_Line15</code>，也可以用按位或同时选多条）；</li>
 <li><code>EXTI_Mode</code> 是枚举 <code>EXTIMode_TypeDef</code>：中断模式 / 事件模式；</li>
 <li><code>EXTI_Trigger</code> 是枚举 <code>EXTITrigger_TypeDef</code>：<code>EXTI_Trigger_Rising</code>（上升沿）、<code>EXTI_Trigger_Falling</code>（下降沿）、<code>EXTI_Trigger_Rising_Falling</code>（双边沿），<strong>按实际需求选</strong>；</li>
 <li>视频里还指出库函数的一个小疏忽：<code>EXTI_Trigger</code> 的注释里把类型写成了 <code>EXTI_Mode_TypeDef</code>，实际应该是 <code>EXTITrigger_TypeDef</code>。</li>
@@ -228,15 +266,15 @@ NVIC_Init(&amp;NVIC_InitStructure);
 <ul>
 <li>中断不多、很难产生中断冲突时，<strong>优先级分组比较随意</strong>，视频里选了分组 2（2 位抢占 + 2 位响应，比较平均）；先占优先级 = 抢占优先级、从占优先级 = 响应优先级（视频原话）。</li>
 <li><strong>分组方式整个芯片只能用一种</strong>，所以这段代码整个工程只需要执行一次（可以放在主函数最前面；本集直接放在模块的初始化函数里）。</li>
-<li><code>NVIC_IRQChannel</code> 取值在库函数注释里看不到，要到 <code>stm32f10x.h</code> 的 <code>IRQn_Type</code> 里找（搜索范围要换成「当前工程」），并按芯片容量展开对应的条件编译（本课芯片是 MD 中等密度）。<strong>STM32 的 EXTI10~EXTI15 合并到了 <code>EXTI15_10_IRQn</code> 一个通道里</strong>。</li>
-<li>分组 2 下抢占优先级和响应优先级的取值范围都是 0~3；本程序只有一个中断，抢占、响应都设为 <strong>1</strong> 即可（优先级只在多个中断源同时申请、产生拥挤时才有作用）。</li>
+<li><code>NVIC_IRQChannel</code> 取值在库函数注释里看不到，要到 <code>stm32f10x.h</code> 的 <code>IRQn_Type</code> 里找（搜索范围要换成「当前工程」），并按芯片容量展开对应的条件编译（本课芯片是 MD 中等密度）。<strong>STM32 的 EXTI10～EXTI15 合并到了 <code>EXTI15_10_IRQn</code> 一个通道里</strong>。</li>
+<li>分组 2 下抢占优先级和响应优先级的取值范围都是 0～3；本程序只有一个中断，抢占、响应都设为 <strong>1</strong> 即可（优先级只在多个中断源同时申请、产生拥挤时才有作用）。</li>
 <li>到这里外部中断的信号就从 GPIO → AFIO → EXTI → NVIC → CPU 打通了。</li>
 </ul>
 <h3 id="2-6-中断服务函数">2.6 中断服务函数</h3>
 <ul>
 <li><strong>STM32 的中断函数名字都是固定的</strong>，每个中断通道对应一个中断函数，名字可以参考<strong>启动文件</strong>（<code>startup_stm32f10x_md.s</code>）里的中断向量表——以 <code>IRQHandler</code> 结尾的字符串就是中断函数名；找到 <code>EXTI15_10_IRQHandler</code> 复制过来。</li>
 <li>中断函数格式：<code>void</code> 开头、参数 <code>void</code>、<strong>无参无返回值</strong>；<strong>名字写错就进不了中断</strong>，最好直接从启动文件复制。中断函数不需要在头文件里声明，因为它不需要调用、是自动执行的。</li>
-<li>中断函数里一般先<strong>判断中断标志位</strong>：<code>EXTI15_10_IRQHandler</code> 是 EXTI10~EXTI15 共用的，要先确认是不是 EXTI14 触发进来的；中断结束后<strong>必须清除中断标志位</strong>，否则标志位一直为 1 会不断申请中断，程序就卡死在中断函数里了。</li>
+<li>中断函数里一般先<strong>判断中断标志位</strong>：<code>EXTI15_10_IRQHandler</code> 是 EXTI10～EXTI15 共用的，要先确认是不是 EXTI14 触发进来的；中断结束后<strong>必须清除中断标志位</strong>，否则标志位一直为 1 会不断申请中断，程序就卡死在中断函数里了。</li>
 </ul>
 <pre><code class="language-c">void EXTI15_10_IRQHandler(void)
 {
@@ -473,7 +511,7 @@ int main(void)
 <li><strong>EXTI / NVIC 不需要开时钟</strong>：GPIOB、AFIO 要开（APB2）；EXTI 没有时钟控制位、NVIC 是内核外设，两者都不需要开启时钟。</li>
 <li><strong>RCC 的总线参数要和函数对应</strong>：GPIOB、AFIO 是 APB2 外设，用 <code>RCC_APB2PeriphClockCmd</code> + <code>RCC_APB2Periph_*</code>；写成 APB1/AHB 语法不报错但外设不工作。</li>
 <li><strong>触发方式决定计数时刻</strong>：下降沿 = 移开挡光片加 1；上升沿 = 遮挡加 1；双边沿 = 遮挡和移开都加 1。</li>
-<li><strong>EXTI10~EXTI15 共用一个中断通道</strong>（<code>EXTI15_10_IRQn</code> / <code>EXTI15_10_IRQHandler</code>），中断里必须先 <code>EXTI_GetITStatus</code> 判断是哪条线；而 EXTI0、EXTI1 各自独占一个中断函数。</li>
+<li><strong>EXTI10～EXTI15 共用一个中断通道</strong>（<code>EXTI15_10_IRQn</code> / <code>EXTI15_10_IRQHandler</code>），中断里必须先 <code>EXTI_GetITStatus</code> 判断是哪条线；而 EXTI0、EXTI1 各自独占一个中断函数。</li>
 <li><strong>编码器方向异常的教训</strong>：<code>EXTI0_IRQHandler</code> 里要读<strong>另一相</strong>的电平（B 相 <code>GPIO_Pin_1</code>），误读成自己这相（<code>GPIO_Pin_0</code>）时，A 相下降沿读自己恒为 0、条件恒成立，方向判断就错了。</li>
 <li><strong>计数变量类型要选对</strong>：只加不减（红外计次）用 <code>uint16_t</code>；有正反转（编码器）用带符号的 <code>int16_t</code>。</li>
 <li><strong>中断里不延时、不操作同一硬件</strong>（见第 5 节），用变量/标志位在主循环里显示和操作。</li>
@@ -565,7 +603,7 @@ int main(void)
 </tr>
 <tr>
 <td>24:40</td>
-<td><code>NVIC_Init</code>：<code>EXTI15_10_IRQn</code>、使能、抢占 1、响应 1（EXTI10~15 合并到一个通道）</td>
+<td><code>NVIC_Init</code>：<code>EXTI15_10_IRQn</code>、使能、抢占 1、响应 1（EXTI10～15 合并到一个通道）</td>
 </tr>
 <tr>
 <td>28:34</td>
@@ -683,7 +721,7 @@ int main(void)
 </ul>
 </article>
     <nav class="pager">
-    <a href="stm32-01.html"><span class="label">下一篇</span>[1-1] 课程简介</a>
+    <a href="stm32-13.html"><span class="label">下一篇</span>[6-1] TIM定时中断</a>
     <a class="next" href="stm32-11.html"><span class="label">上一篇</span>[5-1] EXTI外部中断</a>
   </nav>
   </main>
