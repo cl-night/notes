@@ -8,7 +8,7 @@
   <meta property="og:title" content="[6-2] 定时器定时中断 / 定时器外部时钟 · 我的学习笔记">
   <meta property="og:description" content="江协科技 STM32 课程第 14 集 [6-2]（代码课）：把 [6-1] 的定时器理论写成两个程序——「6-1 定时器定时中断」（新建 Timer.c/Timer.h、Timer_Init 七步：RCC 开 TIM2 时钟、TIM_InternalClockConfig、TIM_TimeBaseInit 配 PSC=7200-1/ARR=10000-1 定 1s、TIM_ITConfig 开更新中断、NVIC 配置、TIM_Cmd 启动、TIM2_IRQHandler 里 Num++/清标志）和「6-2 定时器外部时钟」（复制工程、删内部时钟、改 TIM_ETRClockMode2Config 走 PA0/ETR、配 GPIO、PSC=0/ARR=9，挡光一次 CNT+1、到 9 清零并 Num++），并记录了 EGR 更新事件导致「上电 Num 从 1 开始」的坑与 TIM_ClearFlag 修复、跨文件变量 extern 两种方案、改 PSC/ARR 观察中断频率。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="../assets/style.css?v=8">
+  <link rel="stylesheet" href="../assets/style.css?v=9">
   <script>
     (function () {
       try {
@@ -945,6 +945,6 @@ int main(void)
   <span>© 2026 XZH</span>
   <span>用 Markdown 写成 · 由 DSH 构建</span>
 </footer>
-<script src="../assets/app.js?v=8" defer></script>
+<script src="../assets/app.js?v=9" defer></script>
 </body>
 </html>
