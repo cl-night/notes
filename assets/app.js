@@ -87,6 +87,7 @@
   var sidebar = document.querySelector(".sidebar");
   var sidebarToggle = document.getElementById("sidebar-toggle");
   var sidebarCollapse = document.getElementById("sidebar-collapse");
+  var sidebarExpand = document.getElementById("sidebar-expand");
   var layout = document.querySelector(".note-layout");
   var mobileQuery = window.matchMedia("(max-width: 860px)");
   var tocQuery = window.matchMedia("(min-width: 1101px)");
@@ -112,9 +113,11 @@
       if (collapsed) {
         sidebar.style.display = "none";
         layout.style.gridTemplateColumns = tocQuery.matches ? "minmax(0, 760px) 200px" : "minmax(0, 1fr)";
+        if (sidebarExpand) sidebarExpand.style.display = "inline-flex";
       } else {
         sidebar.style.display = "";
         layout.style.gridTemplateColumns = "";
+        if (sidebarExpand) sidebarExpand.style.display = "";
       }
       sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
     };
@@ -143,6 +146,19 @@
         setCollapsed(true);
       });
     }
+
+    if (sidebarExpand) {
+      sidebarExpand.addEventListener("click", function () {
+        setCollapsed(false);
+      });
+    }
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "[" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
+        event.preventDefault();
+        setCollapsed(!collapsed);
+      }
+    });
 
     sidebar.querySelectorAll("a").forEach(function (link) {
       link.addEventListener("click", function () {
