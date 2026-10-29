@@ -86,8 +86,7 @@
   /* 笔记页：侧边栏（桌面可收起，移动端抽屉） */
   var sidebar = document.querySelector(".sidebar");
   var sidebarToggle = document.getElementById("sidebar-toggle");
-  var sidebarCollapse = document.getElementById("sidebar-collapse");
-  var sidebarExpand = document.getElementById("sidebar-expand");
+
   var layout = document.querySelector(".note-layout");
   var mobileQuery = window.matchMedia("(max-width: 860px)");
   var tocQuery = window.matchMedia("(min-width: 1101px)");
@@ -111,10 +110,10 @@
         return;
       }
       if (collapsed) {
-        layout.style.gridTemplateColumns = tocQuery.matches
-          ? "44px minmax(0, 760px) 200px"
-          : "44px minmax(0, 1fr)";
+        sidebar.style.display = "none";
+        layout.style.gridTemplateColumns = tocQuery.matches ? "minmax(0, 760px) 200px" : "minmax(0, 1fr)";
       } else {
+        sidebar.style.display = "";
         layout.style.gridTemplateColumns = "";
       }
       sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
@@ -138,18 +137,6 @@
         setCollapsed(!collapsed);
       }
     });
-
-    if (sidebarCollapse) {
-      sidebarCollapse.addEventListener("click", function () {
-        setCollapsed(true);
-      });
-    }
-
-    if (sidebarExpand) {
-      sidebarExpand.addEventListener("click", function () {
-        setCollapsed(false);
-      });
-    }
 
     document.addEventListener("keydown", function (event) {
       if (event.key === "[" && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {

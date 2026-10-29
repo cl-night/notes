@@ -8,7 +8,7 @@
   <meta property="og:title" content="[1-2] STM32简介 · 我的学习笔记">
   <meta property="og:description" content="STM32 是什么、ARM 与 ST 的分工、F103C8T6 参数、片上外设、命名规则、系统结构、引脚定义、启动配置与最小系统电路。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="../assets/style.css?v=6">
+  <link rel="stylesheet" href="../assets/style.css?v=7">
   <script>
     (function () {
       try {
@@ -29,24 +29,19 @@
     </a>
     <nav class="header-nav">
       <a href="../index.html">项目</a>
-      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="收起/展开笔记列表" aria-controls="note-sidebar" aria-expanded="true" title="收起/展开笔记列表">☰</button>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="收起/展开目录" aria-controls="note-sidebar" aria-expanded="true" title="收起/展开目录（快捷键 [ ）">☰</button>
       <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
     </nav>
   </div>
 </header>
 <div class="note-layout">
   <aside class="sidebar" id="note-sidebar">
-    <div class="sidebar-rail">
-      <button class="sidebar-rail-button" id="sidebar-expand" type="button" aria-label="展开目录" title="展开目录（快捷键 [ ）">☰</button>
+    <div class="sidebar-head">
+      <p class="sidebar-title">目录</p>
     </div>
-    <div class="sidebar-body">
-      <div class="sidebar-head">
-        <p class="sidebar-title">目录</p>
-        <button class="sidebar-collapse" id="sidebar-collapse" type="button" aria-label="收起目录" title="收起目录（快捷键 [ ）">‹</button>
-      </div>
-      <a class="sidebar-project" href="../projects/stm32.html">江协科技 STM32 入门教程</a>
-      <nav class="book-nav note-list">
-          <details class="book-group" open>
+    <a class="sidebar-project" href="../projects/stm32.html">江协科技 STM32 入门教程</a>
+    <nav class="book-nav note-list">
+        <details class="book-group" open>
         <summary><span class="chapter-no">01</span><span class="book-group-name">课程与 STM32 简介</span><span class="book-group-count">2</span></summary>
         <div class="book-links">
         <a class="book-link" href="stm32-01.html"><span class="nav-ep">[1-1]</span><span class="nav-title">课程简介</span></a>
@@ -176,8 +171,7 @@
         <a class="book-link" href="stm32-50.html"><span class="nav-ep">—</span><span class="nav-title">结课寄语与后续预告</span></a>
         </div>
       </details>
-      </nav>
-    </div>
+    </nav>
   </aside>
   <main class="note-main">
     <div class="note-meta">
@@ -701,6 +695,6 @@
   <span>© 2026 XZH</span>
   <span>用 Markdown 写成 · 由 DSH 构建</span>
 </footer>
-<script src="../assets/app.js?v=6" defer></script>
+<script src="../assets/app.js?v=7" defer></script>
 </body>
 </html>
