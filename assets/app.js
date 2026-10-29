@@ -111,13 +111,11 @@
         return;
       }
       if (collapsed) {
-        sidebar.style.display = "none";
-        layout.style.gridTemplateColumns = tocQuery.matches ? "minmax(0, 760px) 200px" : "minmax(0, 1fr)";
-        if (sidebarExpand) sidebarExpand.style.display = "inline-flex";
+        layout.style.gridTemplateColumns = tocQuery.matches
+          ? "44px minmax(0, 760px) 200px"
+          : "44px minmax(0, 1fr)";
       } else {
-        sidebar.style.display = "";
         layout.style.gridTemplateColumns = "";
-        if (sidebarExpand) sidebarExpand.style.display = "";
       }
       sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
     };

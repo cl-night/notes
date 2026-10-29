@@ -8,7 +8,7 @@
   <meta property="og:title" content="[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比 · 我的学习笔记">
   <meta property="og:description" content="江协科技 STM32 第 18 集 [6-6]：两个程序——① 测频率（PA0 的 PWM 接 PA6=TIM3_CH1；IC_Init 六步，PSC=72-1→fc=1MHz、五成员 TIM_ICInit、TI1FP1+Reset；fx=fc/CCR1）② PWMI（TIM_PWMIConfig 两通道，占空比=CCR2/CCR1）；末尾性能：下限约 15Hz、上限由误差定。理论见 P17。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="stylesheet" href="../assets/style.css?v=6">
   <script>
     (function () {
       try {
@@ -35,15 +35,18 @@
   </div>
 </header>
 <div class="note-layout">
-  <button class="sidebar-expand" id="sidebar-expand" type="button" aria-label="展开目录" title="展开目录">目录</button>
   <aside class="sidebar" id="note-sidebar">
-    <div class="sidebar-head">
-      <p class="sidebar-title">目录</p>
-      <button class="sidebar-collapse" id="sidebar-collapse" type="button" aria-label="收起笔记列表" title="收起笔记列表">‹</button>
+    <div class="sidebar-rail">
+      <button class="sidebar-rail-button" id="sidebar-expand" type="button" aria-label="展开目录" title="展开目录（快捷键 [ ）">☰</button>
     </div>
-    <a class="sidebar-project" href="../projects/stm32.html">江协科技 STM32 入门教程</a>
-    <nav class="book-nav note-list">
-        <details class="book-group">
+    <div class="sidebar-body">
+      <div class="sidebar-head">
+        <p class="sidebar-title">目录</p>
+        <button class="sidebar-collapse" id="sidebar-collapse" type="button" aria-label="收起目录" title="收起目录（快捷键 [ ）">‹</button>
+      </div>
+      <a class="sidebar-project" href="../projects/stm32.html">江协科技 STM32 入门教程</a>
+      <nav class="book-nav note-list">
+          <details class="book-group">
         <summary><span class="chapter-no">01</span><span class="book-group-name">课程与 STM32 简介</span><span class="book-group-count">2</span></summary>
         <div class="book-links">
         <a class="book-link" href="stm32-01.html"><span class="nav-ep">[1-1]</span><span class="nav-title">课程简介</span></a>
@@ -173,7 +176,8 @@
         <a class="book-link" href="stm32-50.html"><span class="nav-ep">—</span><span class="nav-title">结课寄语与后续预告</span></a>
         </div>
       </details>
-    </nav>
+      </nav>
+    </div>
   </aside>
   <main class="note-main">
     <div class="note-meta">
@@ -1085,6 +1089,6 @@ uint32_t IC_GetDuty(void)
   <span>© 2026 XZH</span>
   <span>用 Markdown 写成 · 由 DSH 构建</span>
 </footer>
-<script src="../assets/app.js?v=4" defer></script>
+<script src="../assets/app.js?v=6" defer></script>
 </body>
 </html>

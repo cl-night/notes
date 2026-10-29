@@ -8,7 +8,7 @@
   <meta property="og:title" content="[12-2] BKP备份寄存器&amp;RTC实时时钟 · 我的学习笔记">
   <meta property="og:description" content="STM32 [12-2]（理论课，零代码零库函数）：BKP（VDD 断由 VBAT 维持、复位不复位、TAMPER 侵入清空、20/84 字节、本质是 RAM）；RTC（后备区域、32 位秒计数器＝Unix 时间戳、20 位预分频、三时钟源、N+1 分频、闹钟一次性）；手册 4 条注意事项（PWREN·BKPEN·DBP、RSF、CNF、RTOFF）。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="../assets/style.css?v=4">
+  <link rel="stylesheet" href="../assets/style.css?v=6">
   <script>
     (function () {
       try {
@@ -35,15 +35,18 @@
   </div>
 </header>
 <div class="note-layout">
-  <button class="sidebar-expand" id="sidebar-expand" type="button" aria-label="展开目录" title="展开目录">目录</button>
   <aside class="sidebar" id="note-sidebar">
-    <div class="sidebar-head">
-      <p class="sidebar-title">目录</p>
-      <button class="sidebar-collapse" id="sidebar-collapse" type="button" aria-label="收起笔记列表" title="收起笔记列表">‹</button>
+    <div class="sidebar-rail">
+      <button class="sidebar-rail-button" id="sidebar-expand" type="button" aria-label="展开目录" title="展开目录（快捷键 [ ）">☰</button>
     </div>
-    <a class="sidebar-project" href="../projects/stm32.html">江协科技 STM32 入门教程</a>
-    <nav class="book-nav note-list">
-        <details class="book-group">
+    <div class="sidebar-body">
+      <div class="sidebar-head">
+        <p class="sidebar-title">目录</p>
+        <button class="sidebar-collapse" id="sidebar-collapse" type="button" aria-label="收起目录" title="收起目录（快捷键 [ ）">‹</button>
+      </div>
+      <a class="sidebar-project" href="../projects/stm32.html">江协科技 STM32 入门教程</a>
+      <nav class="book-nav note-list">
+          <details class="book-group">
         <summary><span class="chapter-no">01</span><span class="book-group-name">课程与 STM32 简介</span><span class="book-group-count">2</span></summary>
         <div class="book-links">
         <a class="book-link" href="stm32-01.html"><span class="nav-ep">[1-1]</span><span class="nav-title">课程简介</span></a>
@@ -173,7 +176,8 @@
         <a class="book-link" href="stm32-50.html"><span class="nav-ep">—</span><span class="nav-title">结课寄语与后续预告</span></a>
         </div>
       </details>
-    </nav>
+      </nav>
+    </div>
   </aside>
   <main class="note-main">
     <div class="note-meta">
@@ -2051,6 +2055,6 @@
   <span>© 2026 XZH</span>
   <span>用 Markdown 写成 · 由 DSH 构建</span>
 </footer>
-<script src="../assets/app.js?v=4" defer></script>
+<script src="../assets/app.js?v=6" defer></script>
 </body>
 </html>

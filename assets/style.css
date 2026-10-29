@@ -162,7 +162,7 @@ a:hover {
 }
 
 .sidebar-toggle {
-  display: inline-grid;
+  display: none;
 }
 
 /* ------------------------------------------------------------------ home */
@@ -540,11 +540,19 @@ a:hover {
 }
 
 .note-layout.sidebar-collapsed {
-  grid-template-columns: minmax(0, 760px) 200px;
+  grid-template-columns: 44px minmax(0, 760px) 200px;
 }
 
 .note-layout.sidebar-collapsed .sidebar {
+  padding-right: 0;
+}
+
+.note-layout.sidebar-collapsed .sidebar-body {
   display: none;
+}
+
+.note-layout.sidebar-collapsed .sidebar-rail {
+  display: flex;
 }
 
 /* ------------------------------------------------------------- note page */
@@ -1251,37 +1259,31 @@ a:hover {
   min-width: 0;
 }
 
-/* 收起后的浮动「目录」按钮 */
-.sidebar-expand {
-  position: fixed;
-  top: 50%;
-  left: 0;
-  z-index: 40;
+/* 收起后的左侧窄轨（按钮固定在顶部） */
+.sidebar-rail {
   display: none;
-  padding: 14px 6px;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.sidebar-rail-button {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
   border: 1px solid var(--line);
-  border-left: 0;
-  border-radius: 0 10px 10px 0;
+  border-radius: 9px;
   background: var(--bg-elev);
   color: var(--muted);
   font: inherit;
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  writing-mode: vertical-rl;
+  font-size: 14px;
   cursor: pointer;
   box-shadow: var(--shadow);
-  transform: translateY(-50%);
 }
 
-.sidebar-expand:hover {
+.sidebar-rail-button:hover {
   color: var(--ink);
   border-color: var(--line-strong);
-}
-
-@media (max-width: 860px) {
-  .sidebar-expand {
-    display: none !important;
-  }
 }
 
 /* ------------------------------------------------------------ responsive */
@@ -1292,7 +1294,7 @@ a:hover {
   }
 
   .note-layout.sidebar-collapsed {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr);
   }
 
   .course-overview {
@@ -1344,12 +1346,24 @@ a:hover {
     display: none;
   }
 
+  .sidebar-toggle {
+    display: inline-grid;
+  }
+
+  .sidebar-rail {
+    display: none !important;
+  }
+
   .note-layout.sidebar-collapsed {
     grid-template-columns: 1fr;
   }
 
   /* 移动端抽屉优先于「已收起」状态（.sidebar-collapsed 桌面状态残留时仍可打开抽屉） */
   .note-layout.sidebar-collapsed .sidebar.open {
+    display: block;
+  }
+
+  .note-layout.sidebar-collapsed .sidebar-body {
     display: block;
   }
 
