@@ -162,7 +162,7 @@ a:hover {
 }
 
 .sidebar-toggle {
-  display: none;
+  display: inline-grid;
 }
 
 /* ------------------------------------------------------------------ home */
@@ -342,6 +342,209 @@ a:hover {
   color: var(--muted);
   text-align: center;
   font-size: 14px;
+}
+
+
+/* ------------------------------------------------- home: 课程分组 */
+
+.course-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 18px;
+  padding: 0 0 30px;
+}
+
+.course-map-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.course-map-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--line-strong);
+  text-decoration: none;
+}
+
+.course-map-card .eyebrow {
+  margin: 0;
+}
+
+.course-map-card h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: -0.01em;
+}
+
+.course-map-card p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.course-map-card .arrow {
+  margin-top: auto;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.home-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.stat {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev);
+}
+
+.stat b {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.stat span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.note-groups {
+  display: block;
+}
+
+.group {
+  padding: 26px 0 10px;
+  border-top: 1px solid var(--line);
+}
+
+.group:first-child {
+  border-top: 0;
+  padding-top: 6px;
+}
+
+.group[hidden] {
+  display: none;
+}
+
+.group-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 4px 0 18px;
+}
+
+.group-heading {
+  min-width: 0;
+}
+
+.group-badge {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.group-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 23px;
+  letter-spacing: -0.01em;
+}
+
+.group-desc {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.group-count {
+  margin-left: auto;
+  padding-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.ep-badge {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.group .note-card h2 {
+  font-size: 19px;
+  line-height: 1.4;
+}
+
+/* --------------------------------------------------- note: 侧边栏收起 */
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.sidebar-head .sidebar-title {
+  margin: 0;
+}
+
+.sidebar-collapse {
+  width: 24px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sidebar-collapse:hover {
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+
+.note-layout {
+  transition: grid-template-columns 0.18s ease;
+}
+
+.note-layout.sidebar-collapsed {
+  grid-template-columns: minmax(0, 760px) 200px;
+}
+
+.note-layout.sidebar-collapsed .sidebar {
+  display: none;
 }
 
 /* ------------------------------------------------------------- note page */
@@ -684,6 +887,18 @@ a:hover {
     grid-template-columns: 200px minmax(0, 1fr);
   }
 
+  .note-layout.sidebar-collapsed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .course-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
   .toc {
     display: none;
   }
@@ -720,8 +935,17 @@ a:hover {
     display: block;
   }
 
-  .sidebar-toggle {
-    display: inline-grid;
+  .sidebar-collapse {
+    display: none;
+  }
+
+  .note-layout.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  /* 移动端抽屉优先于「已收起」状态（.sidebar-collapsed 桌面状态残留时仍可打开抽屉） */
+  .note-layout.sidebar-collapsed .sidebar.open {
+    display: block;
   }
 
   .hero {

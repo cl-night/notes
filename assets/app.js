@@ -51,6 +51,11 @@
         if (visible) shown += 1;
       });
 
+      document.querySelectorAll(".group").forEach(function (group) {
+        var hasVisible = group.querySelector(".note-card:not([hidden])");
+        group.hidden = !hasVisible;
+      });
+
       if (empty) empty.hidden = shown !== 0;
     };
 
@@ -78,20 +83,61 @@
     applyFilter();
   }
 
-  /* 笔记页：移动端目录 */
+  /* 笔记页：侧边栏（桌面可收起，移动端抽屉） */
   var sidebar = document.querySelector(".sidebar");
   var sidebarToggle = document.getElementById("sidebar-toggle");
-  if (sidebar && sidebarToggle) {
+  var sidebarCollapse = document.getElementById("sidebar-collapse");
+  var layout = document.querySelector(".note-layout");
+  var mobileQuery = window.matchMedia("(max-width: 860px)");
+  var SIDEBAR_KEY = "note-sidebar-collapsed";
+
+  if (layout && sidebar && sidebarToggle) {
+    var setCollapsed = function (collapsed) {
+      layout.classList.toggle("sidebar-collapsed", collapsed);
+      sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+      try {
+        localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+      } catch (error) {
+        /* 忽略 */
+      }
+    };
+
+    try {
+      if (!mobileQuery.matches && localStorage.getItem(SIDEBAR_KEY) === "1") {
+        layout.classList.add("sidebar-collapsed");
+        sidebarToggle.setAttribute("aria-expanded", "false");
+      }
+    } catch (error) {
+      /* 忽略 */
+    }
+
     sidebarToggle.addEventListener("click", function () {
-      var open = sidebar.classList.toggle("open");
-      sidebarToggle.setAttribute("aria-expanded", String(open));
+      if (mobileQuery.matches) {
+        var open = sidebar.classList.toggle("open");
+        sidebarToggle.setAttribute("aria-expanded", String(open));
+      } else {
+        setCollapsed(!layout.classList.contains("sidebar-collapsed"));
+      }
     });
+
+    if (sidebarCollapse) {
+      sidebarCollapse.addEventListener("click", function () {
+        setCollapsed(true);
+      });
+    }
+
     sidebar.querySelectorAll("a").forEach(function (link) {
       link.addEventListener("click", function () {
         sidebar.classList.remove("open");
-        sidebarToggle.setAttribute("aria-expanded", "false");
+        if (mobileQuery.matches) sidebarToggle.setAttribute("aria-expanded", "false");
       });
     });
+
+    if (mobileQuery.addEventListener) {
+      mobileQuery.addEventListener("change", function () {
+        sidebar.classList.remove("open");
+      });
+    }
   }
 
   /* 阅读进度 */

@@ -29,14 +29,17 @@
     </a>
     <nav class="header-nav">
       <a href="../index.html">全部笔记</a>
-      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="笔记列表" aria-expanded="false">☰</button>
+      <button class="icon-button sidebar-toggle" id="sidebar-toggle" type="button" aria-label="收起/展开笔记列表" aria-controls="note-sidebar" aria-expanded="true" title="收起/展开笔记列表">☰</button>
       <button class="icon-button" id="theme-toggle" type="button" aria-label="切换深浅色">☾</button>
     </nav>
   </div>
 </header>
 <div class="note-layout">
-  <aside class="sidebar">
-    <p class="sidebar-title">全部笔记</p>
+  <aside class="sidebar" id="note-sidebar">
+    <div class="sidebar-head">
+      <p class="sidebar-title">全部笔记</p>
+      <button class="sidebar-collapse" id="sidebar-collapse" type="button" aria-label="收起笔记列表" title="收起笔记列表">‹</button>
+    </div>
     <nav class="note-list">
         <a href="stm32-31.html" class="active" aria-current="page">[10-1] I2C通信协议</a>
         <a href="stm32-32.html">[10-2] MPU6050简介</a>
