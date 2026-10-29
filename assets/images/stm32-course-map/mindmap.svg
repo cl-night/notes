@@ -1,0 +1,286 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 2426" width="1100" height="2426" role="img" aria-label="STM32 入门教程课程思维导图">
+<defs>
+  <linearGradient id="rootFill" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#d9946b"/>
+    <stop offset="1" stop-color="#b8643f"/>
+  </linearGradient>
+  <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#8a5a3a" flood-opacity="0.18"/>
+  </filter>
+</defs>
+<rect x="0" y="0" width="1100" height="2426" rx="22" fill="#fffdfa" stroke="#eee3d5"/>
+<text x="34" y="52" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="26" fill="#35302a">STM32 入门教程 · 课程思维导图</text>
+<text x="34" y="80" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#91867a">15 个模块 · 50 集 · 江协科技《STM32入门教程-2023版》</text>
+<line x1="34" y1="96" x2="1060" y2="96" stroke="#eee3d5" stroke-dasharray="3 5"/>
+<path d="M302 1229 C330 1229 330 137 358 137" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 237 358 237" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 375 358 375" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 513 358 513" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 613 358 613" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 827 358 827" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 1041 358 1041" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 1141 358 1141" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 1317 358 1317" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 1550 358 1550" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 1764 358 1764" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 1940 358 1940" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 2059 358 2059" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 2159 358 2159" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 2259 358 2259" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M302 1229 C330 1229 330 2340 358 2340" fill="none" stroke="#e2cdb9" stroke-width="2"/>
+<path d="M672 137 C700 137 700 118 728 118" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 137 C700 137 700 156 728 156" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 237 C700 237 700 218 728 218" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 237 C700 237 700 256 728 256" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 375 C700 375 700 318 728 318" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 375 C700 375 700 356 728 356" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 375 C700 375 700 394 728 394" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 375 C700 375 700 432 728 432" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 513 C700 513 700 494 728 494" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 513 C700 513 700 532 728 532" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 613 C700 613 700 594 728 594" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 613 C700 613 700 632 728 632" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 827 C700 827 700 694 728 694" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 827 C700 827 700 732 728 732" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 827 C700 827 700 770 728 770" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 827 C700 827 700 808 728 808" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 827 C700 827 700 846 728 846" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 827 C700 827 700 884 728 884" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 827 C700 827 700 922 728 922" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 827 C700 827 700 960 728 960" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1041 C700 1041 700 1022 728 1022" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1041 C700 1041 700 1060 728 1060" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1141 C700 1141 700 1122 728 1122" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1141 C700 1141 700 1160 728 1160" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1317 C700 1317 700 1222 728 1222" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1317 C700 1317 700 1260 728 1260" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1317 C700 1317 700 1298 728 1298" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1317 C700 1317 700 1336 728 1336" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1317 C700 1317 700 1374 728 1374" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1317 C700 1317 700 1412 728 1412" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1550 C700 1550 700 1474 728 1474" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1550 C700 1550 700 1512 728 1512" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1550 C700 1550 700 1550 728 1550" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1550 C700 1550 700 1588 728 1588" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1550 C700 1550 700 1626 728 1626" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1764 C700 1764 700 1688 728 1688" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1764 C700 1764 700 1726 728 1726" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1764 C700 1764 700 1764 728 1764" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1764 C700 1764 700 1802 728 1802" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1764 C700 1764 700 1840 728 1840" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1940 C700 1940 700 1902 728 1902" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1940 C700 1940 700 1940 728 1940" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 1940 C700 1940 700 1978 728 1978" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 2059 C700 2059 700 2040 728 2040" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 2059 C700 2059 700 2078 728 2078" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 2159 C700 2159 700 2140 728 2140" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 2159 C700 2159 700 2178 728 2178" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 2259 C700 2259 700 2240 728 2240" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 2259 C700 2259 700 2278 728 2278" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<path d="M672 2340 C700 2340 700 2340 728 2340" fill="none" stroke="#ecdfd0" stroke-width="1.4"/>
+<circle cx="736" cy="118" r="3.2" fill="#c98d6f"/>
+<text x="752" y="122" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">课程简介</text>
+<text x="724" y="122" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[1-1]</text>
+<circle cx="736" cy="156" r="3.2" fill="#c98d6f"/>
+<text x="752" y="160" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">STM32简介</text>
+<text x="724" y="160" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[1-2]</text>
+<circle cx="736" cy="218" r="3.2" fill="#c98d6f"/>
+<text x="752" y="222" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">软件安装</text>
+<text x="724" y="222" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[2-1]</text>
+<circle cx="736" cy="256" r="3.2" fill="#c98d6f"/>
+<text x="752" y="260" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">新建工程</text>
+<text x="724" y="260" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[2-2]</text>
+<circle cx="736" cy="318" r="3.2" fill="#c98d6f"/>
+<text x="752" y="322" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">GPIO输出</text>
+<text x="724" y="322" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[3-1]</text>
+<circle cx="736" cy="356" r="3.2" fill="#c98d6f"/>
+<text x="752" y="360" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">LED闪烁 / LED流水灯 / 蜂鸣器</text>
+<text x="724" y="360" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[3-2]</text>
+<circle cx="736" cy="394" r="3.2" fill="#c98d6f"/>
+<text x="752" y="398" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">GPIO输入</text>
+<text x="724" y="398" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[3-3]</text>
+<circle cx="736" cy="432" r="3.2" fill="#c98d6f"/>
+<text x="752" y="436" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">按键控制LED / 光敏传感器控制蜂鸣器</text>
+<text x="724" y="436" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[3-4]</text>
+<circle cx="736" cy="494" r="3.2" fill="#c98d6f"/>
+<text x="752" y="498" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">OLED调试工具</text>
+<text x="724" y="498" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[4-1]</text>
+<circle cx="736" cy="532" r="3.2" fill="#c98d6f"/>
+<text x="752" y="536" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">OLED显示屏</text>
+<text x="724" y="536" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[4-2]</text>
+<circle cx="736" cy="594" r="3.2" fill="#c98d6f"/>
+<text x="752" y="598" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">EXTI外部中断</text>
+<text x="724" y="598" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[5-1]</text>
+<circle cx="736" cy="632" r="3.2" fill="#c98d6f"/>
+<text x="752" y="636" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">对射式红外传感器计次 / 旋转编码器计次</text>
+<text x="724" y="636" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[5-2]</text>
+<circle cx="736" cy="694" r="3.2" fill="#c98d6f"/>
+<text x="752" y="698" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">TIM定时中断</text>
+<text x="724" y="698" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[6-1]</text>
+<circle cx="736" cy="732" r="3.2" fill="#c98d6f"/>
+<text x="752" y="736" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">定时器定时中断 / 定时器外部时钟</text>
+<text x="724" y="736" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[6-2]</text>
+<circle cx="736" cy="770" r="3.2" fill="#c98d6f"/>
+<text x="752" y="774" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">TIM输出比较</text>
+<text x="724" y="774" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[6-3]</text>
+<circle cx="736" cy="808" r="3.2" fill="#c98d6f"/>
+<text x="752" y="812" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">PWM驱动LED呼吸灯 / PWM驱动舵</text>
+<text x="752" y="827" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">机 / PWM驱动直流电机</text>
+<text x="724" y="812" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[6-4]</text>
+<circle cx="736" cy="846" r="3.2" fill="#c98d6f"/>
+<text x="752" y="850" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">TIM输入捕获</text>
+<text x="724" y="850" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[6-5]</text>
+<circle cx="736" cy="884" r="3.2" fill="#c98d6f"/>
+<text x="752" y="888" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">输入捕获模式测频率 / PWMI模式测频</text>
+<text x="752" y="903" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">率占空比</text>
+<text x="724" y="888" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[6-6]</text>
+<circle cx="736" cy="922" r="3.2" fill="#c98d6f"/>
+<text x="752" y="926" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">TIM编码器接口</text>
+<text x="724" y="926" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[6-7]</text>
+<circle cx="736" cy="960" r="3.2" fill="#c98d6f"/>
+<text x="752" y="964" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">编码器接口测速</text>
+<text x="724" y="964" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[6-8]</text>
+<circle cx="736" cy="1022" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1026" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">ADC模数转换器</text>
+<text x="724" y="1026" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[7-1]</text>
+<circle cx="736" cy="1060" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1064" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">AD单通道与AD多通道</text>
+<text x="724" y="1064" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[7-2]</text>
+<circle cx="736" cy="1122" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1126" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">DMA直接存储器存取</text>
+<text x="724" y="1126" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[8-1]</text>
+<circle cx="736" cy="1160" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1164" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">DMA数据转运与DMA+AD多通道</text>
+<text x="724" y="1164" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[8-2]</text>
+<circle cx="736" cy="1222" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1226" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">USART串口协议</text>
+<text x="724" y="1226" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[9-1]</text>
+<circle cx="736" cy="1260" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1264" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">USART串口外设</text>
+<text x="724" y="1264" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[9-2]</text>
+<circle cx="736" cy="1298" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1302" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">USART串口发送与接收</text>
+<text x="724" y="1302" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[9-3]</text>
+<circle cx="736" cy="1336" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1340" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">USART串口数据包</text>
+<text x="724" y="1340" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[9-4]</text>
+<circle cx="736" cy="1374" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1378" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">串口收发HEX数据包与文本数据包</text>
+<text x="724" y="1378" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[9-5]</text>
+<circle cx="736" cy="1412" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1416" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">FlyMcu串口下载与STLINK Ut</text>
+<text x="752" y="1431" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">ility</text>
+<text x="724" y="1416" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[9-6]</text>
+<circle cx="736" cy="1474" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1478" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">I2C通信协议</text>
+<text x="724" y="1478" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[10-1]</text>
+<circle cx="736" cy="1512" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1516" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">MPU6050简介</text>
+<text x="724" y="1516" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[10-2]</text>
+<circle cx="736" cy="1550" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1554" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">软件I2C读写MPU6050</text>
+<text x="724" y="1554" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[10-3]</text>
+<circle cx="736" cy="1588" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1592" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">I2C通信外设</text>
+<text x="724" y="1592" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[10-4]</text>
+<circle cx="736" cy="1626" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1630" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">硬件I2C读写MPU6050</text>
+<text x="724" y="1630" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[10-5]</text>
+<circle cx="736" cy="1688" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1692" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">SPI通信协议</text>
+<text x="724" y="1692" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[11-1]</text>
+<circle cx="736" cy="1726" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1730" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">W25Q64简介</text>
+<text x="724" y="1730" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[11-2]</text>
+<circle cx="736" cy="1764" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1768" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">软件SPI读写W25Q64</text>
+<text x="724" y="1768" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[11-3]</text>
+<circle cx="736" cy="1802" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1806" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">SPI通信外设</text>
+<text x="724" y="1806" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[11-4]</text>
+<circle cx="736" cy="1840" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1844" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">硬件SPI读写W25Q64</text>
+<text x="724" y="1844" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[11-5]</text>
+<circle cx="736" cy="1902" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1906" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">Unix时间戳</text>
+<text x="724" y="1906" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[12-1]</text>
+<circle cx="736" cy="1940" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1944" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">BKP备份寄存器&amp;RTC实时时钟</text>
+<text x="724" y="1944" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[12-2]</text>
+<circle cx="736" cy="1978" r="3.2" fill="#c98d6f"/>
+<text x="752" y="1982" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">读写备份寄存器&amp;实时时钟</text>
+<text x="724" y="1982" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[12-3]</text>
+<circle cx="736" cy="2040" r="3.2" fill="#c98d6f"/>
+<text x="752" y="2044" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">PWR电源控制</text>
+<text x="724" y="2044" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[13-1]</text>
+<circle cx="736" cy="2078" r="3.2" fill="#c98d6f"/>
+<text x="752" y="2082" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式</text>
+<text x="724" y="2082" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[13-2]</text>
+<circle cx="736" cy="2140" r="3.2" fill="#c98d6f"/>
+<text x="752" y="2144" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">WDG看门狗</text>
+<text x="724" y="2144" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[14-1]</text>
+<circle cx="736" cy="2178" r="3.2" fill="#c98d6f"/>
+<text x="752" y="2182" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">独立看门狗&amp;窗口看门狗</text>
+<text x="724" y="2182" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[14-2]</text>
+<circle cx="736" cy="2240" r="3.2" fill="#c98d6f"/>
+<text x="752" y="2244" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">FLASH闪存</text>
+<text x="724" y="2244" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[15-1]</text>
+<circle cx="736" cy="2278" r="3.2" fill="#c98d6f"/>
+<text x="752" y="2282" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">读写内部FLASH&amp;读取芯片ID</text>
+<text x="724" y="2282" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f">[15-2]</text>
+<circle cx="736" cy="2340" r="3.2" fill="#c98d6f"/>
+<text x="752" y="2344" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="13" fill="#5b534a">结课寄语与后续预告</text>
+<text x="724" y="2344" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11" fill="#a99d8f"></text>
+<rect x="372" y="117" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="143" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">01 课程与 STM32 简介</text>
+<text x="656" y="142" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="217" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="243" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">02 开发环境</text>
+<text x="656" y="242" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="355" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="381" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">03 GPIO</text>
+<text x="656" y="380" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">4 集</text>
+<rect x="372" y="493" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="519" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">04 OLED 调试</text>
+<text x="656" y="518" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="593" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="619" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">05 外部中断 EXTI</text>
+<text x="656" y="618" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="807" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="833" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">06 定时器 TIM</text>
+<text x="656" y="832" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">8 集</text>
+<rect x="372" y="1021" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="1047" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">07 ADC</text>
+<text x="656" y="1046" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="1121" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="1147" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">08 DMA</text>
+<text x="656" y="1146" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="1297" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="1323" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">09 USART 串口</text>
+<text x="656" y="1322" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">6 集</text>
+<rect x="372" y="1530" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="1556" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">10 I2C + MPU6050</text>
+<text x="656" y="1555" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">5 集</text>
+<rect x="372" y="1744" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="1770" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">11 SPI + W25Q64</text>
+<text x="656" y="1769" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">5 集</text>
+<rect x="372" y="1920" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="1946" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">12 RTC 实时时钟</text>
+<text x="656" y="1945" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">3 集</text>
+<rect x="372" y="2039" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="2065" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">13 PWR 电源控制</text>
+<text x="656" y="2064" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="2139" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="2165" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">14 WDG 看门狗</text>
+<text x="656" y="2164" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="2239" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="2265" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">15 FLASH 闪存</text>
+<text x="656" y="2264" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">2 集</text>
+<rect x="372" y="2320" width="300" height="40" rx="12" fill="#f8e8dc" stroke="#e8d3c2"/>
+<text x="388" y="2346" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="15" fill="#a85e3c">00 课程收尾</text>
+<text x="656" y="2345" text-anchor="end" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#b3836a">1 集</text>
+<rect x="34" y="1183" width="268" height="92" rx="18" fill="url(#rootFill)" filter="url(#soft)"/>
+<text x="54" y="1223" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="17" fill="#fffdfa">江协科技</text>
+<text x="54" y="1247" font-family="Georgia, 'Songti SC', 'Noto Serif SC', serif" font-size="17" fill="#fffdfa">STM32 入门教程</text>
+<text x="54" y="1267" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif" font-size="11.5" fill="#ffe9dc">50 集 · 15 个模块</text>
+</svg>
