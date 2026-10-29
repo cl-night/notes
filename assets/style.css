@@ -1,19 +1,19 @@
 :root {
   color-scheme: light;
-  --bg: #fbf4e1;
-  --bg-elev: #fffdf6;
-  --ink: #3b3128;
-  --ink-soft: #5f5346;
-  --muted: #94867a;
-  --line: #ece0c9;
-  --line-strong: #dcc9aa;
-  --accent: #b06a33;
-  --accent-ink: #fffdf6;
-  --accent-soft: #f7e8cf;
-  --code-bg: #f6ecd8;
-  --pre-bg: #2c241c;
-  --pre-ink: #f4ebdd;
-  --shadow: 0 1px 2px rgba(120, 88, 52, 0.05), 0 14px 34px rgba(120, 88, 52, 0.09);
+  --bg: #fbf7f0;
+  --bg-elev: #fffdfa;
+  --ink: #35302a;
+  --ink-soft: #5b534a;
+  --muted: #91867a;
+  --line: #eee3d5;
+  --line-strong: #ddcebc;
+  --accent: #bf6a45;
+  --accent-ink: #fffdfa;
+  --accent-soft: #f8e8dc;
+  --code-bg: #f5ecdf;
+  --pre-bg: #2b2521;
+  --pre-ink: #f3eadf;
+  --shadow: 0 1px 2px rgba(120, 90, 60, 0.05), 0 14px 34px rgba(120, 90, 60, 0.08);
   --radius: 18px;
   --max: 1200px;
   --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
@@ -25,20 +25,20 @@
 
 [data-theme="dark"] {
   color-scheme: dark;
-  --bg: #1b1712;
-  --bg-elev: #241f18;
-  --ink: #f2e9db;
-  --ink-soft: #d6c9b6;
-  --muted: #a89a87;
-  --line: #322a21;
-  --line-strong: #463a2d;
-  --accent: #d8a05e;
-  --accent-ink: #221a12;
-  --accent-soft: #34271b;
-  --code-bg: #271f17;
-  --pre-bg: #14110d;
-  --pre-ink: #f4ebdd;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 18px 44px rgba(0, 0, 0, 0.38);
+  --bg: #1a1714;
+  --bg-elev: #221e1a;
+  --ink: #f1e9df;
+  --ink-soft: #d5cabd;
+  --muted: #a99d8f;
+  --line: #322b25;
+  --line-strong: #463d33;
+  --accent: #e59d76;
+  --accent-ink: #221a14;
+  --accent-soft: #33261e;
+  --code-bg: #272118;
+  --pre-bg: #14110e;
+  --pre-ink: #f3eadf;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 18px 44px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -1570,117 +1570,6 @@ body {
 
 .toc a.active {
   color: var(--accent);
-}
-
-
-/* ============================================ 皮肤 v2：奶油黄 + 焦糖 / 纸感 */
-
-body {
-  font-size: 17px;
-  line-height: 1.9;
-  background-image: radial-gradient(1100px 520px at 16% -10%, rgba(255, 236, 190, 0.85), transparent 64%),
-    radial-gradient(920px 440px at 100% 0%, rgba(249, 226, 190, 0.55), transparent 60%);
-}
-
-/* 极淡纸纹：SVG 噪点，固定覆盖、不吃点击 */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  opacity: 0.04;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
-  background-size: 180px 180px;
-  mix-blend-mode: multiply;
-}
-
-[data-theme="dark"] body::before {
-  opacity: 0.035;
-  mix-blend-mode: soft-light;
-}
-
-[data-theme="dark"] body {
-  background-image: radial-gradient(1000px 480px at 16% -10%, rgba(150, 100, 50, 0.3), transparent 62%),
-    radial-gradient(820px 380px at 100% 0%, rgba(110, 74, 36, 0.22), transparent 60%);
-}
-
-/* 正文：17px / 1.9 */
-.prose {
-  font-size: 17px;
-  line-height: 1.9;
-}
-
-.prose p,
-.prose li {
-  line-height: 1.9;
-}
-
-.prose h1 {
-  line-height: 1.35;
-}
-
-.prose h2 {
-  line-height: 1.5;
-}
-
-.prose h3 {
-  line-height: 1.55;
-}
-
-/* 焦糖色细节 */
-.brand-mark {
-  background: linear-gradient(145deg, #d08a4a, #b06a33 55%, #94521f);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 6px 14px rgba(176, 106, 51, 0.3);
-}
-
-.group-badge {
-  background: linear-gradient(150deg, #fbe9c9, #f4dbb6);
-  color: #9c5c26;
-}
-
-[data-theme="dark"] .group-badge {
-  background: linear-gradient(150deg, #3d2c1c, #34271b);
-  color: #e2ab74;
-}
-
-.eyebrow,
-.chapter-no,
-.chapter-list .ep,
-.pager .label,
-.toc .toc-title {
-  color: var(--accent);
-}
-
-.prose h2::before {
-  background: linear-gradient(180deg, #d99a5e, var(--accent));
-}
-
-.prose blockquote {
-  background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
-}
-
-.reading-progress {
-  background: linear-gradient(90deg, #dfa76a, var(--accent));
-}
-
-::selection {
-  background: #f3dfb8;
-  color: #3a2c1d;
-}
-
-[data-theme="dark"] ::selection {
-  background: #4a3720;
-  color: #f7eee0;
-}
-
-/* 纸张质感的卡片描边更柔 */
-.note-card,
-.project-card,
-.course-map-card,
-.course-map-card,
-.stat {
-  border-color: color-mix(in srgb, var(--line) 92%, #fff 8%);
 }
 
 /* ------------------------------------------------------------ responsive */
