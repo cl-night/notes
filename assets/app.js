@@ -89,34 +89,52 @@
   var sidebarCollapse = document.getElementById("sidebar-collapse");
   var layout = document.querySelector(".note-layout");
   var mobileQuery = window.matchMedia("(max-width: 860px)");
+  var tocQuery = window.matchMedia("(min-width: 1101px)");
   var SIDEBAR_KEY = "note-sidebar-collapsed";
 
   if (layout && sidebar && sidebarToggle) {
-    var setCollapsed = function (collapsed) {
-      layout.classList.toggle("sidebar-collapsed", collapsed);
-      sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
-      try {
-        localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
-      } catch (error) {
-        /* 忽略 */
-      }
-    };
-
+    var collapsed = false;
     try {
-      if (!mobileQuery.matches && localStorage.getItem(SIDEBAR_KEY) === "1") {
-        layout.classList.add("sidebar-collapsed");
-        sidebarToggle.setAttribute("aria-expanded", "false");
-      }
+      collapsed = localStorage.getItem(SIDEBAR_KEY) === "1";
     } catch (error) {
       /* 忽略 */
     }
+
+    var applyLayout = function () {
+      var mobile = mobileQuery.matches;
+      layout.classList.toggle("sidebar-collapsed", !mobile && collapsed);
+      if (mobile) {
+        sidebar.style.display = "";
+        layout.style.gridTemplateColumns = "";
+        sidebarToggle.setAttribute("aria-expanded", String(sidebar.classList.contains("open")));
+        return;
+      }
+      if (collapsed) {
+        sidebar.style.display = "none";
+        layout.style.gridTemplateColumns = tocQuery.matches ? "minmax(0, 760px) 200px" : "minmax(0, 1fr)";
+      } else {
+        sidebar.style.display = "";
+        layout.style.gridTemplateColumns = "";
+      }
+      sidebarToggle.setAttribute("aria-expanded", String(!collapsed));
+    };
+
+    var setCollapsed = function (next) {
+      collapsed = next;
+      try {
+        localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
+      } catch (error) {
+        /* 忽略 */
+      }
+      applyLayout();
+    };
 
     sidebarToggle.addEventListener("click", function () {
       if (mobileQuery.matches) {
         var open = sidebar.classList.toggle("open");
         sidebarToggle.setAttribute("aria-expanded", String(open));
       } else {
-        setCollapsed(!layout.classList.contains("sidebar-collapsed"));
+        setCollapsed(!collapsed);
       }
     });
 
@@ -128,16 +146,15 @@
 
     sidebar.querySelectorAll("a").forEach(function (link) {
       link.addEventListener("click", function () {
-        sidebar.classList.remove("open");
-        if (mobileQuery.matches) sidebarToggle.setAttribute("aria-expanded", "false");
+        if (mobileQuery.matches) {
+          sidebar.classList.remove("open");
+          sidebarToggle.setAttribute("aria-expanded", "false");
+        }
       });
     });
 
-    if (mobileQuery.addEventListener) {
-      mobileQuery.addEventListener("change", function () {
-        sidebar.classList.remove("open");
-      });
-    }
+    applyLayout();
+    window.addEventListener("resize", applyLayout);
   }
 
   /* 阅读进度 */
