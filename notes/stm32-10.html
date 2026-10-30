@@ -177,16 +177,10 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>11 分钟</span>
+      <span>9 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">OLED</span><span class="tag">I2C</span><span class="tag">Keil调试</span>
     </div>
     <article class="prose"><h1>[4-2] OLED显示屏 — 学习笔记</h1>
-<ul>
-<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
-<li>视频：BV1th411z7sn?p=10，19:55</li>
-<li>素材：239 帧关键帧（每 5 秒，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（246 段）；关键截图 11 张随笔记收录（源图在 <code>vidsum_out/stm32_p10/frames/</code>，站内图片在 <code>assets/images/stm32-10/</code>）</li>
-<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（source=subtitle-ocr），偶有错字已按画面校正。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
 <p>本集把 [4-1] 的 OLED 驱动模块真正用起来：<strong>接线</strong>（4 针 I2C：SCL→PB8、SDA→PB9）→ <strong>把驱动三件套加进工程</strong>（<code>OLED.c</code>/<code>OLED.h</code>/<code>OLED_Font.h</code>，只改“引脚配置”和 <code>OLED_I2C_Init</code> 两处）→ 用 <strong>8 个显示函数</strong>显示字符/字符串/数字/进制；后半段完整介绍 <strong>Keil 调试模式</strong>（单步、断点、变量观察、外设寄存器实时查看），以后调复杂程序时非常有用。</p>
 <h2 id="0-接线与现象">0. 接线与现象</h2>
@@ -371,91 +365,6 @@ int main(void)
 <li><strong>部分清屏</strong>用 <code>ShowString</code> 显示空格即可，不必 <code>OLED_Clear</code>。</li>
 <li><strong>Keil 调试模式不能边调边改代码</strong>：改完要退出调试、重新编译再进。</li>
 </ol>
-<h2 id="时间轴">时间轴</h2>
-<table>
-<thead>
-<tr>
-<th>时间</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0:00</td>
-<td>接线：OLED 固定面包板右下角，GND/VCC 供电，SCL→PB8、SDA→PB9；供电孔兼接 PB6/PB7</td>
-</tr>
-<tr>
-<td>2:00</td>
-<td>面包板插线演示：电源引到 PB6/PB7、OLED 插 PB6～PB9 四孔</td>
-</tr>
-<tr>
-<td>2:25</td>
-<td>复制「按键控制LED」工程改名「4-1 OLED显示屏」，删除旧代码</td>
-</tr>
-<tr>
-<td>2:55</td>
-<td>源码有 4 针 I2C / 7 针 SPI 两版；复制 4 针版三文件到 Hardware 并在 Keil 添加</td>
-</tr>
-<tr>
-<td>4:00</td>
-<td>OLED.c 结构：引脚配置、引脚初始化、I2C 时序、用户函数；只需改两处</td>
-</tr>
-<tr>
-<td>5:20</td>
-<td>OLED.h 函数声明、OLED_Font.h 字库点阵（不带字库）</td>
-</tr>
-<tr>
-<td>6:30</td>
-<td>main.c 包含 OLED.h、调用 OLED_Init()，编译下载</td>
-</tr>
-<tr>
-<td>7:10</td>
-<td>OLED_ShowChar / ShowString 显示字符与字符串，注意坐标和长度</td>
-</tr>
-<tr>
-<td>8:20</td>
-<td>OLED_ShowNum 长度参数：补 0 与切掉高位</td>
-</tr>
-<tr>
-<td>9:20</td>
-<td>ShowSignedNum / ShowHexNum / ShowBinNum 演示；C 不支持直接写二进制</td>
-</tr>
-<tr>
-<td>11:00</td>
-<td>OLED_Clear 清屏与局部清屏（显示空格）</td>
-</tr>
-<tr>
-<td>12:00</td>
-<td>Keil 调试模式：Debug 配置（硬件在线仿真 / 软件仿真）</td>
-</tr>
-<tr>
-<td>13:20</td>
-<td>进入调试：C 代码、汇编、寄存器组、调用栈界面</td>
-</tr>
-<tr>
-<td>14:00</td>
-<td>运行控制：复位/全速/停止/单步/跳过/跳出/运行到光标；设置断点</td>
-</tr>
-<tr>
-<td>16:00</td>
-<td>符号窗口与 Watch1：查看变量、结构体成员实时变化</td>
-</tr>
-<tr>
-<td>17:20</td>
-<td>外设菜单查看 GPIOA 寄存器，ODR0 实时变化、PA0 LED 同步</td>
-</tr>
-<tr>
-<td>19:00</td>
-<td>调试模式下改程序需退出重编译；Keil 官方帮助文档；结束</td>
-</tr>
-</tbody></table>
-<h2 id="存疑">存疑</h2>
-<ul>
-<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr），不是 ASR；本集真实错字例子：串口→“串回”、OLED→“OLD”、I2C→“12C”、引脚→“引I脚”、Watch 1→“Match1”、ODR0→“ODRO”等，已按画面校正；部分编译输出行被 OCR 成乱码，不影响结论。</li>
-<li>Keil 调试模式的界面/菜单依版本不同略有差异，本笔记按视频画面记录（作者用 Keil 5）。</li>
-<li>本集仍未涉及 OLED 显示中文/图片（[4-1] 里作者提过以后单独讲 OLED 时再演示）。</li>
-<li>PB6/PB7 默认浮空输入的说法按视频原话；实际接线若不同，请确认引脚状态再上电。</li>
-<li>调试模式下“实时观察寄存器有少量延迟”属正常（视频也提到）。</li>
-</ul>
 </article>
     <nav class="pager">
     <a href="stm32-11.html"><span class="label">下一篇</span>[5-1] EXTI外部中断</a>
@@ -476,8 +385,6 @@ int main(void)
         <a class="level-3" href="#3-4-%E5%8F%98%E9%87%8F%E4%B8%8E%E5%AF%84%E5%AD%98%E5%99%A8%E8%A7%82%E5%AF%9F">3.4 变量与寄存器观察</a>
         <a class="level-3" href="#3-5-%E6%B3%A8%E6%84%8F%E4%BA%8B%E9%A1%B9">3.5 注意事项</a>
         <a class="level-2" href="#4-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">4. 坑与易错点</a>
-        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
-        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
     </nav>
   </aside>
 </div>

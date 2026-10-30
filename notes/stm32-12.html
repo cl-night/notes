@@ -177,16 +177,12 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>26 分钟</span>
+      <span>20 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">中断</span><span class="tag">EXTI</span><span class="tag">旋转编码器</span>
     </div>
     <article class="prose"><h1>[5-2] 对射式红外传感器计次 / 旋转编码器计次 — 学习笔记</h1>
 <h2 id="素材-字幕情况">素材 / 字幕情况</h2>
 <ul>
-<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
-<li>视频：BV1th411z7sn?p=12，49:31</li>
-<li>素材：248 帧关键帧（每 12 秒，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（705 段）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p12/frames/</code>，站内图片在 <code>assets/images/stm32-12/</code>）</li>
-<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（source=subtitle-ocr），偶有错字已按画面校正。</li>
 <li>前情：中断概念、NVIC 优先级分组、EXTI 内部结构等<strong>理论部分见 [5-1] EXTI外部中断</strong>，本集是外部中断的<strong>代码实现课</strong>，理论只做一句话带过。</li>
 </ul>
 <h2 id="一句话结论">一句话结论</h2>
@@ -599,208 +595,6 @@ int main(void)
 <li><strong>中断里不延时、不操作同一硬件</strong>（见第 5 节），用变量/标志位在主循环里显示和操作。</li>
 <li><strong>模块写好后先编译</strong>：否则回 main.c 调用时，代码提示可能显示不出新写的函数；中断函数不需要在头文件声明。</li>
 </ol>
-<h2 id="时间轴">时间轴</h2>
-<table>
-<thead>
-<tr>
-<th>时间</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0:00</td>
-<td>本小节写外部中断的代码，先看接线图</td>
-</tr>
-<tr>
-<td>0:09</td>
-<td>打开 <code>5-1 对射式红外传感器计次</code> 接线图：右上角 OLED 电路同上一节，左下角接对射式红外传感器模块</td>
-</tr>
-<tr>
-<td>0:32</td>
-<td>接线：VCC/GND 接电源，DO 数字输出随意选 GPIO（这里接 PB14）</td>
-</tr>
-<tr>
-<td>0:42</td>
-<td>挡光片经过槽口 → DO 电平跳变 → 触发 PB14 外部中断 → 中断里变量 <code>++</code>，主循环 OLED 显示</td>
-</tr>
-<tr>
-<td>1:14</td>
-<td>实物接线：3 根公对母杜邦线，VCC 正、GND 负、DO 接 PB14</td>
-</tr>
-<tr>
-<td>1:36</td>
-<td>用挡光片挡一下槽口，模块输出指示灯跟随亮灭</td>
-</tr>
-<tr>
-<td>1:52</td>
-<td>复制 OLED 工程改名 <code>5-1 对射式红外传感器计次</code>，先留一个显示 HelloWorld 的代码测试</td>
-</tr>
-<tr>
-<td>2:48</td>
-<td>在 Hardware 下新建 <code>CountSensor.c</code> / <code>CountSensor.h</code> 模块</td>
-</tr>
-<tr>
-<td>3:44</td>
-<td>写 <code>CountSensor_Init</code>，开始配置外部中断</td>
-</tr>
-<tr>
-<td>4:07</td>
-<td>看 PPT「EXTI 基本结构」图，总结出配置五步</td>
-</tr>
-<tr>
-<td>5:32</td>
-<td>第一步 RCC 开时钟：GPIOB、AFIO（都是 APB2）</td>
-</tr>
-<tr>
-<td>7:14</td>
-<td>EXTI、NVIC 不需要开启时钟的原因（NVIC 是内核外设）</td>
-</tr>
-<tr>
-<td>8:07</td>
-<td>第二步 GPIO：外部中断引脚选浮空/上拉/下拉，本集用 <code>GPIO_Mode_IPU</code>、<code>GPIO_Pin_14</code></td>
-</tr>
-<tr>
-<td>10:03</td>
-<td>第三步 AFIO：<code>GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource14)</code></td>
-</tr>
-<tr>
-<td>13:57</td>
-<td>第四步 EXTI：看 <code>exti.h</code> 的库函数（Init/DeInit/StructInit/GenerateSWInterrupt/GetITStatus/ClearITPendingBit）</td>
-</tr>
-<tr>
-<td>18:04</td>
-<td>写 <code>EXTI_Init</code>：<code>EXTI_Line14</code>、<code>EXTI_LineCmd = ENABLE</code>、<code>EXTI_Mode_Interrupt</code></td>
-</tr>
-<tr>
-<td>21:23</td>
-<td>触发方式：<code>EXTI_Trigger_Rising</code> / <code>Falling</code> / <code>Rising_Falling</code> 按需选（<code>EXTI_Trigger_Falling</code> 在此选出）；指出 Trigger 注释里的类型笔误</td>
-</tr>
-<tr>
-<td>22:08</td>
-<td>第五步 NVIC：看 <code>misc.h</code> 的 <code>NVIC_PriorityGroupConfig</code> 和 <code>NVIC_Init</code></td>
-</tr>
-<tr>
-<td>24:02</td>
-<td>选 <code>NVIC_PriorityGroup_2</code>（2 位抢占 + 2 位响应）；分组全芯片唯一，整个工程只需一次</td>
-</tr>
-<tr>
-<td>24:40</td>
-<td><code>NVIC_Init</code>：<code>EXTI15_10_IRQn</code>、使能、抢占 1、响应 1（EXTI10～15 合并到一个通道）</td>
-</tr>
-<tr>
-<td>28:34</td>
-<td>到启动文件里找中断函数名 <code>EXTI15_10_IRQHandler</code>，写中断函数</td>
-</tr>
-<tr>
-<td>29:34</td>
-<td>中断里先用 <code>EXTI_GetITStatus</code> 判断，结束用 <code>EXTI_ClearITPendingBit</code> 清标志</td>
-</tr>
-<tr>
-<td>31:16</td>
-<td>编译后进调试模式，在中断函数打断点，挡一下传感器验证能进中断</td>
-</tr>
-<tr>
-<td>32:47</td>
-<td>定义 <code>uint16_t CountSensor_Count</code>，中断里 <code>++</code>，写 <code>CountSensor_Get</code> 返回计数</td>
-</tr>
-<tr>
-<td>33:47</td>
-<td>main.c：<code>OLED_ShowString(1,1,&quot;Count:&quot;)</code> + <code>OLED_ShowNum(1,7,CountSensor_Get(),5)</code></td>
-</tr>
-<tr>
-<td>34:17</td>
-<td>现象：OLED 显示 <code>Count:00000</code>，挡一下传感器加 1</td>
-</tr>
-<tr>
-<td>34:31</td>
-<td>下降沿触发：在移开挡光片的时候触发中断（移开时加 1）</td>
-</tr>
-<tr>
-<td>34:52</td>
-<td>现在就是遮挡的时候数字加 1（此时已改为上升沿触发）</td>
-</tr>
-<tr>
-<td>34:58</td>
-<td>如果这里改成上升沿、下降沿都触发</td>
-</tr>
-<tr>
-<td>35:10</td>
-<td>遮挡和移开的时候都加 1</td>
-</tr>
-<tr>
-<td>35:23</td>
-<td>第一个程序结束，开始第二个程序，看 <code>5-2 旋转编码器计次</code> 接线图：A 相接 PB0、B 相接 PB1</td>
-</tr>
-<tr>
-<td>35:55</td>
-<td>面包板接编码器模块：VCC/GND 接电源，A、B 相飞线接 PB0、PB1</td>
-</tr>
-<tr>
-<td>36:51</td>
-<td>复制工程改名 <code>5-2 旋转编码器计次</code>，新建 <code>Encoder.c</code> / <code>Encoder.h</code></td>
-</tr>
-<tr>
-<td>38:42</td>
-<td>编码器原理：正转/反转的 AB 相波形；只触发一相、读另一相电平可判方向，但有&quot;正转刚动就进中断、反转转到位才进&quot;的小瑕疵</td>
-</tr>
-<tr>
-<td>39:25</td>
-<td>改用方案：A、B 两相都触发中断；B 相下降沿且 A 低 = 正转，A 相下降沿且 B 低 = 反转</td>
-</tr>
-<tr>
-<td>39:48</td>
-<td>复制上个工程的初始化代码修改：<code>GPIO_Pin_0 | GPIO_Pin_1</code>、<code>GPIO_PinSource0/1</code>、<code>EXTI_Line0 | EXTI_Line1</code></td>
-</tr>
-<tr>
-<td>41:12</td>
-<td>NVIC 分别配置两个通道：<code>EXTI0_IRQn</code>（抢占 1/响应 1）、<code>EXTI1_IRQn</code>（抢占 1/响应 2）</td>
-</tr>
-<tr>
-<td>41:42</td>
-<td>写两个中断函数 <code>EXTI0_IRQHandler</code> / <code>EXTI1_IRQHandler</code></td>
-</tr>
-<tr>
-<td>43:16</td>
-<td>定义 <code>int16_t Encoder_Count</code>，在中断里判断另一相电平决定 <code>++</code> / <code>--</code></td>
-</tr>
-<tr>
-<td>44:24</td>
-<td>写 <code>Encoder_Get</code>：Temp 暂存后清 0，返回调用间隔内的增量</td>
-</tr>
-<tr>
-<td>45:21</td>
-<td>main.c：<code>Num += Encoder_Get()</code>、<code>OLED_ShowSignedNum(1,5,Num,5)</code></td>
-</tr>
-<tr>
-<td>46:32</td>
-<td>现象：转动编码器发现方向不对（画面 OLED 出现负数 <code>Num:-00013</code>），判断是中断里判断错了</td>
-</tr>
-<tr>
-<td>46:49</td>
-<td>修正：<code>EXTI0_IRQHandler</code> 里应判断 <code>GPIO_Pin_1</code>（B 相），原来是 <code>GPIO_Pin_0</code></td>
-</tr>
-<tr>
-<td>47:06</td>
-<td>修正后现象：向右转数字增加，向左转数字减小</td>
-</tr>
-<tr>
-<td>47:13</td>
-<td>中断编程建议：中断要短不延时；中断和主程序不要操作同一硬件；用变量/标志位解耦</td>
-</tr>
-<tr>
-<td>49:24</td>
-<td>结束语</td>
-</tr>
-</tbody></table>
-<h2 id="存疑">存疑</h2>
-<ul>
-<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr），不是 ASR；705 段中约 35 行是噪声（如 <code>Flash Load finished at ...</code>、<code>Application running ...</code>、<code>Parameters  Types</code>、<code>Objects\Project.axf - 0 Error(s), 0 Warning(s).</code> 等编译输出），已剔除、未当作台词。</li>
-<li>典型 OCR 错字（本集实际出现，已按画面校正）：<code>EXTL/EXT1/EXT_</code> → <code>EXTI</code>；<code>INVIC</code> → <code>NVIC</code>；<code>GPIOModeIPU</code> → <code>GPIO_Mode_IPU</code>；<code>GPIOPin14</code> → <code>GPIO_Pin_14</code>；<code>GPIOEXTILinConfig</code> → <code>GPIO_EXTILineConfig</code>；<code>EXTILine14</code> → <code>EXTI_Line14</code>；<code>EXTI1510RQHandler</code> → <code>EXTI15_10_IRQHandler</code>；<code>uint16t</code>/<code>int16t</code> → <code>uint16_t</code>/<code>int16_t</code>；<code>GPIOPin_O</code> → <code>GPIO_Pin_0</code>；<code>自前</code> → <code>目前</code>、<code>册掉</code> → <code>删掉</code>、<code>外M设</code> → <code>外设</code> 等。</li>
-<li>34:36 附近&quot;变为上升沿触发&quot;这句字幕被 Keil 编译输出干扰漏采（OCR 未采到），触发方式演示按画面（<code>EXTI_Trigger_Rising</code> → <code>Rising_Falling</code>）与前后台词整理。</li>
-<li><strong>本集没有软件消抖 / 延时消抖的代码</strong>：本集没有软件消抖/延时消抖内容。与&quot;避免误计数&quot;有关的是：①编码器采用 A、B 两相都触发中断 + 读另一相电平判方向的时序设计（转到位才加减）；②中断函数不许放延时；③中断里只操作变量/标志位、OLED 显示放主循环（中断与主程序不操作同一硬件）。</li>
-<li>本集代码块为<strong>按视频化简的写法</strong>（省略部分 <code>#include</code>、把短语句合并到一行、省略部分大括号），实际写法以画面为准；函数名、参数名、寄存器名按画面校正。</li>
-<li>工程名、引脚（PB14；PB0/PB1）、OLED 显示格式按视频画面记录，实际接线和显示位置可按需求调整。</li>
-</ul>
 </article>
     <nav class="pager">
     <a href="stm32-13.html"><span class="label">下一篇</span>[6-1] TIM定时中断</a>
@@ -831,8 +625,6 @@ int main(void)
         <a class="level-3" href="#4-6-%E7%8E%B0%E8%B1%A1%E4%B8%8E%E4%BF%AE%E6%AD%A3">4.6 现象与修正</a>
         <a class="level-2" href="#5-%E4%B8%AD%E6%96%AD%E7%BC%96%E7%A8%8B%E5%BB%BA%E8%AE%AE-%E8%A7%86%E9%A2%91%E7%BB%93%E5%B0%BE">5. 中断编程建议（视频结尾）</a>
         <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
-        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
-        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
     </nav>
   </aside>
 </div>

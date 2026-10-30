@@ -177,16 +177,10 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>15 分钟</span>
+      <span>13 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">GPIO</span><span class="tag">输入</span><span class="tag">C语言</span>
     </div>
     <article class="prose"><h1>[3-3] GPIO输入 — 学习笔记</h1>
-<ul>
-<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
-<li>视频：BV1th411z7sn?p=7，43:58</li>
-<li>素材：240 帧关键帧（每 11 秒，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（553 段）；关键截图 14 张随笔记收录（源图在 <code>vidsum_out/stm32_p7/frames/</code>，站内图片在 <code>assets/images/stm32-07/</code>）</li>
-<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（source=subtitle-ocr），偶有错字已按画面校正。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
 <p>这一集是 GPIO 输入部分的<strong>理论课</strong>（本集<strong>不写代码</strong>，代码在下一集 [3-4]）：先看「按键控制 LED」「光敏传感器控制蜂鸣器」两个现象，再讲清楚 GPIO 输入要面对的硬件——按键消抖（5～10ms）、按键的 4 种接法、传感器模块的“分压 + LM393 比较器”电路和上下拉“杆子+弹簧”模型，最后补 C 语言基础（数据类型/stdint、宏定义、typedef、结构体、<code>-&gt;</code> 指针访问、枚举）。</p>
 <h2 id="0-两个示例程序的现象">0. 两个示例程序的现象</h2>
@@ -481,87 +475,6 @@ week = MONDAY;     // 只能赋枚举列表里的值；DevC++ 对 week = 8 不�
 <li><strong>传感器模块先用 DO</strong>：AO 模拟输出要等学 ADC 再用；DO 判断阈值可用蓝色电位器调。</li>
 <li><strong>上下拉电阻不能都为 0</strong>：相当于电源短路。</li>
 </ol>
-<h2 id="时间轴">时间轴</h2>
-<table>
-<thead>
-<tr>
-<th>时间</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0:00</td>
-<td>现象演示：按键控制 LED（两按键互不影响）、光敏传感器控制蜂鸣器（挡光响/拿开停）</td>
-</tr>
-<tr>
-<td>1:22</td>
-<td>本小节内容：GPIO 输入硬件电路 + C 语言补充（指针另有专门视频）</td>
-</tr>
-<tr>
-<td>2:34</td>
-<td>按键介绍：按下导通/松手断开；按键抖动 5～10ms，需延时过滤</td>
-</tr>
-<tr>
-<td>4:05</td>
-<td>传感器模块介绍：四种模块、电阻随模拟量变化→分压→比较器二值化</td>
-</tr>
-<tr>
-<td>5:14</td>
-<td>模块电路（模拟部分）：N1+R1 分压、C2 滤波 → AO 模拟输出</td>
-</tr>
-<tr>
-<td>7:13</td>
-<td>上下拉“杆子+弹簧”模型：强弱指阻值大小，两力平衡输出 VCC/2</td>
-</tr>
-<tr>
-<td>9:42</td>
-<td>模块电路（数字部分）：LM393 比较器、电位器阈值、DO、指示灯、排针</td>
-</tr>
-<tr>
-<td>12:46</td>
-<td>按键的 4 种接法：下接/下接+外部上拉/上接/上接+外部下拉</td>
-</tr>
-<tr>
-<td>16:18</td>
-<td>传感器模块接线：VCC/GND/DO，AO 留到 ADC</td>
-</tr>
-<tr>
-<td>16:50</td>
-<td>C 语言数据类型：位宽与范围，STM32 的 int 是 32 位</td>
-</tr>
-<tr>
-<td>19:03</td>
-<td>stdint 新名字：int8_t～uint64_t，u8/u16 是兼容旧名字</td>
-</tr>
-<tr>
-<td>22:30</td>
-<td>宏定义：#define 的两种典型用途</td>
-</tr>
-<tr>
-<td>24:40</td>
-<td>typedef：给类型改名，与宏定义的区别</td>
-</tr>
-<tr>
-<td>26:20</td>
-<td>结构体：定义、引用、指针 <code>-&gt;</code>、库函数 GPIO_Init 传参</td>
-</tr>
-<tr>
-<td>37:30</td>
-<td>枚举：限制取值范围（星期例子）、Keil 警告与强转</td>
-</tr>
-<tr>
-<td>43:00</td>
-<td>总结：这些 C 语言知识为了更好管理复杂工程；下一小节写 GPIO 输入代码</td>
-</tr>
-</tbody></table>
-<h2 id="存疑">存疑</h2>
-<ul>
-<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr），不是 ASR；常见 OCR 错字：上拉/下拉偶被识别成“比拉”、阈值→“國值”、指示灯→“指录灯”、TUESDAY→“TUERSAY”等，已按画面和上下文校正。</li>
-<li>本集<strong>只演示现象、不讲代码</strong>；按键控制 LED、光敏控制蜂鸣器的代码在下一集 [3-4] 讲。</li>
-<li>光敏模块的 <strong>AO 模拟输出</strong>本集只讲原理，没有接单片机（学 ADC 时才用）；DO 输出的阈值用电位器调。</li>
-<li>视频提到的“51 单片机 AD/DA 那节”“指针教程”是作者其它视频，本笔记不展开。</li>
-<li>数据类型的位宽/范围以视频 PPT 为准（不同编译器和芯片可能略有差异）。</li>
-</ul>
 </article>
     <nav class="pager">
     <a href="stm32-08.html"><span class="label">下一篇</span>[3-4] 按键控制LED / 光敏传感器控制蜂鸣器</a>
@@ -586,8 +499,6 @@ week = MONDAY;     // 只能赋枚举列表里的值；DevC++ 对 week = 8 不�
         <a class="level-3" href="#5-4-%E7%BB%93%E6%9E%84%E4%BD%93-struct">5.4 结构体 struct</a>
         <a class="level-3" href="#5-5-%E6%9E%9A%E4%B8%BE-enum">5.5 枚举 enum</a>
         <a class="level-2" href="#6-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">6. 坑与易错点</a>
-        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
-        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
     </nav>
   </aside>
 </div>

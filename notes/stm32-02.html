@@ -177,14 +177,11 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-26">2026-10-26</time>
-      <span>9 分钟</span>
+      <span>8 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">基础概念</span>
     </div>
     <article class="prose"><h1>[1-2] STM32简介 — 学习笔记</h1>
 <ul>
-<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
-<li>视频：BV1th411z7sn?p=2，49:02</li>
-<li>素材：184 帧关键帧（16 秒一张）+ faster-whisper small 转写（977 段）；画面与转写互相校正</li>
 <li>素材目录：<code>vidsum_out/stm32_p2/</code>（<code>sheets/</code> 拼图、<code>frames/</code> 单帧、<code>transcript.txt</code>）</li>
 </ul>
 <h2 id="一句话结论">一句话结论</h2>
@@ -603,68 +600,6 @@
 <li><strong>BOOT 引脚只在复位瞬间有效</strong>，之后就是普通 GPIO；改了 BOOT 要复位才生效。</li>
 <li><strong>APB1 是 36MHz、APB2 是 72MHz</strong>；外设挂在哪条总线、时钟怎么配，后面写代码会遇到。</li>
 </ol>
-<h2 id="时间轴">时间轴</h2>
-<table>
-<thead>
-<tr>
-<th>时间</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0:00</td>
-<td>STM32 名字拆解、定义、应用</td>
-</tr>
-<tr>
-<td>3:27</td>
-<td>STM32 家族：高性能/主流/低功耗/无线</td>
-</tr>
-<tr>
-<td>5:55</td>
-<td>ARM 公司、IP 授权、Cortex-A/R/M</td>
-</tr>
-<tr>
-<td>11:04</td>
-<td>STM32F103C8T6 参数、供电注意</td>
-</tr>
-<tr>
-<td>12:33</td>
-<td>片上资源/外设表逐项介绍</td>
-</tr>
-<tr>
-<td>20:17</td>
-<td>命名规则、RCT6 例子</td>
-</tr>
-<tr>
-<td>21:52</td>
-<td>系统结构：内核、总线、APB1/APB2、DMA</td>
-</tr>
-<tr>
-<td>26:43</td>
-<td>引脚定义：电源、晶振、复位、BOOT、SWD、GPIO</td>
-</tr>
-<tr>
-<td>34:13</td>
-<td>启动配置：BOOT0/BOOT1、串口下载</td>
-</tr>
-<tr>
-<td>37:46</td>
-<td>最小系统电路：电源、晶振、复位、BOOT、SWD</td>
-</tr>
-<tr>
-<td>44:05</td>
-<td>核心板原理图与实物讲解</td>
-</tr>
-<tr>
-<td>48:18</td>
-<td>本节总结、推荐官方文档</td>
-</tr>
-</tbody></table>
-<h2 id="存疑">存疑</h2>
-<ul>
-<li>转写由 faster-whisper small 生成，存在识别错字：内核→“类合”、封装→“分装/封钢”、引脚→“影角/银脚”、晶振→“金正”、复位→“富卫”、BOOT→“布特”、滤波→“绿波”、校验→“教验”、看门狗→“看门口”、中断→“中转/阻转”、电平→“电瓶”、增强型→“真强型/增城”、Microcontroller→“Macri controller”、I2C→“iPhone C”、Flash→“Flex”、SRAM→“STM”等；本文已按上下文校正。</li>
-<li>具体引脚号、外设数量以 STM32F103C8T6 数据手册为准；不同封装/型号会有差异。</li>
-</ul>
 </article>
     <nav class="pager">
     <a href="stm32-03.html"><span class="label">下一篇</span>[2-1] 软件安装</a>
@@ -686,8 +621,6 @@
         <a class="level-2" href="#9-%E5%90%AF%E5%8A%A8%E9%85%8D%E7%BD%AE">9. 启动配置</a>
         <a class="level-2" href="#10-%E6%9C%80%E5%B0%8F%E7%B3%BB%E7%BB%9F%E7%94%B5%E8%B7%AF">10. 最小系统电路</a>
         <a class="level-2" href="#11-%E4%BA%94%E4%B8%AA%E5%AE%B9%E6%98%93%E8%B8%A9%E7%9A%84%E5%9D%91">11. 五个容易踩的坑</a>
-        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
-        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
     </nav>
   </aside>
 </div>

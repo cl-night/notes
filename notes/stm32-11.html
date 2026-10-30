@@ -177,15 +177,11 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>37 分钟</span>
+      <span>31 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">中断</span><span class="tag">EXTI</span><span class="tag">NVIC</span>
     </div>
     <article class="prose"><h1>[5-1] EXTI外部中断 — 学习笔记</h1>
 <ul>
-<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
-<li>视频：BV1th411z7sn?p=11，41:57（约 2517 秒）</li>
-<li>素材：252 帧关键帧（<strong>每 10 秒</strong>，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（<strong>643 段</strong>）；关键截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p11/frames/</code>，站内图片在 <code>assets/images/stm32-11/</code>）</li>
-<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（<strong>source=subtitle-ocr</strong>），偶有错字已按画面校正（清单见文末「存疑」）。</li>
 <li><strong>本集定位</strong>：这是中断部分的<strong>纯理论课</strong>——片头只演示两个已经写好的程序的<strong>现象</strong>，全片没有写一行代码。视频结尾原话是「本小节中断系统和外部中断的理论部分我们就学到这里，<strong>下一小节我们再来学习一下外部中断的代码部分</strong>」。因此本笔记<strong>不包含</strong> EXTI 初始化步骤、库函数用法和中断服务函数实现，那些内容在 [5-2]。</li>
 </ul>
 <h2 id="一句话结论">一句话结论</h2>
@@ -531,213 +527,6 @@ void EXTI0_IRQHandler(void)
 <li><strong>现场保护不用手写</strong>：保护/还原现场由 C 语言编译器自动完成；中断函数由硬件自动调用，不要在主程序里调用它。</li>
 <li><strong>本集没有代码</strong>：不要在本集找 EXTI 初始化、中断服务函数、清中断标志的写法，那些在 [5-2]。</li>
 </ol>
-<h2 id="时间轴">时间轴</h2>
-<table>
-<thead>
-<tr>
-<th>时间</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0:04</td>
-<td>开场：本节学习 STM32 的外部中断和中断系统</td>
-</tr>
-<tr>
-<td>0:13</td>
-<td>先看现象：两个程序——对射式红外传感器计次、旋转编码器计次</td>
-</tr>
-<tr>
-<td>0:29</td>
-<td>面包板接红外对管，OLED 显示 <code>Count: 00000</code></td>
-</tr>
-<tr>
-<td>0:43</td>
-<td>挡光片挡住红外对管 → 输出指示灯灭，代表输出高电平</td>
-</tr>
-<tr>
-<td>0:52</td>
-<td>拿开挡光片 → 灯亮（低电平），灭到亮之间产生下降沿 → 触发外部中断 → 计数加 1</td>
-</tr>
-<tr>
-<td>1:04</td>
-<td>再挡光几次，屏幕数字统计挡光次数</td>
-</tr>
-<tr>
-<td>1:19</td>
-<td>第二个程序：旋转编码器，OLED 显示数字，右转加、左转减</td>
-</tr>
-<tr>
-<td>1:48</td>
-<td>本节知识点：中断系统 + 外部中断（借助外部中断学习中断系统）</td>
-</tr>
-<tr>
-<td>2:11</td>
-<td>中断的定义：中断源、CPU 暂停主程序去处理中断程序、处理完返回</td>
-</tr>
-<tr>
-<td>2:54</td>
-<td>中断的用途：紧急事件（外部中断/串口）必须及时处理；中断提高程序效率</td>
-</tr>
-<tr>
-<td>4:22</td>
-<td>中断优先级：多个中断源同时申请时按轻重缓急裁决，优先级由我们自己设置</td>
-</tr>
-<tr>
-<td>5:09</td>
-<td>中断嵌套：更高优先级中断打断当前中断程序，处理完依次返回</td>
-</tr>
-<tr>
-<td>5:53</td>
-<td>中断执行流程：主程序/中断程序/断点，现场保护与还原（C 语言由编译器完成）</td>
-</tr>
-<tr>
-<td>7:04</td>
-<td>中断嵌套的执行流程；7:29 C 语言程序结构：<code>while (1)</code> 主程序 + 硬件自动调用的中断子函数</td>
-</tr>
-<tr>
-<td>8:07</td>
-<td>STM32 中断：68 个可屏蔽中断通道，包含 EXTI/TIM/ADC/USART/SPI/I2C/RTC 等</td>
-</tr>
-<tr>
-<td>8:53</td>
-<td>使用 NVIC 统一管理中断，每个通道 16 个可编程优先级，可分组设置抢占/响应优先级</td>
-</tr>
-<tr>
-<td>9:19</td>
-<td>中断资源表：灰色为内核中断、其余为外设中断（窗口看门狗、PVD 等）</td>
-</tr>
-<tr>
-<td>11:07</td>
-<td>中断地址与中断向量表：硬件跳固定地址、编译器加跳转，C 语言不用管</td>
-</tr>
-<tr>
-<td>12:00</td>
-<td>NVIC 基本结构：嵌套向量中断控制器、内核外设、多输入单输出</td>
-</tr>
-<tr>
-<td>13:17</td>
-<td>医院叫号系统类比：CPU 是医生，NVIC 是叫号系统</td>
-</tr>
-<tr>
-<td>13:59</td>
-<td>中断优先级分组：分为抢占优先级和响应优先级</td>
-</tr>
-<tr>
-<td>15:16</td>
-<td>优先级由寄存器 4 位决定（0～15，数值越小越高），切分为高 n 位抢占 + 低 4-n 位响应</td>
-</tr>
-<tr>
-<td>16:03</td>
-<td>抢占/响应均相同时按中断号排队；16:31 分组 0～4 表与取值范围</td>
-</tr>
-<tr>
-<td>17:19</td>
-<td>EXTI 简介：引脚电平变化申请中断，支持上升沿/下降沿/双边沿/软件触发</td>
-</tr>
-<tr>
-<td>18:34</td>
-<td>支持的 GPIO：所有 GPIO 可用，但相同 Pin 不能同时触发中断</td>
-</tr>
-<tr>
-<td>19:12</td>
-<td>20 条中断线 = 16 个 GPIO_Pin + PVD/RTC/USB/ETH；这 4 个用于停止模式唤醒</td>
-</tr>
-<tr>
-<td>20:02</td>
-<td>触发响应方式：中断响应 vs 事件响应（事件触发其它外设，如 ADC/DMA）</td>
-</tr>
-<tr>
-<td>20:50</td>
-<td>EXTI 基本结构框图：GPIO → AFIO 中断引脚选择 → EXTI 边沿检测及控制 → NVIC/其它外设</td>
-</tr>
-<tr>
-<td>21:37</td>
-<td>相同 Pin 不能同时触发中断的原因：AFIO 从 PA0/PB0/PC0… 里只选一个接通道 0</td>
-</tr>
-<tr>
-<td>22:17</td>
-<td>20 路输入分两路输出；EXTI5～9、EXTI10～15 各共用一个中断函数</td>
-</tr>
-<tr>
-<td>23:21</td>
-<td>AFIO 复用 IO 口：两个任务——复用功能引脚重映射、中断引脚选择</td>
-</tr>
-<tr>
-<td>23:24</td>
-<td>AFIO 选择中断引脚结构图：PA0…PG0 经数据选择器接 EXTI0（AFIO_EXTICR）</td>
-</tr>
-<tr>
-<td>24:51</td>
-<td>EXTI 内部框图：边沿检测、或门、挂起寄存器、中断屏蔽/事件屏蔽、脉冲发生器</td>
-</tr>
-<tr>
-<td>25:16</td>
-<td>逻辑符号科普：或门、与门、非门、数据选择器</td>
-</tr>
-<tr>
-<td>26:52</td>
-<td>中断路：挂起 → 与中断屏蔽寄存器 → NVIC；事件路：事件屏蔽 → 脉冲发生器</td>
-</tr>
-<tr>
-<td>28:34</td>
-<td>外部中断适用场景：外部驱动、快速、突发的信号（旋转编码器、红外遥控）</td>
-</tr>
-<tr>
-<td>29:54</td>
-<td>不推荐用外部中断读按键：抖动/松手检测不好处理，建议主循环或定时器中断</td>
-</tr>
-<tr>
-<td>30:30</td>
-<td>旋转编码器：定义（测位置/速度/方向）、类型（机械触点式/霍尔式/光栅式）</td>
-</tr>
-<tr>
-<td>31:16</td>
-<td>单相编码器（对射式 + 光栅盘）：方波个数=角度、频率=转速；只能测位置速度、不能测方向</td>
-</tr>
-<tr>
-<td>32:05</td>
-<td>套件旋转编码器拆解：机械触点式、轴按键、金属编码盘产生 90° 相位差</td>
-</tr>
-<tr>
-<td>33:18</td>
-<td>AB 相正交波形：正转 B 相滞后 90°、反转 B 相超前 90°，可区分方向</td>
-</tr>
-<tr>
-<td>34:20</td>
-<td>霍尔传感器式/独立编码器元件及适用场合（调节 vs 电机测速）</td>
-</tr>
-<tr>
-<td>35:25</td>
-<td>旋转编码器硬件电路：10k 上拉、R3 限流、C1 滤波，A/B 输出、C 接 GND</td>
-</tr>
-<tr>
-<td>37:11</td>
-<td>手册导读：NVIC 是内核外设，在 Cortex-M3 编程手册里找</td>
-</tr>
-<tr>
-<td>39:08</td>
-<td>中断分组配置在 SCB-&gt;AIRCR 里</td>
-</tr>
-<tr>
-<td>39:31</td>
-<td>STM32F10xx 参考手册：9.1 NVIC、9.2 EXTI、9.3 EXTI 寄存器、AFIO 重映射表</td>
-</tr>
-<tr>
-<td>41:46</td>
-<td>结尾：本小节理论部分结束，下一小节讲外部中断的代码部分</td>
-</tr>
-</tbody></table>
-<h2 id="存疑">存疑</h2>
-<ul>
-<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr，643 段），不是 ASR。典型 OCR 错字（本集实际出现）：<code>NVIC</code> → 「NMIC」、<code>AFIO</code> → 「AFO/AFI」、<code>EXTI</code> → 「EXT」、<code>申请</code> → 「电请」、<code>串口</code> → 「串回」、<code>PA0/PB0</code> → 「PAO/PBO」、<code>Delay</code> → 「Delav」、<code>耽误</code> → 「耿误」、<code>窗口看门狗</code> → 「窗回看问狗」、<code>任意</code> → 「住意」、<code>中断通道</code> → 「中断新通道」等，已按画面和上下文校正。</li>
-<li>Keil 编译输出、手册截图等小字区域被 OCR 成乱码（如「5057可段霞TM5」「Aiainrnind at16:45:4」「广老设柯以中请中断」等），这些内容未被引用进本笔记结论。</li>
-<li>本集是<strong>纯理论课</strong>，没有代码。片头的两个程序现象来自 [5-2]（片头 Keil 标题栏里的工程目录名分别是 <code>5-1 对射式红外传感器计次</code>、<code>5-2 旋转编码器计次</code>）；所有 EXTI 初始化、中断服务函数、清中断标志等代码内容都以 [5-2] 为准。</li>
-<li>中断资源表里的<strong>中断号</strong>和中断地址来自 PPT 表格，个别行字小、受画面压缩影响，本笔记只引用了视频明确讲到的几项（窗口看门狗、PVD、RTC、EXTI0～4、EXTI9_5、EXTI15_10、DMA1 通道 5）。</li>
-<li>旋转编码器电路图里的元件值（R1/R2 为 10K、R3/R4 为 10K、C1/C2 为 0.1μF）按<strong>画面</strong>记录；视频口述里只明确说了「10k 上拉电阻」「R3 是输出限流电阻」「C1 是输出滤波电容」。</li>
-<li>本集对<strong>软件触发</strong>、<strong>事件响应</strong>只做了原理说明，没有演示实际效果（比如事件触发 ADC/DMA），具体用法视频未展开。</li>
-<li>中断优先级分组表里的「分组 2、3、4」视频没有逐条念，只说了「按这个规律来分配，大家自己看一下」，表中数值按 PPT 画面记录。</li>
-</ul>
 </article>
     <nav class="pager">
     <a href="stm32-12.html"><span class="label">下一篇</span>[5-2] 对射式红外传感器计次 / 旋转编码器计次</a>
@@ -774,8 +563,6 @@ void EXTI0_IRQHandler(void)
         <a class="level-2" href="#14-%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C%E5%AF%BC%E8%AF%BB">14. 参考手册导读</a>
         <a class="level-2" href="#15-%E6%9C%AC%E9%9B%86%E5%B0%8F%E7%BB%93%E4%B8%8E-5-2-%E7%9A%84%E8%A1%94%E6%8E%A5">15. 本集小结与 [5-2] 的衔接</a>
         <a class="level-2" href="#16-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">16. 坑与易错点</a>
-        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
-        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
     </nav>
   </aside>
 </div>

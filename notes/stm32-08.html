@@ -177,16 +177,10 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>15 分钟</span>
+      <span>12 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">GPIO</span><span class="tag">输入</span><span class="tag">模块化编程</span>
     </div>
     <article class="prose"><h1>[3-4] 按键控制LED / 光敏传感器控制蜂鸣器 — 学习笔记</h1>
-<ul>
-<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
-<li>视频：BV1th411z7sn?p=8，33:05</li>
-<li>素材：248 帧关键帧（每 8 秒，宽 1280px）+ PP-OCRv4 画面硬字幕 OCR（448 段）；关键截图 14 张随笔记收录（源图在 <code>vidsum_out/stm32_p8/frames/</code>，站内图片在 <code>assets/images/stm32-08/</code>）</li>
-<li>字幕情况：该集 B 站没有 CC/AI 字幕，文本由<strong>画面烧录的中文字幕 OCR</strong> 得到（source=subtitle-ocr），偶有错字已按画面校正。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
 <p>这一集是 GPIO 输入部分的<strong>程序课</strong>：先用「按键控制 LED」把按键输入、<strong>模块化封装</strong>（<code>LED.c/h</code>、<code>Key.c/h</code>）、<strong>按键消抖</strong>和<strong>状态取反</strong>走一遍；再用「光敏传感器控制蜂鸣器」练习第二种输入设备（光敏模块 DO 输出）和 <code>Buzzer.c/h</code>、<code>LightSensor.c/h</code> 的封装，最后总结 GPIO 的使用三步与模块化/注释规范。</p>
 <h2 id="0-本集的两个工程">0. 本集的两个工程</h2>
@@ -491,115 +485,6 @@ int main(void)
 <li><strong>光敏 DO 电平别记反</strong>：遮光 → DO 输出<strong>高电平(1)</strong>（指示灯灭）；有光 → <strong>低电平(0)</strong>（指示灯亮）；阈值用蓝色电位器调。</li>
 <li><strong>Keil 实时语法检查会滞后</strong>：偶尔报错/警告是语法检查更新慢，直接编译通过即可；Ctrl+Alt+空格 调代码提示。</li>
 </ol>
-<h2 id="时间轴">时间轴</h2>
-<table>
-<thead>
-<tr>
-<th>时间</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0:00</td>
-<td>本小节写 GPIO 输入代码，先看第一个代码的接线图</td>
-</tr>
-<tr>
-<td>0:16</td>
-<td>接线：按键接 PB1/PB11（一端 GPIO 一端 GND）、LED 接 PA1/PA2（一端 VCC，低电平点亮）；面包板插接</td>
-</tr>
-<tr>
-<td>1:25</td>
-<td>复制蜂鸣器工程，改名 <code>3-4 按键控制LED</code></td>
-</tr>
-<tr>
-<td>1:45</td>
-<td>模块化编程：建 Hardware 文件夹、Keil 组、加头文件路径</td>
-</tr>
-<tr>
-<td>3:02</td>
-<td>新建 LED.c / LED.h，写 #ifndef 防重复包含框架</td>
-</tr>
-<tr>
-<td>4:53</td>
-<td>写 LED_Init</td>
-</tr>
-<tr>
-<td>8:20</td>
-<td>下载后两灯都亮（GPIO 默认低电平）→ 在 Init 末尾加 GPIO_SetBits 设默认熄灭</td>
-</tr>
-<tr>
-<td>9:04</td>
-<td>写 LED1/2_ON/OFF，主函数交替闪烁验证</td>
-</tr>
-<tr>
-<td>11:40</td>
-<td>封装按键 Key.c / Key.h</td>
-</tr>
-<tr>
-<td>12:34</td>
-<td>Key_Init：GPIOB 时钟、上拉输入、Pin_1 / Pin_11</td>
-</tr>
-<tr>
-<td>14:25</td>
-<td>修正 Key_Init 拼写错误，开始写 Key_GetNum</td>
-</tr>
-<tr>
-<td>15:19</td>
-<td>打开 gpio.h 讲 4 个读函数</td>
-</tr>
-<tr>
-<td>16:43</td>
-<td>对照位结构 PPT 讲这些读函数的用途</td>
-</tr>
-<tr>
-<td>17:26</td>
-<td>写 Key_GetNum：读键码 + 消抖 + 等松手</td>
-</tr>
-<tr>
-<td>19:22</td>
-<td>main 按键控制 LED；状态取反函数 LED1_Turn</td>
-</tr>
-<tr>
-<td>23:33</td>
-<td>驱动函数注释规范</td>
-</tr>
-<tr>
-<td>24:07</td>
-<td>第二个代码接线：蜂鸣器 PB12、光敏 DO 接 PB13</td>
-</tr>
-<tr>
-<td>25:04</td>
-<td>光敏模块调试：遮光/有光现象与电位器调阈值</td>
-</tr>
-<tr>
-<td>25:22</td>
-<td>复制 <code>3-5 光敏传感器控制蜂鸣器</code>，封装 Buzzer.c/h</td>
-</tr>
-<tr>
-<td>28:18</td>
-<td>封装 LightSensor.c/h</td>
-</tr>
-<tr>
-<td>30:30</td>
-<td>main 用 LightSensor_Get() 控制蜂鸣器，验证现象</td>
-</tr>
-<tr>
-<td>31:29</td>
-<td>总结：GPIO 使用三步、8 个读写函数、模块化与注释</td>
-</tr>
-<tr>
-<td>33:05</td>
-<td>结束语</td>
-</tr>
-</tbody></table>
-<h2 id="存疑">存疑</h2>
-<ul>
-<li>本集文本来自画面硬字幕的 <strong>OCR</strong>（PP-OCRv4，source=subtitle-ocr），不是 ASR；典型 OCR 错字（本集实际出现）：GPIO口→“GPIO回”、“include”→“indude”、“ReadInput”→“Readlnput”、“第三个”→“第个”、部分编译输出行乱码等，已按画面和上下文校正。</li>
-<li>视频里 Keil 的编译输出行字号小、被 OCR 识别成乱码，不影响结论；最终各次编译均为 <strong>0 Error(s), 0 Warning(s)</strong>（画面可见；中途有拼写错误、Delay.h 找不到等报错，修正后通过）。</li>
-<li>光敏模块的 <strong>AO 模拟输出</strong>本课未接线、未演示（只使用 DO 数字输出）。</li>
-<li><code>Delay_ms</code> 函数来自工程里的 <code>Delay.c/h</code>（System 组，课程前面已提供），本集没有展开它的实现。</li>
-<li>工程名、引脚（PB1/PB11、PA1/PA2、PB12/PB13）按视频画面记录，实际接线可按需求调整。</li>
-</ul>
 </article>
     <nav class="pager">
     <a href="stm32-09.html"><span class="label">下一篇</span>[4-1] OLED调试工具</a>
@@ -619,8 +504,6 @@ int main(void)
         <a class="level-2" href="#6-%E5%B7%A5%E7%A8%8B-2-%E5%85%89%E6%95%8F%E4%BC%A0%E6%84%9F%E5%99%A8%E6%8E%A7%E5%88%B6%E8%9C%82%E9%B8%A3%E5%99%A8">6. 工程 2：光敏传感器控制蜂鸣器</a>
         <a class="level-2" href="#7-%E6%9C%AC%E9%9B%86%E6%80%BB%E7%BB%93-gpio-%E4%BD%BF%E7%94%A8%E4%B8%89%E6%AD%A5">7. 本集总结：GPIO 使用三步</a>
         <a class="level-2" href="#8-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">8. 坑与易错点</a>
-        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
-        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
     </nav>
   </aside>
 </div>

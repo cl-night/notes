@@ -177,16 +177,10 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-26">2026-10-26</time>
-      <span>17 分钟</span>
+      <span>14 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">开发环境</span><span class="tag">工程模板</span>
     </div>
     <article class="prose"><h1>[2-2] 新建工程 — 学习笔记</h1>
-<ul>
-<li>课程：江协科技《STM32入门教程-2023版 细致讲解 中文字幕》</li>
-<li>视频：BV1th411z7sn?p=4，42:14</li>
-<li>素材：253 帧关键帧（每 10 秒，宽 1280px）+ faster-whisper small 语音转写（821 段）；关键画面截图 16 张随笔记收录（源图在 <code>vidsum_out/stm32_p4/frames/</code>，站内图片在 <code>assets/images/stm32-04/</code>）</li>
-<li>字幕情况：该集同样<strong>没有 B 站 CC/AI 字幕</strong>（yt-dlp 元数据 <code>subtitles</code> 为空，视频自带的是画面硬字幕），文本由 ASR 生成，专有名词已按画面校正。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
 <p>这一集从零搭出**“标准库工程模板”<strong>：建 <code>Start / Library / User</code> 三个文件夹并复制固件库文件，Keil 里建同名分组，再配好 <strong>Include Paths、<code>USE_STDPERIPH_DRIVER</code>、ST-Link 调试器和 Reset and Run</strong>；最后分别用「直接写寄存器」和「调用库函数」点亮 PC13 的 LED 来验证工程，并补充了</strong>启动文件怎么选**、<strong>六步流程总结</strong>和<strong>工程架构</strong>。</p>
 <h2 id="最终工程结构-本集完成时">最终工程结构（本集完成时）</h2>
@@ -578,99 +572,6 @@ int main(void)
 <li><strong>寄存器直接赋值会影响其他位</strong>：只改某一位要用 <code>&amp;=</code>、<code>|=</code>；库函数内部已经处理好了。</li>
 <li><strong>第一次编译慢是正常的</strong>：要编译整个标准外设库，之后改代码就快了。</li>
 </ol>
-<h2 id="时间轴">时间轴</h2>
-<table>
-<thead>
-<tr>
-<th>时间</th>
-<th>内容</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>0:00</td>
-<td>本集任务：建立基于标准库的 STM32 工程；三种开发方式对比（寄存器 / 标准库 / HAL）</td>
-</tr>
-<tr>
-<td>1:50</td>
-<td>解压 <code>STM32F10x_StdPeriph_Lib_V3.5.0</code>，介绍 Libraries / Project / Utilities</td>
-</tr>
-<tr>
-<td>3:20</td>
-<td>建总文件夹 <code>STM32Project</code>，Keil 新建工程、建 <code>2-1 STM32工程模板</code> 文件夹、起工程名 <code>project</code></td>
-</tr>
-<tr>
-<td>4:45</td>
-<td>选择器件 STM32F103C8；关掉 Manage Run-Time Environment 小助手</td>
-</tr>
-<tr>
-<td>5:10</td>
-<td>从固件库复制启动文件、<code>stm32f10x.h</code>、<code>system</code> 文件、<code>core_cm3</code> 到 Start 文件夹</td>
-</tr>
-<tr>
-<td>7:30</td>
-<td>Keil 里建 Start 组、添加文件（启动文件 + 其余文件），文件带小钥匙（只读）</td>
-</tr>
-<tr>
-<td>9:05</td>
-<td>魔术棒 → C/C++ → Include Paths 添加 <code>..\Start</code></td>
-</tr>
-<tr>
-<td>9:45</td>
-<td>建 User 文件夹和 <code>main.c</code>，写最简 main 函数；11:00 左右编译 0 错误 0 警告</td>
-</tr>
-<tr>
-<td>11:50</td>
-<td>调整字号、编码 UTF-8、Tab = 4</td>
-</tr>
-<tr>
-<td>12:50</td>
-<td>硬件接线：最小系统板 + ST-Link + 4 根杜邦线（3.3V/SWDIO/SWCLK/GND），上电 PC13 灯闪烁</td>
-</tr>
-<tr>
-<td>13:35</td>
-<td>Debug 选 ST-Link Debugger，Flash Download 勾 Reset and Run，下载空程序后灯不闪</td>
-</tr>
-<tr>
-<td>14:35</td>
-<td>寄存器点灯：参考手册里配置 RCC_APB2ENR、GPIOC_CRH、GPIOC_ODR，观察亮灭</td>
-</tr>
-<tr>
-<td>18:55</td>
-<td>加 Library 文件夹（库函数 .c/.h）、User 里补 conf/it 文件，建 Library 分组</td>
-</tr>
-<tr>
-<td>22:00</td>
-<td>Define 填 <code>USE_STDPERIPH_DRIVER</code>，Include Paths 补 <code>..\User</code>、<code>..\Library</code>，重新编译</td>
-</tr>
-<tr>
-<td>23:30</td>
-<td>库函数点灯：<code>RCC_APB2PeriphClockCmd</code>、<code>GPIO_Init</code>、<code>GPIO_SetBits/ResetBits</code>，下载验证</td>
-</tr>
-<tr>
-<td>31:35</td>
-<td>补充一：启动文件选择（LD/MD/HD/XL/VL/CL 与型号对应）</td>
-</tr>
-<tr>
-<td>33:40</td>
-<td>补充二：新建工程六步总结与每一步的原因</td>
-</tr>
-<tr>
-<td>36:53</td>
-<td>补充三：工程架构——启动文件、SystemInit、中断、寄存器描述、库函数、conf</td>
-</tr>
-<tr>
-<td>42:00</td>
-<td>总结：基于库函数的工程建好，下一节开始学 GPIO</td>
-</tr>
-</tbody></table>
-<h2 id="存疑">存疑</h2>
-<ul>
-<li>转写由 faster-whisper small 生成（本集 B 站无 CC 字幕，只能走 ASR）。ASR 专名错字已按画面校正：寄存器→“计存器/技能器”、库函数→“库喊数/酷寒数”、main→“命函数/组函数”、User→“优势/优设”、Library→“Lebris/LABORING/Leborate”、GPIOC→“GPLC”、Flash→“Flex”、调试器→“调识器”、器件型号→“7件型号”、Keil→“K5/KO5/KL/Q”、锁相环→“锁像环”、system 文件→“SystemCattle/SystemCat”等。</li>
-<li>版本以画面为准：固件库 <strong>V3.5.0</strong>；Keil 工程文件为 <code>Project.uvprojx</code>，工程路径在视频机上是 <code>C:\Users\Admin\Desktop\STM32Project\2-1 STM32工程模板\</code>。</li>
-<li>本集把下一节 [3-1] GPIO 输出要讲的“库函数点灯”提前演示了一遍，笔记里也按视频顺序保留；GPIO 的详细结构、8 种模式等内容在下一集展开（“8 种模式”见课程大纲，本集未展开）。</li>
-<li>视频<strong>没有</strong>演示 Output 选项卡的 Create HEX File，也没有改 Target 选项卡的 Xtal（视频 09:00 的 Options → Target 画面里 Xtal 显示 12.0MHz，全程未改动、也未提及），笔记不写入这些未讲内容；需要时再按需配置。</li>
-<li>启动文件/型号分类表以视频 PPT 和官方参考手册为准，不同型号请对表选择。</li>
-</ul>
 </article>
     <nav class="pager">
     <a href="stm32-course-map.html"><span class="label">下一篇</span>STM32 课程地图与学习路线</a>
@@ -696,8 +597,6 @@ int main(void)
         <a class="level-2" href="#11-%E8%A1%A5%E5%85%85%E4%BA%8C-%E6%96%B0%E5%BB%BA%E5%B7%A5%E7%A8%8B%E5%85%AD%E6%AD%A5%E6%80%BB%E7%BB%93">11. 补充二：新建工程六步总结</a>
         <a class="level-2" href="#12-%E8%A1%A5%E5%85%85%E4%B8%89-%E5%B7%A5%E7%A8%8B%E6%9E%B6%E6%9E%84%E4%B8%8E%E5%90%84%E6%96%87%E4%BB%B6%E4%BD%9C%E7%94%A8">12. 补充三：工程架构与各文件作用</a>
         <a class="level-2" href="#13-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">13. 坑与易错点</a>
-        <a class="level-2" href="#%E6%97%B6%E9%97%B4%E8%BD%B4">时间轴</a>
-        <a class="level-2" href="#%E5%AD%98%E7%96%91">存疑</a>
     </nav>
   </aside>
 </div>
