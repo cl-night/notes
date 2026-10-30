@@ -177,22 +177,19 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>33 分钟</span>
+      <span>25 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">PWM</span><span class="tag">舵机</span><span class="tag">电机</span>
     </div>
     <article class="prose"><h1>[6-4] PWM驱动LED呼吸灯 / PWM驱动舵机 / PWM驱动直流电机 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是 [6-3] 输出比较/PWM 的<strong>代码课</strong>——理论（输出比较原理、8 种模式、三个公式、舵机 20ms、TB6612 真值表）<strong>全部在上一集 P15</strong>，本集不重复推导，只<strong>套公式 + 写代码 + 示波器验证 + 看现象</strong>。全片是三个独立工程依次从零改出来：<strong>① <code>6-3 PWM驱动LED呼吸灯</code>、② <code>6-4 PWM驱动舵机</code>、③ <code>6-5 PWM驱动直流电机</code></strong>（这三个正是 P15 片头演示的现成工程），最后还有一段<strong>重映射扩展</strong>（PA0 → PA15，是程序一的延伸，不是独立程序）。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>本集把 [6-3] 的 PWM 理论落成一套<strong>可复用的模板</strong>：先用<strong>五步</strong>想清楚——<strong>① 选时钟源（<code>TIM_InternalClockConfig</code>）→ ② 配时基单元（<code>PSC</code> 定频率、<code>ARR</code> 定周期/分辨率）→ ③ 配输出比较单元（<code>TIM_OCxInit</code>，<code>TIM_OCMode_PWM1</code>、<code>TIM_OCPolarity_High</code>、<code>TIM_OutputState_Enable</code>、<code>TIM_Pulse</code> = CCR 初值）→ ④ 把通道对应的 GPIO 配成 <code>GPIO_Mode_AF_PP</code>（<strong>复用推挽，把引脚控制权从 ODR 交给片上外设</strong>，否则定时器驱动不了引脚）→ ⑤ <code>TIM_Cmd</code> 启动计数器</strong>；然后<strong>换程序只改三样东西</strong>：引脚（<code>GPIO_Pin_x</code>）、通道函数（<code>TIM_OCxInit</code> / <code>PWM_SetComparex</code>）、频率参数（<code>PSC</code>/<code>ARR</code>）。三个工程的参数分别是：<strong>① 呼吸灯 = TIM2_CH1 / PA0，<code>PSC=720-1</code>、<code>ARR=100-1</code> → 72M/720/100 = 1kHz，<code>CCR=50</code> → 50%，分辨率 <code>1/(ARR+1)=1%</code>（正好是 P15 结尾那道题），示波器实测周期 1ms、F=1.000kHz，再把 CCR 交给 <code>PWM_SetCompare1</code> 用两个 <code>for</code> 循环 0→100→0 就得到呼吸灯；② 舵机 = TIM2_CH2 / PA1，<code>PSC=72-1</code>、<code>ARR=20000-1</code> → 72M/72/20000 = 50Hz（20ms），于是 <strong>CCR 500～2500 恰好就是 0.5～2.5ms</strong>，<code>Servo_SetAngle(Angle)</code> 用 <code>Angle/180*2000+500</code> 把 0°～180° 线性映射成 500～2500 写进 CCR，按键每次 +30°；③ 直流电机 = TIM2_CH3 / PA2 输出 PWM，TB6612 的 AIN1/AIN2 接 PA4/PA5 管方向，<code>Motor_SetSpeed(Speed)</code>（-100～100）里按正负决定两个方向脚谁高谁低、再把 <code>|Speed|</code> 写进 CCR，实测发现 <strong>1kHz 会让电机发出「蜂鸣器」声</strong>（线圈在 PWM 下振动），于是</strong>减小预分频**把 <code>PSC</code> 从 720-1 改成 <strong>36-1</strong>，频率升到 <strong>72M/36/100 = 20kHz</strong>、超出人耳范围，声音就没了。另外重映射那段要记三条：<strong>开 <code>AFIO</code> 时钟 + <code>GPIO_PartialRemap1_TIM2</code> + <code>GPIO_Remap_SWJ_JTAGDisable</code>（保留 SWD，千万别用 <code>SWJ_Disable</code>）</strong>，再把 <code>GPIO_Pin_0</code> 改成 <code>GPIO_Pin_15</code>。</p>
-<h2 id="0-本集定位-代码课-理论全部在-6-3">0. 本集定位：代码课，理论全部在 [6-3]</h2>
+<p>三个工程共用一套 PWM 模板：选时钟源 → 配时基（<code>PSC</code>/<code>ARR</code>）→ 配输出比较（<code>TIM_OCxInit</code>）→ GPIO 配 <code>GPIO_Mode_AF_PP</code> → <code>TIM_Cmd</code> 启动。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯代码课</strong>：全程 Keil µVision 窗口，复制工程 → 新建模块 → 写 <code>.c/.h</code> → 编译下载 → 示波器/实物看现象；<strong>没有新的理论章节</strong>：唯一一次翻 PPT 讲<strong>五步流程</strong>是 02:44，后面算公式（17:11、20:59）和讲同一定时器多通道（39:25、41:38）又调出过 PPT；翻手册是为了查<strong>引脚定义表与重映射表</strong>（17:39、30:04）。</li>
-<li><strong>三个工程与上一集的对应关系</strong>：P15 片头演示的三个现成工程（<code>6-3 PWM驱动LED呼吸灯</code> / <code>6-4 PWM驱动舵机</code> / <code>6-5 PWM驱动直流电机</code>）在这一集被<strong>逐个真正写出来</strong>，证实了 P15 片尾「下一小节学习 PWM 的代码部分」的预告。</li>
-<li><strong>理论引用 P15 即可</strong>：输出比较原理、8 种输出模式、图125 通道电路、三公式（<code>Freq = CK_PSC/(PSC+1)/(ARR+1)</code>、<code>Duty = CCR/(ARR+1)</code>、<code>Reso = 1/(ARR+1)</code>）、舵机 20ms/0.5～2.5ms 的要求、TB6612 真值表，本笔记<strong>不再推导</strong>，只在用到时写「代公式」，详细推导看 <code>notes/stm32-15-输出比较.md</code>。</li>
-<li><strong>注意编号</strong>：本集视频是 <strong>[6-4]</strong>，而里面三个<strong>工程目录</strong>叫 <code>6-3</code> / <code>6-4</code> / <code>6-5</code>（作者按「代码小节」编号），两套编号不是一回事——P15 存疑里「<strong>素材目录号与本视频小节号不是同一套</strong>」那一条（P15 第 3 条）到这里就解释清楚了。</li>
-<li>片头没有任何铺垫，第一句就是「我们接下来学习输出比较的代码部分」，接着直接「先看一下接线图」（00:05）。</li>
+<li>[6-3] 输出比较的<strong>代码课</strong>：8 种输出模式、图125 通道电路、三个公式、舵机 20ms、TB6612 真值表全部在 P15。</li>
+<li>三个工程依次从零改写：<code>6-3 PWM驱动LED呼吸灯</code>、<code>6-4 PWM驱动舵机</code>、<code>6-5 PWM驱动直流电机</code>，正是 P15 片头演示的三个现成工程。</li>
+<li>片尾还有一段 <strong>PA0 → PA15 重映射</strong>，是程序一的延伸，不是独立程序。</li>
+<li>翻 PPT 只有几处：02:44 讲五步流程、17:11 与 20:59 算公式、39:25 与 41:38 讲多通道；翻手册是查引脚定义表与重映射表。</li>
+<li>编号注意：视频是 <strong>[6-4]</strong>，工程目录却叫 <code>6-3</code> / <code>6-4</code> / <code>6-5</code>，两套编号不是一回事。公式推导见 <code>notes/stm32-15-输出比较.md</code>。</li>
 </ul>
 <h2 id="1-三个程序总览">1. 三个程序总览</h2>
 <table>
@@ -236,31 +233,31 @@
 </tr>
 </tbody></table>
 <ul>
-<li>三个程序<strong>共用同一个定时器 TIM2</strong>，只是用了<strong>不同的通道（CH1/CH2/CH3）</strong>，因此引脚分别是 PA0/PA1/PA2；频率和参数各按外设需要单独设。</li>
-<li>三个程序的文件结构完全一样：<code>Hardware</code> 组下都有 <code>PWM.c</code> / <code>PWM.h</code>（底层），程序二、三再分别加 <strong><code>Servo.c/.h</code></strong>、<strong><code>Motor.c/.h</code></strong>（上层封装）。</li>
-<li>三个程序的主函数都保留 <code>OLED</code> 模块（片头复制工程时特意留着），用来显示变量（角度、速度），方便调试。</li>
+<li>三个程序共用同一个定时器 TIM2，只是用了不同通道（CH1/CH2/CH3），所以引脚分别是 PA0/PA1/PA2。</li>
+<li>文件结构一致：<code>Hardware</code> 组下都有 <code>PWM.c</code> / <code>PWM.h</code>（底层），程序二、三再分别加 <code>Servo.c/.h</code>、<code>Motor.c/.h</code>（上层封装）。</li>
+<li>三个主函数都保留 <code>OLED</code> 模块，用来显示变量（角度、速度），方便调试。</li>
 </ul>
 <h2 id="2-程序一-pwm-驱动-led-呼吸灯-00-00-36-33">2. 程序一：PWM 驱动 LED 呼吸灯（00:00～36:33）</h2>
 <h3 id="2-1-接线-led-正极接-pa0-负极接-gnd">2.1 接线：LED 正极接 PA0、负极接 GND</h3>
 <ul>
-<li>打开接线图 <code>6-3 PWM驱动LED呼吸灯.jpg</code>：在 <strong>PA0 引脚</strong>上插一个 LED，准备<strong>在 PA0 上输出一个 PWM 波</strong>来驱动它、呈现出不同亮度。</li>
-<li><strong>注意接法</strong>：<strong>LED 正极接在 PA0 引脚、负极接在 GND</strong>——这是<strong>正极性驱动</strong>：<strong>高电平点亮、低电平熄灭</strong>，这样接<strong>观察更直观</strong>：<strong>占空比越大，LED 越亮；占空比越小，LED 就越暗</strong>。</li>
-<li>面包板上也<strong>只需要拿出一个 LED</strong>，正极接 PA0、负极接 GND，其他什么都不用。</li>
+<li>接线图 <code>6-3 PWM驱动LED呼吸灯.jpg</code>：在 PA0 上插一个 LED，用 PA0 输出的 PWM 波调亮度。</li>
+<li>这是正极性驱动：正极接 PA0、负极接 GND，高电平点亮、低电平熄灭，观察最直观——占空比越大越亮。</li>
+<li>面包板上只要一个 LED，其他什么都不用。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/01-led-wiring.jpg" alt="图 1：程序一接线图 6-3 PWM驱动LED呼吸灯——面包板上的 STM32 最小系统板 + ST-Link + OLED；LED 正极接 PA0、负极接 GND（正极性驱动：高电平点亮、占空比越大越亮）"></p>
-<p><em>图 1：程序一接线图 <code>6-3 PWM驱动LED呼吸灯</code>——面包板上的 STM32 最小系统板 + ST-Link + OLED；LED 正极接 PA0、负极接 GND（正极性驱动：高电平点亮、占空比越大越亮）</em></p>
+<p><img src="../assets/images/stm32-16/01-led-wiring.jpg" alt="图 1：程序一接线 6-3 PWM驱动LED呼吸灯——LED 正极接 PA0、负极接 GND，正极性驱动"></p>
+<p><em>图 1：程序一接线 <code>6-3 PWM驱动LED呼吸灯</code>——LED 正极接 PA0、负极接 GND，正极性驱动</em></p>
 <h3 id="2-2-复制工程-新建-pwm-模块">2.2 复制工程、新建 PWM 模块</h3>
 <ol>
-<li>回到工程文件夹，<strong>复制「OLED显示屏」工程</strong>，改名 <strong><code>6-3 PWM驱动LED呼吸灯</code></strong>；</li>
-<li>把主函数里 OLED 的演示代码<strong>删掉</strong>——「我们这个工程暂时用不到 OLED」，<strong>但还是保留了 OLED 这个模块</strong>：「如果你想看一些变量，可以随时显示在这个 OLED 上，这样方便调试一些」；</li>
-<li>先编译一下，<code>0 Error(s), 0 Warning(s)</code>，没问题；</li>
-<li>在 <strong><code>Hardware</code> 文件夹右键 → Add New Item to Group &#39;Hardware&#39;</strong>，新建 <strong><code>PWM.c</code></strong>（Type = C File (.c)，Name = <code>PWM</code>，Location 自动落在 <code>&lt;工程目录&gt;\Hardware</code>），再同样建 <strong><code>PWM.h</code></strong>；</li>
-<li><code>PWM.h</code> 里写固定部分（<code>#ifndef</code> / <code>#define</code> / <code>#endif</code>），<code>PWM.c</code> 里加 <code>#include &quot;stm32f10x.h&quot;</code>，然后写一个 <code>PWM_Init</code> 初始化函数的框架。</li>
+<li>复制「OLED显示屏」工程，改名 <code>6-3 PWM驱动LED呼吸灯</code>。</li>
+<li>删掉主函数里 OLED 的演示代码，但保留 OLED 模块，方便随时显示变量调试。</li>
+<li>先编译一下，<code>0 Error(s), 0 Warning(s)</code>。</li>
+<li><code>Hardware</code> 右键 → Add New Item to Group &#39;Hardware&#39;，新建 <code>PWM.c</code>（Type 选 <code>C File (.c)</code>、Name 填 <code>PWM</code>、Location 自动落在 <code>&lt;工程目录&gt;\Hardware</code>），同法再建 <code>PWM.h</code>。</li>
+<li><code>PWM.h</code> 写固定部分（<code>#ifndef</code> / <code>#define</code> / <code>#endif</code>），<code>PWM.c</code> 里 <code>#include &quot;stm32f10x.h&quot;</code>，再写 <code>PWM_Init</code> 的框架。</li>
 </ol>
-<p><img src="../assets/images/stm32-16/02-new-pwm-module.jpg" alt="图 2：在 Hardware 组「Add New Item」新建 PWM 模块——Type 选 C File (.c)，Name 填 PWM，Location 是 ...\6-3 PWM驱动LED呼吸灯\Hardware"></p>
-<p><em>图 2：在 <code>Hardware</code> 组「Add New Item」新建 PWM 模块——Type 选 <code>C File (.c)</code>，Name 填 <code>PWM</code>，Location 是 <code>...\6-3 PWM驱动LED呼吸灯\Hardware</code></em></p>
-<h3 id="2-3-写代码前先理清五步流程">2.3 写代码前先理清五步流程</h3>
-<p>回到 PPT 的「PWM基本结构」图（理论见 P15）：上一小节已经把整个 PWM 通路讲完了，现在<strong>只需要把图里的模块逐个打通</strong>就能输出 PWM。具体五步：</p>
+<p><img src="../assets/images/stm32-16/02-new-pwm-module.jpg" alt="图 2：在 Hardware 组新建 PWM 模块——Type 选 C File (.c)，Location 是 ...\6-3 PWM驱动LED呼吸灯\Hardware"></p>
+<p><em>图 2：在 <code>Hardware</code> 组新建 PWM 模块——Type 选 <code>C File (.c)</code>，Location 是 <code>...\6-3 PWM驱动LED呼吸灯\Hardware</code></em></p>
+<h3 id="2-3-写代码前先理清五步">2.3 写代码前先理清五步</h3>
+<p>对照 PPT 的「PWM基本结构」图（理论见 P15），把图里模块逐个打通就能输出 PWM：</p>
 <table>
 <thead>
 <tr>
@@ -296,10 +293,12 @@
 </tr>
 </tbody></table>
 <ul>
-<li>其中<strong>第②步的代码在 [6-2] 的「定时器定时中断」工程里已经写过</strong>，所以直接<strong>复制过来</strong>：开时钟、选内部时钟、初始化时基单元、最后启动定时器——这些都留着，只是<strong>更新中断不需要</strong>（输出 PWM 不用中断）。</li>
+<li>第①步 <code>TIM_InternalClockConfig</code> 选内部时钟，第⑤步 <code>TIM_Cmd</code> 启动计数器。</li>
+<li>第②步的代码在 [6-2]「定时器定时中断」工程里已经写过，直接复制：开时钟、选内部时钟、初始化时基单元、启动定时器。</li>
+<li>更新中断不需要——输出 PWM 不进中断。</li>
 </ul>
 <h3 id="2-4-库函数地图-输出比较相关的函数">2.4 库函数地图：输出比较相关的函数</h3>
-<p>写之前先扫了一遍 <code>stm32f10x_tim.h</code>，把和输出比较有关的函数过了一遍（<strong>大部分了解一下即可</strong>）：</p>
+<p>先扫一遍 <code>stm32f10x_tim.h</code>，输出比较相关的函数大部分了解一下即可：</p>
 <table>
 <thead>
 <tr>
@@ -321,7 +320,7 @@
 <tr>
 <td><code>TIM_ForceOC1Config</code> ～ <code>OC4Config</code></td>
 <td>强制输出（强制高/低，等于 100%/0% 占空比）</td>
-<td>不用（视频：了解一下即可、不需要掌握）</td>
+<td>不用（了解一下即可）</td>
 </tr>
 <tr>
 <td><code>TIM_OC1PreloadConfig</code> ～ <code>OC4PreloadConfig</code></td>
@@ -360,8 +359,8 @@
 </tr>
 <tr>
 <td><code>TIM_CtrlPWMOutputs</code></td>
-<td><strong>仅高级定时器使用</strong>；高级定时器输出 PWM 时必须调用它使能输出，否则 PWM 不能正常输出（<strong>补充知识：本集视频没有讲</strong>，只在头文件函数清单里带过）</td>
-<td><strong>不用</strong>（本集三个程序都是通用定时器 TIM2）</td>
+<td><strong>仅高级定时器使用</strong>；高级定时器输出 PWM 时必须调用它使能输出，否则 PWM 不能正常输出（<strong>本集视频没有讲</strong>，只在头文件函数清单里带过）</td>
+<td><strong>不用</strong>（三个程序都是通用定时器 TIM2）</td>
 </tr>
 </tbody></table>
 <h3 id="2-5-pwm-init-完整代码-程序一最终版">2.5 <code>PWM_Init</code> 完整代码（程序一最终版）</h3>
@@ -405,44 +404,43 @@ void PWM_Init(void)
     TIM_Cmd(TIM2, ENABLE);
 }
 </code></pre>
-<p>几个要点（视频里都专门讲过）：</p>
+<p>几个要点：</p>
 <ul>
-<li><strong>结构体成员先 <code>TIM_OCStructInit</code> 赋默认值</strong>：作者遇到过一个怪问题——让高级定时器输出 4 路 PWM，<strong>初始化函数放在第一行就没问题，前面出现别的代码就只输出 3 路</strong>。「能不能输出 PWM，竟然和初始化函数在哪一行有关」——原因是没给结构体赋初值，成员值不确定。所以<strong>为了避免程序中出现不确定的因素</strong>，有用没用都先赋一遍默认值，再改自己想改的。</li>
-<li><strong><code>TIM_OCMode</code> 的可选值</strong>：<code>TIM_OCMode_Timing</code>（冻结）、<code>_Active</code>（相等时置有效）、<code>_Inactive</code>（相等时置无效）、<code>_Toggle</code>（相等时翻转）、<code>TIM_OCMode_PWM1</code> / <code>_PWM2</code>、以及 <code>_ForcedAction_Active</code> / <code>_Inactive</code>（强制输出，初始化时不让用）。这里选 <strong><code>TIM_OCMode_PWM1</code></strong>。</li>
-<li><strong><code>TIM_OCPolarity</code></strong>：选 <code>TIM_OCPolarity_High</code>——「有效电平是高电平，REF 有效时输出高电平，都是一个意思」。</li>
-<li><strong><code>TIM_OutputState</code></strong>：<code>Disable</code> 失能 / <code>Enable</code> 使能，这里「肯定得使能」。</li>
-<li><strong><code>TIM_Pulse</code> 就是 CCR 的值</strong>：它的注释写的是「指定的 Pulse 值会被加载到 Capture Compare Register」，也就是 <strong>CCR 捕获/比较寄存器</strong>；<strong>PSC 是预分频、ARR 是周期、CCR 是占空比</strong>，三者共同决定 PWM 的周期和占空比。</li>
-<li><strong>GPIO 为什么必须配 <code>GPIO_Mode_AF_PP</code></strong>：普通的开漏/推挽输出，<strong>引脚的控制权来自输出数据寄存器（ODR）</strong>；而要让<strong>定时器</strong>来控制引脚，就必须用<strong>复用开漏/推挽输出</strong>，此时<strong>输出数据寄存器被断开、输出控制权转移给片上外设</strong>——而按引脚定义表，这个片上外设引脚连的正是 <strong>TIM2 的 CH1 通道</strong>。所以<strong>只有把 GPIO 设置成复用推挽输出</strong>，PWM 波形才能通过引脚输出。</li>
+<li>先 <code>TIM_OCStructInit</code> 赋默认值：不赋初值时成员值不确定，作者遇到过「高级定时器输出 4 路 PWM、初始化函数位置一换就只输出 3 路」的怪问题。</li>
+<li><code>TIM_OCMode</code> 可选：<code>TIM_OCMode_Timing</code>（冻结）、<code>_Active</code>（相等时置有效）、<code>_Inactive</code>（相等时置无效）、<code>_Toggle</code>（相等时翻转）、<code>TIM_OCMode_PWM1</code> / <code>_PWM2</code>、<code>_ForcedAction_Active</code> / <code>_Inactive</code>（强制输出，初始化时不让用）；这里选 <code>TIM_OCMode_PWM1</code>。</li>
+<li><code>TIM_OCPolarity</code> 选 <code>TIM_OCPolarity_High</code>：有效电平是高电平，REF 有效时输出高电平。</li>
+<li><code>TIM_OutputState</code>：<code>Disable</code> 失能 / <code>Enable</code> 使能，这里选 <code>TIM_OutputState_Enable</code>，肯定得使能。</li>
+<li><code>TIM_Pulse</code> 就是 CCR 的值（注释写「指定的 Pulse 值会被加载到 Capture Compare Register」）；<code>PSC</code> 定预分频、<code>ARR</code> 定周期、<code>CCR</code> 定占空比。</li>
+<li>GPIO 必须配 <code>GPIO_Mode_AF_PP</code>：普通开漏/推挽输出的引脚由 ODR（输出数据寄存器）控制，复用模式下 ODR 被断开、控制权交给片上外设，而该引脚连的正是 TIM2 的 CH1。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/03-gpio-af-pp.jpg" alt="图 3：stm32f10x_gpio.h 里 GPIO_Mode_AF_PP = 0x18 高亮——复用推挽输出；字幕「这里我们需要选择为 GPIO_Mode_AF_PP，复用推挽输出」"></p>
-<p><em>图 3：<code>stm32f10x_gpio.h</code> 里 <code>GPIO_Mode_AF_PP = 0x18</code> 高亮——复用推挽输出；字幕「这里我们需要选择为 GPIO_Mode_AF_PP，复用推挽输出」</em></p>
-<p><img src="../assets/images/stm32-16/04-breathing-params.jpg" alt="图 4：程序一 PWM.c 参数计算完成时（23:15，此时 TIM_Pulse = 50；27:00 后按口述改为 0）——TIM_Period = 100 - 1; //ARR、TIM_Prescaler = 720 - 1; //PSC、TIM_Pulse = 50; //CCR、TIM_OCMode_PWM1、TIM_OCPolarity_High、TIM_OutputState_Enable、TIM_OC1Init(TIM2, ...)、TIM_Cmd(TIM2, ENABLE)"></p>
-<p><em>图 4：程序一 PWM.c 参数计算完成时（23:15，此时 <code>TIM_Pulse = 50</code>；27:00 后按口述改为 0）——<code>TIM_Period = 100 - 1; //ARR</code>、<code>TIM_Prescaler = 720 - 1; //PSC</code>、<code>TIM_Pulse = 50; //CCR</code>、<code>TIM_OCMode_PWM1</code>、<code>TIM_OCPolarity_High</code>、<code>TIM_OutputState_Enable</code>、<code>TIM_OC1Init(TIM2, ...)</code>、<code>TIM_Cmd(TIM2, ENABLE)</code></em></p>
+<p><img src="../assets/images/stm32-16/03-gpio-af-pp.jpg" alt="图 3：stm32f10x_gpio.h 里 GPIO_Mode_AF_PP = 0x18 高亮——复用推挽输出"></p>
+<p><em>图 3：<code>stm32f10x_gpio.h</code> 里 <code>GPIO_Mode_AF_PP = 0x18</code> 高亮——复用推挽输出</em></p>
+<p><img src="../assets/images/stm32-16/04-breathing-params.jpg" alt="图 4：程序一参数计算完成时（23:15，TIM_Pulse = 50，27:00 后改为 0）——TIM_Period = 100 - 1; //ARR、TIM_Prescaler = 720 - 1; //PSC、TIM_Pulse = 50; //CCR、TIM_OC1Init(TIM2, ...)"></p>
+<p><em>图 4：程序一参数计算完成时（23:15，<code>TIM_Pulse = 50</code>，27:00 后改为 0）——<code>TIM_Period = 100 - 1; //ARR</code>、<code>TIM_Prescaler = 720 - 1; //PSC</code>、<code>TIM_Pulse = 50; //CCR</code>、<code>TIM_OC1Init(TIM2, ...)</code></em></p>
 <h3 id="2-6-参数推导-1khz-50-分辨率-1">2.6 参数推导：1kHz / 50% / 分辨率 1%</h3>
-<p>要求：<strong>频率 1kHz、占空比 50%、分辨率 1%</strong>（就是 P15 结尾留的那道练习题）。代入 P15 的三个公式：</p>
+<p>要求：频率 1kHz、占空比 50%、分辨率 1%（P15 结尾留的那道题）。代入三公式：</p>
 <pre><code class="language-text">72M / (PSC+1) / (ARR+1) = 1000
 CCR / (ARR+1)          = 50%
 1 / (ARR+1)            = 1%
 </code></pre>
 <ul>
-<li>由分辨率 1% ⇒ <strong><code>ARR+1 = 100</code></strong>；</li>
-<li>由占空比 50% ⇒ <strong><code>CCR = 50</code></strong>；</li>
-<li>由频率 1000 ⇒ <strong><code>PSC+1 = 720</code></strong>。</li>
-<li>所以：<strong><code>ARR = 100 - 1</code>、<code>PSC = 720 - 1</code>、<code>CCR = 50</code></strong>（写进代码时 PSC/ARR 都要减 1，见「坑与易错点」）。</li>
+<li>三公式记法：<code>Freq = CK_PSC/(PSC+1)/(ARR+1)</code>、<code>Duty = CCR/(ARR+1)</code>、<code>Reso = 1/(ARR+1)</code>。</li>
+<li>分辨率 1% ⇒ <code>1/(ARR+1)=1%</code>、<code>ARR+1 = 100</code>；占空比 50% ⇒ <code>CCR=50</code>；频率 1000 ⇒ <code>PSC+1 = 720</code>。</li>
+<li>所以 <code>ARR = 100 - 1</code>、<code>PSC = 720 - 1</code>、<code>CCR = 50</code>（写进代码时 PSC/ARR 都要减 1）。</li>
+<li><code>ARR+1 = 100</code> 还有个好处：<code>CCR</code> 的值恰好直接等于占空比的百分数（CCR=50 → 50%，CCR=10 → 10%），这也是 ARR 取成 99 的方便之处。</li>
 </ul>
-<p>另外，因为 <strong><code>ARR+1 = 100</code></strong>，所以 <strong><code>CCR</code> 的值恰好直接等于占空比的百分数</strong>（CCR=50 → 50%，CCR=10 → 10%）——这也是这里把 ARR 取成 99 的方便之处。</p>
-<h3 id="2-7-示波器验证-周期-1ms-f-1-000khz-占空比-50">2.7 示波器验证：周期 1ms、F=1.000kHz、占空比 50%</h3>
+<h3 id="2-7-示波器验证-周期-1ms-f-1-000khz">2.7 示波器验证：周期 1ms、F=1.000kHz</h3>
 <ul>
-<li>主函数里 <code>#include &quot;PWM.h&quot;</code>，调用 <code>OLED_Init(); PWM_Init();</code>，编译下载——<strong>此时 LED 已经点亮了</strong>，「它现在其实是在以 1kHz 的频率闪烁，我们看不出来」。</li>
-<li>用<strong>虚拟示波器</strong>（ISDS205B + 电脑软件）看波形：<strong>探头的 GND 与 STM32 共地</strong>，<strong>探头接在 LED 的正极，也就是 PA0</strong>；电脑端打开探头通道就出波形了。</li>
-<li>实测：<strong>「这里到这里，是一个周期，时间是 1ms」</strong>，读数为 <strong><code>F = 1.001kHz</code>（约 1.000kHz）</strong>，<strong>高电平和低电平时间相等 → 占空比 50%</strong>，说明参数设置没问题。</li>
-<li>再改 CCR 做实验：<strong><code>TIM_Pulse = 10</code> → 占空比 10%，LED 变暗</strong>；<strong><code>TIM_Pulse = 90</code> → 占空比 90%，LED 变亮</strong>；示波器上高电平时间同步变短/变长。</li>
+<li>主函数里 <code>#include &quot;PWM.h&quot;</code>、<code>OLED_Init(); PWM_Init();</code>，下载后 LED 已经点亮，只是 1kHz 闪烁看不出来。</li>
+<li>用虚拟示波器（ISDS205B + 电脑软件）：探头 GND 与 STM32 共地，探头接 LED 正极即 PA0。</li>
+<li>实测一个周期 1ms，读数 <code>F = 1.001kHz</code>，高低电平时间相等 → 占空比 50%。</li>
+<li>改 CCR 实验：<code>TIM_Pulse = 10</code> → 占空比 10%、LED 变暗；<code>TIM_Pulse = 90</code> → 90%、变亮。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/05-scope-1khz.jpg" alt="图 5：示波器实测程序一——一个周期 = 1ms，底部读数 F=1.000kHz、高/低电平时间相等（占空比 50%）；字幕「可以看出，这里到这里，是一个周期，时间是1ms」"></p>
-<p><em>图 5：示波器实测程序一——一个周期 = <strong>1ms</strong>，底部读数 <code>F=1.000kHz</code>、高/低电平时间相等（占空比 50%）；字幕「可以看出，这里到这里，是一个周期，时间是1ms」</em></p>
+<p><img src="../assets/images/stm32-16/05-scope-1khz.jpg" alt="图 5：示波器实测程序一——周期 1ms，读数 F=1.000kHz，高低电平时间相等（占空比 50%）"></p>
+<p><em>图 5：示波器实测程序一——周期 1ms，读数 <code>F=1.000kHz</code>，高低电平时间相等（占空比 50%）</em></p>
 <h3 id="2-8-封装-pwm-setcompare1-与呼吸灯主循环">2.8 封装 <code>PWM_SetCompare1</code> 与呼吸灯主循环</h3>
 <ul>
-<li>要在<strong>运行过程中</strong>改 CCR，就要用 <code>TIM_SetCompare1</code> 这类函数。在 <code>PWM.c</code> 里封装一层：</li>
+<li>运行中改 CCR 要用 <code>TIM_SetCompare1</code> 这类函数，在 <code>PWM.c</code> 里封装一层：</li>
 </ul>
 <pre><code class="language-c">void PWM_SetCompare1(uint16_t Compare)
 {
@@ -451,7 +449,7 @@ CCR / (ARR+1)          = 50%
 </code></pre>
 <ul>
 <li>头文件里声明 <code>void PWM_SetCompare1(uint16_t Compare);</code>。</li>
-<li>主函数改成呼吸灯：定义 <code>uint8_t i;</code>，在 <code>while(1)</code> 里用<strong>两个 for 循环</strong>不断改 CCR——</li>
+<li>主函数定义 <code>uint8_t i;</code>，<code>while(1)</code> 里用两个 <code>for</code> 循环不断改 CCR：</li>
 </ul>
 <pre><code class="language-c">int main(void)
 {
@@ -474,17 +472,17 @@ CCR / (ARR+1)          = 50%
 }
 </code></pre>
 <ul>
-<li>说明：<strong>「现在我 ARR+1 等于 100，CCR 的值才直接等于占空比」</strong>——所以这里可以直接把 0～100 循环变量当成占空比传进去。</li>
-<li>现象：<strong>LED 不断变亮、变暗，呈现呼吸灯效果</strong>；示波器上<strong>占空比也在同步变化</strong>，把实物和波形放一起对照，「这个现象就非常直观了」。</li>
+<li>现在 <code>ARR+1</code> 等于 100，CCR 的值直接等于占空比，所以 0～100 的循环变量可以直接当占空比传进去。</li>
+<li>现象：LED 不断变亮变暗，呈呼吸灯效果；示波器上占空比同步变化，实物与波形对照非常直观。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/06-pwm-setcompare1.jpg" alt="图 6：PWM_SetCompare1 封装——void PWM_SetCompare1(uint16_t Compare) { TIM_SetCompare1(TIM2, Compare); }（上面几行可见 TIM_Pulse = 90; //CCR、TIM_OC1Init、TIM_Cmd）"></p>
-<p><em>图 6：<code>PWM_SetCompare1</code> 封装——<code>void PWM_SetCompare1(uint16_t Compare) { TIM_SetCompare1(TIM2, Compare); }</code>（上面几行可见 <code>TIM_Pulse = 90; //CCR</code>、<code>TIM_OC1Init</code>、<code>TIM_Cmd</code>）</em></p>
-<p><img src="../assets/images/stm32-16/07-breathing-main-loop.jpg" alt="图 7：呼吸灯主循环（main.c）——OLED_Init(); PWM_Init(); 之后在 while(1) 里 for (i = 0; i &lt;= 100; i++) 不断调用 PWM_SetCompare1(i)；字幕「然后 PWM_SetCompare1(i);」"></p>
-<p><em>图 7：呼吸灯主循环（main.c）——<code>OLED_Init(); PWM_Init();</code> 之后在 <code>while(1)</code> 里 <code>for (i = 0; i &lt;= 100; i++)</code> 不断调用 <code>PWM_SetCompare1(i)</code>；字幕「然后 PWM_SetCompare1(i);」</em></p>
-<p><img src="../assets/images/stm32-16/08-breathing-phenomenon.jpg" alt="图 8：呼吸灯现象——LED 亮着（亮度在 0～100 占空比之间往复），右侧示波器 F=1.001kHz 占空比同步变化；字幕「两个放在一起对照一下」"></p>
-<p><em>图 8：呼吸灯现象——LED 亮着（亮度在 0～100 占空比之间往复），右侧示波器 <code>F=1.001kHz</code> 占空比同步变化；字幕「两个放在一起对照一下」</em></p>
+<p><img src="../assets/images/stm32-16/06-pwm-setcompare1.jpg" alt="图 6：PWM_SetCompare1 封装——void PWM_SetCompare1(uint16_t Compare) { TIM_SetCompare1(TIM2, Compare); }，上面可见 TIM_Pulse = 90; //CCR"></p>
+<p><em>图 6：<code>PWM_SetCompare1</code> 封装——<code>void PWM_SetCompare1(uint16_t Compare) { TIM_SetCompare1(TIM2, Compare); }</code>，上面可见 <code>TIM_Pulse = 90; //CCR</code></em></p>
+<p><img src="../assets/images/stm32-16/07-breathing-main-loop.jpg" alt="图 7：呼吸灯主循环——while(1) 里 for (i = 0; i &lt;= 100; i++) 不断调用 PWM_SetCompare1(i)"></p>
+<p><em>图 7：呼吸灯主循环——<code>while(1)</code> 里 <code>for (i = 0; i &lt;= 100; i++)</code> 不断调用 <code>PWM_SetCompare1(i)</code></em></p>
+<p><img src="../assets/images/stm32-16/08-breathing-phenomenon.jpg" alt="图 8：呼吸灯现象——LED 在 0～100 占空比之间往复，右侧示波器 F=1.001kHz 占空比同步变化"></p>
+<p><em>图 8：呼吸灯现象——LED 在 0～100 占空比之间往复，右侧示波器 <code>F=1.001kHz</code> 占空比同步变化</em></p>
 <h3 id="2-9-扩展-把-pa0-重映射到-pa15">2.9 扩展：把 PA0 重映射到 PA15</h3>
-<p>P15 提过「CH1 还能重映射到 PA15」，这里动手试一遍。<strong>引脚定义表</strong>里 TIM2 的重映射有四种方式：</p>
+<p>TIM2 的重映射有四种方式（引脚定义表）：</p>
 <table>
 <thead>
 <tr>
@@ -509,27 +507,28 @@ CCR / (ARR+1)          = 50%
 <td>四个引脚都换位置</td>
 </tr>
 </tbody></table>
-<p>操作步骤（代码在 <code>PWM_Init</code> 最前面）：</p>
+<p>操作步骤（写在 <code>PWM_Init</code> 最前面）：先开 <code>AFIO</code> 时钟，再选 <code>GPIO_PartialRemap1_TIM2</code>（部分重映射 1）。</p>
 <pre><code class="language-c">RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);              // ① 开 AFIO 时钟（APB2 设备）
 GPIO_PinRemapConfig(GPIO_PartialRemap1_TIM2, ENABLE);             // ② 选部分重映射 1：CH1 → PA15
 GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);          // ③ 解除 JTAG 复用，保留 SWD
 </code></pre>
 <ul>
-<li><strong>为什么要第③行</strong>：<strong>PA15 上电后默认复用为 JTAG 调试端口</strong>，想让它当普通 GPIO 或定时器通道，就必须先<strong>关闭调试端口的复用</strong>——用同一个 <code>GPIO_PinRemapConfig</code> 函数，三个可选参数：<ul>
-<li><code>GPIO_Remap_SWJ_NoJTRST</code>：<strong>只解除 TRST（PB4）</strong>，其余四个仍是调试端口；</li>
-<li><code>GPIO_Remap_SWJ_JTAGDisable</code>：<strong>解除 JTAG，PA15 / PB3 / PB4 变回 GPIO，PA13 / PA14 仍为 SWD 调试端口</strong>（<strong>推荐</strong>）；</li>
-<li><code>GPIO_Remap_SWJ_Disable</code>：<strong>SWD 和 JTAG 全部解除</strong>，5 个引脚全变 GPIO——<strong>这个参数千万不要随便调用</strong>：调了它并下载程序之后，调试端口就都没了，<strong>这之后再用 ST-Link 就下载不进程序了</strong>，只能用串口下载一个没解除调试端口的程序才能救回来。</li>
+<li>第③行必须有：PA15 上电后默认复用为 JTAG 调试端口，要当普通 GPIO 或定时器通道，先关闭调试端口复用。</li>
+<li>同一个 <code>GPIO_PinRemapConfig</code> 有三个可选参数：<ul>
+<li><code>GPIO_Remap_SWJ_NoJTRST</code>：只解除 TRST（PB4），其余四个仍是调试端口。</li>
+<li><code>GPIO_Remap_SWJ_JTAGDisable</code>：解除 JTAG，PA15 / PB3 / PB4 变回 GPIO，PA13 / PA14 仍为 SWD 调试端口（推荐）。</li>
+<li><code>GPIO_Remap_SWJ_Disable</code>（即 <code>SWJ_Disable</code>）：SWD 和 JTAG 全部解除，5 个引脚全变 GPIO——千万别随便调用，调完 ST-Link 就下载不进程序，只能用串口下载一个没解除调试端口的程序救回来。</li>
 </ul>
 </li>
-<li><strong>GPIO 初始化也要跟着改</strong>：既然挪到了 PA15，<code>GPIO_InitStructure.GPIO_Pin</code> 就要从 <code>GPIO_Pin_0</code> 改成 <strong><code>GPIO_Pin_15</code></strong>。</li>
-<li>验证：改完下载，<strong>PA0 上的呼吸灯不亮了</strong>；往 <strong>PA15 上插一个 LED（正极接 PA15、负极接 GND）</strong>，灯亮 → <strong>说明定时器通道 1 已经成功挪到 PA15</strong>。</li>
-<li>收尾：<strong>重映射这三行先注释掉、保留在代码里</strong>（程序二复制过来时 <code>f_00158</code>/39:15 还能看到这三行注释，但 39:52 作者又说「上面这个也不需要了，先删掉」，之后图 11/图 18 的行号显示已经没有这三行），需要时再解除注释。</li>
+<li>GPIO 初始化也要跟着改：<code>GPIO_InitStructure.GPIO_Pin</code> 从 <code>GPIO_Pin_0</code> 改成 <code>GPIO_Pin_15</code>。</li>
+<li>验证：下载后 PA0 的呼吸灯不亮；PA15 上插 LED（正极接 PA15、负极接 GND）能亮，说明通道 1 已挪到 PA15。</li>
+<li>收尾：这三行先注释掉、保留在代码里；39:15 画面里还能看到 <code>f_00158</code> 这三行注释，39:52 后已删，需要时再解除注释。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/09-remap-pa15.jpg" alt="图 9：重映射代码（PWM.c 开头）——RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);、GPIO_PinRemapConfig(GPIO_PartialRemap1_TIM2, ENABLE);、GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);，以及 GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;"></p>
-<p><em>图 9：重映射代码（PWM.c 开头）——<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);</code>、<code>GPIO_PinRemapConfig(GPIO_PartialRemap1_TIM2, ENABLE);</code>、<code>GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);</code>，以及 <code>GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;</code></em></p>
+<p><img src="../assets/images/stm32-16/09-remap-pa15.jpg" alt="图 9：重映射代码——RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);、GPIO_PinRemapConfig(GPIO_PartialRemap1_TIM2, ENABLE);、GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);，以及 GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;"></p>
+<p><em>图 9：重映射代码——<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO, ENABLE);</code>、<code>GPIO_PinRemapConfig(GPIO_PartialRemap1_TIM2, ENABLE);</code>、<code>GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);</code>，以及 <code>GPIO_InitStructure.GPIO_Pin = GPIO_Pin_15;</code></em></p>
 <h2 id="3-程序二-pwm-驱动舵机-36-43-50-57">3. 程序二：PWM 驱动舵机（36:43～50:57）</h2>
 <h3 id="3-1-接线-sg90-的三根线">3.1 接线：SG90 的三根线</h3>
-<p>打开接线图 <code>6-4 PWM驱动舵机.jpg</code>，把接线图叠在面包板实拍上对照：</p>
+<p>接线图 <code>6-4 PWM驱动舵机.jpg</code> 叠在面包板实拍上对照：</p>
 <table>
 <thead>
 <tr>
@@ -555,34 +554,31 @@ GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);          // ③ 解除 
 </tr>
 </tbody></table>
 <ul>
-<li><strong>5V 千万别接面包板的正极</strong>：那个正极只有 <strong>3.3V</strong>、输出功率也不大，<strong>带不动电机</strong>；所以接到 <strong>ST-Link 的 5V 脚</strong>（USB 供电，功率足够驱动电机）。</li>
-<li>舵机接口是母头，用<strong>跳线和公对母杜邦线</strong>转接：棕色用跳线接面包板 GND、红色用公对母杜邦线接 ST-Link 5V、橙色也转一下接 PA1。</li>
-<li>最后再在 <strong>PB1 接一个按键</strong>，用来控制舵机角度，电路就完成了。</li>
+<li>5V 千万别接面包板的正极：那里只有 3.3V、输出功率也不大，带不动电机；要接 ST-Link 的 5V 脚（USB 供电，功率足够）。</li>
+<li>舵机接口是母头，用跳线和公对母杜邦线转接：棕色接面包板 GND、红色接 ST-Link 5V、橙色接 PA1。</li>
+<li>最后在 PB1 接一个按键控制角度，电路就完成了。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/10-servo-wiring.jpg" alt="图 10：程序二接线图 6-4 PWM驱动舵机——SG90 在上方，棕线（GND）接面包板 GND、红线（5V）接 ST-Link 的 5V、橙线（PWM）接 PA1（TIM2_CH2）；右侧是 ST-Link 与 OLED"></p>
-<p><em>图 10：程序二接线图 <code>6-4 PWM驱动舵机</code>——SG90 在上方，棕线（GND）接面包板 GND、红线（5V）接 ST-Link 的 5V、橙线（PWM）接 PA1（TIM2_CH2）；右侧是 ST-Link 与 OLED</em></p>
+<p><img src="../assets/images/stm32-16/10-servo-wiring.jpg" alt="图 10：程序二接线 6-4 PWM驱动舵机——棕线（GND）接面包板 GND、红线（5V）接 ST-Link 的 5V、橙线（PWM）接 PA1（TIM2_CH2）"></p>
+<p><em>图 10：程序二接线 <code>6-4 PWM驱动舵机</code>——棕线（GND）接面包板 GND、红线（5V）接 ST-Link 的 5V、橙线（PWM）接 PA1（TIM2_CH2）</em></p>
 <h3 id="3-2-从程序一改-通道-1-通道-2">3.2 从程序一改：通道 1 → 通道 2</h3>
 <ul>
-<li>复制上一个工程，改名 <strong><code>6-4 PWM驱动舵机</code></strong>。</li>
-<li>「驱动舵机的关键就是输出一个这样的 PWM 波形」（P15 讲过周期 20ms、高电平 0.5～2.5ms），波形对了驱动就非常简单。</li>
-<li>要改动的地方（<strong>通道从 1 换成 2 一共四处</strong>）：<ol>
-<li><code>GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;</code> → <strong><code>GPIO_Pin_1</code></strong>（PA1）；</li>
-<li><code>TIM_OC1Init(TIM2, &amp;TIM_OCInitStructure);</code> → <strong><code>TIM_OC2Init</code></strong>——「OC1 是通道 1 的初始化，我们要改成 OC2，这样这个结构体的参数就会配置到通道 2 了」；</li>
-<li><code>PWM_SetCompare1</code> → <strong><code>PWM_SetCompare2</code></strong>（<code>TIM_SetCompare2</code>）；</li>
+<li>复制上一个工程，改名 <code>6-4 PWM驱动舵机</code>。</li>
+<li>驱动舵机的关键就是输出周期 20ms、高电平 0.5～2.5ms 的 PWM 波形，波形对了驱动就很简单。</li>
+<li>通道从 1 换成 2 一共四处：<ol>
+<li><code>GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;</code> → <code>GPIO_Pin_1</code>（PA1）；</li>
+<li><code>TIM_OC1Init(TIM2, &amp;TIM_OCInitStructure);</code> → <code>TIM_OC2Init</code>（参数就会配到通道 2）；</li>
+<li><code>PWM_SetCompare1</code> → <code>PWM_SetCompare2</code>（内部 <code>TIM_SetCompare2</code>）；</li>
 <li>头文件里的函数声明同步改。</li>
 </ol>
 </li>
-<li>编译可能报错/警告（<code>function &quot;PWM_SetCompare1&quot; declared implicitly</code> 之类），是<strong>主函数里旧函数名还没改</strong>，改完就没了。</li>
+<li>编译报错/警告（如 <code>function &quot;PWM_SetCompare1&quot; declared implicitly</code>）多是主函数里旧函数名还没改，改完就没了。</li>
 </ul>
 <h3 id="3-3-参数-50hz-20ms-ccr-500-2500-对应-0-5-2-5ms">3.3 参数：50Hz（20ms），CCR 500～2500 对应 0.5～2.5ms</h3>
 <ul>
-<li>舵机要求<strong>周期 20ms</strong>，所以<strong>频率 = 1/20ms = 50Hz</strong>，代公式：<code>72M/(PSC+1)/(ARR+1) = 50</code>。</li>
-<li><strong>PSC 和 ARR 不是固定的</strong>，可以自己多试几次、找一组方便计算的值。作者试出来的值是：<ul>
-<li><strong><code>PSC+1 = 72</code></strong>、<strong><code>ARR+1 = 20000</code></strong> → 72M/72/20000 = <strong>50Hz</strong>，正好满足第一式；</li>
-<li>同时 <strong>20K 个计数对应 20ms</strong>，于是 <strong>CCR = 500 就是 0.5ms，CCR = 2500 就是 2.5ms</strong>——参数非常直观。</li>
-</ul>
-</li>
-<li>写进代码：<strong><code>TIM_Period = 20000 - 1; //ARR</code></strong>、<strong><code>TIM_Prescaler = 72 - 1; //PSC</code></strong>、<code>TIM_Pulse = 0; //CCR</code>（初值给 0）。</li>
+<li>舵机要求周期 20ms ⇒ 频率 50Hz，代公式 <code>72M/(PSC+1)/(ARR+1) = 50</code>。</li>
+<li>PSC 和 ARR 不固定，挑一组好算的：<code>PSC+1 = 72</code>、<code>ARR+1 = 20000</code> → 72M/72/20000 = 50Hz。</li>
+<li>同时 20K 个计数对应 20ms，于是 CCR = 500 就是 0.5ms、2500 就是 2.5ms，参数非常直观。</li>
+<li>写进代码：<code>TIM_Period = 20000 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>、<code>TIM_Pulse = 0; //CCR</code>。</li>
 </ul>
 <pre><code class="language-c">/* 程序二 PWM.c 改动的四处 */
 GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;                    // PA1 → TIM2_CH2
@@ -599,14 +595,14 @@ void PWM_SetCompare2(uint16_t Compare)
 }
 </code></pre>
 <ul>
-<li>验证：主函数里调 <strong><code>PWM_SetCompare2(500)</code> → 舵机转到 0°</strong>；改成 <strong><code>2500</code> → 180°</strong>；<strong><code>1500</code> → 90°</strong>；示波器测得<strong>周期 20ms、高电平 0.5ms / 2.5ms / 1.5ms、<code>F ≈ 50Hz</code></strong>，都符合预期。</li>
+<li>验证：<code>PWM_SetCompare2(500)</code> → 0°，<code>2500</code> → 180°，<code>1500</code> → 90°；示波器测得周期 20ms、高电平 0.5ms / 2.5ms / 1.5ms、<code>F ≈ 50Hz</code>。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/11-servo-params.jpg" alt="图 11：程序二 PWM.c 参数——TIM_Period = 20000 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC、TIM_Pulse = 0; //CCR、TIM_OC2Init(TIM2, ...)、PWM_SetCompare2；字幕「下面 CCR 的取值范围是 500～2500，对应的就是 0.5ms～2.5ms」"></p>
-<p><em>图 11：程序二 PWM.c 参数——<code>TIM_Period = 20000 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>、<code>TIM_Pulse = 0; //CCR</code>、<code>TIM_OC2Init(TIM2, ...)</code>、<code>PWM_SetCompare2</code>；字幕「下面 CCR 的取值范围是 500～2500，对应的就是 0.5ms～2.5ms」</em></p>
-<p><img src="../assets/images/stm32-16/12-scope-50hz.jpg" alt="图 12：示波器实测程序二——CCR = 500 时周期 20ms、高电平约 500us（即 0.5ms，对应 0°），读数 F=50.03Hz；字幕「然后看一下高电平时间」"></p>
-<p><em>图 12：示波器实测程序二——<code>CCR = 500</code> 时周期 20ms、高电平约 <strong>500us</strong>（即 0.5ms，对应 0°），读数 <code>F=50.03Hz</code>；字幕「然后看一下高电平时间」</em></p>
+<p><img src="../assets/images/stm32-16/11-servo-params.jpg" alt="图 11：程序二参数——TIM_Period = 20000 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC、TIM_Pulse = 0; //CCR、TIM_OC2Init(TIM2, ...)、PWM_SetCompare2（CCR 500～2500 对应 0.5～2.5ms）"></p>
+<p><em>图 11：程序二参数——<code>TIM_Period = 20000 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>、<code>TIM_Pulse = 0; //CCR</code>、<code>TIM_OC2Init(TIM2, ...)</code>、<code>PWM_SetCompare2</code>（CCR 500～2500 对应 0.5～2.5ms）</em></p>
+<p><img src="../assets/images/stm32-16/12-scope-50hz.jpg" alt="图 12：示波器实测程序二——CCR = 500 时周期 20ms、高电平约 500us（0.5ms，对应 0°），读数 F=50.03Hz"></p>
+<p><em>图 12：示波器实测程序二——<code>CCR = 500</code> 时周期 20ms、高电平约 500us（0.5ms，对应 0°），读数 <code>F=50.03Hz</code></em></p>
 <h3 id="3-4-同一定时器多通道的特点">3.4 同一定时器多通道的特点</h3>
-<p>视频在这里专门补了一段（40:30～42:20），说明「同一个定时器的不同通道输出 PWM」的三个特点：</p>
+<p>视频 40:30～42:20 专门补了一段，说明同一个定时器不同通道输出 PWM 的三个特点：</p>
 <table>
 <thead>
 <tr>
@@ -628,12 +624,12 @@ void PWM_SetCompare2(uint16_t Compare)
 </tr>
 </tbody></table>
 <ul>
-<li>所以 <code>TIM_OC1Init</code>～<code>TIM_OC4Init</code> 可以同时写、同时用：<strong>驱动多个舵机或多个直流电机，用同一个定时器的不同通道就完全够了</strong>。</li>
+<li>所以 <code>TIM_OC1Init</code>～<code>TIM_OC4Init</code> 可以同时写、同时用：驱动多个舵机或多个电机，用同一个定时器的不同通道就够了。</li>
 <li>本程序只用通道 2，所以只调用 <code>TIM_OC2Init</code>。</li>
 </ul>
 <h3 id="3-5-servo-模块-角度-ccr-的线性映射">3.5 Servo 模块：角度 → CCR 的线性映射</h3>
 <ul>
-<li>直接调 <code>PWM_SetCompare2(500)</code> 参数不直观（「这参数谁知道是啥意思呢」），所以在 <code>Hardware</code> 里再建一个 <strong><code>Servo.c</code> / <code>Servo.h</code></strong> 模块，把「设置角度」封装起来：</li>
+<li>直接调 <code>PWM_SetCompare2(500)</code> 参数不直观，在 <code>Hardware</code> 里再建 <code>Servo.c</code> / <code>Servo.h</code>，把「设置角度」封装起来：</li>
 </ul>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
 #include &quot;PWM.h&quot;
@@ -649,13 +645,9 @@ void Servo_SetAngle(float Angle)                 // 参数用 float，方便计�
 }
 </code></pre>
 <ul>
-<li><strong>映射推导</strong>：<strong>0° 对应 500、180° 对应 2500</strong>，角度范围是 <strong>180</strong>、CCR 范围是 <strong>2000</strong>，所以先<strong>缩放</strong> <code>Angle / 180 * 2000</code>，再加<strong>偏移 +500</strong>：<ul>
-<li><code>Angle = 0</code> → 0/180×2000 = 0，+500 = <strong>500</strong> → 对应 0°；</li>
-<li><code>Angle = 180</code> → 180/180×2000 = 2000，+500 = <strong>2500</strong> → 对应 180°；</li>
-<li>映射是<strong>线性</strong>的，中间值一一对应。</li>
-</ul>
-</li>
-<li>头文件声明 <code>void Servo_Init(void);</code> 和 <code>void Servo_SetAngle(float Angle);</code>；主函数不再直接 <code>#include &quot;PWM.h&quot;</code>，改成 <strong><code>#include &quot;Servo.h&quot;</code></strong>、<code>Servo_Init()</code>、<code>Servo_SetAngle(Angle)</code>，这样更直观。</li>
+<li>映射推导：0° 对应 500、180° 对应 2500，角度范围 180、CCR 范围 2000，所以先缩放 <code>Angle / 180 * 2000</code>，再加偏移 +500；也可以记成 <code>Angle/180*2000+500</code>。</li>
+<li><code>Angle = 0</code> → 0+500 = 500；<code>Angle = 180</code> → 2000+500 = 2500；中间线性一一对应。</li>
+<li>头文件声明 <code>void Servo_Init(void);</code> 和 <code>void Servo_SetAngle(float Angle);</code>；主函数改成 <code>#include &quot;Servo.h&quot;</code>、<code>Servo_Init()</code>、<code>Servo_SetAngle(Angle)</code>。</li>
 </ul>
 <h3 id="3-6-主函数与现象">3.6 主函数与现象</h3>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
@@ -692,16 +684,15 @@ int main(void)
 }
 </code></pre>
 <ul>
-<li>现象：<strong>每按一下按键，角度加 30°</strong>，舵机就转到对应角度并<strong>保持住</strong>（手拨输出轴能感到一股力在维持位置）；示波器上<strong>高电平时间（占空比）同步变化</strong>，<code>F ≈ 50Hz</code> 不变。</li>
-<li>第二个程序到此写完（50:57）。</li>
+<li>现象：每按一下按键角度加 30°，舵机转到对应角度并保持住（手拨输出轴能感到维持的力）；示波器高电平时间同步变化，<code>F ≈ 50Hz</code> 不变。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/13-servo-setangle.jpg" alt="图 13：Servo.c 模块——void Servo_Init(void) { PWM_Init(); } 与 void Servo_SetAngle(float Angle) { PWM_SetCompare2(Angle / 180 * 2000 + 500); }；字幕「验证一下，Angle=0时，0/180*2000=0，再+500，得到的是500，对应0度」"></p>
-<p><em>图 13：<code>Servo.c</code> 模块——<code>void Servo_Init(void) { PWM_Init(); }</code> 与 <code>void Servo_SetAngle(float Angle) { PWM_SetCompare2(Angle / 180 * 2000 + 500); }</code>；字幕「验证一下，Angle=0时，0/180</em>2000=0，再+500，得到的是500，对应0度」*</p>
-<p><img src="../assets/images/stm32-16/14-servo-main.jpg" alt="图 14：程序二主函数——OLED_Init(); Servo_Init(); Key_Init(); 后 OLED_ShowString(1, 1, &quot;Angle:&quot;)，while 里按键则 Angle += 30、if (Angle &gt; 180) { Angle = 0; }（后面 Servo_SetAngle(Angle) 与 OLED 显示按口述补全）"></p>
-<p><em>图 14：程序二主函数——<code>OLED_Init(); Servo_Init(); Key_Init();</code> 后 <code>OLED_ShowString(1, 1, &quot;Angle:&quot;)</code>，while 里按键则 <code>Angle += 30</code>、<code>if (Angle &gt; 180) { Angle = 0; }</code>（后面 <code>Servo_SetAngle(Angle)</code> 与 OLED 显示按口述补全）</em></p>
+<p><img src="../assets/images/stm32-16/13-servo-setangle.jpg" alt="图 13：Servo.c 模块——void Servo_Init(void) { PWM_Init(); } 与 void Servo_SetAngle(float Angle) { PWM_SetCompare2(Angle / 180 * 2000 + 500); }"></p>
+<p><em>图 13：<code>Servo.c</code> 模块——<code>void Servo_Init(void) { PWM_Init(); }</code> 与 <code>void Servo_SetAngle(float Angle) { PWM_SetCompare2(Angle / 180 * 2000 + 500); }</code></em></p>
+<p><img src="../assets/images/stm32-16/14-servo-main.jpg" alt="图 14：程序二主函数——OLED_Init(); Servo_Init(); Key_Init();、OLED_ShowString(1, 1, &quot;Angle:&quot;)，while 里 Angle += 30、if (Angle &gt; 180) { Angle = 0; }"></p>
+<p><em>图 14：程序二主函数——<code>OLED_Init(); Servo_Init(); Key_Init();</code>、<code>OLED_ShowString(1, 1, &quot;Angle:&quot;)</code>，while 里 <code>Angle += 30</code>、<code>if (Angle &gt; 180) { Angle = 0; }</code></em></p>
 <h2 id="4-程序三-pwm-驱动直流电机-51-03-1-04-25">4. 程序三：PWM 驱动直流电机（51:03～1:04:25）</h2>
 <h3 id="4-1-接线-tb6612-模块的引脚与电源">4.1 接线：TB6612 模块的引脚与电源</h3>
-<p>打开接线图 <code>6-5 PWM驱动直流电机.jpg</code>（红色 TB6612 模块 + 130 电机 + 面包板 + OLED + 按键）：</p>
+<p>接线图 <code>6-5 PWM驱动直流电机.jpg</code>（红色 TB6612 模块 + 130 电机 + 面包板 + OLED + 按键）：</p>
 <table>
 <thead>
 <tr>
@@ -757,25 +748,27 @@ int main(void)
 </tr>
 </tbody></table>
 <ul>
-<li><strong>面包板接线顺序</strong>：模块<strong>背面有引脚标号</strong>，把 <strong>VM 放在左下角</strong>插在面包板中间——「<strong>这个千万别插反了，要不然容易烧坏驱动</strong>」；然后依次接第二个脚 VCC→电源正、第三个脚 GND→电源负，AO1/AO2 接电机两根线；上面四个脚 PWMA→PA2、AIN2→PA5、AIN1→PA4、STBY→电源正；最后用公对母杜邦线把 <strong>VM 接 ST-Link 的 5V</strong>；PB1 按键之前已经接好。</li>
-<li>小提醒：<strong>螺旋桨先别装</strong>，「这个电机的螺旋桨转的还是比较快的，可以先不插，要不然调试的时候可能比较危险」。</li>
-<li>这里的 <strong>PA2 对应 TIM2 的通道 3</strong>，所以等下初始化通道 3 就行了——<strong>又换了一个通道</strong>。</li>
+<li>接线顺序：模块背面有引脚标号，VM 放在左下角插在面包板中间——千万别插反，否则容易烧坏驱动。</li>
+<li>然后依次接 VCC→电源正、GND→电源负，AO1/AO2 接电机两根线；上面四个脚 PWMA→PA2、AIN2→PA5、AIN1→PA4、STBY→电源正。</li>
+<li>最后用公对母杜邦线把 VM 接 ST-Link 的 5V；PB1 按键之前已经接好。</li>
+<li>螺旋桨先别装：这电机转得比较快，调试时可能危险。</li>
+<li>PA2 对应 TIM2 的通道 3，初始化通道 3 就行了——又换了一个通道。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/15-motor-wiring.jpg" alt="图 15：程序三接线图 6-5 PWM驱动直流电机——红色 TB6612 驱动模块、130 电机、面包板、OLED；按本节接线说明：VM（左下角）接 ST-Link 5V、VCC 接 3.3V、AO1/AO2 接电机、PWMA 接 PA2、AIN1/AIN2 接 PA4/PA5、STBY 接 3.3V"></p>
-<p><em>图 15：程序三接线图 <code>6-5 PWM驱动直流电机</code>——红色 TB6612 驱动模块、130 电机、面包板、OLED；按本节接线说明：VM（左下角）接 ST-Link 5V、VCC 接 3.3V、AO1/AO2 接电机、PWMA 接 PA2、AIN1/AIN2 接 PA4/PA5、STBY 接 3.3V</em></p>
+<p><img src="../assets/images/stm32-16/15-motor-wiring.jpg" alt="图 15：程序三接线 6-5 PWM驱动直流电机——TB6612 模块：VM（左下角）接 ST-Link 5V、VCC 接 3.3V、AO1/AO2 接电机、PWMA 接 PA2、AIN1/AIN2 接 PA4/PA5"></p>
+<p><em>图 15：程序三接线 <code>6-5 PWM驱动直流电机</code>——TB6612 模块：VM（左下角）接 ST-Link 5V、VCC 接 3.3V、AO1/AO2 接电机、PWMA 接 PA2、AIN1/AIN2 接 PA4/PA5</em></p>
 <h3 id="4-2-从程序一改-通道-1-通道-3">4.2 从程序一改：通道 1 → 通道 3</h3>
 <ul>
-<li>复制 <strong><code>6-3 PWM驱动LED呼吸灯</code></strong> 工程，改名 <strong><code>6-5 PWM驱动直流电机</code></strong>。</li>
-<li>此时代码还是在通道 1 输出 1kHz 的 PWM，而电机接在<strong>通道 3</strong>上，所以要改（和程序二同样的四处）：<ol>
-<li><code>GPIO_Pin_0</code> → <strong><code>GPIO_Pin_2</code></strong>；</li>
-<li><code>TIM_OC1Init</code> → <strong><code>TIM_OC3Init</code></strong>；</li>
-<li><code>PWM_SetCompare1</code> → <strong><code>PWM_SetCompare3</code></strong>；</li>
+<li>复制 <code>6-3 PWM驱动LED呼吸灯</code> 工程，改名 <code>6-5 PWM驱动直流电机</code>。</li>
+<li>电机接在通道 3，和程序二同样改四处：<ol>
+<li><code>GPIO_Pin_0</code> → <code>GPIO_Pin_2</code>；</li>
+<li><code>TIM_OC1Init</code> → <code>TIM_OC3Init</code>；</li>
+<li><code>PWM_SetCompare1</code> → <code>PWM_SetCompare3</code>；</li>
 <li>头文件里的声明同步改成 3。</li>
 </ol>
 </li>
 </ul>
 <h3 id="4-3-motor-模块-方向脚-速度函数">4.3 Motor 模块：方向脚 + 速度函数</h3>
-<p>在 <code>Hardware</code> 里建 <strong><code>Motor.c</code> / <code>Motor.h</code></strong>：<code>Motor_Init</code> 里先 <code>PWM_Init()</code> 初始化 PWM，然后<strong>额外</strong>初始化两个方向控制脚（从 <code>LED.c</code> 复制 GPIO 初始化代码改一改）：</p>
+<p>在 <code>Hardware</code> 里建 <code>Motor.c</code> / <code>Motor.h</code>：<code>Motor_Init</code> 先 <code>PWM_Init()</code>，再额外初始化两个方向控制脚（从 <code>LED.c</code> 复制 GPIO 初始化代码改一改）：</p>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
 #include &quot;PWM.h&quot;
 
@@ -810,28 +803,28 @@ void Motor_SetSpeed(int8_t Speed)
 }
 </code></pre>
 <ul>
-<li><strong>方向逻辑</strong>：「哪个为高、哪个为低不重要，就是极性不一样而已」——正转时 PA4 高、PA5 低；反转时把两个 <strong>Set/Reset 反过来</strong>即可（对应 TB6612 真值表里 IN1/IN2 一高一低才转、全高制动、全低停止，见 P15）。</li>
-<li><strong>速度</strong>：最后把 <code>Speed</code> 传给 <code>PWM_SetCompare3</code>。<strong>注意 <code>TIM_SetCompare3</code> 只能传正数</strong>，所以在反转分支里要写成 <strong><code>-Speed</code></strong>（Speed 本身是负数，取反才变正）。</li>
-<li>测试：先 <code>Motor_SetSpeed(50)</code> → 正转；改成 <code>-50</code> → 反转；改成 <code>100</code> → 满速；每次都用手试一下方向。</li>
+<li>方向逻辑：哪个为高不重要，只是极性不一样——正转 PA4 高、PA5 低，反转把两个 Set/Reset 反过来（对应 TB6612 真值表：IN1/IN2 一高一低才转）。</li>
+<li>速度：最后把 <code>Speed</code> 传给 <code>PWM_SetCompare3</code>，也可以理解成把 <code>|Speed|</code> 写进 CCR；<code>TIM_SetCompare3</code> 只能传正数，所以反转分支写 <code>-Speed</code>。</li>
+<li>测试：<code>Motor_SetSpeed(50)</code> 正转、<code>-50</code> 反转、<code>100</code> 满速，每次用手试方向。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/16-motor-init.jpg" alt="图 16：Motor.c 的 Motor_Init——GPIO_Mode_Out_PP、GPIO_Pin_4 | GPIO_Pin_5、GPIO_Speed_50MHz、GPIO_Init(GPIOA, ...)，最后 PWM_Init()；字幕「下面 GPIO Pin 改成 GPIO_Pin_4 | GPIO_Pin_5」"></p>
-<p><em>图 16：<code>Motor.c</code> 的 <code>Motor_Init</code>——<code>GPIO_Mode_Out_PP</code>、<code>GPIO_Pin_4 | GPIO_Pin_5</code>、<code>GPIO_Speed_50MHz</code>、<code>GPIO_Init(GPIOA, ...)</code>，最后 <code>PWM_Init()</code>；字幕「下面 GPIO Pin 改成 GPIO_Pin_4 | GPIO_Pin_5」</em></p>
-<p><img src="../assets/images/stm32-16/17-motor-setspeed.jpg" alt="图 17：Motor_SetSpeed(int8_t Speed) 正转分支——if (Speed &gt;= 0) { GPIO_SetBits(GPIOA, GPIO_Pin_4); GPIO_ResetBits(GPIOA, GPIO_Pin_5); PWM_SetCompare3(Speed); }，下面 else 分支在画面里还没展开（内容据口述还原，见「存疑」）"></p>
-<p><em>图 17：<code>Motor_SetSpeed(int8_t Speed)</code> 正转分支——<code>if (Speed &gt;= 0) { GPIO_SetBits(GPIOA, GPIO_Pin_4); GPIO_ResetBits(GPIOA, GPIO_Pin_5); PWM_SetCompare3(Speed); }</code>，下面 <code>else</code> 分支在画面里还没展开（内容据口述还原，见「存疑」）</em></p>
+<p><img src="../assets/images/stm32-16/16-motor-init.jpg" alt="图 16：Motor.c 的 Motor_Init——GPIO_Mode_Out_PP、GPIO_Pin_4 | GPIO_Pin_5、GPIO_Speed_50MHz、GPIO_Init(GPIOA, ...)，最后 PWM_Init()"></p>
+<p><em>图 16：<code>Motor.c</code> 的 <code>Motor_Init</code>——<code>GPIO_Mode_Out_PP</code>、<code>GPIO_Pin_4 | GPIO_Pin_5</code>、<code>GPIO_Speed_50MHz</code>、<code>GPIO_Init(GPIOA, ...)</code>，最后 <code>PWM_Init()</code></em></p>
+<p><img src="../assets/images/stm32-16/17-motor-setspeed.jpg" alt="图 17：Motor_SetSpeed(int8_t Speed) 正转分支——if (Speed &gt;= 0) { GPIO_SetBits(GPIOA, GPIO_Pin_4); GPIO_ResetBits(GPIOA, GPIO_Pin_5); PWM_SetCompare3(Speed); }，else 分支据口述还原"></p>
+<p><em>图 17：<code>Motor_SetSpeed(int8_t Speed)</code> 正转分支——<code>if (Speed &gt;= 0) { GPIO_SetBits(GPIOA, GPIO_Pin_4); GPIO_ResetBits(GPIOA, GPIO_Pin_5); PWM_SetCompare3(Speed); }</code>，<code>else</code> 分支据口述还原</em></p>
 <h3 id="4-4-坑-1khz-会让电机-唱歌-把-psc-改成-36-1-20khz">4.4 坑：1kHz 会让电机「唱歌」→ 把 PSC 改成 36-1（20kHz）</h3>
 <ul>
-<li>电机转起来之后发现一个问题：<strong>电机会发出「蜂鸣器」一样的响声</strong>，<strong>堵转的时候最明显</strong>（转起来时被电机本身的声音盖住，听不太清）。</li>
-<li>原因：<strong>电机里面也是线圈和磁铁</strong>，在 <strong>1kHz 的 PWM</strong> 驱动下会振动发声——<strong>这是正常现象</strong>，不介意可以不管。</li>
-<li>介意的话，解法是<strong>加大 PWM 频率</strong>：<strong>人耳听到声音的频率范围是 20Hz～20kHz</strong>，现在给的是 1kHz，正好在人耳范围内；<strong>频率足够大、超出人耳范围就听不到了</strong>。</li>
-<li><strong>加大频率靠减小预分频器</strong>（PSC），这样<strong>不会影响占空比</strong>。把 <code>TIM_Prescaler</code> 从 <code>720 - 1</code> 改成 <strong><code>36 - 1</code></strong>：</li>
+<li>电机转起来会发出蜂鸣器一样的响声，堵转时最明显（转起来被电机本身的声音盖住）。</li>
+<li>原因：电机里面也是线圈和磁铁，在 1kHz 的 PWM 下会振动发声，属正常现象。</li>
+<li>解法是加大 PWM 频率：人耳范围 20Hz～20kHz，1kHz 正好在范围内，超出人耳范围就听不到。</li>
+<li>加大频率靠减小预分频器（PSC），不影响占空比。把 <code>TIM_Prescaler</code> 从 <code>720 - 1</code> 改成 <code>36 - 1</code>：</li>
 </ul>
 <pre><code class="language-text">72M / 36 / 100 = 20000Hz = 20kHz
 </code></pre>
 <ul>
-<li>改完再堵转试，「就听不到声音了」——电机模块测试完成。</li>
+<li>改完再堵转，就听不到声音了。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/18-motor-20khz.jpg" alt="图 18：程序三最终 PWM.c 时基——TIM_Period = 100 - 1; //ARR、TIM_Prescaler = 36 - 1; //PSC（72M/36/100 = 20kHz，超出人耳范围）、TIM_Pulse = 0、TIM_OC3Init(TIM2, ...)"></p>
-<p><em>图 18：程序三最终 PWM.c 时基——<code>TIM_Period = 100 - 1; //ARR</code>、<code>TIM_Prescaler = 36 - 1; //PSC</code>（72M/36/100 = 20kHz，超出人耳范围）、<code>TIM_Pulse = 0</code>、<code>TIM_OC3Init(TIM2, ...)</code></em></p>
+<p><img src="../assets/images/stm32-16/18-motor-20khz.jpg" alt="图 18：程序三最终时基——TIM_Period = 100 - 1; //ARR、TIM_Prescaler = 36 - 1; //PSC（72M/36/100 = 20kHz，超出人耳范围）、TIM_Pulse = 0、TIM_OC3Init(TIM2, ...)"></p>
+<p><em>图 18：程序三最终时基——<code>TIM_Period = 100 - 1; //ARR</code>、<code>TIM_Prescaler = 36 - 1; //PSC</code>（72M/36/100 = 20kHz，超出人耳范围）、<code>TIM_Pulse = 0</code>、<code>TIM_OC3Init(TIM2, ...)</code></em></p>
 <h3 id="4-5-主函数-现象与-方向反了怎么办">4.5 主函数、现象与「方向反了怎么办」</h3>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
 #include &quot;Delay.h&quot;
@@ -867,23 +860,26 @@ int main(void)
 }
 </code></pre>
 <ul>
-<li><strong>速度循环逻辑</strong>：每按一下 <code>Speed += 20</code>；<strong>超过 100 就跳回 -100</strong>——所以速度从 <strong>-100～100</strong> 循环变化（正转满速 → 按键 → 立刻反转满速 → 逐步回到 0 → 正转……）。</li>
-<li><strong>OLED 显示</strong>：<code>OLED_ShowString(1, 1, &quot;Speed:&quot;)</code> 先显示字符串，<code>OLED_ShowSignedNum(1, 7, Speed, 3)</code> 显示<strong>有符号数</strong>（能显示负号），占 3 位。</li>
-<li>最终现象：<strong>OLED 显示 <code>Speed:+100</code> 等数值，按键改速度、电机正反转加减速</strong>。</li>
+<li>速度循环：每按一下 <code>Speed += 20</code>，超过 100 就跳回 -100，所以速度在 -100～100 之间循环；主循环里交给 <code>Motor_SetSpeed(Speed)</code> 执行。</li>
+<li>OLED：<code>OLED_ShowString(1, 1, &quot;Speed:&quot;)</code> 显示字符串，<code>OLED_ShowSignedNum(1, 7, Speed, 3)</code> 显示有符号数、占 3 位。</li>
+<li>最终现象：OLED 显示 <code>Speed:+100</code> 等数值，按键改速度、电机正反转加减速。</li>
 </ul>
-<p><img src="../assets/images/stm32-16/19-motor-phenomenon.jpg" alt="图 19：程序三最终现象——面包板上 TB6612 模块与电机，OLED 显示 Speed:+100，手按 PB1 按键改变速度"></p>
-<p><em>图 19：程序三最终现象——面包板上 TB6612 模块与电机，OLED 显示 <code>Speed:+100</code>，手按 PB1 按键改变速度</em></p>
-<p><img src="../assets/images/stm32-16/20-motor-final-main.jpg" alt="图 20：程序三最终主函数——OLED_ShowString(1, 1, &quot;Speed:&quot;)；while(1) 里 KeyNum = Key_GetNum(); if (KeyNum == 1) { Speed += 20; if (Speed &gt; 100) { Speed = -100; } }，Motor_SetSpeed(Speed);，OLED_ShowSignedNum(1, 7, Speed, 3);；字幕「我们下一节再见」"></p>
-<p><em>图 20：程序三最终主函数——<code>OLED_ShowString(1, 1, &quot;Speed:&quot;)</code>；<code>while(1)</code> 里 <code>KeyNum = Key_GetNum(); if (KeyNum == 1) { Speed += 20; if (Speed &gt; 100) { Speed = -100; } }</code>，<code>Motor_SetSpeed(Speed);</code>，<code>OLED_ShowSignedNum(1, 7, Speed, 3);</code>；字幕「我们下一节再见」</em></p>
-<p><strong>如果发现电机方向（极性）反了</strong>，作者给了<strong>三种改法</strong>（1:03:52，只口述没演示）：</p>
+<p><img src="../assets/images/stm32-16/19-motor-phenomenon.jpg" alt="图 19：程序三最终现象——TB6612 模块与电机，OLED 显示 Speed:+100，按 PB1 改变速度"></p>
+<p><em>图 19：程序三最终现象——TB6612 模块与电机，OLED 显示 <code>Speed:+100</code>，按 PB1 改变速度</em></p>
+<p><img src="../assets/images/stm32-16/20-motor-final-main.jpg" alt="图 20：程序三最终主函数——OLED_ShowString(1, 1, &quot;Speed:&quot;)，KeyNum = Key_GetNum(); if (KeyNum == 1) { Speed += 20; if (Speed &gt; 100) { Speed = -100; } }、Motor_SetSpeed(Speed);、OLED_ShowSignedNum(1, 7, Speed, 3);"></p>
+<p><em>图 20：程序三最终主函数——<code>OLED_ShowString(1, 1, &quot;Speed:&quot;)</code>，<code>KeyNum = Key_GetNum(); if (KeyNum == 1) { Speed += 20; if (Speed &gt; 100) { Speed = -100; } }</code>、<code>Motor_SetSpeed(Speed);</code>、<code>OLED_ShowSignedNum(1, 7, Speed, 3);</code></em></p>
+<p>如果发现电机方向（极性）反了，三种改法（1:03:52，只口述没演示）：</p>
 <ol>
-<li><strong>最简单的：把电机的两根线反过来接</strong>；</li>
-<li><strong>把输入的 IN1 和 IN2 反过来</strong>（也就是 AIN1/AIN2 两根线对调）；</li>
-<li><strong>在程序里把 Set 和 Reset 反过来</strong>——「这样如果你换引脚的话，比较方便修改」。</li>
+<li>最简单的：把电机的两根线反过来接；</li>
+<li>把输入的 IN1 和 IN2 反过来（AIN1/AIN2 两根线对调）；</li>
+<li>在程序里把 Set 和 Reset 反过来——换引脚时比较方便修改。</li>
 </ol>
 <h2 id="5-三个程序的共同规律">5. 三个程序的共同规律</h2>
 <ul>
-<li><strong>同一套模板</strong>：三个程序都是<strong>复制上一个工程</strong>，然后只改三样——<strong>引脚（<code>GPIO_Pin_x</code>）、通道函数（<code>TIM_OCxInit</code> / <code>PWM_SetComparex</code>）、参数（<code>PSC</code>/<code>ARR</code>）</strong>；<code>PWM_Init</code> 的骨架、五步流程完全一样。</li>
+<li>同一套模板：三个程序都复制上一个工程，只改三样——引脚（<code>GPIO_Pin_x</code>）、通道函数（<code>TIM_OCxInit</code> / <code>PWM_SetComparex</code>）、参数（<code>PSC</code>/<code>ARR</code>）。</li>
+<li>频率由 PSC/ARR 决定，占空比由 CCR 决定；改频率时注意别破坏 CCR 与时间/角度的对应关系（舵机的 500～2500 靠 ARR+1 = 20000 才成立）。</li>
+<li>分层封装：底层 <code>PWM.c</code> 只管按通道输出 PWM、设置 CCR，上层 <code>Servo.c</code> / <code>Motor.c</code> 负责把角度/速度翻译成 CCR 与方向脚电平。</li>
+<li>同一定时器多通道：频率必须相同、占空比各自、相位同步。</li>
 </ul>
 <table>
 <thead>
@@ -913,31 +909,26 @@ int main(void)
 <td><code>PSC=36-1</code>、<code>ARR=100-1</code>（20kHz）；新增 <code>Motor.c/.h</code> + 方向脚 PA4/PA5</td>
 </tr>
 </tbody></table>
-<ul>
-<li><strong>频率由 PSC/ARR 决定，占空比由 CCR 决定</strong>：想改频率就动 PSC 或 ARR（P15 公式 <code>Freq = CK_PSC/(PSC+1)/(ARR+1)</code>），想改占空比就动 CCR（<code>Duty = CCR/(ARR+1)</code>）；改频率时<strong>注意别破坏「CCR 与时间/角度的对应关系」</strong>（比如舵机的 500～2500 是靠 ARR+1=20000 才成立的）。</li>
-<li><strong>分层封装</strong>：底层 <code>PWM.c</code> 只管「按通道输出 PWM、设置 CCR」，上层 <code>Servo.c</code> / <code>Motor.c</code> 负责「把角度/速度翻译成 CCR 和方向脚电平」——换外设时上层改，底层不用动。</li>
-<li><strong>同一定时器多通道</strong>：频率必须相同、占空比各自、相位同步；本集三个程序都用 TIM2 的不同通道，理论上可以同时开三路 PWM（驱动多个舵机/电机够用）。</li>
-</ul>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>GPIO 必须配成 <code>GPIO_Mode_AF_PP</code>（复用推挽）</strong>：普通推挽输出的引脚由<strong>输出数据寄存器（ODR）<strong>控制，定时器根本接管不了；只有复用模式才把</strong>控制权交给片上外设</strong>，PWM 才能从引脚输出。</li>
-<li><strong><code>PSC</code> 和 <code>ARR</code> 写进代码时都要「减 1」</strong>：<code>720-1</code>、<code>100-1</code>、<code>20000-1</code>、<code>72-1</code>、<code>36-1</code>——因为实际分频系数/周期数是「值 + 1」。</li>
-<li><strong>换通道要改四处，漏一处就编译不过或没输出</strong>：<code>GPIO_Pin_x</code>、<code>TIM_OCxInit</code>、<code>PWM_SetComparex</code>（含 <code>TIM_SetComparex</code>）、头文件函数声明。</li>
-<li><strong><code>TIM_Pulse</code> 只是 CCR 的初值</strong>：初始化时给的 50 只决定初始占空比；<strong>运行中改占空比要用 <code>TIM_SetComparex</code></strong>（本集封装成 <code>PWM_SetComparex</code>）。</li>
-<li><strong>别乱抄 <code>TIM_OC1PreloadConfig</code> 和 <code>TIM_CtrlPWMOutputs</code></strong>：前者是 CCR 预装（影子寄存器，一般不用），后者<strong>只有高级定时器才必须调用</strong>（否则高级定时器 PWM 不输出）；本集三个程序都是<strong>通用定时器 TIM2</strong>，<strong>都没有调用这两个函数</strong>。</li>
-<li><strong><code>TIM_OCStructInit</code> 要先给结构体赋默认值</strong>：不赋初值会留下未确定的成员值，作者遇到过「高级定时器初始化函数位置不同，4 路 PWM 只输出 3 路」的怪问题。</li>
-<li><strong><code>TIM_ClockDivision</code> 与定时时间无关</strong>：它只影响输入滤波采样频率，随便配（本集都是 <code>TIM_CKD_DIV1</code>）；<code>TIM_RepetitionCounter</code> 是高级定时器才用的，通用定时器给 0。</li>
-<li><strong>同一个定时器的多路 PWM 频率必须相同</strong>（共用一个 CNT），只有占空比能各自设——想让两路 PWM 频率不同，必须换定时器。</li>
-<li><strong>舵机的 5V 不要接面包板的正极</strong>：那里只有 3.3V，功率也小，带不动舵机；要接 <strong>ST-Link 的 5V</strong>（USB 5V）。</li>
-<li><strong>舵机的角度体系要与 P15 对上</strong>：P15 用的是 <strong>-90°～+90°</strong>（0.5～2.5ms），本集用的是 <strong>0°～180°</strong>（CCR 500～2500）——<strong>同一款 180° 舵机的两种写法</strong>，不是矛盾：<code>0°～180°</code> 对应脉宽 0.5～2.5ms，也对应 <code>-90°～+90°</code>。</li>
-<li><strong><code>Servo_SetAngle</code> 的映射公式别写错</strong>：<code>Angle / 180 * 2000 + 500</code>；<strong>先除后乘</strong>（先算出比例再缩放），偏移 <strong>+500</strong> 不能漏，否则 0° 会变成 0 而不是 500。</li>
-<li><strong>电机方向脚是普通 GPIO 推挽输出</strong>（<code>GPIO_Mode_Out_PP</code>），不是复用——<strong>只有 PWM 脚（PWMA）才需要复用推挽</strong>。</li>
-<li><strong><code>TIM_SetCompare</code> 只能传正数</strong>：反转时 <code>Speed</code> 是负数，要写 <strong><code>PWM_SetCompare3(-Speed)</code></strong>。</li>
-<li><strong>TB6612 的 VM 别接错</strong>：VM 是<strong>电机电源</strong>（接 ST-Link 5V、与电机额定电压一致、要大电流），VCC 是<strong>逻辑电源</strong>（3.3V）；<strong>模块插面包板时 VM 放左下角</strong>，「千万别插反，容易烧坏驱动」。</li>
+<li><strong>GPIO 必须配 <code>GPIO_Mode_AF_PP</code></strong>：普通推挽由 ODR 控制，定时器接管不了；复用模式才把控制权交给片上外设。</li>
+<li><strong><code>PSC</code>、<code>ARR</code> 写进代码都要减 1</strong>：<code>720-1</code>、<code>100-1</code>、<code>20000-1</code>、<code>72-1</code>、<code>36-1</code>，实际分频系数是「值 + 1」。</li>
+<li><strong>换通道要改四处</strong>：<code>GPIO_Pin_x</code>、<code>TIM_OCxInit</code>、<code>PWM_SetComparex</code>、头文件声明，漏一处就没输出或编译不过。</li>
+<li><strong><code>TIM_Pulse</code> 只是 CCR 初值</strong>：运行中改占空比要用 <code>TIM_SetComparex</code>，本集封装成 <code>PWM_SetComparex</code>。</li>
+<li><strong>别乱抄 <code>TIM_OC1PreloadConfig</code> 和 <code>TIM_CtrlPWMOutputs</code></strong>：后者只有高级定时器必须调；本集三个程序都是 TIM2，都没调。</li>
+<li><strong>先 <code>TIM_OCStructInit</code> 赋默认值</strong>：不赋初值成员值不确定，作者遇到过 4 路 PWM 只输出 3 路。</li>
+<li><strong><code>TIM_ClockDivision</code> 与定时时间无关</strong>：只影响输入滤波采样频率，随便配（本集都是 <code>TIM_CKD_DIV1</code>）；<code>TIM_RepetitionCounter</code> 通用定时器给 0。</li>
+<li><strong>同一定时器多路 PWM 频率必须相同</strong>（共用一个 CNT），只有占空比能各自设；要不同频率必须换定时器。</li>
+<li><strong>舵机 5V 不要接面包板正极</strong>：那里只有 3.3V、功率小，带不动；要接 ST-Link 的 5V。</li>
+<li><strong>舵机角度体系要与 P15 对上</strong>：P15 用 <code>-90°～+90°</code>，本集用 <code>0°～180°</code>，是同一款 180° 舵机的两种写法。</li>
+<li><strong><code>Servo_SetAngle</code> 的映射别写错</strong>：<code>Angle / 180 * 2000 + 500</code>，先除后乘，+500 不能漏，否则 0° 变成 0。</li>
+<li><strong>方向脚是普通推挽输出</strong>（<code>GPIO_Mode_Out_PP</code>），不是复用——只有 PWMA 才需要复用推挽。</li>
+<li><strong><code>TIM_SetCompare</code> 只能传正数</strong>：反转时 <code>Speed</code> 是负数，要写 <code>PWM_SetCompare3(-Speed)</code>。</li>
+<li><strong>TB6612 的 VM 别接错</strong>：VM 是电机电源（ST-Link 5V、大电流），VCC 是逻辑电源（3.3V）；插面包板 VM 放左下角，插反容易烧驱动。</li>
 <li><strong>STBY 要接高电平（3.3V）才工作</strong>：接 GND 芯片就待机、电机不动。</li>
-<li><strong>1kHz 的 PWM 会让电机「唱歌」</strong>：线圈在 PWM 下振动，堵转时最明显；解法是<strong>减小 PSC 提高频率</strong>（<code>720-1</code> → <code>36-1</code>，20kHz，超出人耳 20Hz～20kHz），<strong>改频率不影响占空比</strong>。</li>
-<li><strong>重映射 PA15 时别用 <code>GPIO_Remap_SWJ_Disable</code></strong>：它会把 SWD 和 JTAG 全关掉，<strong>下载不进程序</strong>；应该用 <code>GPIO_Remap_SWJ_JTAGDisable</code>（保留 SWD 的 PA13/PA14）。</li>
-<li><strong>重映射之后 GPIO 初始化也要改</strong>：<code>GPIO_Pin_0</code> → <code>GPIO_Pin_15</code>，否则你还在初始化 PA0，PA15 没被配置就输出不了。</li>
+<li><strong>1kHz 的 PWM 会让电机「唱歌」</strong>：线圈振动，堵转最明显；减小 PSC 提高频率（<code>720-1</code> → <code>36-1</code>，20kHz）。</li>
+<li><strong>重映射 PA15 别用 <code>GPIO_Remap_SWJ_Disable</code></strong>：会把 SWD 和 JTAG 全关掉、下载不进程序；要用 <code>GPIO_Remap_SWJ_JTAGDisable</code>。</li>
+<li><strong>重映射之后 GPIO 初始化也要改</strong>：<code>GPIO_Pin_0</code> → <code>GPIO_Pin_15</code>，否则 PA15 没被配置、输出不了。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -949,16 +940,16 @@ int main(void)
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E7%90%86%E8%AE%BA%E5%85%A8%E9%83%A8%E5%9C%A8-6-3">0. 本集定位：代码课，理论全部在 [6-3]</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E4%B8%89%E4%B8%AA%E7%A8%8B%E5%BA%8F%E6%80%BB%E8%A7%88">1. 三个程序总览</a>
         <a class="level-2" href="#2-%E7%A8%8B%E5%BA%8F%E4%B8%80-pwm-%E9%A9%B1%E5%8A%A8-led-%E5%91%BC%E5%90%B8%E7%81%AF-00-00-36-33">2. 程序一：PWM 驱动 LED 呼吸灯（00:00～36:33）</a>
         <a class="level-3" href="#2-1-%E6%8E%A5%E7%BA%BF-led-%E6%AD%A3%E6%9E%81%E6%8E%A5-pa0-%E8%B4%9F%E6%9E%81%E6%8E%A5-gnd">2.1 接线：LED 正极接 PA0、负极接 GND</a>
         <a class="level-3" href="#2-2-%E5%A4%8D%E5%88%B6%E5%B7%A5%E7%A8%8B-%E6%96%B0%E5%BB%BA-pwm-%E6%A8%A1%E5%9D%97">2.2 复制工程、新建 PWM 模块</a>
-        <a class="level-3" href="#2-3-%E5%86%99%E4%BB%A3%E7%A0%81%E5%89%8D%E5%85%88%E7%90%86%E6%B8%85%E4%BA%94%E6%AD%A5%E6%B5%81%E7%A8%8B">2.3 写代码前先理清五步流程</a>
+        <a class="level-3" href="#2-3-%E5%86%99%E4%BB%A3%E7%A0%81%E5%89%8D%E5%85%88%E7%90%86%E6%B8%85%E4%BA%94%E6%AD%A5">2.3 写代码前先理清五步</a>
         <a class="level-3" href="#2-4-%E5%BA%93%E5%87%BD%E6%95%B0%E5%9C%B0%E5%9B%BE-%E8%BE%93%E5%87%BA%E6%AF%94%E8%BE%83%E7%9B%B8%E5%85%B3%E7%9A%84%E5%87%BD%E6%95%B0">2.4 库函数地图：输出比较相关的函数</a>
         <a class="level-3" href="#2-5-pwm-init-%E5%AE%8C%E6%95%B4%E4%BB%A3%E7%A0%81-%E7%A8%8B%E5%BA%8F%E4%B8%80%E6%9C%80%E7%BB%88%E7%89%88">2.5 PWM_Init 完整代码（程序一最终版）</a>
         <a class="level-3" href="#2-6-%E5%8F%82%E6%95%B0%E6%8E%A8%E5%AF%BC-1khz-50-%E5%88%86%E8%BE%A8%E7%8E%87-1">2.6 参数推导：1kHz / 50% / 分辨率 1%</a>
-        <a class="level-3" href="#2-7-%E7%A4%BA%E6%B3%A2%E5%99%A8%E9%AA%8C%E8%AF%81-%E5%91%A8%E6%9C%9F-1ms-f-1-000khz-%E5%8D%A0%E7%A9%BA%E6%AF%94-50">2.7 示波器验证：周期 1ms、F=1.000kHz、占空比 50%</a>
+        <a class="level-3" href="#2-7-%E7%A4%BA%E6%B3%A2%E5%99%A8%E9%AA%8C%E8%AF%81-%E5%91%A8%E6%9C%9F-1ms-f-1-000khz">2.7 示波器验证：周期 1ms、F=1.000kHz</a>
         <a class="level-3" href="#2-8-%E5%B0%81%E8%A3%85-pwm-setcompare1-%E4%B8%8E%E5%91%BC%E5%90%B8%E7%81%AF%E4%B8%BB%E5%BE%AA%E7%8E%AF">2.8 封装 PWM_SetCompare1 与呼吸灯主循环</a>
         <a class="level-3" href="#2-9-%E6%89%A9%E5%B1%95-%E6%8A%8A-pa0-%E9%87%8D%E6%98%A0%E5%B0%84%E5%88%B0-pa15">2.9 扩展：把 PA0 重映射到 PA15</a>
         <a class="level-2" href="#3-%E7%A8%8B%E5%BA%8F%E4%BA%8C-pwm-%E9%A9%B1%E5%8A%A8%E8%88%B5%E6%9C%BA-36-43-50-57">3. 程序二：PWM 驱动舵机（36:43～50:57）</a>

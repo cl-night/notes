@@ -177,32 +177,26 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>24 分钟</span>
+      <span>19 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">编码器</span><span class="tag">测速</span>
     </div>
     <article class="prose"><h1>[6-8] 编码器接口测速 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是定时器大节<strong>最后一部分（编码器接口）的代码课</strong>，也是<strong>模块 6 的最后一集</strong>——全片只写<strong>一个工程 <code>6-8 编码器接口测速</code></strong>（由 <code>6-1 定时器定时中断</code> 工程复制改名，新建 <code>Encoder.c/Encoder.h</code> 模块）。理论（正交编码器、计数方向真值表、表77 三种模式、极性含义）<strong>全在上一集 P19 [6-7]</strong>，本集不重复推导；片尾 20:56「编码器接口测速的代码就写完了」直接结束，<strong>没有下一集预告</strong>。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>本集把 [6-7] 的编码器接口理论写成一个完整工程：<strong>接线</strong>把旋转编码器的 <strong>A 相接 PA6、B 相接 PA7</strong>（查引脚定义表正是 <strong>TIM3_CH1 / TIM3_CH2</strong>，所以用 <strong>TIM3</strong> 的编码器接口；A/B 两根线可以交换、只影响正反转极性，但 PA6/PA7 不能随便换成别的引脚）→ 从 <code>6-1 定时器定时中断</code> <strong>复制工程</strong>、新建 <code>Encoder</code> 模块 → 按<strong>六步</strong>写 <code>Encoder_Init</code>：<strong>① <code>RCC_APB1Periph_TIM3</code> + <code>RCC_APB2Periph_GPIOA</code> 开时钟 ② <code>PA6/PA7</code> 配 <code>GPIO_Mode_IPU</code> 上拉输入 ③ 时基 <code>ARR = 65536-1</code>（满量程、方便换算负数）、<code>PSC = 1-1</code>（不分频，编码器时钟直接驱动计数器）④ <code>TIM_ICInit</code> 配两个通道、<strong>只留 <code>TIM_Channel</code> 和 <code>TIM_ICFilter = 0xF</code></strong>（其余参数与编码器无关）⑤ <strong><code>TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising)</code></strong>（定时器 / 编码器模式 / 通道 1 极性 / 通道 2 极性，一般用 TI12）⑥ <code>TIM_Cmd(TIM3, ENABLE)</code></strong>。这里有个<strong>关键坑</strong>：<strong><code>TIM_ICInit</code> 里的极性和 <code>TIM_EncoderInterfaceConfig</code> 的后两个参数配的是同一个寄存器</strong>，后配置覆盖前配置——所以<strong>要删掉 <code>TIM_ICInit</code> 里的极性行，并且 <code>TIM_EncoderInterfaceConfig</code> 必须写在 <code>TIM_ICInit</code> 之后</strong>。读数分三段演进：<strong>初版</strong> <code>uint16_t Encoder_Get(void){ return TIM_GetCounter(TIM3); }</code>（现象：<strong>向右转一格 CNT 变 4</strong>——机械触点编码器一格内 A/B 各产生一个上升沿+下降沿共 <strong>4 次计数</strong>；向左转到 0 再减会<strong>反向溢到 65535、65534…</strong>）→ <strong>转有符号</strong>：返回值改 <strong><code>int16_t</code></strong>（借补码特性）+ <code>OLED_ShowSignedNum</code>，0 之后直接显示 -1、-2…（实测 <code>CNT:-0013</code>）→ <strong>测速版</strong>：<code>int16_t Temp; Temp = TIM_GetCounter(TIM3); TIM_SetCounter(TIM3, 0); return Temp;</code>（<strong>先读后清零</strong>，需要 Temp 缓存）。测速的<strong>闸门时间</strong>先是用主循环 <strong><code>Delay_ms(1000)</code></strong>（人手转得慢给 1s；速度单位就是<strong>脉冲个数/s</strong>，本集<strong>没有</strong>换算 RPM/每圈脉冲数），缺点是<strong>阻塞主循环</strong>；<strong>最终版改用现成的 1s 定时中断</strong>：定义全局 <strong><code>int16_t Speed</code></strong>，在 <code>TIM2_IRQHandler</code> 里 <strong><code>Speed = Encoder_Get();</code></strong> 并清标志，主循环只快速刷新 <code>OLED_ShowSignedNum(1, 7, Speed, 5)</code>。<strong>改变方向</strong>的办法：A/B 两根线对调，或把任一通道极性从 <code>Rising</code> 改成 <code>Falling</code>（两个都反则方向不变）。</p>
-<h2 id="0-本集定位-代码课-理论全部在-6-7-p19">0. 本集定位：代码课，理论全部在 [6-7] P19</h2>
+<p>A→PA6、B→PA7；<code>Encoder_Init</code> 六步：上拉输入、ARR 满量程、不分频、<code>TIM_EncoderInterfaceConfig</code> 配极性。读数转 <code>int16_t</code> 得负数，测速先读后清零、闸门用 1s 中断。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯代码课</strong>：0:02 第一句「接下来我们就来写一下编码器接口测速的代码」，0:12 看接线图；全程 Keil —— 看接线 → 复制工程 → 新建 Encoder 模块 → 逐行写 <code>Encoder_Init</code> → 写 <code>Encoder_Get</code> → 编译下载 → OLED 看 <code>CNT</code>/<code>Speed</code>。</li>
-<li><strong>本集只有一个程序 / 一个工程</strong>：<code>6-8 编码器接口测速</code>（就是 P19 片头演示的那个成品工程）。</li>
-<li><strong>工程来源</strong>：从 <strong><code>6-1 定时器定时中断</code></strong> 工程复制改名（图 3 的 main.c 里还能看到 <code>#include &quot;Timer.h&quot;</code>、被注释的 <code>Timer_Init()</code>、被注释的 <code>TIM2_IRQHandler</code> 模板）——这些<strong>留着后面测速用</strong>。</li>
-<li><strong>理论引用 P19 即可</strong>：正交编码器 A/B 90°、正转/反转的两张真值表、表77 三种模式、编码器模式下「极性=高低电平反相」，本笔记<strong>不再推导</strong>，只用结论，详细推导看 <code>notes/stm32-19-编码器接口.md</code>。</li>
-<li>片尾没有预告（模块 6 最后一集），20:56「我们编码器接口测速的代码就写完了」直接结束。</li>
+<li><strong>代码课，理论全在 P19 [6-7]</strong>：0:02「接下来我们就来写一下编码器接口测速的代码」，0:12 看接线图，全程 Keil——看接线 → 复制工程 → 新建 <code>Encoder.c/Encoder.h</code> → 逐行写 <code>Encoder_Init</code> → 写 <code>Encoder_Get</code> → 编译下载 → OLED 看 <code>CNT</code>/<code>Speed</code>。</li>
+<li><strong>全片一个工程</strong>：<code>6-8 编码器接口测速</code>，就是 P19 片头演示的成品工程，由 <code>6-1 定时器定时中断</code> 复制改名。</li>
+<li><strong>理论不重复</strong>：正交编码器 A/B 90°、两张真值表、表77 三种模式、编码器模式下「极性=高低电平反相」都在 <code>notes/stm32-19-编码器接口.md</code>，本集只用结论。</li>
+<li><strong>片尾无预告</strong>（模块 6 最后一集）：20:56「我们编码器接口测速的代码就写完了」直接结束。</li>
 </ul>
 <h2 id="1-接线与工程准备">1. 接线与工程准备</h2>
 <h3 id="1-1-接线-a-pa6-b-pa7">1.1 接线：A→PA6、B→PA7</h3>
 <ul>
-<li>接线和「外部中断那一节」（P12 旋转编码器计次）<strong>类似</strong>：把<strong>旋转编码器插在面包板左边</strong>；</li>
-<li><strong>VCC 和 GND 接上电源正负极</strong>；</li>
-<li><strong>下面的 A 相输出接到 PA6、B 相输出接到 PA7</strong>。</li>
-<li><strong>PA6 和 PA7 两个引脚可以交换</strong>：A 接 PA6、B 接 PA7，或者 A 接 PA7、B 接 PA6——<strong>都是可以的，只是正转和反转的极性不一样</strong>（方向反过来）。</li>
-<li><strong>但是 PA6 和 PA7 这两个引脚不能随便更换</strong>：查引脚定义表，<strong>PA6 和 PA7 分别就是 TIM3 的通道 1 和通道 2</strong>；本程序计划用 <strong>TIM3</strong> 接编码器，所以必须接在 PA6/PA7。<strong>其他定时器同理</strong>，都要按这张表接在<strong>对应 TIM 的 CH1 和 CH2</strong> 引脚位置。</li>
-<li>面包板操作：编码器插好 → 跳线接 VCC（电源正）、GND（电源负）→ 两根飞线，A 相接 PA6、B 相接 PA7。</li>
+<li>和 P12「外部中断旋转编码器计次」类似：编码器插在面包板左边，VCC、GND 接电源正负极。</li>
+<li>下面的 A 相输出接 PA6、B 相接 PA7。</li>
+<li>两根线可以交换（A→PA7、B→PA6），只改变正反转极性；但 PA6/PA7 本身不能换：查引脚定义表，PA6 就是 TIM3_CH1、PA7 就是 TIM3_CH2，本程序用 TIM3。</li>
+<li>其他定时器同理，都要按这张表接到对应 TIM 的 CH1、CH2。</li>
 </ul>
 <p><img src="../assets/images/stm32-20/01-wiring.jpg" alt="图 1：接线图 6-8 编码器接口测速——旋转编码器模块在面包板左侧，VCC/GND 接电源正负极（红圈），A/B 两相用两根线接到 STM32 的 PA6/PA7；右侧是 ST-Link 与 OLED"></p>
 <p><em>图 1：接线图 <code>6-8 编码器接口测速</code>——旋转编码器模块在面包板左侧，VCC/GND 接电源正负极（红圈），A/B 两相用两根线接到 STM32 的 PA6/PA7；右侧是 ST-Link 与 OLED</em></p>
@@ -210,14 +204,13 @@
 <p><em>图 2：引脚定义表——第 16 行 PA6 的复用功能里有 <code>TIM3_CH1</code>、第 17 行 PA7 有 <code>TIM3_CH2</code>（红圈）；字幕「其他定时器的话，也都需要参考这个表」</em></p>
 <h3 id="1-2-复制工程-新建-encoder-模块">1.2 复制工程、新建 Encoder 模块</h3>
 <ol>
-<li>回到工程文件夹，<strong>从 <code>6-1 定时器定时中断</code> 的代码基础上写</strong>，复制后改名为 <strong><code>6-8 编码器接口测速</code></strong>；</li>
-<li>打开 main.c：把<strong>原来的代码先注释掉</strong>；<strong>定时中断这部分也先注释掉</strong>——「我们等会儿还会使用」；先编译一下，<code>0 Error(s), 0 Warning(s)</code> 没问题。</li>
-<li>在 <strong><code>Hardware</code></strong> 处右键新建模块，<strong>名字叫 <code>Encoder</code></strong>，存放路径加上 <strong><code>\Hardware</code></strong>；头文件写固定部分、C 文件加一个 stm32 头文件，然后写初始化函数 <strong><code>void Encoder_Init(void)</code></strong>。</li>
+<li>从 <code>6-1 定时器定时中断</code> 的代码基础上复制，改名为 <code>6-8 编码器接口测速</code>。</li>
+<li>打开 main.c：原代码先注释掉，定时中断部分也先注释掉（等会儿还要用）；先编译，<code>0 Error(s), 0 Warning(s)</code> 没问题。</li>
+<li>在 <code>Hardware</code> 处右键新建模块，名字 <code>Encoder</code>，存放路径加 <code>\Hardware</code>；头文件写固定部分、C 文件加 stm32 头文件，然后写 <code>void Encoder_Init(void)</code>。</li>
 </ol>
 <p><img src="../assets/images/stm32-20/03-copied-main-template.jpg" alt="图 3：复制后的 main.c——标题栏是 6-8 编码器接口测速；#include &quot;Timer.h&quot;、Timer_Init() 被注释、OLED_ShowString(1, 1, &quot;Num:&quot;)，下方是 void TIM2_IRQHandler(void) 模板（此帧刚复制完、还没注释；口述 2:23 说要把它注释掉，后续帧里已注释、测速时再解除）"></p>
 <p><em>图 3：复制后的 main.c——标题栏是 <code>6-8 编码器接口测速</code>；<code>#include &quot;Timer.h&quot;</code>、<code>Timer_Init()</code> 被注释、<code>OLED_ShowString(1, 1, &quot;Num:&quot;)</code>，下方是 <code>void TIM2_IRQHandler(void)</code> 模板（此帧刚复制完、还<strong>没</strong>注释；口述 2:23 说要把它注释掉，后续帧里已注释、测速时再解除）</em></p>
 <h2 id="2-写代码前先理清六步">2. 写代码前先理清六步</h2>
-<p>先看 PPT 的「编码器接口基本结构」图（理论见 P19），把流程理一遍：</p>
 <table>
 <thead>
 <tr>
@@ -228,45 +221,42 @@
 </thead>
 <tbody><tr>
 <td>①</td>
-<td><strong>RCC 开启时钟</strong>（GPIO + 定时器）</td>
+<td>RCC 开启时钟（GPIO + 定时器）</td>
 <td>TIM3 在 APB1、GPIOA 在 APB2</td>
 </tr>
 <tr>
 <td>②</td>
-<td><strong>配置 GPIO 为输入模式</strong></td>
+<td>配置 GPIO 为输入模式</td>
 <td>PA6/PA7 上拉输入</td>
 </tr>
 <tr>
 <td>③</td>
-<td><strong>配置时基单元</strong></td>
-<td><strong>预分频一般选不分频</strong>；<strong>ARR 给最大 65535</strong>——只需要 CNT 执行计数就行了</td>
+<td>配置时基单元</td>
+<td>预分频一般选不分频；ARR 给最大 65535——只需要 CNT 执行计数</td>
 </tr>
 <tr>
 <td>④</td>
-<td><strong>配置输入捕获单元</strong></td>
-<td><strong>只有「滤波器」和「极性」这两个参数有用</strong>，后面的参数（分频器、数据选择器）与编码器无关</td>
+<td>配置输入捕获单元</td>
+<td>只有「滤波器」和「极性」这两个参数有用，后面的分频器、数据选择器与编码器无关</td>
 </tr>
 <tr>
 <td>⑤</td>
-<td><strong>配置编码器接口模式</strong></td>
-<td>直接调<strong>一个库函数</strong></td>
+<td>配置编码器接口模式</td>
+<td>直接调一个库函数</td>
 </tr>
 <tr>
 <td>⑥</td>
-<td><strong><code>TIM_Cmd</code> 启动定时器</strong></td>
+<td><code>TIM_Cmd</code> 启动定时器</td>
 <td>电路初始化完成</td>
 </tr>
 </tbody></table>
 <ul>
-<li>初始化完成后：<strong>CNT 会随着编码器旋转而自增自减</strong>；</li>
-<li><strong>测位置</strong>：直接<strong>读出 CNT</strong> 的值就行；</li>
-<li><strong>测速度和方向</strong>：<strong>每隔一段固定的闸门时间取出一次 CNT、再把 CNT 清零</strong>——<strong>这就是测频法测量速度</strong>（P17 的思路，加了方向）。</li>
+<li>初始化完成后 CNT 随编码器旋转自增自减；测位置直接读 CNT。</li>
+<li>测速度和方向：每隔一段固定的闸门时间取出一次 CNT 再清零，这就是测频法测速（P17 思路 + 方向）。</li>
+<li>本小节新学的库函数只有一个 <code>TIM_EncoderInterfaceConfig</code>，参数依次是定时器、编码器模式、通道 1 极性、通道 2 极性。</li>
 </ul>
 <p><img src="../assets/images/stm32-20/04-ppt-six-steps.jpg" alt="图 4：PPT「编码器接口基本结构」——红圈圈出「时基单元」里的 PSC 预分频器与 CNT 计数器、以及两路 GPIO；字幕「第三步，配置时基单元，这里预分频器我们一般选择不分频」"></p>
 <p><em>图 4：PPT「编码器接口基本结构」——红圈圈出「时基单元」里的 PSC 预分频器与 CNT 计数器、以及两路 GPIO；字幕「第三步，配置时基单元，这里预分频器我们一般选择不分频」</em></p>
-<ul>
-<li><strong>本小节需要新学的库函数只有一个</strong>：<strong><code>TIM_EncoderInterfaceConfig</code>（定时器编码器接口配置）</strong>——它的参数依次是：<strong>定时器、编码器模式、通道 1 极性、通道 2 极性</strong>。「其他函数我们就不需要再了解了」。</li>
-</ul>
 <h2 id="3-encoder-init-完整代码">3. <code>Encoder_Init</code> 完整代码</h2>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
 
@@ -313,37 +303,35 @@ void Encoder_Init(void)
 </code></pre>
 <h3 id="3-1-时钟与-gpio-上拉输入的选择原则">3.1 时钟与 GPIO：上拉输入的选择原则</h3>
 <ul>
-<li><strong>开时钟</strong>：第一步开时钟，<strong>TIM3、GPIOA</strong> 没问题（TIM3 是 APB1 外设，所以用 <code>RCC_APB1PeriphClockCmd</code>）。</li>
-<li><strong>GPIO</strong>：用的是 <strong>PA6 和 PA7</strong>，所以 <code>GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7</code>，初始化 GPIOA，<strong>模式选 <code>GPIO_Mode_IPU</code>（上拉输入）</strong>。</li>
-<li><strong>三种输入模式（上拉/下拉/浮空）怎么选</strong>：<ul>
-<li>看<strong>接在这个引脚的外部模块输出的默认电平</strong>：<strong>外部模块空闲默认输出高电平 → 选上拉输入</strong>（默认输入高电平）；<strong>默认输出低电平 → 选下拉输入</strong>（默认输入低电平）——<strong>和外部模块保持默认状态一致，防止默认电平「打架」</strong>；</li>
-<li><strong>一般来说默认高电平是一个习惯的状态，所以上拉输入用得比较多</strong>；</li>
-<li>如果<strong>不确定外部模块输出的默认状态</strong>，或者<strong>外部信号输出功率非常小</strong>，这时就尽量<strong>选择浮空输入</strong>——浮空输入<strong>没有上拉电阻和下拉电阻去影响外部信号</strong>（不过外部输入信号弱时，输入可能会受噪声干扰、来回不断地跳变）。</li>
-</ul>
-</li>
+<li>开时钟：<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);</code>、<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);</code>——TIM3 是 APB1 外设（<code>RCC_APB1Periph_TIM3</code>），所以开头用 <code>RCC_APB1PeriphClockCmd</code>；GPIOA 在 APB2（<code>RCC_APB2Periph_GPIOA</code>）。</li>
+<li>GPIO：<code>PA6/PA7</code> 配 <code>GPIO_Mode_IPU</code>（上拉输入），<code>GPIO_Pin = GPIO_Pin_6 | GPIO_Pin_7</code>，<code>GPIO_Speed_50MHz</code>，初始化 GPIOA。</li>
+<li>三种输入模式怎么选：看外部模块空闲时的默认电平——默认高就上拉输入、默认低就下拉输入，与外部模块保持一致，防止默认电平「打架」。</li>
+<li>默认高电平是习惯状态，所以上拉输入用得比较多。</li>
+<li>不确定外部默认状态、或外部信号输出功率很小时，选浮空输入：没有上拉/下拉电阻去影响外部信号（但信号弱时容易受噪声干扰、来回跳变）。</li>
 </ul>
 <h3 id="3-2-时基单元-arr-满量程-psc-不分频">3.2 时基单元：ARR 满量程、PSC 不分频</h3>
 <ul>
-<li><strong><code>TIM_InternalClockConfig</code> 没用了</strong>（最终代码里已删掉）：<strong>编码器接口会托管时钟</strong>——编码器接口就是一个<strong>带方向控制的外部时钟</strong>，所以这个内部时钟就没有用了（留着也不起作用）。</li>
-<li><strong><code>TIM_CounterMode</code> 这个参数目前也是没有作用的</strong>：因为<strong>计数方向也是被编码器接口托管的</strong>。</li>
-<li><strong><code>ARR</code> 给 <code>65536 - 1</code>（满量程）</strong>：这样<strong>计数的范围是最大的</strong>，而且<strong>方便换算为负数</strong>（见 4.3/4.4 的补码）。</li>
-<li><strong><code>PSC</code> 改成 <code>1 - 1</code>（预分频给 0，就是不分频）</strong>：这样<strong>编码器的时钟直接驱动计数器</strong>（再来一个边沿就计一个数）。</li>
+<li><code>TIM_InternalClockConfig</code> 没用了（最终代码里已删）：编码器接口托管时钟，它本身就是带方向控制的外部时钟。</li>
+<li><code>TIM_CounterMode</code> 同样没有作用：计数方向也被编码器接口托管了。</li>
+<li><code>ARR</code> 给 <code>65536 - 1</code>（满量程，即 <code>65536-1</code>）：计数范围最大，且方便换算负数（见 4.3/4.4 的补码）。</li>
+<li><code>PSC</code> 改成 <code>1 - 1</code>（不分频，即 <code>1-1</code>）：编码器时钟直接驱动计数器，再来一个边沿就计一个数。</li>
 </ul>
 <h3 id="3-3-输入捕获单元-只留滤波器">3.3 输入捕获单元：只留滤波器</h3>
 <ul>
-<li>看 PPT：<strong>输入捕获单元并没有全部使用到</strong>——<strong>编码器接口只使用了通道 1 和通道 2 的「滤波器」和「极性选择」</strong>，所以<strong>只需要配置这两部分的参数</strong>；</li>
-<li>结构体里<strong>后面的参数（分频器、数据选择器）与编码器无关</strong>，「留着也行，只是它们目前没有作用」；</li>
-<li>参数删掉后<strong>结构体配置是不完整的</strong>，为了防止结构体里出现不确定值造成问题，<strong>先用 <code>TIM_ICStructInit</code> 给结构体赋一个初值</strong>（「加个 StructInit 也是提醒一下我们」）；</li>
-<li>然后配<strong>通道 1</strong>：<code>TIM_Channel_1</code> + <strong><code>TIM_ICFilter = 0xF</code></strong> + <code>TIM_ICInit</code>；再<strong>把通道号改成 <code>TIM_Channel_2</code></strong>、同样再 <code>TIM_ICInit</code> 一次——<strong><code>TIM_ICInit</code> 之后结构体已经写入寄存器了，所以同一个结构体改个值可以继续用，不用重新定义</strong>。</li>
-<li>关于<strong>极性参数</strong>：上一小节说过，<strong>这里的「上升沿」并不代表上升沿有效</strong>（编码器接口始终是上升沿、下降沿都有效），<strong>「上升沿」参数代表的是高低电平极性不反转</strong>——对应 PPT 里 TI1/TI2 是否反相：<strong>给上升沿就是不反相、给下降沿就是反相</strong>。</li>
-<li>但这个极性参数<strong>等会儿配置编码器接口时也有</strong>（属于重复配置），所以<strong>最终代码里把 <code>TIM_ICInit</code> 的极性行删掉了</strong>，只留下滤波器和通道号。</li>
+<li>编码器接口只用通道 1、2 的滤波器与极性，后面的分频器、数据选择器与编码器无关（留着也行，目前没作用）。</li>
+<li>参数删掉后结构体不完整，先用 <code>TIM_ICStructInit</code> 赋初值，防止结构体里出现不确定值。</li>
+<li>通道 1：<code>TIM_Channel_1</code> + <code>TIM_ICFilter = 0xF</code> + <code>TIM_ICInit</code>；再把通道号改成 <code>TIM_Channel_2</code> 调一次——<code>TIM_ICInit</code> 已把值写进寄存器，同一个结构体改个值就能继续用。</li>
+<li>极性参数：这里的「上升沿」不代表上升沿有效（编码器接口上下沿都有效），而是高低电平不反转；给上升沿=不反相、给下降沿=反相。</li>
+<li>这个极性参数在编码器接口函数里也有（重复配置），所以最终代码把 <code>TIM_ICPolarity</code> 行删掉，只留滤波器和通道号。</li>
 </ul>
-<p><img src="../assets/images/stm32-20/05-icinit-two-channels.jpg" alt="图 5：Encoder.c 时基与输入捕获部分——TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 1 - 1; //PSC；两个通道 TIM_Channel_1 / TIM_Channel_2 都只配 TIM_ICFilter = 0xF（这一行高亮），TIM_ICPolarity 行此时还在、后面会被删掉；字幕「把下面这些参数写入到通道2」"></p>
-<p><em>图 5：Encoder.c 时基与输入捕获部分——<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 1 - 1; //PSC</code>；两个通道 <code>TIM_Channel_1</code> / <code>TIM_Channel_2</code> 都只配 <code>TIM_ICFilter = 0xF</code>（这一行高亮），<code>TIM_ICPolarity</code> 行此时还在、后面会被删掉；字幕「把下面这些参数写入到通道2」</em></p>
+<p><img src="../assets/images/stm32-20/05-icinit-two-channels.jpg" alt="图 5：Encoder.c 时基与输入捕获部分——TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 1 - 1; //PSC；两个通道 TIM_Channel_1 / TIM_Channel_2 都只配 TIM_ICFilter = 0xF，TIM_ICPolarity 行此时还在、后面会被删掉；字幕「把下面这些参数写入到通道2」"></p>
+<p><em>图 5：Encoder.c 时基与输入捕获部分——<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 1 - 1; //PSC</code>；两个通道 <code>TIM_Channel_1</code> / <code>TIM_Channel_2</code> 都只配 <code>TIM_ICFilter = 0xF</code>，<code>TIM_ICPolarity</code> 行此时还在、后面会被删掉；字幕「把下面这些参数写入到通道2」</em></p>
 <h3 id="3-4-编码器接口模式-tim-encoderinterfaceconfig">3.4 编码器接口模式：<code>TIM_EncoderInterfaceConfig</code></h3>
 <pre><code class="language-c">TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
 </code></pre>
-<p>四个参数（图 6 完整可见）：</p>
+<ul>
+<li>四个参数依次是 <code>TIM3</code>、编码器模式、通道 1 极性、通道 2 极性（图 6 完整可见）。</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -358,39 +346,40 @@ void Encoder_Init(void)
 <td>用哪个定时器的编码器接口</td>
 </tr>
 <tr>
-<td>第 2 个：<strong>编码器模式</strong></td>
-<td><code>TIM_EncoderMode_TI1</code> / <code>TIM_EncoderMode_TI2</code> / <strong><code>TIM_EncoderMode_TI12</code></strong></td>
-<td><strong>仅在 TI1 计数 / 仅在 TI2 计数 / TI1、TI2 都计数</strong>（对应 P19 表77 的三种模式）；<strong>一般用 TI12</strong>（两个边沿都计数，精度最高）</td>
+<td>第 2 个：编码器模式</td>
+<td><code>TIM_EncoderMode_TI1</code> / <code>TIM_EncoderMode_TI2</code> / <code>TIM_EncoderMode_TI12</code></td>
+<td>仅在 TI1 计数 / 仅在 TI2 计数 / TI1、TI2 都计数（对应 P19 表77 三种模式）；一般用 TI12，两个边沿都计数、精度最高</td>
 </tr>
 <tr>
-<td>第 3 个：<strong>通道 1 极性</strong></td>
+<td>第 3 个：通道 1 极性</td>
 <td><code>TIM_ICPolarity_Rising</code> / <code>TIM_ICPolarity_Falling</code></td>
-<td><strong><code>Rising</code> = 不反相；<code>Falling</code> = 反相</strong></td>
+<td><code>Rising</code> = 不反相；<code>Falling</code> = 反相</td>
 </tr>
 <tr>
-<td>第 4 个：<strong>通道 2 极性</strong></td>
+<td>第 4 个：通道 2 极性</td>
 <td>同上</td>
 <td>同上，可按实际情况配置</td>
 </tr>
 </tbody></table>
 <ul>
-<li>「这里的这个极性，等会儿我们配置编码器接口的时候也有，属于重复配置了」——所以要用<strong>后面这个函数</strong>来统一配极性。</li>
-</ul>
-<h3 id="3-5-坑-极性重复配置与函数顺序">3.5 坑：极性重复配置与函数顺序</h3>
-<ul>
-<li><strong><code>TIM_ICInit</code> 里的极性、和 <code>TIM_EncoderInterfaceConfig</code> 的后两个参数，配置的其实是同一个寄存器</strong>——<strong>属于重复配置，后配置的参数会覆盖前面的参数</strong>。</li>
-<li>所以：<strong>把前面 <code>TIM_ICInit</code> 里的极性参数删掉，只使用 <code>TIM_EncoderInterfaceConfig</code> 来配置极性</strong>；</li>
-<li><strong>但一定要注意顺序：<code>TIM_EncoderInterfaceConfig</code> 必须位于 <code>TIM_ICInit</code> 的下面</strong>，<strong>否则就是 <code>TIM_ICInit</code> 覆盖 Encoder 函数的配置</strong>（方向配置就白配了）。</li>
-<li>改完之后，<code>TIM_ICInit</code> 的参数<strong>就只剩一个滤波器还有用</strong>了。</li>
+<li>极性在这个函数里也有，属于重复配置，所以统一用这个函数来配。</li>
+<li>完整一行就是 <code>TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising)</code>。</li>
 </ul>
 <p><img src="../assets/images/stm32-20/06-encoder-interface-config.jpg" alt="图 6：编码器接口配置——TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising); 四参数完整可见（高亮），上方是 TIM_ICInit 两通道；字幕「这两个地方的参数，其实都配置的是同一个寄存器」"></p>
 <p><em>图 6：编码器接口配置——<code>TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);</code> 四参数完整可见（高亮），上方是 <code>TIM_ICInit</code> 两通道；字幕「这两个地方的参数，其实都配置的是同一个寄存器」</em></p>
+<h3 id="3-5-坑-极性重复配置与函数顺序">3.5 坑：极性重复配置与函数顺序</h3>
+<ul>
+<li><code>TIM_ICInit</code> 的极性与 <code>TIM_EncoderInterfaceConfig</code> 后两个参数配的是同一个寄存器，后配置覆盖前配置。</li>
+<li>所以删掉 <code>TIM_ICInit</code> 的极性行，只用 <code>TIM_EncoderInterfaceConfig</code> 配极性。</li>
+<li>顺序：<code>TIM_EncoderInterfaceConfig</code> 必须写在 <code>TIM_ICInit</code> 下面，否则方向配置被 <code>TIM_ICInit</code> 覆盖、白配。</li>
+<li>改完之后 <code>TIM_ICInit</code> 只剩滤波器还有用。</li>
+</ul>
 <h3 id="3-6-启动定时器">3.6 启动定时器</h3>
 <ul>
-<li>最后 <strong><code>TIM_Cmd(TIM3, ENABLE);</code></strong>——<strong>这样初始化配置就结束了</strong>；调用一下 <code>Encoder_Init()</code>，<strong>编码器旋转就能控制 CNT 自增自减了</strong>。</li>
+<li><code>TIM_Cmd(TIM3, ENABLE);</code> 收尾，初始化结束；调用 <code>Encoder_Init()</code> 后旋转编码器就能控制 CNT 自增自减。</li>
 </ul>
-<p><img src="../assets/images/stm32-20/07-encoder-init-head.jpg" alt="图 7：Encoder.c 开头（Encoder_Init 前半）——RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);、RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);、GPIO_Mode_IPU、GPIO_Pin_6 | GPIO_Pin_7、GPIO_Speed_50MHz、TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 1 - 1; //PSC；字幕「调用一下这个 Encoder_Init 函数」"></p>
-<p><em>图 7：Encoder.c 开头（<code>Encoder_Init</code> 前半）——<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);</code>、<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);</code>、<code>GPIO_Mode_IPU</code>、<code>GPIO_Pin_6 | GPIO_Pin_7</code>、<code>GPIO_Speed_50MHz</code>、<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 1 - 1; //PSC</code>；字幕「调用一下这个 Encoder_Init 函数」</em></p>
+<p><img src="../assets/images/stm32-20/07-encoder-init-head.jpg" alt="图 7：Encoder.c 开头（Encoder_Init 前半）——两个开时钟调用、GPIO_Mode_IPU、GPIO_Pin_6 | GPIO_Pin_7、GPIO_Speed_50MHz、TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 1 - 1; //PSC；字幕「调用一下这个 Encoder_Init 函数」"></p>
+<p><em>图 7：Encoder.c 开头（<code>Encoder_Init</code> 前半）——两个开时钟调用、<code>GPIO_Mode_IPU</code>、<code>GPIO_Pin_6 | GPIO_Pin_7</code>、<code>GPIO_Speed_50MHz</code>、<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 1 - 1; //PSC</code>；字幕「调用一下这个 Encoder_Init 函数」</em></p>
 <h2 id="4-读计数-初版-encoder-get">4. 读计数：初版 <code>Encoder_Get</code></h2>
 <h3 id="4-1-初版-get-与主函数">4.1 初版 Get 与主函数</h3>
 <pre><code class="language-c">uint16_t Encoder_Get(void)
@@ -399,8 +388,9 @@ void Encoder_Init(void)
 }
 </code></pre>
 <ul>
-<li>写完把 <code>Encoder_Init</code> 和 <code>Encoder_Get</code> 都放到头文件声明。</li>
-<li>main.c 里：显示字符串改成 <code>&quot;CNT:&quot;</code>，主循环解除注释、不断显示 <code>Encoder_Get()</code> 的值：</li>
+<li><code>Encoder_Init</code> 和 <code>Encoder_Get</code> 都要放到头文件声明。</li>
+<li>初版一行就够：<code>uint16_t Encoder_Get(void){ return TIM_GetCounter(TIM3); }</code>。</li>
+<li>main.c 里显示字符串改成 <code>&quot;CNT:&quot;</code>，主循环解除注释、不断显示 <code>Encoder_Get()</code> 的值：</li>
 </ul>
 <pre><code class="language-c">OLED_Init();
 Encoder_Init();
@@ -413,11 +403,11 @@ while (1)
 </code></pre>
 <h3 id="4-2-现象-向右转一格-cnt-变-4">4.2 现象：向右转一格 CNT 变 4</h3>
 <ul>
-<li>下载后<strong>显示 <code>CNT</code> 是 0</strong>；<strong>向右转一下编码器，可以看到值变成 4</strong>。</li>
-<li>原因：<strong>这个编码器是有「段落感」的</strong>（机械触点式），<strong>每转一格</strong>它输出的波形是：<strong>A 相产生一个低电平脉冲、B 相产生一个相位差 90° 的脉冲</strong>（提前还是滞后取决于正转还是反转；连续转动就和 PPT 的波形一样）。</li>
-<li>所以<strong>转动一格，A、B 相各出现了一个下降沿和上升沿，计次总共加了 4 次</strong>。</li>
-<li><strong>注意</strong>：如果你用的是<strong>电机的编码器（霍尔/光栅），就不会有这个段落感</strong>了，计数取决于实际脉冲。</li>
-<li>继续往右转，<strong>CNT 继续自增</strong>；往左转，<strong>CNT 自减</strong>。</li>
+<li>下载后显示 <code>CNT</code> 是 0，向右转一下变成 4。</li>
+<li>原因：这个编码器有「段落感」（机械触点式），每转一格 A 相产生一个低电平脉冲、B 相产生一个相位差 90° 的脉冲。</li>
+<li>所以转一格，A、B 相各出现一个下降沿和一个上升沿，计次共加了 4 次。</li>
+<li>换成电机的霍尔/光栅编码器就没有段落感，计数取决于实际脉冲。</li>
+<li>继续右转 CNT 自增，左转 CNT 自减。</li>
 </ul>
 <p><img src="../assets/images/stm32-20/09-cnt-4-per-detent.jpg" alt="图 8：初版现象——OLED 显示 CNT:00004（向右转一格、计次加了 4 次），右侧红笔画的是 A/B 两相的波形（各一个上升沿+下降沿）；字幕「所以计次总共加了4次」"></p>
 <p><em>图 8：初版现象——OLED 显示 <code>CNT:00004</code>（向右转一格、计次加了 4 次），右侧红笔画的是 A/B 两相的波形（各一个上升沿+下降沿）；字幕「所以计次总共加了4次」</em></p>
@@ -425,43 +415,36 @@ while (1)
 <p><em>图 9：初版 <code>Encoder_Get</code>——<code>uint16_t Encoder_Get(void) { return TIM_GetCounter(TIM3); }</code>（高亮），上方是 <code>TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12, ...)</code> 与 <code>TIM_Cmd(TIM3, ENABLE)</code>；字幕「这样来测试一下」</em></p>
 <h3 id="4-3-现象-向左转到-0-再减-会溢出到-65535">4.3 现象：向左转到 0 再减，会溢出到 65535</h3>
 <ul>
-<li>实验：<strong>向左转到 0 之后</strong>再向左转，<strong>0 再自减，计数器就反向溢出、回到自动重装值 65535</strong>，然后<strong>继续往下减</strong>：65535、65534……</li>
-<li>原因：<code>Encoder_Get</code> 返回的是 <strong><code>uint16_t</code>（16 位无符号数）</strong>，所以 0 减 1 就变成了 <strong>65535</strong>。</li>
+<li>左转到 0 之后再减，计数器反向溢出、回到自动重装值 65535，再继续往下减：65535、65534……</li>
+<li>原因：<code>Encoder_Get</code> 返回的是 <code>uint16_t</code>，0 减 1 就变成 65535。</li>
 </ul>
 <p><img src="../assets/images/stm32-20/10-cnt-overflow.jpg" alt="图 10：反向溢出——OLED 显示 CNT:65520（左转到 0 后再减，回到 65535 附近继续往下减）；字幕「回到自动重装值，65535，然后继续往下减」"></p>
 <p><em>图 10：反向溢出——OLED 显示 <code>CNT:65520</code>（左转到 0 后再减，回到 65535 附近继续往下减）；字幕「回到自动重装值，65535，然后继续往下减」</em></p>
 <h3 id="4-4-转有符号-把-uint16-t-转成-int16-t">4.4 转有符号：把 <code>uint16_t</code> 转成 <code>int16_t</code></h3>
 <ul>
-<li>如果<strong>想要 0 之后变成 -1</strong>，<strong>直接把 <code>uint16_t</code> 类型强制转换成 <code>int16_t</code> 就行了</strong>；</li>
-<li>两种做法（视频都说了）：可以直接把 <code>OLED_ShowNum</code> 改成 <strong><code>OLED_ShowSignedNum</code></strong>（这个函数内部也做了类型强转）；<strong>还是在 <code>Encoder_Get</code> 里转换</strong>——<strong>函数的返回值直接换成 <code>int16_t</code></strong>，函数声明也别忘了改，主循环里改成 <code>ShowSignedNum</code>，这样就能显示负数了。</li>
-<li>最终写法（<code>Encoder_Get</code> 的返回类型改掉）：</li>
+<li>想让 0 之后显示 -1，直接把返回类型改成 <code>int16_t</code>，函数声明也要跟着改。</li>
+<li>也可以把 <code>OLED_ShowNum</code> 改成 <code>OLED_ShowSignedNum</code>，它内部也做了类型强转；主循环里就是改成 <code>ShowSignedNum</code>。</li>
+<li>现象：向右转自增、向左转自减，负数继续减小（实测 <code>CNT:-0013</code>）。</li>
+<li>原理：借补码把 65535 当 -1、65534 当 -2（P19 讲过）。</li>
 </ul>
 <pre><code class="language-c">int16_t Encoder_Get(void)
 {
     return TIM_GetCounter(TIM3);
 }
 </code></pre>
-<ul>
-<li>现象：<strong>向右转数值自增、向左转数值自减</strong>，变成负数后继续自减（实测画面 <code>CNT:-0013</code>）。</li>
-<li><strong>原理</strong>：这就是<strong>借用补码的特性、快速完成负数转换的小技巧</strong>——65535 当成有符号数看就是 -1、65534 是 -2……（P19 讲过）。</li>
-</ul>
 <p><img src="../assets/images/stm32-20/11-cnt-negative.jpg" alt="图 11：转有符号后的现象——OLED 显示 CNT:-0013（0 以下正常显示负数）；此时字幕「目前向右转是增，向左转是减」"></p>
 <p><em>图 11：转有符号后的现象——OLED 显示 <code>CNT:-0013</code>（0 以下正常显示负数）；此时字幕「目前向右转是增，向左转是减」</em></p>
 <h3 id="4-5-方向反了怎么办">4.5 方向反了怎么办</h3>
 <ul>
-<li>目前是<strong>向右转是增、向左转是减</strong>；如果这个方向和想要的不一致，可以<strong>改极性</strong>：<ul>
-<li><strong>硬件层面</strong>：<strong>把 A、B 相两根线换一下</strong>，增减方向就可以反过来；</li>
-<li><strong>软件层面</strong>：<strong>修改两个输入通道的极性</strong>——<strong>把任意一个极性反转一下，方向就会反过来</strong>；<strong>如果两个极性都反转，那极性还是保持不变</strong>。</li>
-</ul>
-</li>
-<li>演示：把第一个 <code>TIM_ICPolarity_Rising</code> 改成 <strong><code>TIM_ICPolarity_Falling</code></strong>，下载后发现<strong>向右是增、向左是减</strong>（极性又反转过来了）。</li>
-<li>到这一步，这个代码其实是**「编码器测量位置」**——需要测位置就直接 <code>TIM_GetCounter</code> 读出来。</li>
+<li>硬件：把 A、B 两根线换一下，增减方向就反过来。</li>
+<li>软件：把任一通道极性反转即可；两个极性都反则方向不变。</li>
+<li>演示：把第一个 <code>TIM_ICPolarity_Rising</code> 改成 <code>TIM_ICPolarity_Falling</code>，方向就反过来了。</li>
+<li>到这一步代码是「编码器测量位置」：直接 <code>TIM_GetCounter</code> 读 CNT。</li>
 </ul>
 <h2 id="5-测速-闸门时间-读后清零">5. 测速：闸门时间 + 读后清零</h2>
 <h3 id="5-1-测速版-encoder-get">5.1 测速版 <code>Encoder_Get</code></h3>
 <ul>
-<li>想用编码器<strong>测速</strong>，就要在<strong>固定的闸门时间读一次 CNT、然后把 CNT 清零</strong>（P19 的测频法思路）。</li>
-<li>要求<strong>读完后清零 CNT</strong>，所以<strong>要先定义一个临时变量缓存</strong>：</li>
+<li>在固定闸门时间读一次 CNT 再清零，所以要先定义临时变量 <code>Temp</code> 缓存。</li>
 </ul>
 <pre><code class="language-c">int16_t Encoder_Get(void)
 {
@@ -472,31 +455,32 @@ while (1)
 }
 </code></pre>
 <ul>
-<li><strong>因为要先读取后清零，所以需要用 <code>Temp</code> 缓存一下</strong>——这是这段代码的逻辑要点。</li>
+<li>顺序要点：<code>Temp = TIM_GetCounter(TIM3); TIM_SetCounter(TIM3, 0); return Temp;</code>——先读后清零，用 <code>Temp</code> 缓存一下。</li>
 </ul>
 <h3 id="5-2-闸门-1s-先用的-delay-ms-1000">5.2 闸门 1s：先用的 <code>Delay_ms(1000)</code></h3>
 <ul>
-<li>在主循环里<strong>每隔一段时间 <code>Get</code> 一次</strong>，所以下面给一个 <strong><code>Delay_ms(1000)</code></strong>；</li>
-<li><strong>因为人手转比较慢，所以闸门时间就给 1s</strong>；<strong>如果是电机飞速旋转的话，闸门时间就可以给短点</strong>。</li>
-<li>此时 <strong>CNT 的值就代表速度，单位是「脉冲个数 / s」</strong>。</li>
-<li>现象：<strong>向右慢速转，速度是正数、比较小；快速转，正数比较大；向左转，速度是负数、比较小；快速转，负数比较大</strong>。</li>
-<li><strong>注意</strong>：本集<strong>没有</strong>换算 RPM、也没有讲「编码器每圈多少个脉冲」——单位就是<strong>脉冲个数/s</strong>；如果接的是<strong>编码电机</strong>，可以实际接电机的编码器试试（现象一样，但要把闸门时间弄短点）。</li>
+<li>主循环里每隔一段时间 <code>Get</code> 一次：人手转得慢，闸门时间就给 1s；电机飞速旋转时就可以给短点。</li>
+<li>此时 CNT 的值就代表速度，单位是「脉冲个数 / s」。</li>
+<li>现象：右转慢是较小的正数、快是较大的正数；左转慢是较小的负数、快是较大的负数。</li>
+<li>本集没有换算 RPM、也没讲编码器每圈多少个脉冲；接编码电机可以自己试（现象一样，闸门要短点）。</li>
 </ul>
 <p><img src="../assets/images/stm32-20/12-encoder-get-speed.jpg" alt="图 12：测速版 Encoder_Get——int16_t Temp; Temp = TIM_GetCounter(TIM3); TIM_SetCounter(TIM3, 0); return ...（TIM_SetCounter 那行高亮）；字幕「之后 TIM_SetCounter(TIM3, 0)，给 CNT 清零」"></p>
 <p><em>图 12：测速版 <code>Encoder_Get</code>——<code>int16_t Temp; Temp = TIM_GetCounter(TIM3); TIM_SetCounter(TIM3, 0); return ...</code>（<code>TIM_SetCounter</code> 那行高亮）；字幕「之后 TIM_SetCounter(TIM3, 0)，给 CNT 清零」</em></p>
-<p><img src="../assets/images/stm32-20/13-delay-1s.jpg" alt="图 13：Delay 闸门版主函数——OLED_ShowString(1, 1, &quot;CNT:&quot;)、主循环里 OLED_ShowSignedNum(1, 5, Encoder_Get(), 5);，下面 `Delay_ms(1000);`（高亮）；字幕「防止计数器溢出」"></p>
-<p>*图 13：Delay 闸门版主函数——<code>OLED_ShowString(1, 1, &quot;CNT:&quot;)</code>、主循环里 <code>OLED_ShowSignedNum(1, 5, Encoder_Get(), 5);</code>，下面 <strong><code>Delay_ms(1000);</code></strong>（高亮）；字幕「防止计数器溢出」*</p>
+<p><img src="../assets/images/stm32-20/13-delay-1s.jpg" alt="图 13：Delay 闸门版主函数——OLED_ShowString(1, 1, &quot;CNT:&quot;)、主循环里 OLED_ShowSignedNum(1, 5, Encoder_Get(), 5);，下面 Delay_ms(1000);（高亮）；字幕「防止计数器溢出」"></p>
+<p><em>图 13：Delay 闸门版主函数——<code>OLED_ShowString(1, 1, &quot;CNT:&quot;)</code>、主循环里 <code>OLED_ShowSignedNum(1, 5, Encoder_Get(), 5);</code>，下面 <code>Delay_ms(1000);</code>（高亮）；字幕「防止计数器溢出」</em></p>
 <h3 id="5-3-改进-改用现成的-1s-定时中断-最终版">5.3 改进：改用现成的 1s 定时中断（最终版）</h3>
 <ul>
-<li><strong>缺点</strong>：目前是<strong>直接通过 <code>Delay</code> 实现闸门时间</strong>——如果主程序没有其他东西还行，<strong>但如果有其他东西，最好就不要在主循环加入过长的 <code>Delay</code>，这样会阻塞主循环的执行</strong>。</li>
-<li><strong>比较好的方法</strong>：用 main.c 里<strong>留了这么久的定时中断</strong>（<code>6-1 定时器定时中断</code> 工程带过来的）：<ol>
-<li>上面 <strong><code>Timer_Init()</code> 解除注释</strong>；「这里定时中断目前是每隔 <strong>1s 执行一次</strong>，你可以修改定时中断的时间来调整闸门时间」；</li>
-<li>在前面<strong>定义一个全局变量</strong> <code>int16_t Speed;</code>；</li>
-<li>在<strong>定时中断 <code>TIM2_IRQHandler</code></strong> 里执行 <strong><code>Speed = Encoder_Get();</code></strong>——<strong>每隔 1s 读取一下速度、存到 Speed 变量里</strong>；</li>
-<li><strong>主循环就可以快速刷新显示 <code>Speed</code> 了</strong>，<strong><code>Delay</code> 可以删掉</strong>，这样就不会阻塞主循环运行；</li>
-<li>前面的字符串也改成 <strong><code>&quot;Speed:&quot;</code></strong>，下面显示数字的位置<strong>往后挪两格、改到第 7 列</strong>。</li>
+<li>缺点：<code>Delay</code> 实现闸门时间会阻塞主循环，主程序还有别的事就不该这么写。</li>
+<li>改用 main.c 里留了这么久的定时中断（从 6-1 带过来的）：<ol>
+<li><code>Timer_Init()</code> 解除注释，目前每 1s 进一次中断，可改中断时间来调闸门；</li>
+<li>定义全局 <code>int16_t Speed;</code>；</li>
+<li>在 <code>TIM2_IRQHandler</code> 里 <code>Speed = Encoder_Get();</code>，把每秒读到的值存进 <code>int16_t Speed</code>；</li>
+<li>主循环快速刷新 <code>Speed</code>，<code>Delay</code> 可以删掉，显示就是 <code>OLED_ShowSignedNum(1, 7, Speed, 5)</code> 这一句；</li>
+<li>字符串改成 <code>&quot;Speed:&quot;</code>，数字位置往后挪两格到第 7 列。</li>
 </ol>
 </li>
+<li>改造前的 Delay 版主循环是 <code>OLED_ShowSignedNum(1, 5, Encoder_Get(), 5);</code> 加 <code>Delay_ms(1000);</code>。</li>
+<li>定时中断版的骨架就是 <code>OLED_Init(); Timer_Init(); Encoder_Init();</code>，中断里 <code>if (TIM_GetITStatus(TIM2, TIM_IT_Update) == SET) { Speed = Encoder_Get(); TIM_ClearITPendingBit(TIM2, TIM_IT_Update); }</code>。</li>
 </ul>
 <pre><code class="language-c">int16_t Speed;
 
@@ -524,7 +508,7 @@ void TIM2_IRQHandler(void)
 }
 </code></pre>
 <ul>
-<li><strong>注意</strong>：<strong><code>Timer_Init()</code> 里定时中断的「1s」配置本集没有展示</strong>（直接沿用 6-1 模板），这里只写「1s 更新中断」这个事实，具体的 PSC/ARR 见 P14 笔记。</li>
+<li><code>Timer_Init()</code> 里 1s 的 PSC/ARR 本集没有展示（沿用 6-1 模板），具体见 P14 笔记。</li>
 </ul>
 <p><img src="../assets/images/stm32-20/14-irq-speed.jpg" alt="图 14：定时中断版改造中的 main.c——OLED_Init(); Timer_Init(); Encoder_Init();、OLED_ShowString(1, 1, &quot;CNT:&quot;)（正在改 Speed），主循环 OLED_ShowSignedNum(1, 5, Speed, 5);；下方 void TIM2_IRQHandler(void) 里 if (TIM_GetITStatus(TIM2, TIM_IT_Update) == SET) { Speed = Encoder_Get(); TIM_ClearITPendingBit(TIM2, TIM_IT_Update); }；字幕「然后前面的字符串，我们也改成Speed」"></p>
 <p><em>图 14：定时中断版改造中的 main.c——<code>OLED_Init(); Timer_Init(); Encoder_Init();</code>、<code>OLED_ShowString(1, 1, &quot;CNT:&quot;)</code>（正在改 Speed），主循环 <code>OLED_ShowSignedNum(1, 5, Speed, 5);</code>；下方 <code>void TIM2_IRQHandler(void)</code> 里 <code>if (TIM_GetITStatus(TIM2, TIM_IT_Update) == SET) { Speed = Encoder_Get(); TIM_ClearITPendingBit(TIM2, TIM_IT_Update); }</code>；字幕「然后前面的字符串，我们也改成Speed」</em></p>
@@ -532,31 +516,31 @@ void TIM2_IRQHandler(void)
 <p><img src="../assets/images/stm32-20/15-final-main.jpg" alt="图 15：最终主函数——OLED_ShowString(1, 1, &quot;Speed:&quot;)、主循环 OLED_ShowSignedNum(1, 7, Speed, 5);（高亮），TIM2_IRQHandler 里 Speed = Encoder_Get(); + 清标志；字幕「编译」"></p>
 <p><em>图 15：最终主函数——<code>OLED_ShowString(1, 1, &quot;Speed:&quot;)</code>、主循环 <code>OLED_ShowSignedNum(1, 7, Speed, 5);</code>（高亮），<code>TIM2_IRQHandler</code> 里 <code>Speed = Encoder_Get();</code> + 清标志；字幕「编译」</em></p>
 <ul>
-<li><strong>最终现象</strong>：OLED 显示 <code>Speed:±</code>——<strong>向右旋转是正的速度、向左旋转是负的速度、停止速度为 0</strong>。</li>
-<li>这就是整个编码器接口测速程序的现象；20:56「我们编码器接口测速的代码就写完了」（模块 6 最后一集）。</li>
+<li>最终现象：OLED 显示 <code>Speed:±</code>——右转为正、左转为负、停止为 0。</li>
+<li>20:56「我们编码器接口测速的代码就写完了」（模块 6 最后一集）。</li>
 </ul>
 <p><img src="../assets/images/stm32-20/16-final-phenomenon.jpg" alt="图 16：最终现象——OLED 显示 Speed:+00000（停止时速度为 0）；字幕「停止，速度为0」"></p>
 <p><em>图 16：最终现象——OLED 显示 <code>Speed:+00000</code>（停止时速度为 0）；字幕「停止，速度为0」</em></p>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>引脚只能用所选定时器的 CH1/CH2</strong>：本程序用 TIM3，所以 <strong>PA6（TIM3_CH1）/ PA7（TIM3_CH2）</strong>；换定时器要按引脚定义表接对应 TIM 的 CH1/CH2，<strong>PA6/PA7 本身不能随便换</strong>。</li>
+<li><strong>引脚只能用所选定时器的 CH1/CH2</strong>：本程序用 TIM3，所以 PA6（TIM3_CH1）、PA7（TIM3_CH2）；换定时器要按引脚定义表接，PA6/PA7 本身不能随便换。</li>
 <li><strong>A/B 两根线可以交换</strong>（A→PA7、B→PA6 也行），只改变正反转极性；<code>VCC/GND</code> 不能接反。</li>
-<li><strong><code>TIM_InternalClockConfig</code> 在编码器模式下没用</strong>（编码器接口托管时钟），<strong>最终代码里已经删掉</strong>；<code>TIM_CounterMode</code> 也没有作用（方向被托管）——留着不报错，但别以为它管用。</li>
-<li><strong><code>ARR</code> 给 <code>65536-1</code>（满量程）</strong>：一是计数范围最大，二是<strong>方便把 16 位无符号数当有符号数、直接得到负数</strong>。</li>
-<li><strong><code>PSC</code> 给 <code>1-1</code>（不分频）</strong>：编码器的时钟直接驱动计数器，来一个边沿计一次；分频会降低分辨率。</li>
-<li><strong><code>TIM_ICInit</code> 里只保留 <code>TIM_Channel</code> 和 <code>TIM_ICFilter</code></strong>：编码器接口只用通道 1/2 的滤波器和极性，其余参数（分频器、数据选择器）与编码器无关。</li>
-<li><strong>极性重复配置大坑</strong>：<code>TIM_ICInit</code> 的极性与 <code>TIM_EncoderInterfaceConfig</code> 后两个参数<strong>是同一个寄存器</strong>，<strong>后配置覆盖前配置</strong>——所以要<strong>删掉 <code>TIM_ICInit</code> 的极性行</strong>，并保证 <strong><code>TIM_EncoderInterfaceConfig</code> 写在 <code>TIM_ICInit</code> 之后</strong>（否则方向配置被覆盖）。</li>
-<li><strong><code>TIM_EncoderInterfaceConfig</code> 的模式参数一般用 <code>TIM_EncoderMode_TI12</code></strong>（TI1、TI2 都计数，两个边沿都计入，精度最高）；<code>TI1</code>/<code>TI2</code> 是只在一个通道的边沿计数。</li>
-<li><strong>编码器模式下 <code>Rising</code>/<code>Falling</code> 不是「上升沿/下降沿有效」</strong>：而是**「不反相 / 反相」（高低电平极性）**——P19 讲过、本集代码也用来调方向。</li>
-<li><strong>改方向的三种办法</strong>：①<strong>A/B 两根线对调</strong>；②<strong>把任一通道极性从 <code>Rising</code> 改成 <code>Falling</code></strong>；③换引脚——注意<strong>两个极性都反则方向不变</strong>。</li>
-<li><strong><code>Encoder_Get</code> 初版返回 <code>uint16_t</code></strong>：左转到 0 再减会<strong>溢出到 65535</strong>；要显示负数就<strong>改成 <code>int16_t</code></strong>（配合 <code>OLED_ShowSignedNum</code>），这是<strong>借补码强转</strong>的技巧。</li>
-<li><strong>测速必须先读后清零</strong>：<code>Temp = TIM_GetCounter(TIM3); TIM_SetCounter(TIM3, 0); return Temp;</code>——<strong>顺序反了（先清零再读）就永远是 0</strong>；因为要先读后清零，所以需要 <code>Temp</code> 缓存。</li>
-<li><strong>闸门时间决定速度单位</strong>：<code>Delay_ms(1000)</code> 时速度单位是<strong>脉冲个数/s</strong>；<strong>本集没有 RPM/每圈脉冲数换算</strong>——想要 RPM 得自己乘系数（本集未讲）。</li>
-<li><strong>不要在主循环放长 <code>Delay</code></strong>：会阻塞主循环；<strong>最终版改用 1s 定时中断</strong>在 <code>TIM2_IRQHandler</code> 里读速度、主循环只刷新显示。</li>
+<li><strong><code>TIM_InternalClockConfig</code> 在编码器模式下没用</strong>（编码器接口托管时钟），最终代码里已删掉；<code>TIM_CounterMode</code> 也没有作用，留着不报错但别以为它管用。</li>
+<li><strong><code>ARR = 65536-1</code>（满量程）</strong>：一是计数范围最大，二是方便把 16 位无符号数当有符号数、直接得到负数。</li>
+<li><strong><code>PSC = 1-1</code>（不分频）</strong>：编码器时钟直接驱动计数器，来一个边沿计一次；分频会降低分辨率。</li>
+<li><strong><code>TIM_ICInit</code> 里只保留 <code>TIM_Channel</code> 和 <code>TIM_ICFilter</code></strong>：编码器接口只用通道 1/2 的滤波器和极性，其余参数与编码器无关。</li>
+<li><strong>极性重复配置大坑</strong>：<code>TIM_ICInit</code> 的极性与 <code>TIM_EncoderInterfaceConfig</code> 后两个参数是同一个寄存器，后配置覆盖前配置——所以要删掉 <code>TIM_ICInit</code> 的极性行，并保证 <code>TIM_EncoderInterfaceConfig</code> 写在 <code>TIM_ICInit</code> 之后。</li>
+<li><strong>模式参数一般用 <code>TIM_EncoderMode_TI12</code></strong>：TI1、TI2 都计数、两个边沿都计入、精度最高；<code>TI1</code>/<code>TI2</code> 只在一个通道的边沿计数。</li>
+<li><strong>编码器模式下 <code>Rising</code>/<code>Falling</code> 不是「上升沿/下降沿有效」</strong>：而是「不反相 / 反相」（高低电平极性），P19 讲过、本集用来调方向。</li>
+<li><strong>改方向的三种办法</strong>：①A/B 两根线对调；②把任一通道极性从 <code>Rising</code> 改成 <code>Falling</code>；③换引脚——注意两个极性都反则方向不变。</li>
+<li><strong><code>Encoder_Get</code> 初版返回 <code>uint16_t</code></strong>：左转到 0 再减会溢出到 65535；要显示负数就改成 <code>int16_t</code> 配合 <code>OLED_ShowSignedNum</code>，这是借补码强转的技巧。</li>
+<li><strong>测速必须先读后清零</strong>：<code>int16_t Temp; Temp = TIM_GetCounter(TIM3); TIM_SetCounter(TIM3, 0); return Temp;</code>——顺序反了就永远是 0，所以需要 <code>Temp</code> 缓存。</li>
+<li><strong>闸门时间决定速度单位</strong>：<code>Delay_ms(1000)</code> 时单位是脉冲个数/s；本集没有 RPM/每圈脉冲数换算，想要 RPM 得自己乘系数。</li>
+<li><strong>不要在主循环放长 <code>Delay</code></strong>：会阻塞主循环；最终版改用 1s 定时中断，在 <code>TIM2_IRQHandler</code> 里读速度、主循环只刷新显示。</li>
 <li><strong>中断里必须清标志位</strong>：<code>TIM_ClearITPendingBit(TIM2, TIM_IT_Update)</code>，否则会反复进中断（P14 讲过）。</li>
-<li><strong>「一格=4 次计数」只对机械触点式编码器成立</strong>（它有段落感）；<strong>电机用的霍尔/光栅编码器没有段落感</strong>，计数取决于实际脉冲数，别拿「一格 4 次」套所有编码器。</li>
-<li><strong>本集无示波器</strong>：所有现象都是 OLED 数值 + 口述。</li>
-<li><strong><code>Timer_Init()</code> 的 1s 配置本集没展示</strong>：直接沿用 <code>6-1 定时器定时中断</code> 模板，写笔记/写代码时别自己编它的 PSC/ARR。</li>
+<li><strong>「一格=4 次计数」只对机械触点式编码器成立</strong>：霍尔/光栅编码器没有段落感，计数取决于实际脉冲数。</li>
+<li><strong>本集无示波器</strong>：所有现象都是 OLED 数值加口述。</li>
+<li><strong><code>Timer_Init()</code> 的 1s 配置本集没展示</strong>：直接沿用 <code>6-1 定时器定时中断</code> 模板，别自己编它的 PSC/ARR。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -568,7 +552,7 @@ void TIM2_IRQHandler(void)
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E7%90%86%E8%AE%BA%E5%85%A8%E9%83%A8%E5%9C%A8-6-7-p19">0. 本集定位：代码课，理论全部在 [6-7] P19</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 接线与工程准备</a>
         <a class="level-3" href="#1-1-%E6%8E%A5%E7%BA%BF-a-pa6-b-pa7">1.1 接线：A→PA6、B→PA7</a>
         <a class="level-3" href="#1-2-%E5%A4%8D%E5%88%B6%E5%B7%A5%E7%A8%8B-%E6%96%B0%E5%BB%BA-encoder-%E6%A8%A1%E5%9D%97">1.2 复制工程、新建 Encoder 模块</a>

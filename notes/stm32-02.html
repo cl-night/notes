@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[1-2] STM32简介 · 我的学习笔记</title>
-  <meta name="description" content="STM32 是什么、ARM 与 ST 的分工、F103C8T6 参数、片上外设、命名规则、系统结构、引脚定义、启动配置与最小系统电路。">
+  <meta name="description" content="STM32 是什么、ARM 与 ST 的分工、F103C8T6 参数、片上外设、命名规则、系统结构、引脚、启动配置与最小系统电路。">
   <meta property="og:title" content="[1-2] STM32简介 · 我的学习笔记">
-  <meta property="og:description" content="STM32 是什么、ARM 与 ST 的分工、F103C8T6 参数、片上外设、命名规则、系统结构、引脚定义、启动配置与最小系统电路。">
+  <meta property="og:description" content="STM32 是什么、ARM 与 ST 的分工、F103C8T6 参数、片上外设、命名规则、系统结构、引脚、启动配置与最小系统电路。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,29 +177,27 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-26">2026-10-26</time>
-      <span>8 分钟</span>
+      <span>7 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">基础概念</span>
     </div>
     <article class="prose"><h1>[1-2] STM32简介 — 学习笔记</h1>
 <ul>
-<li>素材目录：<code>vidsum_out/stm32_p2/</code>（<code>sheets/</code> 拼图、<code>frames/</code> 单帧、<code>transcript.txt</code>）</li>
+<li>素材目录：<code>vidsum_out/stm32_p2/</code>（<code>sheets/</code>、<code>frames/</code>、<code>transcript.txt</code>）</li>
 </ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>这一集是整门课的“地图”：先讲清 STM32 是什么、ARM 和 ST 怎么分工，再用 <strong>STM32F103C8T6</strong> 把型号参数、片上外设、命名规则、系统结构、引脚、启动方式和最小系统电路串一遍。</p>
+<p>本集是整门课的地图：讲清 STM32 是什么、ARM 与 ST 怎么分工，再用 <strong>STM32F103C8T6</strong> 串起参数、片上外设、命名规则、系统结构、引脚、启动配置与最小系统电路。</p>
+<h2 id="本集定位">本集定位</h2>
+<ul>
+<li>纯理论铺垫，无代码、无工程。</li>
+<li>后面所有实验都在 C8T6 上做，先把地图建好。</li>
+</ul>
 <h2 id="1-stm32-是什么">1. STM32 是什么</h2>
 <ul>
-<li><strong>STM32 = ST + M + 32</strong>：<ul>
-<li><strong>ST</strong>：意法半导体（芯片厂商）。</li>
-<li><strong>M</strong>：Microcontroller，微控制器（MCU、单片机）。</li>
-<li><strong>32</strong>：32 位。</li>
+<li><strong>STM32 = ST + M + 32</strong>：<strong>ST</strong> 意法半导体（芯片厂商）；<strong>M</strong> 指微控制器（MCU、单片机），不是 Cortex-M 内核缩写；<strong>32</strong> 指 32 位。</li>
+<li>定义：ST 基于 ARM Cortex-M 内核开发的 32 位微控制器；ST 也有 8 位单片机 STM8。</li>
+<li>常见应用：智能车（循迹）、无人机（姿态控制）、机器人（舵机）、无线通信（2.4G/蓝牙/WiFi）、物联网、工业控制（PLC 主控）、娱乐电子。</li>
 </ul>
-</li>
-<li>定义：ST 公司基于 ARM Cortex-M 内核开发的 32 位微控制器。</li>
-<li>注意：M 不是“Cortex-M 内核”的缩写，而是“微控制器”；内核是 Cortex-M，但名字里的 M 指 MCU。</li>
-<li>ST 也有 8 位单片机 STM8，可以了解。</li>
-<li>常见应用：智能车（循迹）、无人机（姿态控制）、机器人（舵机）、无线通信（2.4G/蓝牙/WiFi）、物联网、工业控制（PLC 主控）、娱乐电子等。</li>
-</ul>
-<h2 id="2-stm32-家族">2. STM32 家族</h2>
+<h2 id="2-家族与-arm-分工">2. 家族与 ARM 分工</h2>
 <table>
 <thead>
 <tr>
@@ -230,31 +228,14 @@
 </tr>
 </tbody></table>
 <ul>
-<li>同一个家族，换系列再学习会比换别的芯片轻松很多。</li>
-<li>课程先把 F1 学通；性能不够再上 F4/F7/H7，功耗敏感看 L 系列。</li>
+<li>同一家族换系列再学，比换别的芯片轻松很多；F1 学通，性能不够再上 F4/F7/H7，功耗敏感看 L 系列。</li>
+<li><strong>ARM</strong> 是半导体知识产权（IP）提供商：只设计内核、不生产芯片，把设计授权给厂商收授权费。</li>
+<li><strong>ST、TI、NXP 等</strong> 买内核授权，再加存储器、外设、接口做成自己的芯片；类比 ARM 出 CPU、ST 加主板和外设。</li>
+<li>内核三大系列：<strong>Cortex-A</strong> 手机/平板等高端应用；<strong>Cortex-R</strong> 硬实时（如硬盘控制器）；<strong>Cortex-M</strong> 单片机，STM32 用的就是它。</li>
+<li>M 系列对应：STM32F0 → M0；STM32F1 → <strong>Cortex-M3</strong>；STM32F3 → M4；STM32F4/F7 → M4/M7；STM32H7 → M7 + M4 双核。</li>
+<li>老型号 ARM7 / ARM9 / ARM11 属经典 ARM 处理器，新设计基本都用 Cortex。</li>
 </ul>
-<h2 id="3-arm-与-cortex-系列">3. ARM 与 Cortex 系列</h2>
-<ul>
-<li><strong>ARM 公司</strong>是半导体知识产权（IP）提供商：只设计内核，不生产芯片；把设计授权给各大半导体厂商，收授权费。</li>
-<li><strong>ST、TI、NXP 等</strong> 买 ARM 内核授权，再加上存储器、外设、接口，做成自己的芯片。</li>
-<li>类比：ARM 出 CPU，ST 加主板和外设，最后做成 STM32。</li>
-<li>ARM 内核分三大系列：<ul>
-<li><strong>Cortex-A</strong>（Application）：手机/平板/高端应用，性能最高。</li>
-<li><strong>Cortex-R</strong>（Real-time）：硬实时场景，如硬盘控制器。</li>
-<li><strong>Cortex-M</strong>（Microcontroller）：单片机，STM32 用的就是 M 系列。</li>
-</ul>
-</li>
-<li>M 系列常见内核：M0 / M0+ / M3 / M4 / M7。<ul>
-<li>STM32F0 → Cortex-M0</li>
-<li>STM32F1 → <strong>Cortex-M3</strong></li>
-<li>STM32F3 → Cortex-M4</li>
-<li>STM32F4/F7 → Cortex-M4/M7</li>
-<li>STM32H7 → M7 + M4 双核</li>
-</ul>
-</li>
-<li>老型号 ARM7 / ARM9 / ARM11 属于经典 ARM 处理器，现在新设计基本都用 Cortex。</li>
-</ul>
-<h2 id="4-stm32f103c8t6-关键参数">4. STM32F103C8T6 关键参数</h2>
+<h2 id="3-f103c8t6-关键参数">3. F103C8T6 关键参数</h2>
 <table>
 <thead>
 <tr>
@@ -295,8 +276,10 @@
 <td>-40–85 ℃（型号末位 6）</td>
 </tr>
 </tbody></table>
-<p><strong>供电注意</strong>：以前 51 单片机常用 5V，USB 也是 5V；STM32 的供电范围是 2.0–3.6V，<strong>5V 不能直接接</strong>，要加稳压芯片降到 3.3V。</p>
-<h2 id="5-片上资源-外设">5. 片上资源 / 外设</h2>
+<ul>
+<li><strong>供电</strong>：51 常用 5V，USB 也是 5V；STM32 只吃 2.0–3.6V，<strong>5V 不能直接接</strong>，要稳压到 3.3V。</li>
+</ul>
+<h2 id="4-片上外设">4. 片上外设</h2>
 <table>
 <thead>
 <tr>
@@ -421,16 +404,11 @@
 <td>闪存</td>
 </tr>
 </tbody></table>
-<p><strong>C8T6 的实际外设数量</strong>（数据手册）：</p>
 <ul>
-<li>64 KB Flash、20 KB SRAM</li>
-<li>3 个通用定时器、1 个高级定时器、<strong>没有基本定时器</strong></li>
-<li>2 个 SPI、2 个 I2C、3 个 USART、1 个 USB、1 个 CAN</li>
-<li>37 个 GPIO</li>
-<li>2 个 12 位 ADC</li>
+<li><strong>C8T6 实际数量</strong>：64 KB Flash、20 KB SRAM；3 个通用定时器、1 个高级定时器、<strong>没有基本定时器</strong>；2 个 SPI、2 个 I2C、3 个 USART、1 个 USB、1 个 CAN；37 个 GPIO；2 个 12 位 ADC。</li>
+<li>上表是 F1 全系列的外设，C8T6 没有 DAC、SDIO、FSMC、USB OTG；操作不存在的外设不会工作，用前查数据手册。</li>
 </ul>
-<p><strong>表里是 F1 全系列的外设，不是每个型号都有。C8T6 没有 DAC、SDIO、FSMC、USB OTG。</strong> 操作不存在的外设不会工作，用之前查数据手册。</p>
-<h2 id="6-命名规则-stm32f103c8t6">6. 命名规则：STM32F103C8T6</h2>
+<h2 id="5-命名规则-stm32f103c8t6">5. 命名规则：STM32F103C8T6</h2>
 <table>
 <thead>
 <tr>
@@ -475,57 +453,34 @@
 <td>6（-40–85℃）</td>
 </tr>
 </tbody></table>
-<p>练习：<strong>STM32F103RCT6</strong> → R=64 脚，C=256KB Flash，T=LQFP，6=-40–85℃。</p>
-<h2 id="7-系统结构">7. 系统结构</h2>
-<p>可以分成四块看：</p>
-<ol>
-<li><strong>内核</strong>：Cortex-M3，内含 NVIC、SysTick。</li>
-<li><strong>内核总线</strong>：<ul>
-<li><strong>ICode</strong>：取指令，连 Flash。</li>
-<li><strong>DCode</strong>：取数据（常量、调试参数），连 Flash。</li>
-<li><strong>System</strong>：连 SRAM、FSMC 等。</li>
-</ul>
-</li>
-<li><strong>总线矩阵 / AHB + 桥接</strong>：<ul>
-<li><strong>AHB</strong>（先进高性能总线，72MHz）：RCC、SDIO、FSMC、DMA、SRAM、Flash 接口等。</li>
-<li>通过两个桥接分出 <strong>APB2</strong> 和 <strong>APB1</strong>。</li>
-</ul>
-</li>
-<li><strong>外设</strong>：<ul>
-<li><strong>APB2（72MHz，高速）</strong>：GPIO、AFIO、EXTI、TIM1/TIM8、USART1、SPI1、ADC1/2 等“1 号/重要”外设。</li>
-<li><strong>APB1（36MHz，低速）</strong>：TIM2–7、USART2–5、I2C1/2、SPI2、CAN、USB、DAC、PWR、BKP 等。</li>
-</ul>
-</li>
-</ol>
-<p><strong>DMA</strong> 是“CPU 的小秘书”：ADC 连续转换时，数据不及时搬走就会被覆盖；让 CPU 每毫秒搬一次太浪费，DMA 通过总线矩阵获得总线控制权，外设发 DMA 请求，它就把数据搬走，全程不需要 CPU。</p>
-<h2 id="8-引脚定义">8. 引脚定义</h2>
 <ul>
-<li>LQFP48 共 48 个引脚；芯片左上角小黑点对应的引脚是 1 号，逆时针编号到 48。</li>
+<li>练习：<strong>STM32F103RCT6</strong> → R=64 脚，C=256KB Flash，T=LQFP，6=-40–85℃。</li>
+</ul>
+<h2 id="6-系统结构">6. 系统结构</h2>
+<ul>
+<li><strong>内核</strong>：Cortex-M3，内含 NVIC、SysTick。</li>
+<li><strong>内核总线</strong>：<strong>ICode</strong> 取指令、连 Flash；<strong>DCode</strong> 取数据（常量、调试参数）、连 Flash；<strong>System</strong> 连 SRAM、FSMC。</li>
+<li><strong>AHB</strong>（先进高性能总线，72MHz）：RCC、SDIO、FSMC、DMA、SRAM、Flash 接口；经两个桥接分出 APB2 和 APB1。</li>
+<li><strong>APB2（72MHz，高速）</strong>：GPIO、AFIO、EXTI、TIM1/TIM8、USART1、SPI1、ADC1/2 等“1 号/重要”外设。</li>
+<li><strong>APB1（36MHz，低速）</strong>：TIM2–7、USART2–5、I2C1/2、SPI2、CAN、USB、DAC、PWR、BKP。</li>
+<li><strong>DMA</strong> 是“CPU 的小秘书”：ADC 连续转换的数据不及时搬走会被覆盖，CPU 每毫秒搬一次太浪费；外设发 DMA 请求，DMA 经总线矩阵拿总线控制权直接搬运，全程不用 CPU。</li>
+</ul>
+<h2 id="7-引脚定义与启动配置">7. 引脚定义与启动配置</h2>
+<ul>
+<li>LQFP48 共 48 个引脚，左上角小黑点对应 1 号，逆时针编号到 48。</li>
 <li>引脚表要看的列：<ul>
-<li><strong>引脚号 / 引脚名称</strong></li>
-<li><strong>类型</strong>：I=输入、O=输出、IO=输入输出</li>
-<li><strong>IO 电平</strong>：带 <strong>FT</strong> 的引脚可容忍 5V；没有 FT 的只能 3.3V，接 5V 信号要加电平转换</li>
-<li><strong>主功能</strong>：上电默认功能，一般和引脚名相同；不同时以主功能为准</li>
+<li><strong>引脚号 / 引脚名称</strong>、<strong>类型</strong>（I 输入、O 输出、IO 输入输出）</li>
+<li><strong>IO 电平</strong>：带 <strong>FT</strong> 可容忍 5V，没有 FT 只能 3.3V，接 5V 要电平转换</li>
+<li><strong>主功能</strong>：上电默认功能，一般同引脚名，不同时以主功能为准</li>
 <li><strong>默认复用功能</strong>：该 IO 上同时连接的外设功能</li>
-<li><strong>重定义功能</strong>：两个复用功能冲突时，可通过 AFIO 把其中一个重映射到别的引脚（前提是表里有对应端口）</li>
+<li><strong>重定义功能</strong>：复用功能冲突时用 AFIO 重映射，前提是表里有对应端口</li>
 </ul>
 </li>
-<li>关键引脚：<ul>
-<li><strong>VBAT</strong>：备用电池（3V 纽扣电池），给 RTC 和 BKP 供电；不用可接 3.3V 或悬空。</li>
-<li><strong>VDD / VSS</strong>：多组主电源，VDD 接 3.3V，VSS 接 GND。</li>
-<li><strong>VDDA / VSSA</strong>：模拟部分电源，ADC 等使用。</li>
-<li><strong>NRST</strong>：低电平复位。</li>
-<li><strong>PA0</strong>：还可做 WKUP，唤醒待机。</li>
-<li><strong>PA13 / PA14</strong>：SWDIO / SWCLK，SWD 下载调试。</li>
-<li><strong>PA15 / PB3 / PB4</strong>：JTAG 调试口，用 SWD 时可配置为普通 IO。</li>
-<li><strong>BOOT0（44 脚）</strong>、<strong>BOOT1（PB2）</strong>：启动配置。</li>
-<li><strong>PC13 / PC14 / PC15</strong>：PC13 可做 GPIO/侵入检测/RTC；PC14/15 接 32.768kHz 晶振。</li>
-<li><strong>PD0 / PD1</strong>：接 8MHz 主晶振（OSC_IN/OSC_OUT）。</li>
+<li>电源与复位脚：<strong>VBAT</strong> 备用电池（3V 纽扣）供 RTC/BKP，不用可接 3.3V 或悬空；<strong>VDD / VSS</strong> 主电源 3.3V/GND；<strong>VDDA / VSSA</strong> 模拟电源；<strong>NRST</strong> 低电平复位。</li>
+<li>功能脚：<strong>PA0</strong> 可做 WKUP 唤醒待机；<strong>PA13 / PA14</strong> SWDIO/SWCLK 做 SWD 下载调试；<strong>PA15 / PB3 / PB4</strong> JTAG 调试口，用 SWD 时可作普通 IO；<strong>BOOT0（44 脚）</strong>、<strong>BOOT1（PB2）</strong> 启动配置。</li>
+<li>时钟脚：<strong>PC13 / PC14 / PC15</strong>（PC13 可做 GPIO/侵入检测/RTC，PC14/15 接 32.768kHz 晶振）；<strong>PD0 / PD1</strong> 接 8MHz 主晶振（OSC_IN/OSC_OUT）。</li>
+<li>调试口警告：5 个调试脚全配成普通 IO 就没有调试口，ST-Link 下载不了；可用 <strong>BOOT0=1、BOOT1=0 的串口下载</strong>救急。</li>
 </ul>
-</li>
-<li>调试口警告：如果把 5 个调试引脚全部配置成普通 IO，芯片就没有调试口，ST-Link 下载不了；此时可用 <strong>BOOT0=1、BOOT1=0 的串口下载</strong>救急。所以不要把所有调试脚都关掉。</li>
-</ul>
-<h2 id="9-启动配置">9. 启动配置</h2>
 <table>
 <thead>
 <tr>
@@ -555,50 +510,25 @@
 </tr>
 </tbody></table>
 <ul>
-<li>BOOT 引脚只在<strong>复位瞬间</strong>被采样；之后 BOOT1 引脚就恢复为 PB2 普通 GPIO。</li>
-<li>串口下载流程：BOOT0=1、BOOT1=0 → 复位进入 Bootloader → 串口下载 → BOOT0=0 → 复位运行。</li>
-<li>没有 ST-Link 时，串口下载也是一种下载方式；调试脚被占用时也能救急。</li>
+<li>BOOT 引脚只在<strong>复位瞬间</strong>被采样，之后 BOOT1 恢复为 PB2 普通 GPIO。</li>
+<li>串口下载：BOOT0=1、BOOT1=0 → 复位进 Bootloader → 串口下载 → BOOT0=0 → 复位运行；没有 ST-Link 时也能用。</li>
 </ul>
-<h2 id="10-最小系统电路">10. 最小系统电路</h2>
-<p>单片机只有芯片不能工作，需要最基本的“最小系统”：</p>
+<h2 id="8-最小系统电路">8. 最小系统电路</h2>
 <ol>
-<li><strong>电源</strong><ul>
-<li>所有 VDD 接 3.3V，VSS 接 GND；VDDA/VSSA 也要供电。</li>
-<li>每组电源脚附近加 100nF 去耦电容，总电源加 10uF；VBAT 可接 3V 纽扣电池给 RTC/BKP。</li>
-<li>5V（USB）经稳压芯片（XC6204/XC6206/AMS1117 等）降到 3.3V。</li>
-</ul>
-</li>
-<li><strong>晶振</strong><ul>
-<li>8MHz 主晶振（HSE）+ 两个 20pF 起振电容，接 OSC_IN/OSC_OUT；内部 PLL ×9 得到 72MHz。</li>
-<li>需要 RTC 时再加 32.768kHz 晶振（LSE）+ 电容，接 OSC32；32.768k = 2^15，内部 2^15 分频得到 1 秒。</li>
-</ul>
-</li>
-<li><strong>复位</strong><ul>
-<li>NRST 用 10kΩ 上拉到 3.3V，100nF 电容到地，并联复位按键。</li>
-<li>上电瞬间电容短路 → NRST 低 → 随充电变高，产生上电复位；按键手动拉低复位。</li>
-</ul>
-</li>
-<li><strong>启动配置</strong><ul>
-<li>BOOT0 用跳线/拨码开关选择 GND（0）或 3.3V（1）；BOOT1 同理（PB2）。</li>
-</ul>
-</li>
-<li><strong>下载调试</strong><ul>
-<li>引出 SWDIO、SWCLK、3.3V、GND，接 ST-Link；GND 必须接，3.3V 建议也引。</li>
-</ul>
-</li>
-<li><strong>课程用的蓝色最小系统板</strong><ul>
-<li>已包含：3.3V 稳压、USB 5V 输入、8MHz + 32.768kHz 晶振、复位键、BOOT 跳线、PWR 指示灯、PC13 测试灯、SWD 接口、两排排针。</li>
-<li>USB 接 PA11/PA12，可做 USB 通信，也给板子供电。</li>
-</ul>
-</li>
+<li><strong>电源</strong>：所有 VDD 接 3.3V、VSS 接 GND，VDDA/VSSA 也要供电；每组电源脚加 100nF 去耦电容、总电源加 10uF，VBAT 可接 3V 纽扣电池；5V（USB）经稳压芯片（XC6204/XC6206/AMS1117）降到 3.3V。</li>
+<li><strong>晶振</strong>：8MHz 主晶振（HSE）+ 两个 20pF 起振电容接 OSC_IN/OSC_OUT，内部 PLL ×9 得 72MHz；需 RTC 再加 32.768kHz（LSE）+ 电容接 OSC32，32.768k = 2^15，内部 2^15 分频得 1 秒。</li>
+<li><strong>复位</strong>：NRST 用 10kΩ 上拉到 3.3V、100nF 到地，并联复位按键；上电瞬间电容短路拉低 NRST，随充电变高产生上电复位。</li>
+<li><strong>启动配置</strong>：BOOT0 用跳线/拨码开关选 GND（0）或 3.3V（1），BOOT1 同理（PB2）。</li>
+<li><strong>下载调试</strong>：引出 SWDIO、SWCLK、3.3V、GND 接 ST-Link；GND 必须接，3.3V 建议也引。</li>
+<li><strong>课程蓝色最小系统板</strong>：含 3.3V 稳压、USB 5V 输入、8MHz + 32.768kHz 晶振、复位键、BOOT 跳线、PWR 指示灯、PC13 测试灯、SWD 接口、两排排针；USB 接 PA11/PA12，可做 USB 通信并给板子供电。</li>
 </ol>
-<h2 id="11-五个容易踩的坑">11. 五个容易踩的坑</h2>
+<h2 id="坑与易错点">坑与易错点</h2>
 <ol>
 <li><strong>5V 不能直接给 STM32 供电</strong>，要 3.3V；5V 信号接非 FT 引脚也要电平转换。</li>
-<li><strong>不要把所有调试脚都配成普通 IO</strong>，否则 ST-Link 下载不了；留 SWD，或会用串口下载。</li>
-<li><strong>C8T6 不是全外设</strong>：没有 DAC、SDIO、FSMC、USB OTG；表里是 F1 全系列。</li>
+<li><strong>别把所有调试脚都配成普通 IO</strong>，否则 ST-Link 下载不了；留 SWD，或会串口下载。</li>
+<li><strong>C8T6 不是全外设</strong>：没有 DAC、SDIO、FSMC、USB OTG，表里是 F1 全系列。</li>
 <li><strong>BOOT 引脚只在复位瞬间有效</strong>，之后就是普通 GPIO；改了 BOOT 要复位才生效。</li>
-<li><strong>APB1 是 36MHz、APB2 是 72MHz</strong>；外设挂在哪条总线、时钟怎么配，后面写代码会遇到。</li>
+<li><strong>APB1 是 36MHz、APB2 是 72MHz</strong>，外设挂哪条总线、时钟怎么配，后面写代码会遇到。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -610,17 +540,16 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-stm32-%E6%98%AF%E4%BB%80%E4%B9%88">1. STM32 是什么</a>
-        <a class="level-2" href="#2-stm32-%E5%AE%B6%E6%97%8F">2. STM32 家族</a>
-        <a class="level-2" href="#3-arm-%E4%B8%8E-cortex-%E7%B3%BB%E5%88%97">3. ARM 与 Cortex 系列</a>
-        <a class="level-2" href="#4-stm32f103c8t6-%E5%85%B3%E9%94%AE%E5%8F%82%E6%95%B0">4. STM32F103C8T6 关键参数</a>
-        <a class="level-2" href="#5-%E7%89%87%E4%B8%8A%E8%B5%84%E6%BA%90-%E5%A4%96%E8%AE%BE">5. 片上资源 / 外设</a>
-        <a class="level-2" href="#6-%E5%91%BD%E5%90%8D%E8%A7%84%E5%88%99-stm32f103c8t6">6. 命名规则：STM32F103C8T6</a>
-        <a class="level-2" href="#7-%E7%B3%BB%E7%BB%9F%E7%BB%93%E6%9E%84">7. 系统结构</a>
-        <a class="level-2" href="#8-%E5%BC%95%E8%84%9A%E5%AE%9A%E4%B9%89">8. 引脚定义</a>
-        <a class="level-2" href="#9-%E5%90%AF%E5%8A%A8%E9%85%8D%E7%BD%AE">9. 启动配置</a>
-        <a class="level-2" href="#10-%E6%9C%80%E5%B0%8F%E7%B3%BB%E7%BB%9F%E7%94%B5%E8%B7%AF">10. 最小系统电路</a>
-        <a class="level-2" href="#11-%E4%BA%94%E4%B8%AA%E5%AE%B9%E6%98%93%E8%B8%A9%E7%9A%84%E5%9D%91">11. 五个容易踩的坑</a>
+        <a class="level-2" href="#2-%E5%AE%B6%E6%97%8F%E4%B8%8E-arm-%E5%88%86%E5%B7%A5">2. 家族与 ARM 分工</a>
+        <a class="level-2" href="#3-f103c8t6-%E5%85%B3%E9%94%AE%E5%8F%82%E6%95%B0">3. F103C8T6 关键参数</a>
+        <a class="level-2" href="#4-%E7%89%87%E4%B8%8A%E5%A4%96%E8%AE%BE">4. 片上外设</a>
+        <a class="level-2" href="#5-%E5%91%BD%E5%90%8D%E8%A7%84%E5%88%99-stm32f103c8t6">5. 命名规则：STM32F103C8T6</a>
+        <a class="level-2" href="#6-%E7%B3%BB%E7%BB%9F%E7%BB%93%E6%9E%84">6. 系统结构</a>
+        <a class="level-2" href="#7-%E5%BC%95%E8%84%9A%E5%AE%9A%E4%B9%89%E4%B8%8E%E5%90%AF%E5%8A%A8%E9%85%8D%E7%BD%AE">7. 引脚定义与启动配置</a>
+        <a class="level-2" href="#8-%E6%9C%80%E5%B0%8F%E7%B3%BB%E7%BB%9F%E7%94%B5%E8%B7%AF">8. 最小系统电路</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>
   </aside>
 </div>

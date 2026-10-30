@@ -177,22 +177,19 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>27 分钟</span>
+      <span>19 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">输入捕获</span><span class="tag">频率测量</span>
     </div>
     <article class="prose"><h1>[6-6] 输入捕获模式测频率 / PWMI模式测频率占空比 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是 [6-5] 输入捕获的<strong>代码课</strong>——理论（输入捕获结构、滤波器/边沿/分频器、主从触发、测频法/测周法公式）<strong>全部在上一集 P17</strong>，本集不重复推导，只<strong>写代码 + 看 OLED 现象 + 评估性能</strong>。一共两个程序：<strong>① <code>6-6 输入捕获模式测频率</code>（00:00–26:40）</strong>、<strong>② <code>6-7 PWMI模式测频率占空比</code>（26:40–35:26）</strong>，最后 32:40–35:26 是<strong>测频率的性能评估</strong>（量程下限、上限、晶振误差）。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>本集把 [6-5] 的输入捕获理论落成两个工程：<strong>程序一（测频率）<strong>从 P16 的 <code>6-3 PWM驱动LED呼吸灯</code> 复制——先把 PWM 模块改造成「<strong>固定 <code>ARR=100-1</code>、用 PSC 调频率</strong>」（因为占空比 <code>CCR/(ARR+1)</code> 只跟 ARR 有关，改 ARR 会连占空比一起变），并新增 <strong><code>PWM_SetPrescaler</code></strong>（内部调 <code>TIM_PrescalerConfig(TIM2, Prescaler, TIM_PSCReloadMode_Immediate)</code>）；再新建 <code>IC.c</code>，按</strong>六步</strong>写 <code>IC_Init</code>：<strong>① 开 RCC 时钟（TIM3 因为 TIM2 被 PWM 占了）② PA6 配 <code>GPIO_Mode_IPU</code> 上拉输入 ③ 时基 <code>ARR = 65536-1</code>、<code>PSC = 72-1</code> → 标准频率 <code>fc = 72M/72 = 1MHz</code> ④ <code>TIM_ICInit</code> 五成员：<code>TIM_Channel_1</code>、<code>TIM_ICFilter = 0xF</code>、<code>TIM_ICPolarity_Rising</code>、<code>TIM_ICPSC_DIV1</code>、<code>TIM_ICSelection_DirectTI</code> ⑤ <code>TIM_SelectInputTrigger(TIM3, TIM_TS_TI1FP1)</code> ⑥ <code>TIM_SelectSlaveMode(TIM3, TIM_SlaveMode_Reset)</code>，最后 <code>TIM_Cmd</code> 启动</strong>——这一套配完，<strong>每次上升沿把 CNT 锁进 CCR1、并由从模式硬件清零 CNT</strong>，于是 <strong><code>fx = fc/CCR1 = 1000000/TIM_GetCapture1(TIM3)</code></strong>；实测 <code>1001Hz</code>（比 1000 多 1，属 <strong>±1 计数误差</strong>，作者推测是「快到 1000 时信号刚好跳变、这个数没计到」），为了「凑整」在读数里 <strong>+1</strong> 后显示 <strong>1000Hz</strong>。<strong>程序二（PWMI）<strong>由 6-6 复制，只改输入捕获初始化：先手动配「通道 1 直连 + 上升沿、通道 2 交叉 + 下降沿」，再用 ST 封装好的 <strong><code>TIM_PWMIConfig(TIM3, &amp;TIM_ICInitStructure)</code></strong> 一次搞定（它只支持通道 1/2，内部会自动把另一通道配成相反极性/反向选择）；于是 <code>CCR1</code> = 整周期计数值、<code>CCR2</code> = 高电平计数值，</strong><code>IC_GetDuty = (TIM_GetCapture2+1)*100 / (TIM_GetCapture1+1)</code></strong> 返回 0～100，现象 <strong>1000Hz / 50%</strong>，改参数后 <strong>100Hz / 80%</strong>。最后<strong>性能评估</strong>：<code>fc = 1MHz</code>、CNT 最大 65535 ⇒ <strong>量程下限 ≈ 1M/65535 ≈ 15Hz</strong>（再低要加大 PSC）；<strong>上限没有硬边界</strong>，由误差要求决定（±1 误差 ≈ 1/N，要求 1/1000 则上限 1kHz、要求 1/100 则 10kHz），再高就该换<strong>测频法</strong>；实际测量还有<strong>晶振误差</strong>（本实验自己测自己没有，所以数值很稳）。<strong>理论全在 P17 [6-5]。</strong></p>
-<h2 id="0-本集定位-代码课-理论全部在-6-5-p17">0. 本集定位：代码课，理论全部在 [6-5] P17</h2>
+<p>程序一把 PWM 模块改成「固定 <code>ARR=100-1</code>、用 <code>PSC</code> 调频」，再按六步配好 <code>IC_Init</code>，<code>fx = fc/CCR1</code>；程序二只把第④步换成 <code>TIM_PWMIConfig</code>，占空比 = CCR2/CCR1。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯代码课</strong>：0:00 第一句就是「本小节我们来学习输入捕获的代码部分」，0:09 看接线图；全程 Keil —— 复制工程 → 改造 PWM 模块 → 新建 IC 模块 → 逐行写 <code>TIM_ICInit</code> 结构体 → 编译下载 → OLED 看现象。</li>
-<li><strong>两个工程都是「复制已有工程改名」</strong>：程序一由 P16 的 <code>6-3 PWM驱动LED呼吸灯</code> 复制改名为 <code>6-6 输入捕获模式测频率</code>；程序二由 6-6 复制改名为 <code>6-7 PWMI模式测频率占空比</code>。</li>
-<li><strong>理论引用 P17 即可</strong>：输入捕获原理（引脚跳变把 CNT 锁存进 CCR）、<code>ICF</code> 滤波器、<code>CC1S</code> 数据选择器、预分频、主从触发的 <code>TS</code>/<code>SMS</code>、测周法 <code>fx = fc/N</code>、PWMI 结构（上升沿捕周期 + 下降沿捕高电平），本笔记<strong>不再推导</strong>，只在用到时写「代公式」，详细推导看 <code>notes/stm32-17-TIM输入捕获.md</code>。</li>
-<li><strong>本集还多了一块 P17 没有的内容</strong>：32:40–35:26 的<strong>测频率性能评估</strong>（量程下限、上限、晶振误差），这部分按「作者经验值」写，见第 4 章。</li>
-<li>编号对照：本集视频是 <strong>[6-6]</strong>，片头两个<strong>工程目录</strong>却叫 <code>6-6</code> / <code>6-7</code>（作者按「代码小节」编号）——与 P15/P16/P17 一样，两套编号不是一回事。</li>
+<li>[6-5] 输入捕获的<strong>代码课</strong>：捕获原理、<code>ICF</code> 滤波器、<code>CC1S</code> 数据选择器、主从触发的 <code>TS</code>/<code>SMS</code>、测频法/测周法全在 P17，本集只写代码、看 OLED、评估性能。</li>
+<li>两个程序：<code>6-6 输入捕获模式测频率</code>（00:00–26:40）、<code>6-7 PWMI模式测频率占空比</code>（26:40–35:26）。</li>
+<li>32:40–35:26 是 P17 没有的<strong>性能评估</strong>（量程下限、上限、晶振误差），按作者经验值写，见第 4 章。</li>
+<li>程序一由 P16 的 <code>6-3 PWM驱动LED呼吸灯</code> 复制，程序二由 6-6 复制。</li>
+<li>编号对照：视频是 <strong>[6-6]</strong>，工程目录却叫 <code>6-6</code> / <code>6-7</code>，两套编号不是一回事。理论看 <code>notes/stm32-17-TIM输入捕获.md</code>。</li>
 </ul>
 <h2 id="1-两个程序总览">1. 两个程序总览</h2>
 <table>
@@ -227,49 +224,49 @@
 </tr>
 </tbody></table>
 <ul>
-<li>两个程序的<strong>接线完全相同</strong>（都是 PA0 到 PA6 的一根线），区别只在 <code>IC.c</code> 里输入捕获单元的配置。</li>
-<li>程序二<strong>只改「输入捕获初始化」这一段</strong>：时钟、GPIO、时基都不动。</li>
-<li>两个程序共用同一个 PWM 信号源（P16 的 PWM 模块改造而来），所以能「自己测自己」。</li>
+<li>两个程序接线完全相同（都是 PA0 到 PA6 一根线），区别只在 <code>IC.c</code> 里输入捕获单元的配置。</li>
+<li>程序二只改「输入捕获初始化」这一段：时钟、GPIO、时基都不动。</li>
+<li>共用同一个 PWM 信号源（P16 的 PWM 模块改造而来），所以能自己测自己。</li>
 </ul>
 <h2 id="2-程序一-输入捕获模式测频率-00-00-26-40">2. 程序一：输入捕获模式测频率（00:00–26:40）</h2>
 <h3 id="2-1-接线-把-pa0-连到-pa6">2.1 接线：把 PA0 连到 PA6</h3>
 <ul>
-<li><strong>测量信号的输入引脚是 PA6</strong>（P17 讲过 PA6 = <strong>TIM3_CH1</strong>），<strong>待测的 PWM 信号也是 STM32 自己生成的</strong>、输出引脚是 <strong>PA0</strong>——所以接线<strong>直接用一根线把 PA0 引到 PA6</strong> 就行了。</li>
-<li>如果手上有<strong>信号发生器</strong>：把它设置成<strong>方波输出，高电平 3.3V、低电平 0V</strong>，直接接到 PA6，<strong>别忘了共地</strong>——这样接线也可以。</li>
-<li>面包板上实际就是<strong>一根飞线</strong>：一端接 PA6，另一端接 PA0。</li>
-<li><strong>两个程序的接线都是一样的</strong>（都是接一根线，从 PA0 到 PA6）。</li>
+<li>测量输入引脚是 <strong>PA6</strong>（P17 讲过 PA6 = TIM3_CH1），待测 PWM 由 STM32 自己输出到 <strong>PA0</strong>，一根线连过去就行。</li>
+<li>有信号发生器就设成方波输出、高电平 3.3V、低电平 0V，直接接 PA6，别忘了共地。</li>
+<li>面包板上实际就是一根飞线：一端接 PA6、另一端接 PA0。</li>
 </ul>
-<p><img src="../assets/images/stm32-18/01-wiring-pa0-pa6.jpg" alt="图 1：接线图 6-6 输入捕获模式测频率——面包板上的 STM32 最小系统板 + ST-Link + OLED，一根绿色飞线把 PA0（PWM 输出）与 PA6（TIM3_CH1 输入捕获脚）连起来自测；字幕「目前我们这个测量信号的输入引脚是PA6」"></p>
-<p><em>图 1：接线图 <code>6-6 输入捕获模式测频率</code>——面包板上的 STM32 最小系统板 + ST-Link + OLED，一根绿色飞线把 PA0（PWM 输出）与 PA6（TIM3_CH1 输入捕获脚）连起来自测；字幕「目前我们这个测量信号的输入引脚是PA6」</em></p>
+<p><img src="../assets/images/stm32-18/01-wiring-pa0-pa6.jpg" alt="图 1：接线图 6-6 输入捕获模式测频率——一根绿色飞线把 PA0（PWM 输出）与 PA6（TIM3_CH1 输入捕获脚）连起来自测"></p>
+<p><em>图 1：接线图 <code>6-6 输入捕获模式测频率</code>——一根绿色飞线把 PA0（PWM 输出）与 PA6（TIM3_CH1 输入捕获脚）连起来自测</em></p>
 <h3 id="2-2-复制工程-并改造-pwm-模块">2.2 复制工程，并改造 PWM 模块</h3>
-<p><strong>复制工程</strong>：借用之前写好的 PWM 模块来生成待测信号，所以直接<strong>复制 <code>6-3 PWM驱动LED呼吸灯</code></strong> 的代码，改名为 <strong><code>6-6 输入捕获模式测频率</code></strong>，删掉之前用不到的显示代码，先编译一下。</p>
-<p><strong>为什么要改造 PWM 模块</strong>：原来 PWM 的频率是在初始化里写死的，运行时调不方便；而</p>
 <ul>
-<li><code>PWM 频率 = 72M/(PSC+1)/(ARR+1)</code>，<strong>PSC 和 ARR 都能调频率</strong>；</li>
-<li>但 <code>占空比 = CCR/(ARR+1)</code>，<strong>用 ARR 调频率会同时改变占空比</strong>，用 <strong>PSC 调频率则不影响占空比</strong>，显然更方便。</li>
+<li>复制 <code>6-3 PWM驱动LED呼吸灯</code>，改名 <code>6-6 输入捕获模式测频率</code>，删掉用不到的显示代码，先编译。</li>
+<li>为什么改造：原来频率写死在初始化里，运行时调不方便；<code>PWM 频率 = 72M/(PSC+1)/(ARR+1)</code> 里 PSC、ARR 都能调频。</li>
+<li>但 <code>占空比 = CCR/(ARR+1)</code> 只跟 ARR 有关——用 ARR 调频会连占空比一起变，用 PSC 调频不影响占空比。</li>
+<li>改造方案：固定 <code>ARR = 100-1</code>（分辨率 1%）、用 PSC 调频，好处是 <code>CCR</code> 的数直接就是占空比百分数。</li>
+<li>需要更高分辨率（比如 0.1%）就固定 <code>ARR = 1000-1</code>，此时频率 = 72M/预分频/1000、占空比 = CCR/1000。</li>
 </ul>
-<p><strong>改造方案</strong>：<strong>固定 <code>ARR = 100-1</code></strong>（分辨率 1%），<strong>用 PSC 调频率</strong>；这样还有个好处——<strong><code>CCR</code> 的数值直接就是占空比的百分数</strong>（ARR+1 = 100），用起来直观。如果项目需要更高的分辨率（比如 0.1%），就固定 <code>ARR = 1000-1</code>，此时频率 = 72M/预分频/1000、占空比 = CCR/1000。</p>
-<p><strong>新增函数</strong> <code>PWM_SetPrescaler</code>（在 PWM 模块最后加）：</p>
+<p>新增 <code>PWM_SetPrescaler</code>（加在 PWM 模块最后）：</p>
 <pre><code class="language-c">void PWM_SetPrescaler(uint16_t Prescaler)
 {
     TIM_PrescalerConfig(TIM2, Prescaler, TIM_PSCReloadMode_Immediate);
 }
 </code></pre>
 <ul>
-<li>库函数 <code>TIM_PrescalerConfig</code> 就是<strong>单独写入 PSC</strong> 的函数（因为多了个重装模式参数，所以叫 Config 不叫 Set；本质就是写 PSC）。</li>
-<li><strong>第三个参数是重装模式</strong>：<code>TIM_PSCReloadMode_Update</code> 是<strong>在更新事件重装</strong>（有缓存器、延迟写入，保证每个周期完整）；<code>TIM_PSCReloadMode_Immediate</code> 是<strong>立即重装</strong>——写入的值立刻生效，<strong>可能会在值改变时切断当前波形</strong>，比如 PWM 一个周期刚过一半就立即生效，就会立刻切断当前周期、开始新的一个周期，<strong>频率变化时会出现一个不完整的周期</strong>。</li>
-<li>本程序<strong>要求不高，哪个都行</strong>，这里选<strong>立即生效</strong>（<code>Immediate</code>）。</li>
+<li><code>TIM_PrescalerConfig</code> 就是单独写 PSC 的函数（因为多了重装模式参数，所以叫 Config 不叫 Set）；本程序实际调用 <code>TIM_PrescalerConfig(TIM2, Prescaler, TIM_PSCReloadMode_Immediate)</code>。</li>
+<li>第三个参数是重装模式：<code>TIM_PSCReloadMode_Update</code> 在更新事件重装（有缓存器、延迟写入，保证每个周期完整）。</li>
+<li><code>TIM_PSCReloadMode_Immediate</code> 立即重装，写入立刻生效，可能会在值改变时切断当前波形，出现一个不完整的周期。</li>
+<li>本程序要求不高，选立即生效（<code>Immediate</code>）。</li>
 </ul>
-<p><strong>主函数里产生 1kHz / 50% 的待测信号</strong>：</p>
+<p>主函数里产生 1kHz / 50% 的待测信号：</p>
 <pre><code class="language-c">PWM_Init();
 PWM_SetPrescaler(720 - 1);   //Freq = 72M / (PSC + 1) / 100
 PWM_SetCompare1(50);         //Duty = CCR / 100
 </code></pre>
 <ul>
-<li>代公式：<code>72M/(720)/100 = 1kHz</code>，<code>50/100 = 50%</code>，于是 <strong>PA0 输出 1kHz、50% 的待测信号</strong>。</li>
+<li>代公式：<code>72M/(720)/100 = 1kHz</code>、<code>50/100 = 50%</code>，于是 PA0 输出 1kHz、50% 的待测信号。</li>
 </ul>
 <h3 id="2-3-写-ic-代码前先理清六步">2.3 写 IC 代码前先理清六步</h3>
-<p>对照 P17 的「输入捕获基本结构」图，把电路连成图里的样子需要<strong>六步</strong>（最后还要 <code>TIM_Cmd</code> 启动、读 CCR 算频率）：</p>
+<p>对照 P17 的「输入捕获基本结构」图，把电路连成图里的样子需要六步：</p>
 <table>
 <thead>
 <tr>
@@ -310,8 +307,8 @@ PWM_SetCompare1(50);         //Duty = CCR / 100
 <td>需要读频率时，<strong>读 CCR 寄存器、按 <code>fc/N</code> 算</strong></td>
 </tr>
 </tbody></table>
-<p><img src="../assets/images/stm32-18/02-ppt-six-steps.jpg" alt="图 2：PPT「输入捕获基本结构」被红圈逐块标出——时基单元（PSC/ARR/CNT）、从模式 Reset、触发源选择、GPIO、滤波器、边沿检测极性选择、TI1FP1、分频器、CCR1 捕获/比较器；字幕「直接读取CCR寄存器，然后按照fc/N，计算一下就行了」"></p>
-<p><em>图 2：PPT「输入捕获基本结构」被红圈逐块标出——时基单元（PSC/ARR/CNT）、从模式 Reset、触发源选择、GPIO、滤波器、边沿检测极性选择、TI1FP1、分频器、CCR1 捕获/比较器；字幕「直接读取CCR寄存器，然后按照fc/N，计算一下就行了」</em></p>
+<p><img src="../assets/images/stm32-18/02-ppt-six-steps.jpg" alt="图 2：PPT「输入捕获基本结构」被红圈逐块标出——时基单元（PSC/ARR/CNT）、从模式 Reset、触发源选择、GPIO、滤波器、边沿检测极性选择、TI1FP1、分频器、CCR1"></p>
+<p><em>图 2：PPT「输入捕获基本结构」被红圈逐块标出——时基单元（PSC/ARR/CNT）、从模式 Reset、触发源选择、GPIO、滤波器、边沿检测极性选择、TI1FP1、分频器、CCR1</em></p>
 <h3 id="2-4-输入捕获相关的库函数">2.4 输入捕获相关的库函数</h3>
 <p>打开 <code>stm32f10x_tim.h</code>：</p>
 <table>
@@ -363,8 +360,8 @@ PWM_SetCompare1(50);         //Duty = CCR / 100
 <td><strong>输入捕获模式下 CCR 只读</strong>，要用 GetCapture 读出；输出比较模式下 CCR 只写，要用 SetCompare 写入</td>
 </tr>
 </tbody></table>
-<p><img src="../assets/images/stm32-18/03-ic-library-functions.jpg" alt="图 3：stm32f10x_tim.h 函数列表——TIM_OC1Init～TIM_OC4Init（高亮）、TIM_ICInit（高亮）、TIM_PWMIConfig、TIM_ICStructInit 等；字幕「而 ICInit，4 个通道是共用一个函数的」"></p>
-<p><em>图 3：<code>stm32f10x_tim.h</code> 函数列表——<code>TIM_OC1Init</code>～<code>TIM_OC4Init</code>（高亮）、<code>TIM_ICInit</code>（高亮）、<code>TIM_PWMIConfig</code>、<code>TIM_ICStructInit</code> 等；字幕「而 ICInit，4 个通道是共用一个函数的」</em></p>
+<p><img src="../assets/images/stm32-18/03-ic-library-functions.jpg" alt="图 3：stm32f10x_tim.h 函数列表——TIM_OC1Init～TIM_OC4Init、TIM_ICInit（均高亮）、TIM_PWMIConfig、TIM_ICStructInit 等"></p>
+<p><em>图 3：<code>stm32f10x_tim.h</code> 函数列表——<code>TIM_OC1Init</code>～<code>TIM_OC4Init</code>、<code>TIM_ICInit</code>（均高亮）、<code>TIM_PWMIConfig</code>、<code>TIM_ICStructInit</code> 等</em></p>
 <h3 id="2-5-ic-init-完整代码-程序一最终版">2.5 IC_Init 完整代码（程序一最终版）</h3>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
 
@@ -414,30 +411,30 @@ uint32_t IC_GetFreq(void)
     return 1000000 / (TIM_GetCapture1(TIM3) + 1);   // fc = 1MHz
 }
 </code></pre>
-<p>各步骤的细节（视频里都专门讲了）：</p>
+<p>各步骤细节：</p>
 <ul>
-<li><strong>定时器为什么换 TIM3</strong>：TIM2 已经被 PWM 输出占用了，所以输入捕获换一个定时器——<strong>TIM3 也是 APB1 的外设</strong>，所以开时钟还是用 <code>RCC_APB1PeriphClockCmd</code>。</li>
-<li><strong>引脚怎么定</strong>：查引脚定义表，<strong>TIM3_CH1～CH4 分别是 PA6 / PA7 / PB0 / PB1</strong>；本程序用 CH1，所以是 <strong>PA6</strong>，GPIO 模式选 <strong><code>GPIO_Mode_IPU</code> 上拉输入</strong>。</li>
-<li><strong>ARR 给 65536-1</strong>：根据上一小节的分析，ARR 要<strong>设大一些防止计数溢出</strong>，这里直接给<strong>最大值 65536-1</strong>，即 16 位计数器满量程计数。</li>
-<li><strong>PSC 给 72-1</strong>：PSC 决定测周法的<strong>标准频率 fc = 72M/预分频 = 72M/72 = 1MHz</strong>；这个值<strong>要根据你信号频率的分布范围来调整</strong>（先给 72-1）。</li>
-<li><strong><code>TIM_ICInit</code> 五个成员</strong>：<code>TIM_Channel_1</code> 选通道、<strong><code>TIM_ICFilter = 0xF</code></strong>（0x0～0xF，越大滤波效果越好；本程序给最大档、「多给点滤波」）、<code>TIM_ICPolarity_Rising</code> 上升沿触发、<code>TIM_ICPrescaler = TIM_ICPSC_DIV1</code> 不分频、<code>TIM_ICSelection_DirectTI</code> 直连通道。</li>
-<li><strong>分频器只有 4 档</strong>：<code>TIM_ICPSC_DIV1 / DIV2 / DIV4 / DIV8</code>——<strong>分频值不能任意指定</strong>，只能选这 4 种；本程序要「每次触发都有效」，选 <strong>DIV1（不分频）</strong>。</li>
-<li><strong>滤波器 ≠ 分频器</strong>：两者都是「计次」的东西，但<strong>滤波器计次不会改变信号的原有频率</strong>（采样频率远高于信号频率，只滤掉高频噪声、让波形更平滑，<strong>1kHz 滤波之后仍然是 1kHz</strong>）；而<strong>分频器是对信号本身计次、会改变频率</strong>（1kHz 二分频变 500Hz、四分频变 250Hz）。</li>
-<li><strong>主从触发的两行</strong>：<code>TIM_SelectInputTrigger(TIM3, TIM_TS_TI1FP1)</code> 选触发源、<code>TIM_SelectSlaveMode(TIM3, TIM_SlaveMode_Reset)</code> 选从模式 Reset。<code>TIM_SelectSlaveMode</code> 的参数只有复位、门控、触发、外部时钟等几种（编码器模式另有函数配置，所以不在此函数的参数里）。</li>
-<li><strong>启动后 CNT 一直自增</strong>：即使没有信号过来它也会不断自增，<strong>不过这没关系</strong>——有信号来的时候，它会在从模式的作用下<strong>自动清零</strong>，不影响测量。</li>
+<li>定时器换 TIM3：TIM2 已被 PWM 输出占用；TIM3 也是 APB1 外设，所以仍用 <code>RCC_APB1PeriphClockCmd</code>。</li>
+<li>引脚：查引脚定义表，TIM3_CH1～CH4 分别是 PA6 / PA7 / PB0 / PB1；用 CH1 即 PA6，模式选 <code>GPIO_Mode_IPU</code> 上拉输入。</li>
+<li>ARR 给 65536-1：ARR 要设大防止计数溢出，直接给最大值，即 16 位计数器满量程计数（时基就是 <code>ARR = 65536-1</code>、<code>PSC = 72-1</code>）。</li>
+<li>PSC 给 72-1：决定测周法的标准频率 <code>fc = 72M/(PSC+1) = 72M/72 = 1MHz</code>，也就是 <code>fc = 1MHz</code>；这个值要根据信号频率范围调整。</li>
+<li><code>TIM_ICInit</code> 五个成员：<code>TIM_Channel = TIM_Channel_1</code> 选通道、<code>TIM_ICFilter = 0xF</code>（0x0～0xF，越大滤波越好，这里给最大档）、<code>TIM_ICPolarity_Rising</code>、<code>TIM_ICPSC_DIV1</code>、<code>TIM_ICSelection = TIM_ICSelection_DirectTI</code>（<code>TIM_ICSelection_DirectTI</code> 就是直连通道）。</li>
+<li>分频器只有 4 档：<code>TIM_ICPSC_DIV1 / DIV2 / DIV4 / DIV8</code>，分频值不能任意指定；要每次触发都有效就选 <code>TIM_ICPSC_DIV1</code>（DIV1）。</li>
+<li>滤波器 ≠ 分频器：滤波器计次不改变信号频率（1kHz 滤波后还是 1kHz），分频器对信号计次会改变频率（1kHz 二分频 500Hz、四分频 250Hz）。</li>
+<li>主从触发两行：<code>TIM_SelectInputTrigger(TIM3, TIM_TS_TI1FP1)</code> 选触发源、<code>TIM_SelectSlaveMode(TIM3, TIM_SlaveMode_Reset)</code> 选从模式 Reset；参数只有复位、门控、触发、外部时钟等（编码器模式另有函数配置）。</li>
+<li>最后 <code>TIM_Cmd(TIM3, ENABLE)</code> 启动；启动后 CNT 一直自增，有信号来时会按从模式自动清零，不影响测量。</li>
 </ul>
-<p><img src="../assets/images/stm32-18/04-ic-filter-0xf.jpg" alt="图 4：IC.c 里 TIM_ICInitStructure.TIM_ICFilter = 0xF; 一行被高亮——0x0～0xF 越大滤波越好；同一屏可见 TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC；字幕「注意滤波器和分频器的区别」"></p>
-<p><em>图 4：IC.c 里 <code>TIM_ICInitStructure.TIM_ICFilter = 0xF;</code> 一行被高亮——0x0～0xF 越大滤波越好；同一屏可见 <code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>；字幕「注意滤波器和分频器的区别」</em></p>
-<p><img src="../assets/images/stm32-18/05-icpsc-four-levels.jpg" alt="图 5：stm32f10x_tim.h 里输入捕获预分频的四个取值——TIM_ICPSC_DIV1 (0x0000)、DIV2 (0x0004)、DIV4 (0x0008)、DIV8 (0x000C)，以及 IS_TIM_IC_PRESCALER 判断宏；字幕「所以选择 DIV1，不分频，复制」"></p>
-<p><em>图 5：<code>stm32f10x_tim.h</code> 里输入捕获预分频的四个取值——<code>TIM_ICPSC_DIV1 (0x0000)</code>、<code>DIV2 (0x0004)</code>、<code>DIV4 (0x0008)</code>、<code>DIV8 (0x000C)</code>，以及 <code>IS_TIM_IC_PRESCALER</code> 判断宏；字幕「所以选择 DIV1，不分频，复制」</em></p>
-<p><img src="../assets/images/stm32-18/06-ic-init-params.jpg" alt="图 6：IC.c 参数全貌（20:42）——TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC、TIM_Channel = TIM_Channel_1、TIM_ICFilter = 0xF、TIM_ICPolarity = TIM_ICPolarity_Rising、TIM_ICPrescaler = TIM_ICPSC_DIV1、TIM_ICInit(TIM3, ...)（TIM_ICSelection 那一行此时还在输入）"></p>
-<p><em>图 6：IC.c 参数全貌（20:42）——<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>、<code>TIM_Channel = TIM_Channel_1</code>、<code>TIM_ICFilter = 0xF</code>、<code>TIM_ICPolarity = TIM_ICPolarity_Rising</code>、<code>TIM_ICPrescaler = TIM_ICPSC_DIV1</code>、<code>TIM_ICInit(TIM3, ...)</code>（<code>TIM_ICSelection</code> 那一行此时还在输入）</em></p>
-<p><img src="../assets/images/stm32-18/07-slave-reset-getfreq.jpg" alt="图 7：IC.c 后半段——TIM_ICSelection = TIM_ICSelection_DirectTI、TIM_ICInit(TIM3, &amp;TIM_ICInitStructure)、TIM_SelectInputTrigger(TIM3, TIM_TS_TI1FP1)、TIM_SelectSlaveMode(TIM3, TIM_SlaveMode_Reset)、TIM_Cmd(TIM3, ENABLE)，以及 uint32_t IC_GetFreq(void){ return 1000000 / ... } 开头；字幕「N就是读取CCR的值」"></p>
-<p><em>图 7：IC.c 后半段——<code>TIM_ICSelection = TIM_ICSelection_DirectTI</code>、<code>TIM_ICInit(TIM3, &amp;TIM_ICInitStructure)</code>、<code>TIM_SelectInputTrigger(TIM3, TIM_TS_TI1FP1)</code>、<code>TIM_SelectSlaveMode(TIM3, TIM_SlaveMode_Reset)</code>、<code>TIM_Cmd(TIM3, ENABLE)</code>，以及 <code>uint32_t IC_GetFreq(void){ return 1000000 / ... }</code> 开头；字幕「N就是读取CCR的值」</em></p>
+<p><img src="../assets/images/stm32-18/04-ic-filter-0xf.jpg" alt="图 4：TIM_ICInitStructure.TIM_ICFilter = 0xF; 一行被高亮——0x0～0xF 越大滤波越好；同屏可见 TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC"></p>
+<p><em>图 4：<code>TIM_ICInitStructure.TIM_ICFilter = 0xF;</code> 一行被高亮——0x0～0xF 越大滤波越好；同屏可见 <code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code></em></p>
+<p><img src="../assets/images/stm32-18/05-icpsc-four-levels.jpg" alt="图 5：输入捕获预分频的四个取值——TIM_ICPSC_DIV1 (0x0000)、DIV2 (0x0004)、DIV4 (0x0008)、DIV8 (0x000C)，以及 IS_TIM_IC_PRESCALER 判断宏"></p>
+<p><em>图 5：输入捕获预分频的四个取值——<code>TIM_ICPSC_DIV1 (0x0000)</code>、<code>DIV2 (0x0004)</code>、<code>DIV4 (0x0008)</code>、<code>DIV8 (0x000C)</code>，以及 <code>IS_TIM_IC_PRESCALER</code> 判断宏</em></p>
+<p><img src="../assets/images/stm32-18/06-ic-init-params.jpg" alt="图 6：IC.c 参数全貌（20:42）——TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC、TIM_ICPolarity = TIM_ICPolarity_Rising、TIM_ICPrescaler = TIM_ICPSC_DIV1"></p>
+<p><em>图 6：IC.c 参数全貌（20:42）——<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>、<code>TIM_ICPolarity = TIM_ICPolarity_Rising</code>、<code>TIM_ICPrescaler = TIM_ICPSC_DIV1</code></em></p>
+<p><img src="../assets/images/stm32-18/07-slave-reset-getfreq.jpg" alt="图 7：IC.c 后半段——TIM_ICSelection = TIM_ICSelection_DirectTI、TIM_ICInit(TIM3, &amp;TIM_ICInitStructure)、uint32_t IC_GetFreq(void){ return 1000000 / ... }"></p>
+<p><em>图 7：IC.c 后半段——<code>TIM_ICSelection = TIM_ICSelection_DirectTI</code>、<code>TIM_ICInit(TIM3, &amp;TIM_ICInitStructure)</code>、<code>uint32_t IC_GetFreq(void){ return 1000000 / ... }</code></em></p>
 <h3 id="2-6-频率公式-fx-fc-n-1mhz-ccr1">2.6 频率公式：fx = fc / N = 1MHz / CCR1</h3>
 <ul>
-<li>按照 P17 的测周法：<strong><code>fx = fc/N</code></strong>，而 <strong><code>fc = 72M/(PSC+1) = 72M/72 = 1MHz</code></strong>，<strong><code>N</code> 就是 CCR1 的值</strong>（<code>TIM_GetCapture1</code> 读出来的计数值）。</li>
-<li>所以读频率函数就是「用 1000000 除以 CCR1 的值」，返回的是<strong>最新一个周期的频率值，单位 Hz</strong>。</li>
+<li>按测周法 <code>fx = fc/N</code>，而 <code>fc = 72M/(PSC+1) = 72M/72 = 1MHz</code>（即 <code>fc = 72M/72 = 1MHz</code>），N 就是 <code>TIM_GetCapture1</code> 读出的 <code>CCR1</code>。</li>
+<li>所以 <code>fx = fc/CCR1 = 1000000/TIM_GetCapture1(TIM3)</code>：读频率就是 1000000 除以 CCR1，返回最新一个周期的频率值，单位 Hz。</li>
 </ul>
 <h3 id="2-7-主函数与现象-1001hz-与-1-修正">2.7 主函数与现象：1001Hz 与 +1 修正</h3>
 <pre><code class="language-c">int main(void)
@@ -458,26 +455,28 @@ uint32_t IC_GetFreq(void)
 }
 </code></pre>
 <ul>
-<li>链路：PWM 模块把待测信号输出到 <strong>PA0</strong> → 导线进入 <strong>PA6</strong> → PA6 是 <strong>TIM3 的通道 1</strong> → 通道 1 通过输入捕获测出频率 → 主循环不断刷新 OLED。</li>
-<li><strong>现象：实测 <code>Freq:01001Hz</code></strong>——「但是我们输出的是 1kHz，多了一点点」。按理说<strong>自己输出、自己测，应该不会有误差</strong>，但它<strong>很稳定地多了 1</strong>。</li>
-<li><strong>作者推测</strong>：<strong>可能是计数刚到 1000Hz 的那个数时、信号也刚好跳变</strong>（因为电路结构或者其他什么原因），<strong>导致这一个数刚好没计到</strong>——不过<strong>这也属于 ±1 误差的范畴</strong>，误差是符合要求的。</li>
-<li>但「总是差那么一点，逼死强迫症」，所以<strong>在程序上补回来</strong>：给计数值 <strong>+1</strong>，补一个数——<code>IC_GetFreq</code> 改成 <strong><code>return 1000000 / (TIM_GetCapture1(TIM3) + 1);</code></strong>，重新下载后显示 <strong><code>Freq:01000Hz</code></strong>，「凑个整，现在就舒服多了」。</li>
-<li><strong>注意</strong>：这个 <code>+1</code> 只是<strong>针对「自己测自己」这种特定信号的凑整技巧</strong>，不是通用做法——换频率、换信号源时，这个「少 1」未必出现，+1 反而可能多算（见「坑与易错点」）。</li>
+<li>链路：PWM 模块把待测信号输出到 PA0 → 导线进入 PA6 → PA6 是 TIM3 的通道 1 → 输入捕获测频率 → 主循环刷新 OLED。</li>
+<li>现象：实测 <code>Freq:01001Hz</code>——自己输出自己测，按理没有误差，但它稳定地多 1。</li>
+<li>推测：计数刚到 1000Hz 时信号也刚好跳变，这一个数没计到；仍属 ±1 误差范围。</li>
+<li>补回来：给计数值 +1，<code>IC_GetFreq</code> 改成 <code>return 1000000 / (TIM_GetCapture1(TIM3) + 1);</code>，重新下载显示 <code>Freq:01000Hz</code>。</li>
+<li>注意：这个 <code>+1</code> 只是「自己测自己」的凑整技巧，不是通用做法；换频率、换信号源时「少 1」未必出现，+1 反而可能多算。</li>
 </ul>
-<p><img src="../assets/images/stm32-18/08-program1-main.jpg" alt="图 8：程序一主函数——OLED_Init(); PWM_Init(); IC_Init();、OLED_ShowString(1, 1, &quot;Freq:00000Hz&quot;)、PWM_SetPrescaler(720 - 1); //Freq = 72M / (PSC + 1) / 100、PWM_SetCompare1(50); //Duty = CCR / 100；字幕「OLED_ShowString(1, 1, &quot;Freq:00000Hz&quot;)」"></p>
-<p><em>图 8：程序一主函数——<code>OLED_Init(); PWM_Init(); IC_Init();</code>、<code>OLED_ShowString(1, 1, &quot;Freq:00000Hz&quot;)</code>、<code>PWM_SetPrescaler(720 - 1); //Freq = 72M / (PSC + 1) / 100</code>、<code>PWM_SetCompare1(50); //Duty = CCR / 100</code>；字幕「OLED_ShowString(1, 1, &quot;Freq:00000Hz&quot;)」</em></p>
-<p><img src="../assets/images/stm32-18/09-freq-1001hz.jpg" alt="图 9：坑——OLED 显示 Freq:01001Hz（输出是 1kHz、测得多了 1）；字幕「但是我们输出的是1KHz，多了一点点」"></p>
-<p><em>图 9：坑——OLED 显示 <code>Freq:01001Hz</code>（输出是 1kHz、测得多了 1）；字幕「但是我们输出的是1KHz，多了一点点」</em></p>
-<p><img src="../assets/images/stm32-18/10-freq-1000hz.jpg" alt="图 10：+1 修正后的现象——OLED 显示 Freq:01000Hz；字幕「现在测量，1000Hz，没有问题」"></p>
-<p><em>图 10：+1 修正后的现象——OLED 显示 <code>Freq:01000Hz</code>；字幕「现在测量，1000Hz，没有问题」</em></p>
+<p><img src="../assets/images/stm32-18/08-program1-main.jpg" alt="图 8：程序一主函数——OLED_Init(); PWM_Init(); IC_Init();、OLED_ShowString(1, 1, &quot;Freq:00000Hz&quot;)、PWM_SetPrescaler(720 - 1); //Freq = 72M / (PSC + 1) / 100、PWM_SetCompare1(50); //Duty = CCR / 100"></p>
+<p><em>图 8：程序一主函数——<code>OLED_Init(); PWM_Init(); IC_Init();</code>、<code>OLED_ShowString(1, 1, &quot;Freq:00000Hz&quot;)</code>、<code>PWM_SetPrescaler(720 - 1); //Freq = 72M / (PSC + 1) / 100</code>、<code>PWM_SetCompare1(50); //Duty = CCR / 100</code></em></p>
+<p><img src="../assets/images/stm32-18/09-freq-1001hz.jpg" alt="图 9：坑——OLED 显示 Freq:01001Hz（输出 1kHz、测得多了 1）"></p>
+<p><em>图 9：坑——OLED 显示 <code>Freq:01001Hz</code>（输出 1kHz、测得多了 1）</em></p>
+<p><img src="../assets/images/stm32-18/10-freq-1000hz.jpg" alt="图 10：+1 修正后的现象——OLED 显示 Freq:01000Hz"></p>
+<p><em>图 10：+1 修正后的现象——OLED 显示 <code>Freq:01000Hz</code></em></p>
 <h2 id="3-程序二-pwmi-模式测频率占空比-26-40-35-26">3. 程序二：PWMI 模式测频率占空比（26:40–35:26）</h2>
 <h3 id="3-1-复制工程">3.1 复制工程</h3>
 <ul>
-<li>复制刚才的 <code>6-6 输入捕获模式测频率</code> 工程，改名为 <strong><code>6-7 PWMI模式测频率占空比</code></strong>，在这个工程基础上修改。</li>
-<li><strong>开启时钟、GPIO 和时基单元都不需要更改</strong>；只需要把<strong>输入捕获初始化的那一段升级</strong>成「两个通道同时捕获同一个引脚」的模式（P17 的 PWMI 基本结构）。</li>
+<li>复制 <code>6-6 输入捕获模式测频率</code>，改名 <code>6-7 PWMI模式测频率占空比</code>。</li>
+<li>时钟、GPIO、时基都不用改，只把输入捕获初始化升级成「两个通道同时捕获同一个引脚」。</li>
 </ul>
 <h3 id="3-2-手动配两个通道-过渡演示">3.2 手动配两个通道（过渡演示）</h3>
-<p>最「简单」的想法就是把通道初始化的部分<strong>复制一份</strong>：通道 1 保持「<strong>直连输入、上升沿触发</strong>」，下面那份改成「<strong>通道 2、交叉输入、下降沿触发</strong>」——正好对应 P17 里「通道 1 直连上升沿捕获周期、通道 2 交叉下降沿捕获高电平」的结构：</p>
+<ul>
+<li>最直接的想法是把通道初始化复制一份：通道 1 保持「直连 + 上升沿」，下面那份改成「通道 2、交叉、下降沿」：</li>
+</ul>
 <pre><code class="language-c">/* 通道1：直连 + 上升沿（捕获整周期） */
 TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
 TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
@@ -491,7 +490,7 @@ TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Falling;
 TIM_ICInit(TIM3, &amp;TIM_ICInitStructure);
 </code></pre>
 <ul>
-<li>这样配置<strong>是可行的、没问题</strong>，但 ST 公司「怕我们觉得麻烦」，专门封装了一个函数来一步完成。</li>
+<li>这样配是可行的，但 ST 专门封装了一个函数，可以一步完成。</li>
 </ul>
 <h3 id="3-3-tim-pwmiconfig-一次配好两个通道">3.3 TIM_PWMIConfig：一次配好两个通道</h3>
 <pre><code class="language-c">TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
@@ -502,16 +501,20 @@ TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
 TIM_PWMIConfig(TIM3, &amp;TIM_ICInitStructure);
 </code></pre>
 <ul>
-<li>用这个函数替换掉上面那一大段：<strong>只传一个通道的参数</strong>，函数内部会<strong>自动把剩下的一个通道配置成相反的参数</strong>——<code>Rising</code> 对 <code>Falling</code>、<code>DirectTI</code> 对 <code>IndirectTI</code>、通道 1 对通道 2。</li>
-<li>作者是「转到定义、分析源码」才知道的：源码里<strong>一堆 if 判断</strong>——传入 Rising 则对方 Falling、否则对方 Rising；传入直连则对方交叉、否则对方直连；传入通道 1 则结构体配到 TI1、对方配到 TI2，传入通道 2 则相反。</li>
-<li><strong>重要限制：这个函数只支持通道 1 和通道 2，不要传通道 3/4。</strong></li>
-<li>执行完这个函数，<strong>PWMI 电路就配好了</strong>；后面主从模式、启动定时器都不需要改。</li>
+<li>只传一个通道的参数（含 <code>TIM_ICSelection</code>），函数内部会自动把另一个通道配成相反的参数：<code>Rising</code> 对 <code>Falling</code>、<code>DirectTI</code> 对 <code>IndirectTI</code>、通道 1 对通道 2。</li>
+<li>源码里是一堆 if 判断：传入 Rising 则对方 Falling，传入直连则对方交叉，传入通道 1 则结构体配到 TI1、对方配到 TI2，传入通道 2 则相反。</li>
+<li>限制：只支持通道 1 和通道 2，不要传通道 3/4。</li>
+<li>执行完这个函数，PWMI 电路就配好了，后面的主从模式、启动定时器都不用改。</li>
 </ul>
+<p><img src="../assets/images/stm32-18/11-manual-two-channels.jpg" alt="图 11：程序二 IC.c 的手动两通道配置（过渡版）——通道 1 TIM_Channel_1 / DirectTI / Rising、通道 2 TIM_Channel_2 / IndirectTI / Falling，两次 TIM_ICInit(TIM3, ...) 都被高亮"></p>
+<p><em>图 11：程序二 IC.c 的手动两通道配置（过渡版）——通道 1 <code>TIM_Channel_1 / DirectTI / Rising</code>、通道 2 <code>TIM_Channel_2 / IndirectTI / Falling</code>，两次 <code>TIM_ICInit(TIM3, ...)</code> 都被高亮</em></p>
+<p><img src="../assets/images/stm32-18/12-pwmi-config.jpg" alt="图 12：改用 TIM_PWMIConfig(TIM3, &amp;TIM_ICInitStructure)——只配通道 1（TIM_Channel_1 一行高亮）、直连、上升沿，函数内部自动把通道 2 配成相反配置"></p>
+<p><em>图 12：改用 <code>TIM_PWMIConfig(TIM3, &amp;TIM_ICInitStructure)</code>——只配通道 1（<code>TIM_Channel_1</code> 一行高亮）、直连、上升沿，函数内部自动把通道 2 配成相反配置</em></p>
 <h3 id="3-4-ic-getduty-占空比-ccr2-ccr1">3.4 IC_GetDuty：占空比 = CCR2/CCR1</h3>
 <ul>
-<li>根据 P17 的分析：<strong>高电平的计数值存在 CCR2 里、整个周期的计数值存在 CCR1 里</strong>，用 <strong><code>CCR2/CCR1</code></strong> 就能得到占空比。</li>
-<li>但这个比值范围是 <strong>0～1</strong>（小数），要显示整数就<strong>乘 100</strong>，返回 <strong>0～100</strong> 对应 0%～100%。</li>
-<li>还是同一个问题：<strong>实测 CCR 总会少一个数</strong>，所以给两个值<strong>各加 1</strong> 补回来：</li>
+<li>高电平的计数值存在 CCR2、整个周期的计数值存在 <code>CCR1</code>，用 <code>CCR2/CCR1</code> 就得到占空比。</li>
+<li>比值范围是 0～1，要显示整数就乘 100，返回 0～100 对应 0%～100%。</li>
+<li>实测 CCR 总会少一个数，所以两个值各加 1 补回来，写成 <code>IC_GetDuty = (TIM_GetCapture2+1)*100 / (TIM_GetCapture1+1)</code>：</li>
 </ul>
 <pre><code class="language-c">uint32_t IC_GetFreq(void)
 {
@@ -523,14 +526,10 @@ uint32_t IC_GetDuty(void)
     return (TIM_GetCapture2(TIM3) + 1) * 100 / (TIM_GetCapture1(TIM3) + 1);
 }
 </code></pre>
-<p><img src="../assets/images/stm32-18/11-manual-two-channels.jpg" alt="图 11：程序二 IC.c 的手动两通道配置（过渡版）——通道 1 TIM_Channel_1 / DirectTI / Rising、通道 2 TIM_Channel_2 / IndirectTI / Falling，两次 TIM_ICInit(TIM3, ...) 都被高亮；字幕「然后在这里，下面这一大段，都不需要了」"></p>
-<p><em>图 11：程序二 IC.c 的手动两通道配置（过渡版）——通道 1 <code>TIM_Channel_1 / DirectTI / Rising</code>、通道 2 <code>TIM_Channel_2 / IndirectTI / Falling</code>，两次 <code>TIM_ICInit(TIM3, ...)</code> 都被高亮；字幕「然后在这里，下面这一大段，都不需要了」</em></p>
-<p><img src="../assets/images/stm32-18/12-pwmi-config.jpg" alt="图 12：改用 TIM_PWMIConfig(TIM3, &amp;TIM_ICInitStructure)——只配通道 1（TIM_Channel_1 一行高亮）、直连、上升沿，函数内部自动把通道 2 配成相反配置；后面跟着 TIM_SelectInputTrigger、TIM_SelectSlaveMode、IC_GetFreq（+1 版）；字幕「如果我传入通道2，直连，上升沿呢」"></p>
-<p><em>图 12：改用 <code>TIM_PWMIConfig(TIM3, &amp;TIM_ICInitStructure)</code>——只配通道 1（<code>TIM_Channel_1</code> 一行高亮）、直连、上升沿，函数内部自动把通道 2 配成相反配置；后面跟着 <code>TIM_SelectInputTrigger</code>、<code>TIM_SelectSlaveMode</code>、<code>IC_GetFreq</code>（+1 版）；字幕「如果我传入通道2，直连，上升沿呢」</em></p>
-<p><img src="../assets/images/stm32-18/13-ic-getduty-draft.jpg" alt="图 13：IC_GetDuty 的雏形——正在输入 return TIM_GetCapture2(TIM3) / TIM_GetCapture1(TIM3);（还没加 1、没乘 100）；字幕「TIM_GetCapture2(TIM3)/TIM_GetCapture1(TIM3)」"></p>
-<p><em>图 13：<code>IC_GetDuty</code> 的雏形——正在输入 <code>return TIM_GetCapture2(TIM3) / TIM_GetCapture1(TIM3);</code>（还没加 1、没乘 100）；字幕「TIM_GetCapture2(TIM3)/TIM_GetCapture1(TIM3)」</em></p>
-<p><img src="../assets/images/stm32-18/14-ic-getduty-final.jpg" alt="图 14：IC_GetDuty 最终版——return (TIM_GetCapture2(TIM3) + 1) * 100 / (TIM_GetCapture1(TIM3) + 1);（两个 CCR 各 +1、乘 100 返回 0～100），上面是 +1 版的 IC_GetFreq"></p>
-<p><em>图 14：<code>IC_GetDuty</code> 最终版——<code>return (TIM_GetCapture2(TIM3) + 1) * 100 / (TIM_GetCapture1(TIM3) + 1);</code>（两个 CCR 各 +1、乘 100 返回 0～100），上面是 +1 版的 <code>IC_GetFreq</code></em></p>
+<p><img src="../assets/images/stm32-18/13-ic-getduty-draft.jpg" alt="图 13：IC_GetDuty 的雏形——正在输入 return TIM_GetCapture2(TIM3) / TIM_GetCapture1(TIM3);（还没加 1、没乘 100）"></p>
+<p><em>图 13：<code>IC_GetDuty</code> 的雏形——正在输入 <code>return TIM_GetCapture2(TIM3) / TIM_GetCapture1(TIM3);</code>（还没加 1、没乘 100）</em></p>
+<p><img src="../assets/images/stm32-18/14-ic-getduty-final.jpg" alt="图 14：IC_GetDuty 最终版——return (TIM_GetCapture2(TIM3) + 1) * 100 / (TIM_GetCapture1(TIM3) + 1);（两个 CCR 各 +1、乘 100 返回 0～100）"></p>
+<p><em>图 14：<code>IC_GetDuty</code> 最终版——<code>return (TIM_GetCapture2(TIM3) + 1) * 100 / (TIM_GetCapture1(TIM3) + 1);</code>（两个 CCR 各 +1、乘 100 返回 0～100）</em></p>
 <h3 id="3-5-主函数与现象">3.5 主函数与现象</h3>
 <pre><code class="language-c">int main(void)
 {
@@ -552,49 +551,48 @@ uint32_t IC_GetDuty(void)
 }
 </code></pre>
 <ul>
-<li>先显示两行固定字符串 <code>Freq:00000Hz</code>（第 1 行）和 <code>Duty:00%</code>（第 2 行），主循环里分别刷新频率（5 位）和占空比（2 位）。</li>
-<li><strong>现象</strong>：初始 <code>PSC = 720-1</code>、<code>CCR = 50</code> 时，OLED 显示 <strong><code>Freq:01000Hz</code> / <code>Duty:50%</code></strong>，没问题。</li>
-<li><strong>改参数验证</strong>：<code>PWM_SetPrescaler(7200 - 1)</code> → 频率 100Hz；<code>PWM_SetCompare1(80)</code> → 占空比 80%；下载后实测 <strong>100Hz / 80%</strong>，也没问题（作者说大家可以自行改参数尝试）。</li>
-<li>到这里第二个代码写完；最后一段是性能评估（第 4 章）。</li>
+<li>先显示两行字符串 <code>Freq:00000Hz</code>（第 1 行）和 <code>Duty:00%</code>（第 2 行），主循环分别刷新频率（5 位）和占空比（2 位）。</li>
+<li>现象：<code>PSC = 720-1</code>、<code>CCR = 50</code> 时显示 <code>Freq:01000Hz</code> / <code>Duty:50%</code>。</li>
+<li>改参数：<code>PWM_SetPrescaler(7200 - 1)</code> → 100Hz，<code>PWM_SetCompare1(80)</code> → 80%，实测 <code>100Hz / 80%</code> 也没问题。</li>
 </ul>
-<p><img src="../assets/images/stm32-18/15-pwmi-phenomenon.jpg" alt="图 15：程序二现象——OLED 显示 Freq:01000Hz、Duty:50%（PSC=720-1、CCR=50）；字幕「目前测量结果，频率1000Hz」"></p>
-<p><em>图 15：程序二现象——OLED 显示 <code>Freq:01000Hz</code>、<code>Duty:50%</code>（PSC=720-1、CCR=50）；字幕「目前测量结果，频率1000Hz」</em></p>
-<p><img src="../assets/images/stm32-18/16-program2-main.jpg" alt="图 16：程序二主函数——两行字符串 Freq:00000Hz 与 Duty:00%，PWM_SetPrescaler(7200 - 1); //Freq = 72M / (PSC + 1) / 100、PWM_SetCompare1(50); //Duty = CCR / 100（此帧 CCR 还是 50，随后改成 80 得到 80%），主循环 OLED_ShowNum(1, 6, IC_GetFreq(), 5); + OLED_ShowNum(2, 6, IC_GetDuty(), 2);；字幕「比如，预分频改成7200，频率就是100Hz」"></p>
-<p><em>图 16：程序二主函数——两行字符串 <code>Freq:00000Hz</code> 与 <code>Duty:00%</code>，<code>PWM_SetPrescaler(7200 - 1); //Freq = 72M / (PSC + 1) / 100</code>、<code>PWM_SetCompare1(50); //Duty = CCR / 100</code>（此帧 CCR 还是 50，随后改成 80 得到 80%），主循环 <code>OLED_ShowNum(1, 6, IC_GetFreq(), 5);</code> + <code>OLED_ShowNum(2, 6, IC_GetDuty(), 2);</code>；字幕「比如，预分频改成7200，频率就是100Hz」</em></p>
+<p><img src="../assets/images/stm32-18/15-pwmi-phenomenon.jpg" alt="图 15：程序二现象——OLED 显示 Freq:01000Hz、Duty:50%（PSC=720-1、CCR=50）"></p>
+<p><em>图 15：程序二现象——OLED 显示 <code>Freq:01000Hz</code>、<code>Duty:50%</code>（PSC=720-1、CCR=50）</em></p>
+<p><img src="../assets/images/stm32-18/16-program2-main.jpg" alt="图 16：程序二主函数——PWM_SetPrescaler(7200 - 1); //Freq = 72M / (PSC + 1) / 100、PWM_SetCompare1(50); //Duty = CCR / 100，主循环 OLED_ShowNum(1, 6, IC_GetFreq(), 5); + OLED_ShowNum(2, 6, IC_GetDuty(), 2);"></p>
+<p><em>图 16：程序二主函数——<code>PWM_SetPrescaler(7200 - 1); //Freq = 72M / (PSC + 1) / 100</code>、<code>PWM_SetCompare1(50); //Duty = CCR / 100</code>，主循环 <code>OLED_ShowNum(1, 6, IC_GetFreq(), 5);</code> + <code>OLED_ShowNum(2, 6, IC_GetDuty(), 2);</code></em></p>
 <h2 id="4-测频率的性能评估-32-40-35-26">4. 测频率的性能评估（32:40–35:26）</h2>
-<p>这一段没有代码、也没有 PPT 公式页，是作者<strong>口述的经验值</strong>，但对「这个测频方案能用在哪」很关键。</p>
+<p>这一段没有代码、也没有 PPT 公式页，是口述的经验值：</p>
 <h3 id="4-1-量程下限-15hz">4.1 量程下限 ≈ 15Hz</h3>
 <ul>
-<li>目前标准频率 <strong>fc = 1MHz</strong>，<strong>计数器最大只能计到 65535</strong>，所以<strong>能测的最低频率 = 1M/65535 ≈ 15Hz</strong>；<strong>信号频率再低，计数器就要溢出了</strong>。</li>
-<li>想<strong>降低下限</strong>：<strong>把预分频再加大一点</strong>——这样标准频率更低，能支持的最低频率也就更低。</li>
+<li>fc = 1MHz、计数器最大只能计到 65535，所以能测的最低频率 = 1M/65535 ≈ 15Hz，再低就溢出。</li>
+<li>想降低下限：把预分频再加大一点，fc 更低，能支持的最低频率也更低。</li>
 </ul>
 <h3 id="4-2-量程上限-由误差要求决定">4.2 量程上限：由误差要求决定</h3>
 <ul>
-<li>严格说<strong>理论上的上限就是标准频率 1MHz</strong>（信号比标准频率还高肯定测不了），但<strong>这个上限没有意义</strong>——<strong>信号接近 1MHz 时误差已经非常大了</strong>。</li>
-<li>实际能用多高，<strong>取决于你对误差的要求</strong>：<strong>±1 误差可以认为是 1/计数值 N</strong>——<ul>
-<li>要求相对误差 <strong>1/1000</strong> ⇒ 上限 = <strong>1M/1000 = 1kHz</strong>；</li>
-<li>要求相对误差 <strong>1/100</strong> ⇒ 上限 = <strong>1M/100 = 10kHz</strong>。</li>
+<li>理论上的上限就是标准频率 1MHz，但这个上限没有意义——信号接近 1MHz 时误差已经非常大。</li>
+<li>实际能用多高取决于误差要求，±1 误差可以认为是 1/N：<ul>
+<li>要求相对误差 1/1000 ⇒ 上限 = 1M/1000 = 1kHz；</li>
+<li>要求相对误差 1/100 ⇒ 上限 = 1M/100 = 10kHz。</li>
 </ul>
 </li>
-<li>想<strong>提高上限</strong>：<strong>把 PSC 降低一点、提高标准频率 fc</strong>，上限就会提高；<strong>频率还要更高就该考虑测频法</strong>了（测频法适合高频、测周法适合低频）——「对于非常高的频率，还是交给测频法来解决吧」。</li>
+<li>想提高上限：降低 PSC、提高 fc；频率还要更高就该换测频法（测频法适合高频、测周法适合低频）。</li>
 </ul>
 <h3 id="4-3-还有晶振误差">4.3 还有晶振误差</h3>
 <ul>
-<li>除了 ±1 计数误差，<strong>实际测量时还有晶振误差</strong>：STM32 的晶振不是那么准，<strong>在计次几百、几万次之后误差会累积</strong>，造成一些影响。</li>
-<li><strong>本实验是自己测自己，不存在晶振误差</strong>，所以数值非常稳定；<strong>如果要测别的信号，数值可能会有些抖动</strong>，后期可以再做一些滤波处理。</li>
+<li>除了 ±1 计数误差，实际测量还有晶振误差：STM32 的晶振不那么准，计次几百、几万次之后误差会累积。</li>
+<li>本实验自己测自己，不存在晶振误差，所以数值非常稳定；测别的信号数值可能会抖动，后期可以再做滤波。</li>
 </ul>
-<p><img src="../assets/images/stm32-18/17-range-lower-limit.jpg" alt="图 17：程序二 IC.c 的时基参数——TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC（高亮），以及 TIM_ICFilter = 0xF 等结构体成员；字幕「目前我们给的标准频率是1MHz，计数器最大只能计到65535」"></p>
-<p><em>图 17：程序二 IC.c 的时基参数——<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>（高亮），以及 <code>TIM_ICFilter = 0xF</code> 等结构体成员；字幕「目前我们给的标准频率是1MHz，计数器最大只能计到65535」</em></p>
-<p><img src="../assets/images/stm32-18/18-range-upper-limit.jpg" alt="图 18：同一屏参数 + 上限结论——TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC；字幕「如果非要找个频率上限，那应该就是标准频率1MHz」（作者强调接近 1MHz 时误差已很大、真正上限由误差要求定）"></p>
-<p><em>图 18：同一屏参数 + 上限结论——<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>；字幕「如果非要找个频率上限，那应该就是标准频率1MHz」（作者强调接近 1MHz 时误差已很大、真正上限由误差要求定）</em></p>
-<p><img src="../assets/images/stm32-18/19-ending.jpg" alt="图 19：本集收尾画面——程序二 main.c 全貌：PWM_SetPrescaler(7200 - 1)（100Hz）、PWM_SetCompare1(80)（80%），主循环刷新 IC_GetFreq() 与 IC_GetDuty()；35:23「我们下节再见」，没有片尾页"></p>
-<p><em>图 19：本集收尾画面——程序二 main.c 全貌：<code>PWM_SetPrescaler(7200 - 1)</code>（100Hz）、<code>PWM_SetCompare1(80)</code>（80%），主循环刷新 <code>IC_GetFreq()</code> 与 <code>IC_GetDuty()</code>；35:23「我们下节再见」，没有片尾页</em></p>
+<p><img src="../assets/images/stm32-18/17-range-lower-limit.jpg" alt="图 17：程序二 IC.c 的时基参数——TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC（高亮），以及 TIM_ICFilter = 0xF 等成员"></p>
+<p><em>图 17：程序二 IC.c 的时基参数——<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>（高亮），以及 <code>TIM_ICFilter = 0xF</code> 等成员</em></p>
+<p><img src="../assets/images/stm32-18/18-range-upper-limit.jpg" alt="图 18：同一屏参数 + 上限结论——TIM_Period = 65536 - 1; //ARR、TIM_Prescaler = 72 - 1; //PSC（上限即标准频率 1MHz，但接近 1MHz 时误差已很大）"></p>
+<p><em>图 18：同一屏参数 + 上限结论——<code>TIM_Period = 65536 - 1; //ARR</code>、<code>TIM_Prescaler = 72 - 1; //PSC</code>（上限即标准频率 1MHz，但接近 1MHz 时误差已很大）</em></p>
+<p><img src="../assets/images/stm32-18/19-ending.jpg" alt="图 19：本集收尾画面——程序二 main.c 全貌：PWM_SetPrescaler(7200 - 1)（100Hz）、PWM_SetCompare1(80)（80%），主循环刷新 IC_GetFreq() 与 IC_GetDuty()；35:23「我们下节再见」"></p>
+<p><em>图 19：本集收尾画面——程序二 main.c 全貌：<code>PWM_SetPrescaler(7200 - 1)</code>（100Hz）、<code>PWM_SetCompare1(80)</code>（80%），主循环刷新 <code>IC_GetFreq()</code> 与 <code>IC_GetDuty()</code>；35:23「我们下节再见」</em></p>
 <h2 id="5-两个程序的共同规律">5. 两个程序的共同规律</h2>
 <ul>
-<li><strong>同一套模板</strong>：程序二在程序一基础上<strong>只改「输入捕获初始化」这一段</strong>——时钟 / GPIO / 时基 / 主从触发 / <code>TIM_Cmd</code> / <code>IC_GetFreq</code> 全部不动，只在第④步换成 PWMI 配置，再加一个 <code>IC_GetDuty</code>。</li>
-<li><strong>测频率的公式始终是 <code>fx = fc/CCR1</code></strong>：程序一、程序二都一样；占空比只是程序二多读了一个 <code>CCR2</code>。</li>
-<li><strong>同一个信号源</strong>：两个程序都用 P16 的 PWM 模块产生测试信号（<code>PWM_SetPrescaler</code> 调频率、<code>PWM_SetCompare1</code> 调占空比），接线都是 PA0→PA6。</li>
-<li><strong>读 CCR 只用 <code>TIM_GetCapturex</code></strong>：输入捕获模式下 CCR 是<strong>只读</strong>的，输出比较才是只写（<code>TIM_SetComparex</code>）。</li>
+<li>同一套模板：程序二只在程序一基础上改「输入捕获初始化」，时钟 / GPIO / 时基 / 主从触发 / <code>TIM_Cmd</code> / <code>IC_GetFreq</code> 全不动，再加一个 <code>IC_GetDuty</code>。</li>
+<li>测频公式始终是 <code>fx = fc/CCR1</code>；占空比只是程序二多读了一个 <code>CCR2</code>。</li>
+<li>同一个信号源：都用 P16 的 PWM 模块（<code>PWM_SetPrescaler</code> 调频、<code>PWM_SetCompare1</code> 调占空比），接线都是 PA0→PA6。</li>
+<li>读 CCR 只用 <code>TIM_GetCapturex</code>：输入捕获模式下 CCR 只读，输出比较才用 <code>TIM_SetComparex</code> 写。</li>
 </ul>
 <table>
 <thead>
@@ -617,24 +615,24 @@ uint32_t IC_GetDuty(void)
 </tbody></table>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>改 PWM 频率要用 PSC，不要用 ARR</strong>：<code>占空比 = CCR/(ARR+1)</code> 只跟 ARR 有关——<strong>改 ARR 会连占空比一起变</strong>；固定 ARR=100-1、用 PSC 调频率，占空比不受影响，而且 CCR 数值直接就是占空比。</li>
-<li><strong><code>TIM_PrescalerConfig</code> 的第三个参数（重装模式）要想一下</strong>：<code>_Update</code> 在更新事件重装（周期完整）、<code>_Immediate</code> 立即生效（<strong>可能切断当前周期、出现不完整周期</strong>）；本程序要求不高选了立即，但对波形连续有要求的场合要用 Update。</li>
-<li><strong>输入捕获不能用 TIM2</strong>：TIM2 已经被 PWM 输出占用，要换 <strong>TIM3</strong>（同为 APB1 外设，开时钟仍用 <code>RCC_APB1PeriphClockCmd</code>）。</li>
-<li><strong>ARR 要给满量程 65536-1</strong>：测周法靠 CNT 计一个周期的时间，<strong>ARR 太小、频率稍低就会溢出</strong>，测出来就错了。</li>
-<li><strong><code>TIM_ICInit</code> 是 4 个通道共用一个函数</strong>：必须靠结构体 <code>TIM_Channel</code> 选通道；输出比较则是每通道一个函数（<code>TIM_OC1Init</code>～<code>TIM_OC4Init</code>）。</li>
-<li><strong>分频器只有 4 档</strong>：<code>TIM_ICPSC_DIV1/DIV2/DIV4/DIV8</code>，<strong>不能任意指定分频值</strong>。</li>
-<li><strong>滤波器 ≠ 分频器</strong>：滤波器只滤高频噪声、<strong>不改变信号频率</strong>（1kHz 还是 1kHz）；分频器对信号计次、<strong>会改变频率</strong>（1kHz 二分频 = 500Hz）。</li>
-<li><strong><code>TIM_ICFilter = 0xF</code> 是最大滤波档</strong>：参数范围 0x0～0xF，越大滤波越强；信号有毛刺就加大，但<strong>采样越慢/N 越大响应越慢</strong>。</li>
-<li><strong>主从触发要两行都配</strong>：只配 <code>TIM_SelectInputTrigger</code> 没有从模式、只配 <code>TIM_SelectSlaveMode</code> 没有触发源，<strong>都不工作</strong>；必须是「触发源 TI1FP1 + 从模式 Reset」成对出现。</li>
-<li><strong><code>TIM_SlaveMode_Reset</code> 参数表里没有编码器模式</strong>：那几个 Encoder 模式由编码器接口的函数单独配置，所以这里看不到。</li>
+<li><strong>改 PWM 频率要用 PSC，不要用 ARR</strong>：占空比 <code>CCR/(ARR+1)</code> 只跟 ARR 有关，改 ARR 会连占空比一起变。</li>
+<li><strong><code>TIM_PrescalerConfig</code> 的重装模式要想一下</strong>：<code>_Update</code> 周期完整，<code>_Immediate</code> 立即生效、可能出现不完整周期。</li>
+<li><strong>输入捕获不能用 TIM2</strong>：TIM2 已被 PWM 输出占用，要换 TIM3（同为 APB1 外设，开时钟仍用 <code>RCC_APB1PeriphClockCmd</code>）。</li>
+<li><strong>ARR 要给满量程 65536-1</strong>：测周法靠 CNT 计一个周期，ARR 太小、频率稍低就会溢出。</li>
+<li><strong><code>TIM_ICInit</code> 是 4 个通道共用一个函数</strong>：靠 <code>TIM_Channel</code> 选通道；输出比较是每通道一个函数。</li>
+<li><strong>分频器只有 4 档</strong>：<code>TIM_ICPSC_DIV1/DIV2/DIV4/DIV8</code>，不能任意指定分频值。</li>
+<li><strong>滤波器 ≠ 分频器</strong>：滤波器只滤高频噪声、不改变频率；分频器对信号计次、会改变频率（1kHz 二分频 = 500Hz）。</li>
+<li><strong><code>TIM_ICFilter = 0xF</code> 是最大滤波档</strong>：范围 0x0～0xF，越大滤波越强；但 N 越大响应越慢。</li>
+<li><strong>主从触发要两行都配</strong>：只配触发源没有从模式、只配从模式没有触发源，都不工作；必须「TI1FP1 + Reset」成对出现。</li>
+<li><strong><code>TIM_SlaveMode_Reset</code> 参数表里没有编码器模式</strong>：那几个 Encoder 模式由编码器接口的函数单独配置。</li>
 <li><strong><code>TIM_GetCapture</code> 读的是 CCR，输入捕获时 CCR 只读</strong>：不要想用 <code>TIM_SetCompare</code> 去改捕获值。</li>
-<li><strong><code>+1</code> 的修正只是针对「自己测自己」的凑整</strong>（见存疑）：换频率/换信号源时那个「少 1」不一定出现，<strong>+1 可能反而多算</strong>；而且修正前后不要混——初版（图 7 阶段）没有 +1，最终版（图 10/图 12）才有。</li>
-<li><strong>PWMI 手动两通道只是过渡演示</strong>：实际代码用 <strong><code>TIM_PWMIConfig</code></strong> 一步完成；两种写法效果一样，但后者更简洁、更不容易配错极性。</li>
-<li><strong><code>TIM_PWMIConfig</code> 只支持通道 1 和 2</strong>：不要传通道 3/4（传了会配不出来）。</li>
-<li><strong>PWMI 里只有一个通道清 CNT</strong>：从模式 Reset 由上升沿（TI1FP1）触发，<strong>CCR2 捕获不会清 CNT</strong>——所以 CCR1 才是整周期计数值。</li>
-<li><strong>两个 CCR 都要 +1 再算占空比</strong>：<code>(CCR2+1)*100/(CCR1+1)</code>——只给分子加、不给分母加，结果会偏大。</li>
-<li><strong>量程下限约 15Hz 是 1MHz/65535 算出来的</strong>：要测更低的频率就<strong>加大 PSC</strong>（降 fc），但代价是上限也变低。</li>
-<li><strong>「上限 1MHz」没有实际意义</strong>：真正能用的上限由误差要求定（1/1000 → 1kHz、1/100 → 10kHz）；想更高就减小 PSC 或改用测频法。</li>
+<li><strong><code>+1</code> 的修正只是「自己测自己」的凑整</strong>：换频率/换信号源时「少 1」不一定出现，+1 可能反而多算。</li>
+<li><strong>PWMI 手动两通道只是过渡演示</strong>：实际代码用 <code>TIM_PWMIConfig</code>，一步完成、更不容易配错极性。</li>
+<li><strong><code>TIM_PWMIConfig</code> 只支持通道 1 和 2</strong>：不要传通道 3/4。</li>
+<li><strong>PWMI 里只有一个通道清 CNT</strong>：从模式 Reset 由上升沿触发，CCR2 捕获不清 CNT，所以 CCR1 才是整周期。</li>
+<li><strong>两个 CCR 都要 +1 再算占空比</strong>：<code>(CCR2+1)*100/(CCR1+1)</code>，只给分子加会偏大。</li>
+<li><strong>量程下限约 15Hz 是 1MHz/65535 算出来的</strong>：要测更低就加大 PSC（降 fc），代价是上限也变低。</li>
+<li><strong>「上限 1MHz」没有实际意义</strong>：真正上限由误差要求定（1/1000 → 1kHz、1/100 → 10kHz）。</li>
 <li><strong>本集没有示波器</strong>：所有现象都是 OLED 显示 + 口述，1001Hz/1000Hz/100Hz/80% 都不是示波器读数。</li>
 </ol>
 </article>
@@ -647,7 +645,7 @@ uint32_t IC_GetDuty(void)
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E7%90%86%E8%AE%BA%E5%85%A8%E9%83%A8%E5%9C%A8-6-5-p17">0. 本集定位：代码课，理论全部在 [6-5] P17</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E4%B8%A4%E4%B8%AA%E7%A8%8B%E5%BA%8F%E6%80%BB%E8%A7%88">1. 两个程序总览</a>
         <a class="level-2" href="#2-%E7%A8%8B%E5%BA%8F%E4%B8%80-%E8%BE%93%E5%85%A5%E6%8D%95%E8%8E%B7%E6%A8%A1%E5%BC%8F%E6%B5%8B%E9%A2%91%E7%8E%87-00-00-26-40">2. 程序一：输入捕获模式测频率（00:00–26:40）</a>
         <a class="level-3" href="#2-1-%E6%8E%A5%E7%BA%BF-%E6%8A%8A-pa0-%E8%BF%9E%E5%88%B0-pa6">2.1 接线：把 PA0 连到 PA6</a>

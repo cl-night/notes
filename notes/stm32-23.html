@@ -177,76 +177,70 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>37 分钟</span>
+      <span>20 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">DMA</span><span class="tag">存储器</span>
     </div>
     <article class="prose"><h1>[8-1] DMA直接存储器存取 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 8（DMA）的理论课</strong>——00:20–04:12 只演示<strong>两个已经写好的成品工程</strong>（<code>8-1 DMA数据转运</code>、<code>8-2 DMA+AD多通道</code>），04:18「我们来看一下 PPT」之后到 49:38 <strong>全是 PPT + 参考手册翻页，没有一行现场写码</strong>；片尾 49:38「我们下一小节来开始写代码」——<strong>代码在 P24 [8-2]</strong>。本集<strong>没有任何库函数列表、初始化结构体或配置步骤</strong>，相关内容统一注明「在 P24」。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p><strong>DMA（Direct Memory Access，直接存储器存取）就是一个「数据转运小助手」</strong>：它<strong>不经过 CPU</strong>，直接在自己的总线（AHB 主设备）上把数据从一个地址搬到另一个地址——<strong>外设 → 存储器、存储器 → 外设、存储器 → 存储器</strong>都可以，<strong>搬运期间 CPU 完全不参与</strong>，把 CPU 从「搬数据这种杂活」里解放出来。要记的框架有三层：<strong>① 它搬的对象都是「存储器」</strong>——STM32 里 <strong>Flash（0x08000000）、系统存储器/选项字节（0x1FFF 开头）、SRAM（0x20000000）、外设寄存器（0x40000000）、内核外设寄存器（0xE0000000）<strong>本质都是存储器，只是用途不同，所以「外设到存储器」也只是一类存储器搬运；<strong>② 它的结构</strong>——<strong>总线矩阵</strong>左端主动单元是</strong>内核（DCode 总线专访问 Flash、系统总线访问其他）和 DMA 总线</strong>，右端被动单元是 Flash/SRAM/外设；<strong>仲裁器</strong>解决冲突（<strong>多个通道分时复用一条 DMA 总线、按优先级决定先后</strong>；<strong>DMA 与 CPU 抢同一个目标时暂停 CPU，但保证 CPU 至少一半总线带宽</strong>）；<strong>AHB 从设备</strong>就是 DMA 自己的寄存器（CPU 靠它配置 DMA）；<strong>DMA 请求</strong>线把各外设的硬件触发信号送进来；<strong>③ 它内部怎么工作</strong>——两个站点（外设站点、存储器站点）各有 <strong>3 个参数：起始地址、数据宽度（字节/半字/字）、地址是否自增（相当于 p++）</strong>，中间是<strong>方向参数</strong>、<strong>传输计数器（自减，减到 0 停止并把自增地址复原）</strong>、<strong>自动重装器（不重装=单次模式，重装=循环模式）</strong>、<strong>触发控制（M2M=1 软件触发、M2M=0 硬件触发）</strong>、<strong>开关控制</strong>；<strong>DMA 工作的三个条件：开关使能 + 传输计数器&gt;0 + 有触发信号</strong>。资源上：<strong>12 个独立可配置通道 = DMA1 的 7 个 + DMA2 的 5 个，C8T6 只有 DMA1 的 7 个通道</strong>；<strong>每个通道都支持软件触发和特定的硬件触发</strong>——硬件触发源<strong>绑定在固定通道</strong>上（例如 <strong>ADC1 只能用通道 1</strong>，见「图22 DMA1请求映像」），软件触发则任意通道都行。两个坑必须记：<strong>软件触发与循环模式不能同时用</strong>（否则 DMA 停不下来）；<strong>写传输计数器前必须先关闭 DMA</strong>（手册规定）。最后一个关键应用：<strong>ADC 扫描模式 + DMA 是天生一对</strong>——ADC 扫描时单通道转换完成<strong>没有标志位、也没有中断</strong>，靠软件根本来不及搬（转换只要几 us、还会互相覆盖），而 DMA 可以「<strong>每个通道转换完成就触发一次转运</strong>」；作者<strong>实测</strong>：ADC 单通道转换完成<strong>虽然无标志位/中断，但确实会产生 DMA 请求</strong>（手册没写这一点，靠实验验证）。<strong>代码在下一集 P24。</strong></p>
-<h2 id="0-本集定位-理论课-代码在-8-2-p24">0. 本集定位：理论课，代码在 [8-2] P24</h2>
+<p>DMA 是不经过 CPU 的数据转运助手：外设与存储器之间都能搬。结构是总线矩阵 + 仲裁器 + AHB 从设备 + 请求；两站点各 3 个参数 + 方向 + 传输计数器 + 自动重装 + M2M + 开关，三个条件同时满足才转运。C8T6 只有 DMA1 的 7 通道。代码在 P24。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯理论课</strong>：片头 4 分钟演示两个成品工程现象，04:18 起全 PPT/手册，<strong>没有打开 Keil 写代码、没有编译下载演示</strong>。</li>
-<li><strong>片头两个成品工程</strong>：① <code>8-1 DMA数据转运</code>——把数组 <strong>DataA</strong> 的数据用 <strong>DMA</strong> 搬到数组 <strong>DataB</strong>，OLED 同时显示两个数组的数据和地址；② <code>8-2 DMA+AD多通道</code>——<strong>ADC 扫描模式</strong>测 PA0～PA3 四路，<strong>DMA 自动把 4 个结果搬进数组</strong>，OLED 直接显示。</li>
-<li><strong>片尾明确预告代码在下一集</strong>：49:38「本小节内容到这里就结束了，我们下一小节来开始写代码」——<strong>代码在 P24 [8-2]</strong>（就是这两个工程）。</li>
-<li><strong>本集不写代码/不写库函数</strong>：<strong>没有出现任何 <code>DMA_Init</code> 之类的初始化结构体、没有库函数列表</strong>（只在基本结构里顺口提了一句「开关控制就是库函数里的 DMA 使能函数」）；<strong>寄存器只在最后的手册导读里翻页</strong>。所以本笔记<strong>不写配置步骤</strong>，一律注明「在 P24」。</li>
-<li>理论衔接：ADC 的原理/扫描模式/转换时间在 P21、P22，本集只套用结论。</li>
+<li>模块 8（DMA）的<strong>理论课</strong>：00:20–04:12 只演示两个成品工程，04:18 起全是 PPT + 参考手册翻页，到 49:38 没有现场写码；片尾 49:38「我们下一小节来开始写代码」——代码在 P24 [8-2]。</li>
+<li>片头两工程：① <code>8-1 DMA数据转运</code>（<code>DataA</code> → <code>DataB</code>）② <code>8-2 DMA+AD多通道</code>（ADC 扫描 4 路，DMA 搬结果）。</li>
+<li>本集<strong>没有任何 <code>DMA_Init</code> 之类结构体、没有库函数列表</strong>，只在基本结构里顺口提一句「开关控制就是库函数里的 DMA 使能」；寄存器留到手册导读翻页。</li>
+<li>理论衔接：ADC 原理、扫描模式、转换时间在 P21、P22，本集只套结论。</li>
 </ul>
 <h2 id="1-片头两个成品工程">1. 片头两个成品工程</h2>
 <h3 id="1-1-8-1-dma数据转运">1.1 <code>8-1 DMA数据转运</code></h3>
 <ul>
-<li><strong>任务</strong>：使用 DMA 做<strong>存储器到存储器</strong>的数据转运——<strong>把一个数组里的数据复制到另一个数组里</strong>；</li>
-<li>代码里定义了 <strong><code>uint8_t DataA[] = {0x01, 0x02, 0x03, 0x04};</code></strong> 作为<strong>待转运的源数据</strong>，<strong><code>uint8_t DataB[] = {0, 0, 0, 0};</code></strong> 作为<strong>转运的目的地</strong>；另外写了一个模块 <strong><code>MyDMA</code></strong>（<code>MyDMA.c/MyDMA.h</code>），调用 <code>MyDMA_Init((uint32_t)DataA, (uint32_t)DataB, 4)</code> 传入源地址、目的地址和转运长度 4；</li>
-<li><strong>主循环流程</strong>：第一步<strong>自增、变化一下源数组 DataA 的数据</strong>；第二步<strong>显示 DataA 和 DataB</strong>（连同两个数组的地址，用十六进制显示）；<strong>延时 1 秒</strong>方便观看；第三步<strong>调用 <code>MyDMA_Transfer</code> 用 DMA 进行数据转运</strong>——「和下面直接 <code>for</code> 循环用 CPU 一个个手动转运数据，效果是一样的」；最后再显示一次 DataA 和 DataB，看数据是否从 DataA 转运到了 DataB。</li>
-<li><strong>现象</strong>：第一行是 <strong><code>DataA</code></strong>、右边是 <strong>DataA 数组的地址 <code>20000004</code></strong>；第二行是 DataA 的源数据（<code>04 05 06 07</code>，每 2 秒变一次）；第三行是 <strong><code>DataB</code></strong>、右边是 <strong>DataB 数组的地址 <code>20000008</code></strong>；最后一行是 DataB 的目的地数据（<code>03 04 05 06</code>）——<strong>DataA 每变一次，Delay 1 秒后数据就转运到了 DataB</strong>，<strong>这个转运过程就是由 DMA 完成的</strong>。</li>
-<li>「我这里屏幕比较小，所以就只定义了 4 个数据演示一下现象；你也可以定义 100 个、1000 个数据，然后用 DMA 转运，都是可以的」。</li>
+<li><strong>任务</strong>：存储器到存储器的转运——把一个数组复制到另一个数组。</li>
+<li>代码里 <code>uint8_t DataA[] = {0x01, 0x02, 0x03, 0x04};</code> 是源，<code>uint8_t DataB[] = {0, 0, 0, 0};</code> 是目的；另有模块 <code>MyDMA</code>（<code>MyDMA.c/MyDMA.h</code>），调用 <code>MyDMA_Init((uint32_t)DataA, (uint32_t)DataB, 4)</code> 传入源地址、目的地址、转运长度 4。</li>
+<li><strong>主循环</strong>：先自增改变 DataA 的数据 → 显示 DataA、DataB（连地址用十六进制显示）→ <code>Delay_ms(100)</code> 便于观看 → 调 <code>MyDMA_Transfer</code> 用 DMA 转运（效果和用 <code>for</code> 循环让 CPU 一个个搬一样）→ 再显示一次看结果。</li>
+<li><strong>现象</strong>：第一行显示 <code>DataA</code> 与它的地址 <code>20000004</code>，第二行源数据 <code>04 05 06 07</code>（每 2 秒变一次）；第三行显示 <code>DataB</code> 与地址 <code>20000008</code>，最后一行目的数据 <code>03 04 05 06</code>——DataA 一变，1 秒后就搬到 DataB。</li>
+<li>屏幕小只演示 4 个数据，定义 100 个、1000 个照样能用 DMA 转运。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/01-program1-main.jpg" alt="图 1：程序① 8-1 DMA数据转运 的 main.c——DataA 与 DataB 两个 uint8_t 数组的定义（DataA 初值 0x01～0x04、DataB 全 0）、MyDMA_Init((uint32_t)DataA, (uint32_t)DataB, 4);（高亮）、OLED_ShowString(1, 1, &quot;DataA&quot;)/(3, 1, &quot;DataB&quot;) 与十六进制地址显示；左侧项目树 System 组下有 MyDMA.c/MyDMA.h"></p>
-<p><em>图 1：程序① <code>8-1 DMA数据转运</code> 的 main.c——<code>DataA</code> 与 <code>DataB</code> 两个 <code>uint8_t</code> 数组的定义（DataA 初值 0x01～0x04、DataB 全 0）、<code>MyDMA_Init((uint32_t)DataA, (uint32_t)DataB, 4);</code>（高亮）、<code>OLED_ShowString(1, 1, &quot;DataA&quot;)</code>/<code>(3, 1, &quot;DataB&quot;)</code> 与十六进制地址显示；左侧项目树 System 组下有 MyDMA.c/MyDMA.h</em></p>
-<p><img src="../assets/images/stm32-23/02-program1-phenomenon.jpg" alt="图 2：程序①现象——OLED 显示 DataA 20000004 / 04 05 06 07，DataB 20000008 / 03 04 05 06（DataA 变一次、1 秒后 DataB 同步）；字幕「这里第一行是DataA，右边是DataA数组的地址」"></p>
-<p><em>图 2：程序①现象——OLED 显示 <code>DataA 20000004</code> / <code>04 05 06 07</code>，<code>DataB 20000008</code> / <code>03 04 05 06</code>（DataA 变一次、1 秒后 DataB 同步）；字幕「这里第一行是DataA，右边是DataA数组的地址」</em></p>
+<p><img src="../assets/images/stm32-23/01-program1-main.jpg" alt="图 1：程序① 8-1 DMA数据转运 的 main.c"></p>
+<p><em>图 1：<code>DataA</code> 与 <code>DataB</code> 两个 <code>uint8_t</code> 数组（初值 0x01～0x04、全 0）、<code>MyDMA_Init((uint32_t)DataA, (uint32_t)DataB, 4);</code>、<code>OLED_ShowString(1, 1, &quot;DataA&quot;)</code> 与 <code>(3, 1, &quot;DataB&quot;)</code></em></p>
+<p><img src="../assets/images/stm32-23/02-program1-phenomenon.jpg" alt="图 2：程序①现象"></p>
+<p><em>图 2：OLED 显示 <code>DataA 20000004</code> / <code>04 05 06 07</code>、<code>DataB 20000008</code> / <code>03 04 05 06</code>，DataA 变一次、1 秒后 DataB 同步</em></p>
 <h3 id="1-2-8-2-dma-ad多通道">1.2 <code>8-2 DMA+AD多通道</code></h3>
 <ul>
-<li>这个程序就是上一节（P22 片尾）预告过的：<strong>用 ADC 的扫描模式实现多通道采集，然后用 DMA 进行数据转运</strong>；</li>
-<li>最终效果：<strong>AD 转换的数据直接自动地跑到我们定义的数组里来</strong>，之后只需要用 OLED 显示一下——「看上去还是非常方便的」；</li>
-<li>main 里 4 行 <code>OLED_ShowString</code> 显示 <code>AD0:</code>～<code>AD3:</code>，主循环 4 行 <code>OLED_ShowNum</code> 显示 <code>AD_Value[0]</code>～<code>AD_Value[3]</code>，最后 <code>Delay_ms(100)</code>；</li>
-<li><strong>现象</strong>：也是测量 <strong>PA0～PA3 这 4 个通道</strong>的模拟量——电位器看 <code>AD0</code>（左拧变小、右拧变大）、光敏看 <code>AD1</code>、热敏看 <code>AD2</code>、反射红外看 <code>AD3</code>，<strong>和上一节 AD 多通道的现象完全一样</strong>。</li>
+<li>就是 P22 片尾预告的做法：ADC 扫描模式采多通道，DMA 负责转运，转换结果自动跑到数组里，只需 OLED 显示。</li>
+<li>main 里 4 行 <code>OLED_ShowString</code> 从 <code>AD0:</code> 显示到 <code>AD3:</code>（即 <code>OLED_ShowString(1～4, 1, &quot;AD0:&quot;～&quot;AD3:&quot;)</code>），主循环 4 行 <code>OLED_ShowNum</code> 依次显示 <code>AD_Value[0]</code> 到 <code>AD_Value[3]</code>（即 <code>OLED_ShowNum(1～4, 5, AD_Value 的第 0～3 个元素, 4)</code>），最后 <code>Delay_ms(100);</code>。</li>
+<li><strong>现象</strong>：测 PA0～PA3 四路——电位器看 <code>AD0</code>、光敏看 <code>AD1</code>、热敏看 <code>AD2</code>、反射红外看 <code>AD3</code>，与 P22 完全一样。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/03-program2-main.jpg" alt="图 3：程序② 8-2 DMA+AD多通道 的 main.c——AD_Init() 后 4 行 OLED_ShowString(1～4, 1, &quot;AD0:&quot;～&quot;AD3:&quot;)，主循环 4 行 OLED_ShowNum(1～4, 5, AD_Value 的第 0～3 个元素, 4) 与 Delay_ms(100);；项目树 Hardware 下有 AD.c/AD.h"></p>
-<p><em>图 3：程序② <code>8-2 DMA+AD多通道</code> 的 main.c——<code>AD_Init()</code> 后 4 行 <code>OLED_ShowString(1～4, 1, &quot;AD0:&quot;～&quot;AD3:&quot;)</code>，主循环 4 行 <code>OLED_ShowNum(1～4, 5, AD_Value 的第 0～3 个元素, 4)</code> 与 <code>Delay_ms(100);</code>；项目树 Hardware 下有 AD.c/AD.h</em></p>
+<p><img src="../assets/images/stm32-23/03-program2-main.jpg" alt="图 3：程序② 8-2 DMA+AD多通道 的 main.c"></p>
+<p><em>图 3：<code>AD_Init()</code> 后 4 行 <code>OLED_ShowString</code>，主循环 4 行 <code>OLED_ShowNum</code> 显示 <code>AD_Value</code> 的第 0～3 个元素 + <code>Delay_ms(100);</code>；Hardware 下有 AD.c/AD.h</em></p>
 <h2 id="2-dma-是什么">2. DMA 是什么</h2>
 <h3 id="2-1-定义-直接存储器存取">2.1 定义：直接存储器存取</h3>
 <ul>
-<li><strong>DMA（Direct Memory Access）直译就是「直接存储器存取」，或者叫「直接存储器访问」</strong>；</li>
-<li>从名字看：<strong>DMA 这个外设可以直接访问 STM32 内部的存储器</strong>——包括<strong>运行内存 SRAM、程序存储器 Flash 和寄存器等等</strong>，DMA 都有权限访问它们，所以 DMA 才能完成数据转运的工作；</li>
-<li><strong>「DMA 可以提供外设和存储器、或者存储器和存储器之间的高速数据传输，无须 CPU 干预，节省了 CPU 的资源。」</strong><ul>
-<li>这里<strong>外设</strong>指的就是<strong>外设的寄存器</strong>，一般是<strong>外设的数据寄存器 DR（Data Register）</strong>，比如 <strong>ADC 的数据寄存器、串口的数据寄存器</strong>等等；</li>
-<li>这里<strong>存储器</strong>指的是<strong>运行内存 SRAM 和程序存储器 Flash</strong>——我们<strong>存储变量、数组和程序代码</strong>的地方；</li>
+<li><strong>DMA（Direct Memory Access）</strong>，直译「直接存储器存取」，也叫「直接存储器访问」。</li>
+<li>顾名思义，DMA 能直接访问 STM32 内部存储器——SRAM、Flash、寄存器都行，所以才能搬数据。</li>
+<li>「DMA 可以提供外设和存储器、或者存储器和存储器之间的高速数据传输，无须 CPU 干预，节省了 CPU 的资源。」<ul>
+<li><strong>外设</strong>指外设寄存器，一般是数据寄存器 DR，比如 ADC 的 DR、串口的 DR；</li>
+<li><strong>存储器</strong>指运行内存 SRAM 和程序存储器 Flash，即存变量、数组、程序代码的地方。</li>
 </ul>
 </li>
-<li><strong>转运过程中无须 CPU 参与</strong>，就<strong>节省了 CPU 的资源</strong>——<strong>CPU 省下的时间可以去干一些更专业的事情</strong>，「搬运数据这种杂活，交给 DMA 就行了」。</li>
+<li>搬运不必 CPU 参与，省下的时间可以干更专业的事，「搬数据这种杂活交给 DMA 就行」。</li>
 </ul>
 <h3 id="2-2-通道与触发方式">2.2 通道与触发方式</h3>
 <ul>
-<li><strong>STM32 的 DMA 有 12 个独立可配置的通道：DMA1 有 7 个通道、DMA2 有 5 个通道</strong>；</li>
-<li><strong>通道就是数据转运的路径</strong>——从一个地方移动到另一个地方，就要<strong>占用一个通道</strong>；<strong>多个通道转运时各转各的、互不干扰</strong>；</li>
+<li><strong>12 个独立可配置通道：DMA1 有 7 个、DMA2 有 5 个</strong>；通道就是转运路径，一次转运占一个通道，多通道各转各的互不干扰。</li>
 <li><strong>每个通道都支持软件触发和特定的硬件触发</strong>：<ul>
-<li><strong>软件触发</strong>：DMA 进行的是<strong>存储器到存储器</strong>的转运时用它——<strong>使用软件触发之后，DMA 就会一股脑地把这批数据以最快的速度全部转运完成</strong>（这正是我们想要的效果）；</li>
-<li><strong>硬件触发</strong>：外设到存储器的转运<strong>不能一股脑地转</strong>，因为<strong>外设的数据是有一定时机的</strong>——比如转运 ADC 的数据，就要在<strong>ADC 每个通道转换完成后</strong>由硬件触发一次 DMA，<strong>触发一次转运一次</strong>，这样数据才是正确的；</li>
-<li><strong>「特定的硬件触发」</strong>：<strong>每个 DMA 通道的硬件触发源是不一样的</strong>，<strong>你要用某个外设的硬件触发源，就得用它连接的那个通道</strong>，不能任意选（下一章「DMA1 请求映像」细讲）。</li>
+<li><strong>软件触发</strong>：用于存储器到存储器——触发后 DMA 一股脑把整批数据尽快搬完；</li>
+<li><strong>硬件触发</strong>：外设到存储器不能一股脑搬，因为外设数据有时机——比如 ADC 要在每个通道转换完成后触发一次，触发一次转运一次；</li>
+<li><strong>「特定」</strong>：每个通道的硬件触发源不同，用哪个外设的触发源就得用哪个通道，不能任选。</li>
 </ul>
 </li>
-<li><strong>本芯片的资源</strong>：<strong>STM32F103C8T6 的 DMA 资源只有 DMA1（7 个通道）</strong>，<strong>没有 DMA2</strong>——数据手册里注意看一下。</li>
+<li><strong>本芯片资源</strong>：STM32F103C8T6 只有 DMA1（7 个通道），没有 DMA2。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/04-dma-intro.jpg" alt="图 4：PPT「DMA简介」——DMA（Direct Memory Access）直接存储器存取；可提供外设和存储器或存储器和存储器之间的高速数据传输，无须 CPU 干预，节省 CPU 资源；12 个独立可配置通道（DMA1 7 个、DMA2 5 个）；每个通道支持软件触发和特定的硬件触发；STM32F103C8T6 DMA 资源：DMA1（7 个通道）；字幕「直译就是直接存储器存取，或者叫直接存储器访问」"></p>
-<p><em>图 4：PPT「DMA简介」——DMA（Direct Memory Access）直接存储器存取；可提供外设和存储器或存储器和存储器之间的高速数据传输，无须 CPU 干预，节省 CPU 资源；12 个独立可配置通道（DMA1 7 个、DMA2 5 个）；每个通道支持软件触发和特定的硬件触发；STM32F103C8T6 DMA 资源：DMA1（7 个通道）；字幕「直译就是直接存储器存取，或者叫直接存储器访问」</em></p>
+<p><img src="../assets/images/stm32-23/04-dma-intro.jpg" alt="图 4：PPT「DMA简介」"></p>
+<p><em>图 4：DMA 定义、12 个独立可配置通道（DMA1 7 个、DMA2 5 个）、每通道支持软件触发与特定硬件触发；C8T6 资源 DMA1（7 个通道）</em></p>
 <h2 id="3-存储器映像-dma-搬的到底是什么">3. 存储器映像：DMA 搬的到底是什么</h2>
 <h3 id="3-1-计算机组成与存储器的两个知识点">3.1 计算机组成与存储器的两个知识点</h3>
 <ul>
-<li>计算机系统的<strong>五大组成部分</strong>：<strong>运算器、控制器、存储器、输入设备和输出设备</strong>；其中<strong>运算器和控制器一般合在一起叫 CPU</strong>，所以<strong>计算机的核心关键部分就是 CPU 和存储器</strong>；</li>
-<li>存储器有两个重要知识点：一个是<strong>存储器的内容</strong>，另一个是<strong>存储器的地址</strong>——STM32 也不例外，它有一个表，列出<strong>所有类型的存储器和它们被安排的地址</strong>（数据手册里也有存储器映像图，表就是从图里总结的）。</li>
+<li>计算机五大组成：运算器、控制器、存储器、输入设备、输出设备；运算器与控制器合称 CPU，所以核心就是 CPU 与存储器。</li>
+<li>存储器两个知识点：存储器的内容与存储器的地址；STM32 也有这样一张表，列出所有存储器及分配的地址。</li>
 </ul>
 <h3 id="3-2-stm32-的存储器映像表-6-行">3.2 STM32 的存储器映像表（6 行）</h3>
 <table>
@@ -296,95 +290,95 @@
 </tr>
 </tbody></table>
 <ul>
-<li>表里所有东西——<strong>Flash、SRAM、外设寄存器，本质上都是存储器的一种</strong>；<strong>外设寄存器实际上也是存储器</strong>（存储介质其实也是 SRAM），所以 <strong>DMA 在「外设」和「存储器」之间的转运，本质上都是存储器之间的数据转运</strong>——「说成外设到存储器，只不过是 STM32 特别指定了可以转运外设的存储器而已」。</li>
-<li><strong>ROM / RAM 的区别</strong>：<strong>ROM 是只读存储器，非易失性、掉电不丢失</strong>；<strong>RAM 是随机存储器，易失性、掉电丢失</strong>。<strong>ROM 分 3 块</strong>（主闪存 Flash、系统存储器、选项字节，介质都是 Flash 但一般说「Flash」特指主闪存）；<strong>RAM 分 3 块</strong>（SRAM、外设寄存器、内核外设寄存器）。</li>
-<li><strong>地址分配的意义</strong>：「就像给每个住户编门牌号一样，只有分配了独一无二的门牌号，程序才能精准地访问这个存储器」——<strong>终止地址取决于容量</strong>，「编到哪里，哪里就是终止地址」；<strong>软件里看到某个数据地址是 <code>0800</code> 开头，就可以确定它属于主闪存</strong>；<strong>变量/数组的地址一定是 <code>2000</code> 开头</strong>。</li>
-<li><strong>两层地址区分</strong>：<strong>内核外设是 <code>E000</code>、其他外设是 <code>4000</code></strong>——因为内核外设和其他外设<strong>不是一个厂家设计的</strong>，所以地址被分开了。</li>
+<li>表里所有东西本质都是存储器，<strong>外设寄存器也是存储器</strong>（介质同样是 SRAM），所以「外设到存储器」也只是存储器之间转运，只是 STM32 特别允许搬外设那一块。</li>
+<li><strong>ROM/RAM 区别</strong>：ROM 只读、非易失、掉电不丢失；RAM 随机存取、易失、掉电丢失。ROM 分 3 块（主闪存 Flash、系统存储器、选项字节），RAM 分 3 块（SRAM、外设寄存器、内核外设寄存器）。</li>
+<li><strong>地址的意义</strong>：像门牌号一样，唯一地址程序才能精准访问；终止地址取决于容量。看到 <code>0800</code> 开头就属于主闪存，变量/数组的地址一定以 <code>2000</code> 开头。</li>
+<li><strong>两层地址</strong>：内核外设 <code>E000</code>、其他外设 <code>4000</code>——两者不是一个厂家设计的，所以分开。</li>
+<li><strong>裸地址记法</strong>：Flash <code>0x08000000</code>、SRAM <code>0x20000000</code>、外设寄存器 <code>0x40000000</code>、内核外设寄存器 <code>0xE0000000</code>。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/05-memory-map-table.jpg" alt="图 5：PPT「存储器映像」表——ROM 三行（0x0800 0000 程序存储器 Flash 存程序代码、0x1FFF F000 系统存储器存 BootLoader 用于串口下载、0x1FFF F800 选项字节存独立配置参数）与 RAM 三行（0x2000 0000 运行内存 SRAM 存临时变量、0x4000 0000 外设寄存器存外设配置参数、0xE000 0000 内核外设寄存器）；字幕「其中ROM分为3块」"></p>
-<p><em>图 5：PPT「存储器映像」表——ROM 三行（<code>0x0800 0000</code> 程序存储器 Flash 存程序代码、<code>0x1FFF F000</code> 系统存储器存 BootLoader 用于串口下载、<code>0x1FFF F800</code> 选项字节存独立配置参数）与 RAM 三行（<code>0x2000 0000</code> 运行内存 SRAM 存临时变量、<code>0x4000 0000</code> 外设寄存器存外设配置参数、<code>0xE000 0000</code> 内核外设寄存器）；字幕「其中ROM分为3块」</em></p>
+<p><img src="../assets/images/stm32-23/05-memory-map-table.jpg" alt="图 5：PPT「存储器映像」表"></p>
+<p><em>图 5：ROM 三行（<code>0x0800 0000</code> Flash、<code>0x1FFF F000</code> 系统存储器、<code>0x1FFF F800</code> 选项字节）与 RAM 三行（<code>0x2000 0000</code> SRAM、<code>0x4000 0000</code> 外设寄存器、<code>0xE000 0000</code> 内核外设寄存器）</em></p>
 <ul>
-<li><strong>完整的地址范围要看手册表 2</strong>：PPT 里是<strong>简写地址</strong>（只写到 <code>0x1FFF F000</code>、<code>0x1FFF F800</code> 这样的起始值），<strong>每一块的完整范围（如系统存储器 <code>0x1FFFF000～0x1FFFF7FF</code>、选择字节 <code>0x1FFFF800～0x1FFFF80F</code>）见参考手册表 2（图 14）</strong>。</li>
+<li><strong>完整范围看手册表 2</strong>：PPT 是简写地址，每块完整范围（系统存储器 <code>0x1FFFF000～0x1FFFF7FF</code>、选择字节 <code>0x1FFFF800～0x1FFFF80F</code>）见参考手册表 2。</li>
 </ul>
 <h3 id="3-3-手册的存储器映像图">3.3 手册的存储器映像图</h3>
 <ul>
-<li>在 STM32 中，<strong>所有存储器都被安排到了 <code>0x0000 0000</code> 到 <code>0xFFFF FFFF</code> 这个 4GB 的地址范围内</strong>——因为 <strong>CPU 是 32 位的，寻址范围就是 32 位</strong>，最大支持 4GB 容量；而 <strong>STM32 的存储器都是 KB 级别，所以这 4GB 里大量地址都是空的，地址使用率还不到 1%</strong>；</li>
-<li>图里<strong>灰色填充的就是 Reserved（保留）区域</strong>，没有使用到；</li>
-<li><strong><code>0x0000 0000</code> 这个地址实际上也没有存储器</strong>：因为<strong>程序从 0 地址开始运行</strong>，所以需要<strong>把想要执行的程序映射到 0 地址</strong>来——<strong>映射到 Flash 区就从 Flash 执行、映射到系统存储器区就运行 BootLoader、映射到 SRAM 就从 SRAM 启动</strong>，<strong>怎么选由 BOOT0 和 BOOT1 两个引脚决定</strong>——<strong>这就是 0 地址的「别名区」</strong>；</li>
-<li>剩下的：<code>0800</code> 开始是 Flash 区（存程序代码）、<code>1FFF</code> 开始是系统存储器和选项字节（在 ROM 区最后面）、<code>2000</code> 开始是 SRAM 区、<code>4000</code> 开始是外设寄存器区、<code>E000</code> 开始是内核外设寄存器；<strong>具体到每个外设又有自己的起始地址</strong>（比如 <strong>TIM2 是 <code>0x40000000</code>、TIM3 是 <code>0x40000400</code></strong>）。</li>
+<li>所有存储器都被安排在 <code>0x0000 0000</code> 到 <code>0xFFFF FFFF</code> 这 <strong>4GB 地址范围</strong>内——CPU 是 32 位，寻址就是 32 位；而 STM32 存储器只有 KB 级，<strong>大量地址是空的，使用率不到 1%</strong>。</li>
+<li>图里灰色填充是 Reserved（保留）区域。</li>
+<li><strong><code>0x0000 0000</code> 处实际没有存储器</strong>：程序从 0 地址开始运行，所以要把待执行程序映射到 0 地址——映射到 Flash 就从 Flash 执行、映射到系统存储器就跑 BootLoader、映射到 SRAM 就从 SRAM 启动，由 BOOT0 与 BOOT1 引脚决定，这就是 0 地址的「别名区」。</li>
+<li>其余：<code>0800</code> 是 Flash 区、<code>1FFF</code> 是系统存储器与选项字节、<code>2000</code> 是 SRAM 区、<code>4000</code> 是外设寄存器区、<code>E000</code> 是内核外设寄存器；每个外设还有自己的起始地址（如 TIM2 <code>0x40000000</code>、TIM3 <code>0x40000400</code>）。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/06-manual-memory-map.jpg" alt="图 6：数据手册的存储器映像图——4GB 地址空间分块（左侧 0～3 区、大量灰色 Reserved）、0x0000 0000 处的「Aliased to Flash or system memory depending on BOOT pins」别名区、0x0800 0000 Flash memory、0x1FFF F000 System memory 与 0x1FFF F800 Option Bytes、右侧外设寄存器区（TIM2/TIM3/TIM4/RTC/WWDG/IWDG/SPI2/USART2/USART3/I2C1/I2C2/USB/CAN/BKP/PWR/AFIO/EXTI/GPIOA～E/ADC1/ADC2 等）；字幕「在STM32中，所有的存储器都被安排到了0」"></p>
-<p><em>图 6：数据手册的存储器映像图——4GB 地址空间分块（左侧 0～3 区、大量灰色 Reserved）、<code>0x0000 0000</code> 处的「Aliased to Flash or system memory depending on BOOT pins」别名区、<code>0x0800 0000</code> Flash memory、<code>0x1FFF F000</code> System memory 与 <code>0x1FFF F800</code> Option Bytes、右侧外设寄存器区（TIM2/TIM3/TIM4/RTC/WWDG/IWDG/SPI2/USART2/USART3/I2C1/I2C2/USB/CAN/BKP/PWR/AFIO/EXTI/GPIOA～E/ADC1/ADC2 等）；字幕「在STM32中，所有的存储器都被安排到了0」</em></p>
+<p><img src="../assets/images/stm32-23/06-manual-memory-map.jpg" alt="图 6：数据手册的存储器映像图"></p>
+<p><em>图 6：4GB 地址空间分块、<code>0x0000 0000</code> 的「Aliased to Flash or system memory depending on BOOT pins」别名区、<code>0x0800 0000</code> Flash、<code>0x1FFF F000</code> System memory、<code>0x1FFF F800</code> Option Bytes 与右侧外设寄存器区</em></p>
 <h2 id="4-dma-控制器框图-图21">4. DMA 控制器框图（图21）</h2>
 <h3 id="4-1-总览-cpu-存储器-总线矩阵">4.1 总览：CPU + 存储器 + 总线矩阵</h3>
 <ul>
-<li>这个框图在<strong>第一节 STM32 系统结构</strong>里见过类似的：<strong>左上角是 Cortex-M3 内核</strong>（里面包含 CPU 和内核外设等）——<strong>除了 CPU，剩下的所有东西都可以看成是存储器</strong>（Flash 主闪存、SRAM 运行内存、各个外设的寄存器），所以<strong>总共就是「CPU + 存储器」两个东西</strong>；</li>
-<li><strong>寄存器是一种特殊的存储器</strong>：一方面 <strong>CPU 可以像读写运行内存一样读写寄存器</strong>；另一方面<strong>寄存器的每一位背后都连接了一根导线</strong>，这些导线可以<strong>控制外设电路的状态</strong>（置引脚高低电平、导通断开开关、切换数据选择器）——所以<strong>寄存器是连接软件和硬件的桥梁</strong>，软件读写寄存器就相当于在控制硬件。</li>
-<li><strong>为了高效、有条理地访问存储器，设计了「总线矩阵」</strong>：<ul>
-<li><strong>左端是主动单元</strong>（拥有存储器的访问权）：<strong>内核有 DCode 总线和系统总线</strong>（<strong>DCode 总线专门访问 Flash，系统总线访问其他东西</strong>）；<strong>DMA 也必须要有访问主动权</strong>，所以主动单元里还有 <strong>DMA1 的总线、DMA2 的总线</strong>，以及<strong>以太网外设自己私有的 DMA 总线</strong>（这个不用管）；</li>
-<li><strong>右端是被动单元</strong>：它们的存储器<strong>只能被左边的主动单元读写</strong>——包括 Flash、SRAM、AHB 桥下面挂的 APB1/APB2 外设（ADC、GPIO、定时器、串口等）。</li>
+<li>左上角是 Cortex-M3 内核（含 CPU 与内核外设）；除了 CPU，其余都可看成存储器（Flash、SRAM、各外设寄存器），所以系统就是「CPU + 存储器」。</li>
+<li><strong>寄存器是特殊的存储器</strong>：CPU 能像读写内存一样读写它；而寄存器每一位背后连着导线，可控制外设电路（置引脚电平、通断开关、切换数据选择器）——<strong>寄存器是软件与硬件的桥梁</strong>。</li>
+<li><strong>总线矩阵</strong>：<ul>
+<li><strong>左端主动单元</strong>（有访问权）：内核有 <strong>DCode 总线（专访问 Flash）与系统总线（访问其他）</strong>；DMA1、DMA2 的总线，以及以太网私有的 DMA 总线（不用管）。</li>
+<li><strong>右端被动单元</strong>：Flash、SRAM、AHB 桥上挂的 APB1/APB2 外设（ADC、GPIO、定时器、串口等），只能被主动单元读写。</li>
 </ul>
 </li>
 </ul>
-<p><img src="../assets/images/stm32-23/07-dma-block-diagram.jpg" alt="图 7：PPT「DMA框图」（手册图21）——左上红圈「Cortex-M3 内核」（ICode/DCode/系统三条总线），下方「总线矩阵」连接右侧被动单元（Flash 接口控制器→Flash、SRAM、复位和时钟控制 RCC、桥1/桥2→APB1/APB2 外设列）；左侧是 DMA1（通道 1～7 + 仲裁器 + AHB 从设备）与 DMA2（通道 1～5 + 仲裁器 + AHB 从设备），以及两路「DMA 请求」线、以太网 MAC、USB OTG FS；字幕「左上角这里是Cortex-M3内核，里面包含了CPU和内核外设等等」"></p>
-<p><em>图 7：PPT「DMA框图」（手册图21）——左上红圈「Cortex-M3 内核」（ICode/DCode/系统三条总线），下方「总线矩阵」连接右侧被动单元（Flash 接口控制器→Flash、SRAM、复位和时钟控制 RCC、桥1/桥2→APB1/APB2 外设列）；左侧是 DMA1（通道 1～7 + 仲裁器 + AHB 从设备）与 DMA2（通道 1～5 + 仲裁器 + AHB 从设备），以及两路「DMA 请求」线、以太网 MAC、USB OTG FS；字幕「左上角这里是Cortex-M3内核，里面包含了CPU和内核外设等等」</em></p>
+<p><img src="../assets/images/stm32-23/07-dma-block-diagram.jpg" alt="图 7：PPT「DMA框图」（手册图21）"></p>
+<p><em>图 7：左上红圈「Cortex-M3 内核」（ICode/DCode/系统三条总线），总线矩阵右侧被动单元（Flash 接口控制器、SRAM、RCC、桥1/桥2 → APB1/APB2 外设），左侧 DMA1（通道 1～7 + 仲裁器 + AHB 从设备）与 DMA2（通道 1～5 + 仲裁器 + AHB 从设备）、DMA 请求线</em></p>
 <h3 id="4-2-仲裁器-ahb-从设备与-dma-请求">4.2 仲裁器、AHB 从设备与 DMA 请求</h3>
 <ul>
-<li><strong>内部通道</strong>：DMA1 里<strong>有 7 个通道、DMA2 里有 5 个通道</strong>，所以它们<strong>可以各自独立地工作</strong>；</li>
-<li><strong>仲裁器（通道级）</strong>：虽然多个通道可以独立转运数据，但<strong>最终 DMA 总线只有一条</strong>，<strong>所有通道只能分时复用这一条总线</strong>——<strong>如果产生冲突，就由仲裁器根据通道优先级决定谁先用、谁后用</strong>；</li>
-<li><strong>仲裁器（总线矩阵级）</strong>：<strong>如果 DMA 和 CPU 都要访问同一个目标，DMA 就会暂停 CPU 的访问以防止冲突</strong>；<strong>不过总线仲裁器仍然会保证 CPU 得到一半的总线带宽</strong>，使 CPU 也能正常工作；</li>
-<li><strong>AHB 从设备</strong>：就是** DMA 自身的寄存器**——DMA 作为一个外设也有自己的配置寄存器，它们连接在总线右边的 AHB 总线上；所以 <strong>DMA 既是总线矩阵的主动单元（可以读写各种存储器），也是 AHB 总线上的被动单元（CPU 通过这条线路对它进行配置）</strong>；</li>
-<li><strong>DMA 请求</strong>：<strong>请求就是触发的意思</strong>——这条线路右边是各个外设，所以** DMA 请求就是 DMA 的硬件触发源**：比如 <strong>ADC 转换完成、串口接收到数据</strong>时，外设就通过这条线路向 DMA 发出硬件触发信号，DMA 随后执行数据转运。</li>
-<li><strong>图讲完一句话总结</strong>：<strong>DMA 总线</strong>用于访问各个存储器、<strong>内部多个通道</strong>可独立转运、<strong>仲裁器</strong>调度防冲突、<strong>AHB 从设备</strong>用于配置 DMA 参数、<strong>DMA 请求</strong>用于硬件触发。</li>
+<li><strong>内部通道</strong>：DMA1 有 7 个、DMA2 有 5 个，可以各自独立工作。</li>
+<li><strong>仲裁器（通道级）</strong>：DMA 总线只有一条，所有通道<strong>分时复用</strong>；冲突时按通道优先级决定先后。</li>
+<li><strong>仲裁器（总线矩阵级）</strong>：DMA 与 CPU 抢同一目标时，DMA 暂停 CPU 的访问，但保证 CPU 仍有一半总线带宽。</li>
+<li><strong>AHB 从设备</strong>：就是 DMA 自己的配置寄存器，挂在右侧 AHB 总线上——所以 DMA 既是主动单元（读写存储器），也是被动单元（被 CPU 配置）。</li>
+<li><strong>DMA 请求</strong>：请求即触发——各外设通过这条线把硬件触发信号送进来，如 ADC 转换完成、串口收到数据。</li>
+<li>一句话：DMA 总线访问存储器、多通道独立转运、仲裁器防冲突、AHB 从设备供配置、DMA 请求供硬件触发。</li>
 </ul>
 <h3 id="4-3-额外提醒-flash-是只读的">4.3 额外提醒：Flash 是只读的</h3>
 <ul>
-<li>图中 <strong>Flash 是 ROM 只读存储器的一种</strong>：<strong>通过总线直接访问时，无论 CPU 还是 DMA，都是只读的</strong>——只能读取数据，<strong>不能写入</strong>；</li>
-<li>所以<strong>如果 DMA 的目的地址填了 Flash 区域，转运时就会出错</strong>，注意一下；</li>
-<li>Flash 也不是绝对不能写入——<strong>可以配置 Flash 接口控制器对 Flash 进行写入</strong>，不过那是另一个课题，这里不讨论；总之<strong>直接访问 Flash 只能读</strong>；</li>
-<li><strong>SRAM 是运行内存，可以任意读写</strong>，没有问题；<strong>外设寄存器要看手册描述</strong>（有的只读、有的只写），不过我们主要用的<strong>数据寄存器都是可以正常读写的</strong>。</li>
+<li>Flash 属 ROM，<strong>通过总线直接访问时无论 CPU 还是 DMA 都只读</strong>，不能写。</li>
+<li>所以 <strong>DMA 目的地址填 Flash 区会出错</strong>。</li>
+<li>Flash 并非绝对不能写，配 Flash 接口控制器可写，但那是另一课题；总之<strong>直接访问只能读</strong>。</li>
+<li><strong>SRAM 可任意读写</strong>；外设寄存器要看手册（有的只读、有的只写），常用的数据寄存器都能正常读写。</li>
 </ul>
 <h2 id="5-dma-基本结构图-写代码必看">5. DMA 基本结构图（写代码必看）</h2>
 <blockquote>
-<p>上面的框图只是<strong>笼统</strong>的结构，<strong>内部执行细节没有体现</strong>；作者总结的这张「DMA 基本结构图」<strong>如果要编写代码实际控制 DMA，是必不可少的</strong>。</p>
+<p>上面的框图只是笼统结构，这张「DMA 基本结构图」才是写代码控制 DMA 的必备依据。</p>
 </blockquote>
 <h3 id="5-1-两个站点的三个参数">5.1 两个站点的三个参数</h3>
 <ul>
-<li><strong>左边是「外设寄存器」站点、右边是「存储器」站点</strong>（包括 Flash 和 SRAM）——<strong>这两部分就是数据转运的两大站点</strong>；</li>
-<li><strong>注意手册的用词</strong>：手册里说的**「存储器」一般特指 Flash 和 SRAM，不包含外设寄存器**；外设寄存器一般直接称作**「外设」<strong>——所以描述方式是「外设到存储器、存储器到存储器」，虽然我们说过寄存器也是存储器的一种，但 STM32 还是</strong>用「外设/存储器」来区分**；</li>
-<li><strong>方向参数</strong>决定是向左还是向右：<strong>外设 → 存储器、存储器 → 外设</strong>；另外还可以<strong>存储器 → 存储器</strong>（Flash 到 SRAM、SRAM 到 SRAM）；<strong>因为 Flash 只读，所以不能 SRAM → Flash、Flash → Flash</strong>；</li>
-<li><strong>两个站点各有 3 个参数</strong>：<ol>
-<li><strong>起始地址</strong>——决定数据<strong>从哪里来、到哪里去</strong>；</li>
-<li><strong>数据宽度</strong>——<strong>一次转运按多大的数据宽度进行</strong>：<strong>字节 Byte = 8 位</strong>（一次一个 <code>uint8_t</code>）、<strong>半字 HalfWord = 16 位</strong>（一次一个 <code>uint16_t</code>）、<strong>字 Word = 32 位</strong>（一次一个 <code>uint32_t</code>）；<strong>比如转运 ADC 的数据，ADC 结果是 <code>uint16_t</code>，所以这个参数要选半字</strong>；</li>
-<li><strong>地址是否自增</strong>——<strong>指定一次转运完成后、下一次转运地址要不要移动到下一个位置</strong>，<strong>相当于指针 <code>p++</code></strong>；<strong>比如 ADC 扫描模式用 DMA 转运：外设地址是 ADC_DR 寄存器，寄存器这边显然不用自增；存储器这边地址就需要自增</strong>（每转运一个数据就往后挪一个坑），<strong>否则下次再转就会把上次的数据覆盖掉</strong>；</li>
+<li>左边「外设寄存器」站点、右边「存储器」站点（Flash 与 SRAM），这就是转运的两大站点。</li>
+<li><strong>手册用词</strong>：说「存储器」一般特指 Flash 与 SRAM，不含外设寄存器；外设寄存器直接叫「外设」——所以说法是「外设到存储器、存储器到存储器」。</li>
+<li><strong>方向参数</strong>：外设→存储器、存储器→外设，还有存储器→存储器（Flash→SRAM、SRAM→SRAM）；<strong>Flash 只读，所以不能 SRAM→Flash、Flash→Flash</strong>。</li>
+<li><strong>两站点各 3 个参数</strong>：<ol>
+<li><strong>起始地址</strong>：数据从哪来、到哪去；</li>
+<li><strong>数据宽度</strong>：一次搬多宽——字节 Byte = 8 位（一个 <code>uint8_t</code>）、半字 HalfWord = 16 位（一个 <code>uint16_t</code>）、字 Word = 32 位（一个 <code>uint32_t</code>）；ADC 结果是 <code>uint16_t</code>，所以选半字；</li>
+<li><strong>地址是否自增</strong>：一次转运后地址是否移到下一个，相当于 <code>p++</code>；ADC 扫描用 DMA 时，外设地址（ADC_DR）不自增、存储器地址要自增，否则后一个数据会覆盖前一个。</li>
 </ol>
 </li>
-<li><strong>存储器到存储器的转运怎么配</strong>：<strong>把其中一个存储器的地址放到「外设」站点上就行</strong>——「这个站点虽然叫外设寄存器，但只是个名字而已」，<strong>写 Flash 地址它就去 Flash 找、写 SRAM 地址它就去 SRAM 找</strong>；甚至可以在外设站点写存储器地址、存储器站点写外设地址、把方向反过来，也都行；<strong>你也可以把它叫做站点 A、站点 B，不必拘泥于名字</strong>。</li>
+<li><strong>存储器到存储器怎么配</strong>：把其中一个存储器的地址填到「外设」站点即可——站点名字只是个称呼，写 Flash 地址就去 Flash 找、写 SRAM 地址就去 SRAM 找；把方向反过来也行，叫站点 A、站点 B 也可以。</li>
 </ul>
 <h3 id="5-2-传输计数器-自动重装与触发控制">5.2 传输计数器、自动重装与触发控制</h3>
 <ul>
-<li><strong>传输计数器</strong>：用来<strong>指定总共需要转运几次</strong>——它是<strong>一个自减计数器</strong>：给它写 5，DMA 就<strong>只能进行 5 次转运</strong>，每转运一次<strong>减 1</strong>；<strong>减到 0 之后 DMA 就不再转运了</strong>，而且<strong>之前自增的地址也会恢复到起始位置</strong>（方便之后开始新一轮）；</li>
-<li><strong>自动重装器</strong>：决定<strong>计数器减到 0 之后是否要自动恢复到最初的值</strong>——<strong>不重装就是正常的单次模式</strong>（转运一轮就结束，比如转运一个数组），<strong>重装就是循环模式</strong>（比如 <strong>ADC 扫描模式 + 连续转换</strong>，DMA 也要用循环模式配合 ADC）；</li>
-<li><strong>触发控制</strong>：决定<strong>DMA 在什么时机进行转运</strong>，触发源有<strong>硬件触发和软件触发</strong>，<strong>具体选哪个由 M2M 参数决定</strong>：<ul>
-<li><strong>M2M = Memory to Memory</strong>（「2」的英文 two 和 to 同音，所以 M2M 就是 M to M）；</li>
-<li><strong>M2M = 1 → 软件触发</strong>：执行逻辑是<strong>以最快的速度、连续不断地触发 DMA</strong>，争取尽早把传输计数器清零、完成这一轮转运——<strong>所以软件触发可以理解成「连续触发」</strong>；它<strong>一般适用于存储器到存储器的转运</strong>（软件启动、不需要时机、想尽快完成）；</li>
-<li><strong>M2M = 0 → 硬件触发</strong>：触发源可以选择 <strong>ADC、串口、定时器</strong>等等；<strong>硬件触发一般用于与外设有关的转运</strong>（需要时机，外设达到时机时给一个信号触发 DMA）；</li>
-<li><strong>⚠️ 软件触发与循环模式不能同时用</strong>：因为<strong>软件触发就是想把计数器清零、循环模式是清零后自动重装</strong>——<strong>如果同时用，那 DMA 就停不下来了</strong>；</li>
+<li><strong>传输计数器</strong>：指定总共转运几次，它是自减计数器；写 5 就只转 5 次，每次减 1，减到 0 停止并把自增过的地址复原。</li>
+<li><strong>自动重装器</strong>：决定减到 0 后是否恢复初值——不重装是单次模式（转一轮就结束），重装是循环模式（如 ADC 扫描 + 连续转换要配循环）。</li>
+<li><strong>触发控制</strong>：决定何时转运，选硬件还是软件由 <strong>M2M</strong> 决定（M2M = Memory to Memory，「2」与 two 同音）：<ul>
+<li><strong>M2M = 1 → 软件触发</strong>：以最快速度连续触发，尽早把计数器清零，可理解为「连续触发」，一般用于存储器到存储器；</li>
+<li><strong>M2M = 0 → 硬件触发</strong>：触发源可选 ADC、串口、定时器，用于需要时机的外设转运；</li>
+<li><strong>⚠️ 软件触发不能配循环模式</strong>：软件触发想清零、循环模式清零后重装，两个一起用 DMA 就停不下来。</li>
 </ul>
 </li>
-<li><strong>开关控制</strong>：就是<strong>给 DMA 开关的使能位</strong>（视频顺口提到库函数里对应的就是 DMA 使能函数，<strong>具体写法在 P24</strong>）；</li>
-<li><strong>DMA 进行转运的几个条件</strong>：<strong>① 开关控制必须使能 ② 传输计数器必须大于 0 ③ 触发源必须有触发信号</strong>——触发一次、转运一次、计数器自减一次；<strong>当传输计数器等于 0、又没有自动重装时，无论是否触发，DMA 都不会再转运了</strong>，这时需要：<strong>关闭 DMA → 给传输计数器写入一个大于 0 的数 → 再使能 DMA</strong>；</li>
-<li><strong>注意</strong>：<strong>写传输计数器时，必须先关闭 DMA 再进行</strong>——<strong>不能在 DMA 开启时写传输计数器</strong>，这是<strong>手册里的规定</strong>。</li>
+<li><strong>开关控制</strong>：DMA 的使能位（库函数里的 DMA 使能函数，写法在 P24）。</li>
+<li><strong>转运三条件</strong>：<strong>① 开关使能 ② 传输计数器 &gt; 0 ③ 有触发信号</strong>——触发一次、转运一次、计数器减一次；计数器到 0 且不重装时，怎么触发都不再转，此时要关闭 DMA → 写入大于 0 的数 → 再使能。</li>
+<li><strong>注意</strong>：<strong>写传输计数器前必须先关闭 DMA</strong>，开启状态下写是手册不允许的。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/08-dma-basic-structure.jpg" alt="图 8：PPT「DMA基本结构」——左侧「外设」站点（起始地址/数据宽度/地址是否自增）→「外设寄存器」→方向→「Flash/SRAM」→右侧「存储器」站点（起始地址/数据宽度/地址是否自增）；下方「传输计数器」←「自动重装器」，数据选择器「0/1」由「M2M」控制，左边「硬件触发」、右边「软件触发」，右下角「开关控制」；字幕「这里是我总结的DMA基本结构图」"></p>
-<p><em>图 8：PPT「DMA基本结构」——左侧「外设」站点（起始地址/数据宽度/地址是否自增）→「外设寄存器」→方向→「Flash/SRAM」→右侧「存储器」站点（起始地址/数据宽度/地址是否自增）；下方「传输计数器」←「自动重装器」，数据选择器「0/1」由「M2M」控制，左边「硬件触发」、右边「软件触发」，右下角「开关控制」；字幕「这里是我总结的DMA基本结构图」</em></p>
-<p><img src="../assets/images/stm32-23/09-basic-structure-zoom.jpg" alt="图 9：同一张基本结构图的放大——外设站点（起始地址/数据宽度/地址是否自增）、外设寄存器 → 方向 → Flash/SRAM → 存储器站点，传输计数器与自动重装器，M2M 控制的数据选择器「0/1」接硬件触发/软件触发；字幕「用于选择是硬件触发还是软件触发」"></p>
-<p><em>图 9：同一张基本结构图的放大——外设站点（起始地址/数据宽度/地址是否自增）、外设寄存器 → 方向 → Flash/SRAM → 存储器站点，传输计数器与自动重装器，M2M 控制的数据选择器「0/1」接硬件触发/软件触发；字幕「用于选择是硬件触发还是软件触发」</em></p>
+<p><img src="../assets/images/stm32-23/08-dma-basic-structure.jpg" alt="图 8：PPT「DMA基本结构」"></p>
+<p><em>图 8：左右两站点（起始地址/数据宽度/地址是否自增）经「外设寄存器」→ 方向 →「Flash/SRAM」；下方传输计数器与自动重装器，数据选择器「0/1」由 <code>M2M</code> 控制，左硬件触发、右软件触发，右下开关控制</em></p>
+<p><img src="../assets/images/stm32-23/09-basic-structure-zoom.jpg" alt="图 9：基本结构图放大"></p>
+<p><em>图 9：外设站点、外设寄存器 → 方向 → Flash/SRAM → 存储器站点，传输计数器与自动重装器，M2M 控制的「0/1」选择器接硬件/软件触发</em></p>
 <h2 id="6-dma1-请求映像-图22">6. DMA1 请求映像（图22）</h2>
 <ul>
-<li><strong>每个通道都有一个数据选择器</strong>，可以选择<strong>硬件触发或软件触发</strong>；</li>
-<li><strong>作者对这幅手册图的解读</strong>（老师觉得手册原图画得不好理解，重新布了局）：<strong>M2M 位是数据选择器的控制位</strong>（决定选硬件触发还是软件触发），<strong>EN 位是开关控制</strong>（<strong>EN=0 时数据选择器不工作、EN=1 才工作</strong>）——「这样就好理解一些了」；</li>
-<li><strong>左边的硬件触发源：每个通道的硬件触发源都不同</strong>：</li>
+<li>每个通道都有一个数据选择器，选硬件触发还是软件触发。</li>
+<li><strong>解读手册图</strong>（重排布局后更好懂）：M2M 是选择器的控制位，EN 是开关（EN=0 选择器不工作、EN=1 才工作）。</li>
+<li><strong>硬件触发源按通道固定分配</strong>：</li>
 </ul>
 <table>
 <thead>
@@ -419,93 +413,87 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>硬件触发必须用对应通道</strong>：<strong>要用 ADC1 触发，就必须选通道 1</strong>；<strong>要用定时器 2 的更新事件触发，就必须选通道 2</strong>；剩下的同理——「每个通道的硬件触发源都不同，所以想用某个硬件触发源，就必须使用它所在的通道」；</li>
-<li><strong>软件触发则可以任意选通道</strong>（每个通道的软件触发都一样）——<strong>这就是「每个通道都支持软件触发和特定的硬件触发」里「特定」的意思</strong>；</li>
-<li><strong>同一个通道里有多个触发源时</strong>（比如通道 1 的 ADC1/TIM2_CH3/TIM4_CH1）：<strong>到底选哪个，取决于你把哪个外设的 DMA 输出开启了</strong>——必须在对应外设里开启它的 DMA 输出（用库函数，<strong>在 P24 讲</strong>），这路才有效；<strong>如果三个都开启了，理论上三个硬件都能触发</strong>（图里是一个<strong>或门</strong>），不过<strong>一般只开启其中一个</strong>；</li>
-<li><strong>优先级</strong>：7 个请求进到<strong>仲裁器</strong>进行优先级判断，最终产生内部的 <strong>DMA1 请求</strong>——<strong>默认优先级是通道号越小、优先级越高</strong>（类似于中断优先级），<strong>也可以在程序中配置优先级</strong>，「不过这个影响并不是很大，了解一下就行了」；</li>
-<li><strong>DMA2</strong> 有自己的一套请求映像（图23）和同样的表，内容一样，<strong>本芯片没有 DMA2</strong>，一句带过。</li>
+<li><strong>硬件触发必须用对应通道</strong>：ADC1 只能选通道 1，定时器 2 更新事件只能选通道 2，其余同理。</li>
+<li><strong>软件触发任意通道都行</strong>（各通道软件触发一样）——这就是「特定」的含义。</li>
+<li><strong>同通道多个触发源时</strong>（通道 1 的 ADC1/TIM2_CH3/TIM4_CH1）：选哪个取决于你在外设里开启了哪路 DMA 输出（库函数，P24 讲）；三个都开则理论上都能触发（图里是<strong>或门</strong>），一般只开一个。</li>
+<li><strong>优先级</strong>：7 路请求进仲裁器产生内部 DMA1 请求，<strong>默认通道号越小优先级越高</strong>，也可在程序里配置，影响不大。</li>
+<li><strong>DMA2</strong> 有自己的一套请求映像（图23），内容相同；本芯片没有 DMA2，一句带过。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/10-dma1-request-map.jpg" alt="图 10：PPT「图22 DMA1请求映像」——左边「外设请求信号」列（ADC1/TIM2_CH3/TIM4_CH1 → 通道1 的硬件请求；USART3_TX/TIM1_CH1/TIM2_UP/TIM3_CH3/SPI1_RX → 通道2；USART3_RX/TIM1_CH2/TIM3_CH4/TIM3_UP/SPI1_TX → 通道3；USART1_TX/TIM1_CH4/TIM1_TRIG/TIM1_COM/TIM2_CH2/SPI2(I2S2)_RX/I2C2_TX → 通道4；USART1_RX/TIM1_UP/SPI2(I2S2)_TX/TIM2_CH1/TIM4_CH3/I2C2_RX → 通道5……），每通道都有「软件触发（MEM2MEM位）」与「通道x的EN位」，右侧「固定的硬件优先级」「高优先级」→「内部DMA1请求」；字幕「如果你需要用ADC1来触发的话，那就必须选择通道1」"></p>
-<p><em>图 10：PPT「图22 DMA1请求映像」——左边「外设请求信号」列（ADC1/TIM2_CH3/TIM4_CH1 → 通道1 的硬件请求；USART3_TX/TIM1_CH1/TIM2_UP/TIM3_CH3/SPI1_RX → 通道2；USART3_RX/TIM1_CH2/TIM3_CH4/TIM3_UP/SPI1_TX → 通道3；USART1_TX/TIM1_CH4/TIM1_TRIG/TIM1_COM/TIM2_CH2/SPI2(I2S2)_RX/I2C2_TX → 通道4；USART1_RX/TIM1_UP/SPI2(I2S2)_TX/TIM2_CH1/TIM4_CH3/I2C2_RX → 通道5……），每通道都有「软件触发（MEM2MEM位）」与「通道x的EN位」，右侧「固定的硬件优先级」「高优先级」→「内部DMA1请求」；字幕「如果你需要用ADC1来触发的话，那就必须选择通道1」</em></p>
+<p><img src="../assets/images/stm32-23/10-dma1-request-map.jpg" alt="图 10：PPT「图22 DMA1请求映像」"></p>
+<p><em>图 10：左侧外设请求信号列（ADC1/TIM2_CH3/TIM4_CH1 → 通道1；USART3_TX/TIM1_CH1/TIM2_UP/TIM3_CH3/SPI1_RX → 通道2……），每通道有「软件触发（MEM2MEM位）」与「通道x的EN位」，右侧固定硬件优先级 → 内部DMA1请求</em></p>
 <h2 id="7-数据宽度与对齐-表57">7. 数据宽度与对齐（表57）</h2>
 <ul>
-<li>两个站点都有<strong>数据宽度</strong>参数：<strong>宽度一样就是正常地一个个转运</strong>；<strong>宽度不一样怎么处理</strong>，就看<strong>表57「可编程的数据传输宽度和大小端操作」</strong>；</li>
-<li>表的<strong>第一列是源端宽度、第二列是目标宽度、第三列是传输数目</strong>；要点只有三句：<ul>
-<li><strong>源和目标都是 8 位</strong>：在源端 0 位置读 <code>B0</code>、在目标 0 位置写 <code>B0</code>（正常搬运），接着 <code>B1</code>、<code>B2</code>、<code>B3</code>；</li>
-<li><strong>源端窄、目标宽</strong>（如 8 位 → 16 位）：<strong>目标前面多出来的空位补 0</strong>——读 <code>B0</code>、写 <code>00B0</code>；8 位 → 32 位同理前面补 0；</li>
-<li><strong>源端宽、目标窄</strong>（如 16 位 → 8 位）：<strong>读 <code>B1B0</code> 只写入 <code>B0</code></strong>——<strong>多出来的高位被舍弃</strong>；</li>
-<li>总结：<strong>小的转到大的里面去，高位补 0；大的转到小的里面去，高位舍弃；数据宽度一样就直接搬。</strong></li>
+<li>两站点都有数据宽度：一样就正常逐个搬，不一样按**表57「可编程的数据传输宽度和大小端操作」**处理（第一列源宽度、第二列目标宽度、第三列传输数目）。</li>
+<li><strong>8 位 → 8 位</strong>：0 位置读 <code>B0</code> 写 <code>B0</code>，再 <code>B1</code>、<code>B2</code>、<code>B3</code>。</li>
+<li><strong>源窄目标宽</strong>（8 → 16）：目标前补 0——读 <code>B0</code> 写 <code>00B0</code>；8 → 32 同理。</li>
+<li><strong>源宽目标窄</strong>（16 → 8）：读 <code>B1B0</code> 只写 <code>B0</code>，<strong>高位舍弃</strong>。</li>
+<li>总结：<strong>小转大高位补 0，大转小高位舍弃，等宽直接搬</strong>。</li>
+<li>表名提到大小端，但只讲了宽度补 0/截断，未展开大小端。</li>
 </ul>
-</li>
-<li>表名里带「大小端操作」，但<strong>老师只讲了宽度补 0/截断</strong>，没有展开大小端。</li>
-</ul>
-<p><img src="../assets/images/stm32-23/11-data-width-align.jpg" alt="图 11：PPT「数据宽度与对齐」——表57「可编程的数据传输宽度和大小端操作（当PINC = MINC = 1）」：9 行组合（8→8/8→16/8→32/16→8/16→16/16→32/32→8/32→16/32→32），列出源地址、传输操作与目标地址（如 8→16 时「在 0x0 读 B0 的低 8 位，在 0x0 写 00B0（16 位）」）；字幕「我们看一下」"></p>
-<p><em>图 11：PPT「数据宽度与对齐」——表57「可编程的数据传输宽度和大小端操作（当PINC = MINC = 1）」：9 行组合（8→8/8→16/8→32/16→8/16→16/16→32/32→8/32→16/32→32），列出源地址、传输操作与目标地址（如 8→16 时「在 0x0 读 B0 的低 8 位，在 0x0 写 00B0（16 位）」）；字幕「我们看一下」</em></p>
+<p><img src="../assets/images/stm32-23/11-data-width-align.jpg" alt="图 11：PPT「数据宽度与对齐」"></p>
+<p><em>图 11：表57「可编程的数据传输宽度和大小端操作（当PINC = MINC = 1）」9 行组合（8→8/8→16/8→32/16→8/16→16/16→32/32→8/32→16/32→32），如 8→16 时「在 <code>0x0</code> 读 B0 的低 8 位，在 <code>0x0</code> 写 00B0」</em></p>
 <h2 id="8-两个典型例子">8. 两个典型例子</h2>
 <h3 id="8-1-例-1-数据转运-dma-存储器-存储器">8.1 例 1：数据转运 + DMA（存储器 → 存储器）</h3>
 <ul>
-<li><strong>任务</strong>：<strong>将 SRAM 里的数组 DataA，转运到另一个数组 DataB 中</strong>（对应程序①）；</li>
-<li>按基本结构图逐项配（<strong>这里是配置思路，不是代码</strong>）：<ul>
-<li><strong>外设站点起始地址</strong>：给 <strong>DataA 数组的首地址</strong>；<strong>存储器站点起始地址</strong>：给 <strong>DataB 数组的首地址</strong>；</li>
-<li><strong>数据宽度</strong>：两个数组都是 <code>uint8_t</code>，所以都按 <strong>8 位字节</strong>传输；</li>
-<li><strong>地址是否自增</strong>：我们想要 <strong><code>DataA[0]</code> → <code>DataB[0]</code>、<code>DataA[1]</code> → <code>DataB[1]</code></strong> 一一对应，所以<strong>两个站点的地址都自增</strong>；</li>
-<li>三种错误的组合也讲了：<strong>左边不自增、右边自增</strong> → 转运完成后 <strong>DataB 所有数据都等于 <code>DataA[0]</code></strong>；<strong>左边自增、右边不自增</strong> → <strong><code>DataB[0]</code> 等于 DataA 最后一个数、DataB 其他的数不变</strong>；<strong>两边都不自增</strong> → <strong>一直是 <code>DataA[0]</code> → <code>DataB[0]</code>，其他数据不变</strong>；</li>
-<li><strong>方向</strong>：外设站点 → 存储器站点（想反向就换方向参数）；</li>
-<li><strong>传输计数器</strong>：要转运 7 次就给 <strong>7</strong>，<strong>不需要自动重装</strong>；<strong>触发</strong>：<strong>软件触发</strong>（存储器到存储器不需要等硬件时机，尽快完成）；</li>
-<li>最后使能 DMA，数据就会从 DataA 转运到 DataB；<strong>转运 7 次后计数器减到 0、DMA 停止、转运完成</strong>——「这个过程相当于把 DataA 的数据复制到了 DataB 的位置」。</li>
+<li><strong>任务</strong>：把 SRAM 里的 <code>DataA</code> 转运到 <code>DataB</code>（对应程序①），按基本结构图逐项配（配置思路，不是代码）：<ul>
+<li>外设站点地址给 DataA 首地址，存储器站点地址给 DataB 首地址；两数组都是 <code>uint8_t</code>，按 <strong>8 位字节</strong>传输；</li>
+<li>想 <code>DataA[0]</code>→<code>DataB[0]</code>、<code>DataA[1]</code>→<code>DataB[1]</code> 一一对应，所以<strong>两边地址都自增</strong>；</li>
+<li>错误组合：左边不自增、右边自增 → DataB 全等于 <code>DataA[0]</code>；左边自增、右边不自增 → 只有 <code>DataB[0]</code> 等于 DataA 最后一个数；两边都不自增 → 一直只搬 <code>DataA[0]</code>；</li>
+<li>方向：外设站点 → 存储器站点；传输计数器填 7，不重装；<strong>软件触发</strong>（存储器到存储器不等时机）；</li>
+<li>使能后转运 7 次，计数器到 0 自动停止，相当于把 DataA 复制到 DataB。</li>
 </ul>
 </li>
 </ul>
 <h3 id="8-2-例-2-adc-扫描模式-dma-外设-存储器">8.2 例 2：ADC 扫描模式 + DMA（外设 → 存储器）</h3>
 <ul>
-<li><strong>任务</strong>：<strong>ADC 扫描模式</strong>依次转换 7 个通道，结果都放到 <strong>ADC_DR</strong> 里；要在<strong>每个单独通道转换完成后</strong>用 DMA 转运一次，并且<strong>目的地址自增</strong>，这样数据才不会互相覆盖（对应程序②）；</li>
-<li>配置思路：<strong>外设地址</strong>写 <strong>ADC_DR</strong> 的地址；<strong>存储器地址</strong>在 SRAM 里定义一个数组 <strong><code>uint16_t ADValue[7]</code></strong>、把它的地址当作存储器站点地址；<strong>数据宽度</strong>：ADC_DR 和数组都是 <code>uint16_t</code>，所以是 <strong>16 位半字传输</strong>；<strong>地址自增</strong>：<strong>外设地址不自增、存储器地址自增</strong>；<strong>方向</strong>：外设站点 → 存储器站点；<strong>传输计数器</strong>：7 个通道就计 <strong>7</strong> 次；</li>
-<li><strong>是否自动重装看 ADC 的配置</strong>：<strong>ADC 是单次扫描 → DMA 不重装</strong>（转换一轮就停止）；<strong>ADC 是连续扫描 → DMA 用自动重装</strong>（ADC 启动下一轮转换时 DMA 也启动下一轮转运，两者同步工作）；</li>
-<li><strong>触发</strong>：<strong>选 ADC 的硬件触发</strong>——因为 <strong>ADC_DR 的值是在单个通道转换完成后才有效</strong>，所以 DMA 转运的时机<strong>必须和「单个通道转换完成」同步</strong>。</li>
+<li><strong>任务</strong>：ADC 扫描依次转换 7 个通道，结果都进 ADC_DR，要在<strong>每个通道转换完成后</strong>各转运一次，且目的地址自增，数据才不会互相覆盖（对应程序②）。</li>
+<li>配置：外设地址写 ADC_DR；存储器地址用 SRAM 里的 <code>uint16_t ADValue[7]</code>；两者都是 <code>uint16_t</code>，16 位半字传输；外设不自增、存储器自增；方向外设 → 存储器；计数器填 7。</li>
+<li><strong>重装看 ADC 配置</strong>：ADC 单次扫描 → DMA 不重装；ADC 连续扫描 → DMA 用自动重装，两者同步。</li>
+<li><strong>触发</strong>：选 ADC 的硬件触发——ADC_DR 的值只有单通道转换完成后才有效，转运时机必须与它同步。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/12-adc-scan-dma.jpg" alt="图 12：PPT「ADC扫描模式+DMA」——左边规则组序列 1～7 依次填通道 2/5/4/1/0/3/6，触发后转换结果都进 ADC_DR（DMA 外设地址）；下方「ADC硬件触发」→「DMA」；右侧 DMA 存储器地址把「通道2结果…通道6结果」依次放进「SRAM数组 uint16_t ADValue（7 个元素）」；字幕「在这里有7个通道」"></p>
-<p><em>图 12：PPT「ADC扫描模式+DMA」——左边规则组序列 1～7 依次填通道 2/5/4/1/0/3/6，触发后转换结果都进 ADC_DR（DMA 外设地址）；下方「ADC硬件触发」→「DMA」；右侧 DMA 存储器地址把「通道2结果…通道6结果」依次放进「SRAM数组 uint16_t ADValue（7 个元素）」；字幕「在这里有7个通道」</em></p>
+<p><img src="../assets/images/stm32-23/12-adc-scan-dma.jpg" alt="图 12：PPT「ADC扫描模式+DMA」"></p>
+<p><em>图 12：规则组序列 1～7 填通道 2/5/4/1/0/3/6，结果都进 ADC_DR（DMA 外设地址）；ADC 硬件触发 → DMA；右侧把各通道结果依次放进 SRAM 数组 <code>uint16_t ADValue[7]</code></em></p>
 <h2 id="9-adc-与-dma-为什么是-天生一对">9. ADC 与 DMA 为什么是「天生一对」</h2>
 <ul>
-<li><strong>上一节讲过</strong>：<strong>ADC 扫描模式下，每个单独的通道转换完成后没有任何标志位、也不会触发中断</strong>——所以我们程序<strong>不太好判断某一个通道转换完成的时机是什么时候</strong>；</li>
-<li><strong>作者的研究结论（本集重点，注意这是「实测经验」不是手册原文）</strong>：虽然单个通道转换完成后不产生任何标志位和中断，<strong>但是它应该会产生 DMA 请求、去触发 DMA 转运</strong>——<strong>这部分内容手册里并没有详细描述</strong>；「<strong>根据我实际实验，单个通道的 DMA 请求肯定是有的，要不然这个实验就做不成了</strong>」；</li>
-<li><strong>所以 DMA 最常见的用途就是配合 ADC 的扫描模式</strong>：<strong>ADC 扫描模式有数据覆盖的缺陷</strong>（这是 ADC 固有的），<strong>这个缺陷使 ADC 和 DMA 成为了最常见的伙伴</strong>——<strong>ADC 对 DMA 的需求非常强烈</strong>；</li>
-<li>其他外设用 DMA 是<strong>锦上添花</strong>（不使用也可以，顶多损失一些性能）；但<strong>ADC 扫描模式如果不用 DMA，功能会受到很大的限制</strong>。</li>
+<li>P22 讲过：ADC 扫描模式下，单个通道转换完成<strong>没有任何标志位、也不触发中断</strong>，程序很难判断时机。</li>
+<li><strong>实测结论</strong>（非手册原文）：单通道转换完成虽然无标志位/中断，但确实会产生 DMA 请求去触发转运——手册没细写，只能靠实验验证。</li>
+<li>所以 DMA 最常见的用途就是配合 ADC 扫描：<strong>扫描模式有数据覆盖的固有缺陷</strong>，这个缺陷让两者成为最常见的伙伴，<strong>ADC 对 DMA 的需求非常强烈</strong>。</li>
+<li>其他外设用 DMA 是锦上添花；<strong>ADC 扫描不用 DMA，功能会受很大限制</strong>。</li>
 </ul>
 <h2 id="10-参考手册导读">10. 参考手册导读</h2>
 <ul>
-<li>本节涉及手册的<strong>第 10 章 DMA 控制器</strong>，以及<strong>第 2 章存储器和总线架构</strong>（系统架构 / 存储器组织 / 位段区）；</li>
-<li><strong>第 2 章</strong>：系统架构图（第一节也见过，下面有各总线介绍）；存储器组织里是<strong>存储器映像表</strong>（外设寄存器地址都是 <code>40</code> 开头）；嵌入式 SRAM 起始地址 <code>2000</code>；</li>
-<li><strong>位段区（了解即可）</strong>：手册说存储器包含<strong>两个位段区域</strong>，<strong>映射了外设寄存器和 SRAM 中全部的位</strong>——相当于<strong>位寻址</strong>，把每一位都分配了地址；<strong>SRAM 位段区是 <code>0x22000000</code> 开头的区域、外设寄存器位段区是 <code>0x42000000</code> 开头的区域</strong>；</li>
-<li><strong>闪存组织（表2）</strong>：闪存被分为很多页，<strong>地址都是 <code>0800</code> 开头</strong>；<strong>主存储块页 0～31</strong>（每页 1K，<code>0x0800 0000</code> 起）；<strong>信息块</strong> = <strong>系统存储器 <code>0x1FFFF000～0x1FFFF7FF</code>（2K）+ 选择字节 <code>0x1FFFF800～0x1FFFF80F</code>（16 字节）</strong>；<strong>闪存接口寄存器</strong>在 <code>0x4002 2000</code> 区（<code>FLASH_ACR</code>、<code>FLASH_KEYR</code>、<code>FLASH_CR</code> 等）——<strong>它地址是 <code>40</code> 开头，所以显然是一个外设，这个外设可以对闪存进行读写</strong>；</li>
-<li><strong>DMA 章节</strong>：简介和主要特性 → 结构框图 → <strong>DMA 处理</strong>（每次 DMA 传送由 3 个操作组成；<strong>CPU 和 DMA 访问相同目标时 DMA 暂停 CPU，但 CPU 可以得到一半带宽</strong>）→ <strong>通道配置过程</strong> → <strong>循环模式和存储器到存储器的模式</strong>（CIRC 位 / MEM2MEM 位）→ <strong>表57 数据宽度与对齐</strong> → <strong>中断</strong>（<strong>传输过半、传输完成、传输错误</strong>三种；读写保留地址区会产生 DMA 传输错误）→ <strong>DMA1/DMA2 请求映像（图22/图23 + 表）</strong>；</li>
-<li><strong>寄存器</strong>：<strong>ISR（中断状态，置标志位、可申请中断）、IFCR（中断标志清除）、CCR（通道配置：优先级、数据宽度、地址是否自增、循环、方向、是否允许中断）、CNDTR（传输数量）、CPAR（外设地址）、CMAR（存储器地址）</strong>，最后是<strong>寄存器映像汇总表</strong>；</li>
-<li>本集画面里唯一能看到位表的寄存器是 <strong>DMA_CCR</strong>（图 15）：<strong>位 14 MEM2MEM</strong>（1=存储器到存储器模式）、<strong>位 13:12 PL[1:0]</strong> 通道优先级（00 低/01 中/10 高/11 最高）、<strong>位 11:10 MSIZE[1:0]</strong> 存储器数据宽度（00 8 位/01 16 位/10 32 位/11 保留）、<strong>位 9:8 PSIZE[1:0]</strong> 外设数据宽度（同上）、<strong>位 7 MINC</strong> 存储器地址增量模式（0 不执行/1 增量）。</li>
+<li>涉及第 10 章 DMA 控制器与第 2 章存储器和总线架构（系统架构 / 存储器组织 / 位段区）。</li>
+<li><strong>第 2 章</strong>：系统架构图（含各总线介绍）；存储器组织里是存储器映像表（外设寄存器地址都是 <code>40</code> 开头），嵌入式 SRAM 起始 <code>2000</code>。</li>
+<li><strong>位段区</strong>（了解）：两个位段区域映射了外设寄存器与 SRAM 的全部位，相当于位寻址——<strong>SRAM 位段区 <code>0x22000000</code> 开头、外设寄存器位段区 <code>0x42000000</code> 开头</strong>。</li>
+<li><strong>闪存组织（表2）</strong>：Flash 分成很多页，地址都是 <code>0800</code> 开头；主存储块页 0～31（每页 1K，<code>0x0800 0000～0x0800 03FF</code> 到 <code>0x0800 7C00～0x0800 7FFF</code>）；信息块 = 系统存储器 <code>0x1FFF F000～0x1FFF F7FF</code>（2K）+ 选择字节 <code>0x1FFF F800～0x1FFF F80F</code>（16 字节）；闪存接口寄存器在 <code>0x4002 2000</code> 区（<code>FLASH_ACR</code>、<code>FLASH_KEYR</code>、<code>FLASH_CR</code> 等）——地址 <code>40</code> 开头，说明它是个能读写 Flash 的外设。</li>
+<li><strong>DMA 章节</strong>：简介与主要特性 → 结构框图 → DMA 处理（每次传送由 3 个操作组成；CPU 与 DMA 访问同一目标时 DMA 暂停 CPU，但 CPU 仍得一半带宽）→ 通道配置过程 → 循环模式与存储器到存储器模式（CIRC / MEM2MEM 位）→ 表57 → 中断（传输过半、传输完成、传输错误；读写保留地址区会产生传输错误）→ DMA1/DMA2 请求映像（图22/图23 + 表）。</li>
+<li><strong>寄存器</strong>：ISR（状态与中断标志）、IFCR（标志清除）、CCR（优先级/数据宽度/地址自增/循环/方向/中断）、CNDTR（传输数量）、CPAR（外设地址）、CMAR（存储器地址），最后是寄存器映像汇总表。</li>
+<li>画面里能看到位表的寄存器是 <strong>DMA_CCR</strong>（图 15）：位 14 <code>MEM2MEM</code>（1=存储器到存储器）、位 13:12 <code>PL 的 1:0 位</code>（00 低/01 中/10 高/11 最高）、位 11:10 <code>MSIZE 的 1:0 位</code>（00 8位/01 16位/10 32位/11 保留）、位 9:8 <code>PSIZE 的 1:0 位</code>（同上）、位 7 <code>MINC</code>（存储器地址增量）。</li>
 </ul>
-<p><img src="../assets/images/stm32-23/13-manual-bus-matrix.jpg" alt="图 13：参考手册第2章「存储器和总线架构」——上方是系统架构图的一部分（DMA2 的通道 1～5、DMA 请求线、右侧各外设 ADC3/USART1/SPI1/TIM1/TIM8/GPIOA…）；下方文字「在互联型产品中，主系统由以下部分构成：五个驱动单元：Cortex-M3 内核 DCode 总线（D-bus）和系统总线（S-bus）、通用 DMA1 和通用 DMA2、以太网 DMA；三个被动单元：内部 SRAM、内部闪存存储器、AHB 到 APB 的桥（AHB2APBx），它连接所有的 APB 设备」；字幕「下面有这些总线的介绍，大家可以再看看」"></p>
-<p><em>图 13：参考手册第2章「存储器和总线架构」——上方是系统架构图的一部分（DMA2 的通道 1～5、DMA 请求线、右侧各外设 ADC3/USART1/SPI1/TIM1/TIM8/GPIOA…）；下方文字「在互联型产品中，主系统由以下部分构成：五个驱动单元：Cortex-M3 内核 DCode 总线（D-bus）和系统总线（S-bus）、通用 DMA1 和通用 DMA2、以太网 DMA；三个被动单元：内部 SRAM、内部闪存存储器、AHB 到 APB 的桥（AHB2APBx），它连接所有的 APB 设备」；字幕「下面有这些总线的介绍，大家可以再看看」</em></p>
-<p><img src="../assets/images/stm32-23/14-manual-flash-org.jpg" alt="图 14：参考手册表2「闪存模块的组织（小容量产品）」——主存储块页 0（0x0800 0000～0x0800 03FF，1K）…页 31（0x0800 7C00～0x0800 7FFF，1K）；信息块：系统存储器 0x1FFF F000～0x1FFF F7FF（2K）、选择字节 0x1FFF F800～0x1FFF F80F（16 字节）；闪存存储器接口寄存器 FLASH_ACR/KEYR/OPTKEYR/SR/CR/AR/OBR/WRPR（0x4002 2000 区）；字幕「闪存被分为了很多页，它们的地址都是0800开头的」"></p>
-<p><em>图 14：参考手册表2「闪存模块的组织（小容量产品）」——主存储块页 0（<code>0x0800 0000～0x0800 03FF</code>，1K）…页 31（<code>0x0800 7C00～0x0800 7FFF</code>，1K）；信息块：系统存储器 <code>0x1FFF F000～0x1FFF F7FF</code>（2K）、选择字节 <code>0x1FFF F800～0x1FFF F80F</code>（16 字节）；闪存存储器接口寄存器 FLASH_ACR/KEYR/OPTKEYR/SR/CR/AR/OBR/WRPR（<code>0x4002 2000</code> 区）；字幕「闪存被分为了很多页，它们的地址都是0800开头的」</em></p>
-<p><img src="../assets/images/stm32-23/15-manual-ccr-bits.jpg" alt="图 15：参考手册 DMA_CCR 寄存器位说明——位14 MEM2MEM（0 非存储器到存储器/1 启动存储器到存储器模式）、位13:12 PL 的 1:0 位（00 低/01 中/10 高/11 最高）、位11:10 MSIZE 的 1:0 位（00 8位/01 16位/10 32位/11 保留）、位9:8 PSIZE 的 1:0 位（同上）、位7 MINC（存储器地址增量模式）；字幕「各个通道的参数」"></p>
-<p><em>图 15：参考手册 DMA_CCR 寄存器位说明——位14 <code>MEM2MEM</code>（0 非存储器到存储器/1 启动存储器到存储器模式）、位13:12 <code>PL 的 1:0 位</code>（00 低/01 中/10 高/11 最高）、位11:10 <code>MSIZE 的 1:0 位（00 8位/01 16位/10 32位/11 保留）、位9:8 </code>PSIZE 的 1:0 位（同上）、位7 <code>MINC</code>（存储器地址增量模式）；字幕「各个通道的参数」</em></p>
+<p><img src="../assets/images/stm32-23/13-manual-bus-matrix.jpg" alt="图 13：参考手册第2章「存储器和总线架构」"></p>
+<p><em>图 13：系统架构图局部（DMA2 通道 1～5、DMA 请求线、ADC3/USART1/SPI1/TIM1/TIM8/GPIOA 等）；下方文字说明五个驱动单元（内核 DCode/系统总线、DMA1、DMA2、以太网 DMA）与三个被动单元（SRAM、闪存、AHB2APBx）</em></p>
+<p><img src="../assets/images/stm32-23/14-manual-flash-org.jpg" alt="图 14：参考手册表2「闪存模块的组织」"></p>
+<p><em>图 14：主存储块页 0（<code>0x0800 0000～0x0800 03FF</code>）…页 31（<code>0x0800 7C00～0x0800 7FFF</code>）；系统存储器 <code>0x1FFF F000～0x1FFF F7FF</code>（2K）、选择字节 <code>0x1FFF F800～0x1FFF F80F</code>（16 字节）；接口寄存器在 <code>0x4002 2000</code> 区</em></p>
+<p><img src="../assets/images/stm32-23/15-manual-ccr-bits.jpg" alt="图 15：参考手册 DMA_CCR 寄存器位说明"></p>
+<p><em>图 15：位14 <code>MEM2MEM</code>（0 非存储器到存储器/1 启动该模式）、位13:12 <code>PL 的 1:0 位</code>（00 低/01 中/10 高/11 最高）、位11:10 <code>MSIZE 的 1:0 位</code>（00 8位/01 16位/10 32位/11 保留）、位9:8 <code>PSIZE 的 1:0 位</code>（同上）、位7 <code>MINC</code>（存储器地址增量模式）</em></p>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>DMA 的「外设/存储器」只是名字</strong>：外设站点照样能放 SRAM/Flash 地址（存储器到存储器转运就是靠它），不必拘泥于名字。</li>
-<li><strong>Flash 只能读不能写</strong>：<strong>DMA 目的地址填 Flash 区会出错</strong>；SRAM 才能随便读写。</li>
-<li><strong>软件触发与循环模式不能同时用</strong>：软件触发是一直想清零、循环模式是清零后重装——<strong>同时用 DMA 就停不下来</strong>。</li>
-<li><strong>写传输计数器前必须先关闭 DMA</strong>：手册规定，开启状态下写计数器是无效/不允许的。</li>
-<li><strong>计数器减到 0 且不重装后，DMA 不会自动复活</strong>：要<strong>关闭 → 重写计数器 → 再使能</strong>才能继续。</li>
-<li><strong>DMA 工作三条件缺一不可</strong>：开关使能 + 计数器&gt;0 + 有触发信号。</li>
-<li><strong>硬件触发源绑定固定通道</strong>：<strong>ADC1 只能用通道 1</strong>；用错通道不会触发（软件触发则任意通道）。</li>
-<li><strong>同一通道有多个触发源时，看开启的是哪个外设的 DMA 输出</strong>：不开启对应外设的 DMA 输出，这路硬件触发无效。</li>
-<li><strong>默认优先级是通道号越小越高</strong>（可配置）；多个通道同时请求时由仲裁器排队。</li>
-<li><strong>DMA 和 CPU 抢总线时 CPU 可能被暂停</strong>：但仲裁器保证 CPU 至少一半总线带宽。</li>
-<li><strong>数据宽度要按数据类型选</strong>：ADC 结果 <code>uint16_t</code> → <strong>半字（16 位）</strong>；<code>uint8_t</code> → <strong>字节</strong>；<code>uint32_t</code> → <strong>字</strong>——选错会漏数据或错位。</li>
-<li><strong>地址自增要按场景配</strong>：ADC_DR 这种寄存器<strong>不自增</strong>（永远读同一个寄存器）；目标数组<strong>必须自增</strong>，否则所有数据都写到同一格、互相覆盖。</li>
-<li><strong>小转大高位补 0、大转小舍弃高位</strong>：8 → 16 位是 <code>00B0</code>；16 → 8 位只留低 8 位。</li>
+<li><strong>DMA 的「外设/存储器」只是名字</strong>：外设站点照样能放 SRAM/Flash 地址，存储器到存储器就是靠它。</li>
+<li><strong>Flash 只能读不能写</strong>：DMA 目的地址填 Flash 区会出错，SRAM 才能随便读写。</li>
+<li><strong>软件触发与循环模式不能同时用</strong>：软件触发一直想清零、循环模式清零后重装，同时用 DMA 停不下来。</li>
+<li><strong>写传输计数器前必须先关闭 DMA</strong>：手册规定，开启状态下写不允许。</li>
+<li><strong>计数器减到 0 且不重装后不会自动复活</strong>：要关闭 → 重写计数器 → 再使能。</li>
+<li><strong>DMA 工作三条件缺一不可</strong>：开关使能 + 计数器 &gt; 0 + 有触发信号。</li>
+<li><strong>硬件触发源绑定固定通道</strong>：ADC1 只能用通道 1，用错通道不会触发；软件触发则任意通道。</li>
+<li><strong>同通道多触发源时，看开启了哪个外设的 DMA 输出</strong>：不开对应外设的 DMA 输出，这路硬件触发无效。</li>
+<li><strong>默认通道号越小优先级越高</strong>（可配置）：多通道同时请求由仲裁器排队。</li>
+<li><strong>DMA 与 CPU 抢总线时 CPU 可能被暂停</strong>：但仲裁器保证 CPU 至少一半总线带宽。</li>
+<li><strong>数据宽度要按数据类型选</strong>：ADC 结果 <code>uint16_t</code> → 半字 16 位，<code>uint8_t</code> → 字节，<code>uint32_t</code> → 字；选错会漏数据或错位。</li>
+<li><strong>地址自增要按场景配</strong>：ADC_DR 这类寄存器不自增（永远读同一格），目标数组必须自增，否则数据都写到同一格互相覆盖。</li>
+<li><strong>小转大高位补 0、大转小舍弃高位</strong>：8 → 16 位是 <code>00B0</code>，16 → 8 位只留低 8 位。</li>
 <li><strong>循环模式要跟外设模式配套</strong>：ADC 单次扫描 → DMA 不重装；ADC 连续扫描 → DMA 循环模式，否则数据对不上。</li>
-<li><strong>本集没有代码</strong>：所有配置（DMA 初始化结构体、通道选择、使能、中断）<strong>在 P24</strong>，本集只给原理与参数含义。</li>
-<li><strong>ADC 单通道 DMA 请求是作者实测</strong>：手册没有写「单通道转换完成会产生 DMA 请求」，这是实验验证的结论。</li>
+<li><strong>本集没有代码</strong>：初始化结构体、通道选择、使能、中断全在 P24，本集只给原理与参数含义。</li>
+<li><strong>ADC 单通道 DMA 请求属实测结论</strong>：手册没写「单通道转换完成会产生 DMA 请求」，只能靠实验验证。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -517,7 +505,7 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E4%BB%A3%E7%A0%81%E5%9C%A8-8-2-p24">0. 本集定位：理论课，代码在 [8-2] P24</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E4%B8%A4%E4%B8%AA%E6%88%90%E5%93%81%E5%B7%A5%E7%A8%8B">1. 片头两个成品工程</a>
         <a class="level-3" href="#1-1-8-1-dma%E6%95%B0%E6%8D%AE%E8%BD%AC%E8%BF%90">1.1 8-1 DMA数据转运</a>
         <a class="level-3" href="#1-2-8-2-dma-ad%E5%A4%9A%E9%80%9A%E9%81%93">1.2 8-2 DMA+AD多通道</a>

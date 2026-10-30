@@ -177,13 +177,17 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>12 分钟</span>
+      <span>10 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">GPIO</span><span class="tag">输入</span><span class="tag">模块化编程</span>
     </div>
     <article class="prose"><h1>[3-4] 按键控制LED / 光敏传感器控制蜂鸣器 — 学习笔记</h1>
 <h2 id="一句话结论">一句话结论</h2>
-<p>这一集是 GPIO 输入部分的<strong>程序课</strong>：先用「按键控制 LED」把按键输入、<strong>模块化封装</strong>（<code>LED.c/h</code>、<code>Key.c/h</code>）、<strong>按键消抖</strong>和<strong>状态取反</strong>走一遍；再用「光敏传感器控制蜂鸣器」练习第二种输入设备（光敏模块 DO 输出）和 <code>Buzzer.c/h</code>、<code>LightSensor.c/h</code> 的封装，最后总结 GPIO 的使用三步与模块化/注释规范。</p>
-<h2 id="0-本集的两个工程">0. 本集的两个工程</h2>
+<p>本集是 GPIO 输入的程序课：先写「按键控制 LED」走通<strong>模块化封装</strong>（<code>LED.c/h</code>、<code>Key.c/h</code>）、<strong>消抖</strong>和<strong>状态取反</strong>，再写「光敏控制蜂鸣器」练 <code>Buzzer.c/h</code>、<code>LightSensor.c/h</code>，最后是 GPIO 使用三步。</p>
+<h2 id="0-本集定位-两个工程与现象">0. 本集定位：两个工程与现象</h2>
+<ul>
+<li>代码课，接 [3-3] 的 GPIO 输入理论；套路都是「开时钟 → 填结构体 → <code>GPIO_Init</code>」。</li>
+<li>工程 1 练按键输入 + 封装 + 消抖 + 状态取反；工程 2 换成光敏模块 + 蜂鸣器。</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -194,39 +198,37 @@
 </thead>
 <tbody><tr>
 <td><code>3-4 按键控制LED</code></td>
-<td>2 个按键（PB1、PB11，一端 GPIO 一端 GND）+ 2 个 LED（PA1、PA2，一端 GPIO 一端 VCC，低电平点亮）</td>
+<td>按键 PB1、PB11（一端接 GND）+ LED PA1、PA2（一端接 VCC，低电平点亮）</td>
 <td>按键 1 点亮 LED1、按键 2 熄灭 LED1；演示程序用状态取反（按一下翻转一次）</td>
 </tr>
 <tr>
 <td><code>3-5 光敏传感器控制蜂鸣器</code></td>
-<td>蜂鸣器（VCC/GND + 控制脚 PB12）+ 光敏传感器模块（VCC/GND + DO 接 PB13）</td>
+<td>蜂鸣器（VCC/GND + PB12）+ 光敏模块（VCC/GND + DO 接 PB13）</td>
 <td>遮住光敏电阻 → 蜂鸣器响；拿开 → 不响</td>
 </tr>
 </tbody></table>
 <h2 id="1-工程-1-硬件接线">1. 工程 1：硬件接线</h2>
 <ul>
-<li>两个按键分别接在 <strong>PB1、PB11</strong>：按键<strong>一端接 GPIO、另一端接 GND</strong>（PPT 里的第一种接法）→ 所以要配置<strong>上拉输入</strong>，按下时读到 0。</li>
-<li>两个 LED 分别接在 <strong>PA1、PA2</strong>：LED <strong>一端接 GPIO、另一端接 VCC</strong>，是<strong>低电平点亮</strong>的接法。</li>
-<li>按键、LED 的数量和连接的端口都是<strong>随意</strong>的，具体接多少个、接哪些端口看需求。</li>
-<li>面包板接线：把两个按键插在 PB1/PB11，两个 LED 插在 PA1/PA2。</li>
+<li>两个按键接 <strong>PB1、PB11</strong>，<strong>一端接 GPIO、另一端接 GND</strong> → 要配置<strong>上拉输入</strong>，按下读到 0。</li>
+<li>两个 LED 接 <strong>PA1、PA2</strong>，<strong>一端接 GPIO、另一端接 VCC</strong> → <strong>低电平点亮</strong>。</li>
+<li>数量和端口都是<strong>随意</strong>的，看需求接。</li>
 </ul>
-<p><img src="../assets/images/stm32-08/01-wiring.jpg" alt="图 1：3-4 按键控制LED 接线图——两个按键接 PB1/PB11（一端接 GND），两个 LED 接 PA1/PA2"></p>
-<p><em>图 1：3-4 按键控制LED 接线图——两个按键接 PB1/PB11（一端接 GND），两个 LED 接 PA1/PA2</em></p>
-<p><img src="../assets/images/stm32-08/02-led-wiring.jpg" alt="图 2：LED 的接法——一端接 GPIO、另一端接 VCC，低电平点亮（红圈为 PA1/PA2）"></p>
-<p><em>图 2：LED 的接法——一端接 GPIO、另一端接 VCC，低电平点亮（红圈为 PA1/PA2）</em></p>
+<p><img src="../assets/images/stm32-08/01-wiring.jpg" alt="图 1：3-4 接线图——按键 PB1/PB11、LED PA1/PA2"></p>
+<p><em>图 1：3-4 接线图——按键 PB1/PB11、LED PA1/PA2</em></p>
+<p><img src="../assets/images/stm32-08/02-led-wiring.jpg" alt="图 2：LED 接法——一端 GPIO、一端 VCC，低电平点亮"></p>
+<p><em>图 2：LED 接法——一端 GPIO、一端 VCC，低电平点亮</em></p>
 <h2 id="2-模块化编程-把驱动搬出主函数">2. 模块化编程：把驱动搬出主函数</h2>
 <ul>
-<li>问题：如果把 LED 和按键的驱动代码都混在主函数里，代码太乱、不容易管理、也不容易移植。</li>
-<li>做法：驱动代码单独封装到 <code>.c</code> / <code>.h</code> 文件里，这就是<strong>模块化编程</strong>（51 教程里讲过，本集直接操作）。</li>
+<li>问题：驱动混在主函数里，乱、不好管理、不好移植。</li>
+<li>做法：驱动单独封装到 <code>.c</code> / <code>.h</code> 文件，即<strong>模块化编程</strong>（51 教程讲过）。</li>
 <li>步骤：<ol>
-<li>工程文件夹下新建 <strong><code>Hardware</code></strong> 文件夹，存放硬件驱动；</li>
-<li>Keil 里打开工程管理（三个箱子的按钮），新建 <strong>Hardware 组</strong>并挪好位置；</li>
+<li>新建 <strong><code>Hardware</code></strong> 文件夹存放驱动；</li>
+<li>Keil 工程管理（三个箱子按钮）新建 <strong>Hardware 组</strong>并挪好位置；</li>
 <li>魔术棒 → C/C++ → Include Paths，把 <strong>Hardware 文件夹</strong>加进头文件路径；</li>
-<li>在 Hardware 组右键 → Add New Item：先建 <strong><code>LED.c</code></strong>（C File），再建 <strong><code>LED.h</code></strong>（Header File）；
-路径要选 <code>Hardware</code> 文件夹（可以直接在路径栏写 <code>\Hardware</code>，比较省事），最后 Add。</li>
+<li>Hardware 组右键 → Add New Item：先建 <strong><code>LED.c</code></strong>（C File）、再建 <strong><code>LED.h</code></strong>（Header File），路径选 <code>Hardware</code>（路径栏可直接写 <code>\Hardware</code>）。</li>
 </ol>
 </li>
-<li><code>.c</code> 文件第一行右键 include <code>stm32f10x.h</code>；<code>.h</code> 文件加防重复包含的固定框架：</li>
+<li><code>.c</code> 第一行 include <code>stm32f10x.h</code>；<code>.h</code> 加防重复包含的固定框架：</li>
 </ul>
 <pre><code class="language-c">#ifndef __LED_H
 #define __LED_H
@@ -236,10 +238,10 @@
 #endif
 </code></pre>
 <ul>
-<li>说明：<code>#ifndef __LED_H</code> 的意思是“如果没有定义 LED 这个字符串”，<code>#define __LED_H</code> 就定义它，<code>#endif</code> 与 <code>#ifndef</code> 配对；<strong>函数和变量声明放在这一对括号里</strong>；文件最后要<strong>以空行结尾</strong>。</li>
+<li>说明：<code>#ifndef __LED_H</code> 是“如果没有定义”，<code>#define __LED_H</code> 就定义它，<code>#endif</code> 与 <code>#ifndef</code> 配对；<strong>声明放在这一对之间</strong>；文件最后要<strong>以空行结尾</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-08/03-hardware-module.jpg" alt="图 3：Keil 工程里新建 Hardware 组，以及 LED.c / LED.h 模块文件"></p>
-<p><em>图 3：Keil 工程里新建 Hardware 组，以及 LED.c / LED.h 模块文件</em></p>
+<p><img src="../assets/images/stm32-08/03-hardware-module.jpg" alt="图 3：Keil 新建 Hardware 组与 LED.c / LED.h"></p>
+<p><em>图 3：Keil 新建 Hardware 组与 LED.c / LED.h</em></p>
 <h2 id="3-led-驱动模块-led-c-led-h">3. LED 驱动模块（LED.c / LED.h）</h2>
 <p><strong>LED_Init 初始化函数</strong>：</p>
 <pre><code class="language-c">void LED_Init(void)
@@ -253,22 +255,22 @@
 }
 </code></pre>
 <ul>
-<li>写代码时如果不出提示，按 <strong>Ctrl+Alt+空格</strong> 调出代码提示（选 <code>GPIO_InitTypeDef</code> 等）。</li>
-<li>编译下载后会发现：<strong>两个 LED 都亮了</strong>——因为 GPIO 配置好之后<strong>默认就是低电平</strong>，而 LED 是低电平点亮。所以在 <code>LED_Init</code> 最后加一句：</li>
+<li>不出代码提示时按 <strong>Ctrl+Alt+空格</strong> 调出提示（选 <code>GPIO_InitTypeDef</code> 等）。</li>
+<li>下载后<strong>两个 LED 都亮</strong>——GPIO 配置好后<strong>默认就是低电平</strong>，LED 低电平点亮，所以在 Init 最后加一句：</li>
 </ul>
 <pre><code class="language-c">GPIO_SetBits(GPIOA, GPIO_Pin_1 | GPIO_Pin_2);   // 初始化后默认熄灭
 </code></pre>
 <ul>
-<li>说明：本笔记代码块为<strong>简化写法</strong>（省略了部分 <code>#include</code>、把短语句并到一行、省略部分大括号），实际写法以视频画面为准。</li>
+<li>本笔记代码块为<strong>简化写法</strong>（省略了部分 <code>#include</code>），实际以视频画面为准。</li>
 </ul>
-<p><strong>点亮/熄灭函数</strong>（4 个，也可以用参数合并成 <code>LED_Set(哪个灯, 开/关)</code>，灯少就直接写 4 个）：</p>
+<p><strong>点亮/熄灭函数</strong>（4 个；也可以合并成 <code>LED_Set(哪个灯, 开/关)</code>，灯少就直接写 4 个）：</p>
 <pre><code class="language-c">void LED1_ON(void)  { GPIO_ResetBits(GPIOA, GPIO_Pin_1); }   // 低电平点亮
 void LED1_OFF(void) { GPIO_SetBits(GPIOA, GPIO_Pin_1); }     // 高电平熄灭
 void LED2_ON(void)  { GPIO_ResetBits(GPIOA, GPIO_Pin_2); }
 void LED2_OFF(void) { GPIO_SetBits(GPIOA, GPIO_Pin_2); }
 </code></pre>
 <ul>
-<li>把这 5 个函数的第一行复制到 <code>LED.h</code> 里声明（后面加分号），模块外部才能调用。</li>
+<li>这 5 个函数的第一行复制到 <code>LED.h</code> 声明（加分号），模块外才能调用。</li>
 <li>主函数测试：</li>
 </ul>
 <pre><code class="language-c">#include &quot;LED.h&quot;
@@ -283,11 +285,13 @@ int main(void)
 	}
 }
 </code></pre>
-<p>现象：两个 LED 交替闪烁。主函数变得非常简洁——初始化就是初始化、开灯就是开灯，不用再管底层参数，这就是模块化的好处。</p>
-<p><img src="../assets/images/stm32-08/04-led-init.jpg" alt="图 4：LED_Init 完整代码（GPIOA 时钟、推挽输出、Pin_1|Pin_2、50MHz、GPIO_Init）"></p>
-<p><em>图 4：LED_Init 完整代码（GPIOA 时钟、推挽输出、Pin_1|Pin_2、50MHz、GPIO_Init）</em></p>
-<p><img src="../assets/images/stm32-08/05-led-setbits.jpg" alt="图 5：LED_Init 末尾用 GPIO_SetBits 设默认熄灭，并写 LED1_ON（ResetBits 点亮）"></p>
-<p><em>图 5：LED_Init 末尾用 GPIO_SetBits 设默认熄灭，并写 LED1_ON（ResetBits 点亮）</em></p>
+<ul>
+<li>现象：两个 LED 交替闪烁；主函数只关心初始化/开灯，不管底层参数。</li>
+</ul>
+<p><img src="../assets/images/stm32-08/04-led-init.jpg" alt="图 4：LED_Init 完整代码（GPIOA 时钟、推挽输出、50MHz）"></p>
+<p><em>图 4：LED_Init 完整代码（GPIOA 时钟、推挽输出、50MHz）</em></p>
+<p><img src="../assets/images/stm32-08/05-led-setbits.jpg" alt="图 5：LED_Init 末尾用 GPIO_SetBits 设默认熄灭"></p>
+<p><em>图 5：LED_Init 末尾用 GPIO_SetBits 设默认熄灭</em></p>
 <h2 id="4-key-驱动模块-key-c-key-h">4. Key 驱动模块（Key.c / Key.h）</h2>
 <p><strong>Key_Init</strong>：把两个按键端口（PB1、PB11）初始化为<strong>上拉输入</strong>：</p>
 <pre><code class="language-c">void Key_Init(void)
@@ -300,7 +304,7 @@ int main(void)
 	GPIO_Init(GPIOB, &amp;GPIO_InitStructure);
 }
 </code></pre>
-<p><strong>gpio.h 里的 4 个读函数</strong>（打开 <code>gpio.h</code> 看函数说明，对照位结构 PPT 很好理解）：</p>
+<p><strong>gpio.h 的 4 个读函数</strong>（打开 <code>gpio.h</code> 看函数说明）：</p>
 <table>
 <thead>
 <tr>
@@ -310,7 +314,7 @@ int main(void)
 </thead>
 <tbody><tr>
 <td><code>GPIO_ReadInputDataBit(GPIOx, GPIO_Pin)</code></td>
-<td>读取<strong>输入数据寄存器某一位</strong>的值，返回 <code>uint8_t</code> 高低电平 → <strong>读按键用这个</strong></td>
+<td>读取<strong>输入数据寄存器某一位</strong>，返回 <code>uint8_t</code> 高低电平 → <strong>读按键用这个</strong></td>
 </tr>
 <tr>
 <td><code>GPIO_ReadInputData(GPIOx)</code></td>
@@ -318,7 +322,7 @@ int main(void)
 </tr>
 <tr>
 <td><code>GPIO_ReadOutputDataBit(GPIOx, GPIO_Pin)</code></td>
-<td>读取<strong>输出数据寄存器某一位</strong>，一般用于输出模式下看“自己输出了什么”</td>
+<td>读取<strong>输出数据寄存器某一位</strong>，看“自己输出了什么”</td>
 </tr>
 <tr>
 <td><code>GPIO_ReadOutputData(GPIOx)</code></td>
@@ -347,18 +351,18 @@ int main(void)
 }
 </code></pre>
 <ul>
-<li>按键一般是<strong>松手之后才有动作</strong>，所以用 <code>while</code> 卡住等待松手，保证一次按下只触发一次。</li>
-<li>Key.c 里用到 <code>Delay_ms</code>，需要 <code>#include &quot;Delay.h&quot;</code>（否则会报 <code>fatal error: Delay file not found</code>）。</li>
-<li>两个函数的第一行同样复制到 <code>Key.h</code> 里声明。</li>
+<li>按键一般<strong>松手后才动作</strong>，用 <code>while</code> 卡住等松手，保证一次按下只触发一次。</li>
+<li>Key.c 用到 <code>Delay_ms</code> 要 <code>#include &quot;Delay.h&quot;</code>（否则报 <code>fatal error: Delay file not found</code>）。</li>
+<li>两个函数第一行复制到 <code>Key.h</code> 声明。</li>
 </ul>
-<p><img src="../assets/images/stm32-08/06-key-init.jpg" alt="图 6：Key_Init 完整代码——GPIOB 时钟、GPIO_Mode_IPU 上拉输入、Pin_1 / Pin_11（拼写错误修正后）"></p>
-<p><em>图 6：Key_Init 完整代码——GPIOB 时钟、GPIO_Mode_IPU 上拉输入、Pin_1 / Pin_11（拼写错误修正后）</em></p>
-<p><img src="../assets/images/stm32-08/07-key-debounce.jpg" alt="图 7：Key_GetNum 最终代码——PB1 / PB11 两段消抖，分别返回键码 1 / 2"></p>
-<p><em>图 7：Key_GetNum 最终代码——PB1 / PB11 两段消抖，分别返回键码 1 / 2</em></p>
+<p><img src="../assets/images/stm32-08/06-key-init.jpg" alt="图 6：Key_Init——GPIO_Mode_IPU 上拉输入、Pin_1/Pin_11"></p>
+<p><em>图 6：Key_Init——GPIO_Mode_IPU 上拉输入、Pin_1/Pin_11</em></p>
+<p><img src="../assets/images/stm32-08/07-key-debounce.jpg" alt="图 7：Key_GetNum 最终代码——PB1/PB11 两段消抖，返回键码 1/2"></p>
+<p><em>图 7：Key_GetNum 最终代码——PB1/PB11 两段消抖，返回键码 1/2</em></p>
 <h2 id="5-按键控制-led-main-c">5. 按键控制 LED（main.c）</h2>
 <ul>
-<li>主函数里定义一个<strong>全局变量 KeyNum</strong> 接键码返回值。</li>
-<li>注意：虽然变量名都叫 KeyNum，但 main 里的是<strong>全局变量</strong>，<code>Key_GetNum</code> 里的是<strong>局部变量</strong>，两者作用域不同，不是同一个变量；函数内优先使用自己的局部变量。</li>
+<li>主函数用<strong>全局变量 KeyNum</strong> 接键码。</li>
+<li>注意：main 里是<strong>全局变量</strong>，<code>Key_GetNum</code> 里是<strong>局部变量</strong>，作用域不同、不是同一个变量。</li>
 </ul>
 <p><strong>写法①（直接控制）</strong>：</p>
 <pre><code class="language-c">KeyNum = Key_GetNum();
@@ -383,28 +387,28 @@ if (KeyNum == 2) LED1_OFF();    // 按左边按键 2 → LED1 熄灭
 }
 </code></pre>
 <ul>
-<li>同样把 <code>LED1_Turn</code> / <code>LED2_Turn</code> 的函数第一行复制到 <code>LED.h</code> 里声明（否则调用处会出现隐式声明警告）。</li>
-<li>现象：按一下翻转一次——因为 <code>LED_Init</code> 末尾已经把 LED 设成<strong>默认熄灭</strong>，所以初始状态下第一次按下是<strong>点亮</strong>，再按熄灭，如此循环。</li>
-<li>驱动函数写好之后<strong>尽量加上注释</strong>（用途、参数取值、返回值含义），像 STM32 库函数那样，别人用起来才方便。</li>
+<li><code>LED1_Turn</code> / <code>LED2_Turn</code> 的第一行也要复制到 <code>LED.h</code> 声明（否则隐式声明警告）。</li>
+<li>现象：按一下翻转一次——<code>LED_Init</code> 末尾已设<strong>默认熄灭</strong>，第一次按下是<strong>点亮</strong>，再按熄灭。</li>
+<li>驱动函数写好<strong>尽量加注释</strong>（用途、参数、返回值）。</li>
 </ul>
-<p><img src="../assets/images/stm32-08/08-main-key.jpg" alt="图 8：main.c 用 KeyNum 判断按键并直接控制 LED1_ON/LED1_OFF"></p>
-<p><em>图 8：main.c 用 KeyNum 判断按键并直接控制 LED1_ON/LED1_OFF</em></p>
-<p><img src="../assets/images/stm32-08/09-led-turn.jpg" alt="图 9：LED1_Turn 状态取反——读输出寄存器，0 则置 1，否则清 0"></p>
-<p><em>图 9：LED1_Turn 状态取反——读输出寄存器，0 则置 1，否则清 0</em></p>
+<p><img src="../assets/images/stm32-08/08-main-key.jpg" alt="图 8：main.c 用 KeyNum 控制 LED1_ON/LED1_OFF"></p>
+<p><em>图 8：main.c 用 KeyNum 控制 LED1_ON/LED1_OFF</em></p>
+<p><img src="../assets/images/stm32-08/09-led-turn.jpg" alt="图 9：LED1_Turn 状态取反——0 则置 1，否则清 0"></p>
+<p><em>图 9：LED1_Turn 状态取反——0 则置 1，否则清 0</em></p>
 <h2 id="6-工程-2-光敏传感器控制蜂鸣器">6. 工程 2：光敏传感器控制蜂鸣器</h2>
-<p><strong>接线</strong>：蜂鸣器 VCC/GND 接电源、控制脚接 <strong>PB12</strong>；光敏传感器模块 VCC/GND 接电源、<strong>DO 数字输出接 PB13</strong>。</p>
-<p><strong>光敏传感器模块</strong>：4 针模块（VCC、GND、DO、AO），本课只用 <strong>DO 数字输出</strong>：</p>
+<p><strong>接线</strong>：蜂鸣器 VCC/GND 接电源、控制脚接 <strong>PB12</strong>；光敏模块 VCC/GND 接电源、<strong>DO 接 PB13</strong>。</p>
+<p><strong>光敏模块</strong>：4 针（VCC、GND、DO、AO），只用 <strong>DO 数字输出</strong>：</p>
 <ul>
-<li>上电后模块上的指示灯亮；</li>
-<li><strong>遮住光线</strong>时，输出指示灯灭，代表 <strong>DO 输出高电平（1）</strong>；</li>
-<li>松开（有光）时，输出指示灯亮，代表 <strong>DO 输出低电平（0）</strong>；</li>
-<li>模块上的蓝色<strong>电位器</strong>可以调节高低电平的判断阈值。</li>
+<li>上电后指示灯亮；</li>
+<li><strong>遮住光线</strong>时输出指示灯灭，代表 <strong>DO 输出高电平（1）</strong>；</li>
+<li>有光时输出指示灯亮，代表 <strong>DO 输出低电平（0）</strong>；</li>
+<li>蓝色<strong>电位器</strong>可调判断阈值。</li>
 </ul>
-<p><img src="../assets/images/stm32-08/10-light-shade.jpg" alt="图 10：光敏传感器调试——手遮住光线时输出指示灯灭（DO 输出高电平）"></p>
-<p><em>图 10：光敏传感器调试——手遮住光线时输出指示灯灭（DO 输出高电平）</em></p>
-<p><img src="../assets/images/stm32-08/11-light-pot.jpg" alt="图 11：手持光敏传感器模块——蓝色电位器可调高低电平判断阈值"></p>
-<p><em>图 11：手持光敏传感器模块——蓝色电位器可调高低电平判断阈值</em></p>
-<p><strong>封装 Buzzer 驱动</strong>：复制 3-4 工程改名为 <code>3-5 光敏传感器控制蜂鸣器</code>，同样在 Hardware 下新建 <code>Buzzer.c/h</code>：</p>
+<p><img src="../assets/images/stm32-08/10-light-shade.jpg" alt="图 10：遮光时输出指示灯灭（DO 输出高电平）"></p>
+<p><em>图 10：遮光时输出指示灯灭（DO 输出高电平）</em></p>
+<p><img src="../assets/images/stm32-08/11-light-pot.jpg" alt="图 11：蓝色电位器可调判断阈值"></p>
+<p><em>图 11：蓝色电位器可调判断阈值</em></p>
+<p><strong>封装 Buzzer 驱动</strong>：复制 3-4 工程改名为 <code>3-5 光敏传感器控制蜂鸣器</code>，Hardware 下新建 <code>Buzzer.c/h</code>：</p>
 <pre><code class="language-c">void Buzzer_Init(void)
 {
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
@@ -419,7 +423,7 @@ void Buzzer_ON(void)  { GPIO_ResetBits(GPIOB, GPIO_Pin_12); }  // 低电平触�
 void Buzzer_OFF(void) { GPIO_SetBits(GPIOB, GPIO_Pin_12); }
 </code></pre>
 <ul>
-<li>从 LED.c 复制驱动时还会带上 <code>Buzzer_Turn</code> 函数（在 Buzzer.h 里声明），作用同样是读输出寄存器状态再翻转；视频里用 <code>while (1) { Buzzer_Turn(); Delay_ms(500); }</code> 测试，蜂鸣器会不断鸣响。</li>
+<li>从 LED.c 复制时会带上 <code>Buzzer_Turn</code>（Buzzer.h 声明），同样读输出寄存器再翻转；用 <code>while (1) { Buzzer_Turn(); Delay_ms(500); }</code> 测试会不断鸣响。</li>
 </ul>
 <p><strong>封装 LightSensor 驱动</strong>：</p>
 <pre><code class="language-c">void LightSensor_Init(void)
@@ -437,7 +441,7 @@ uint8_t LightSensor_Get(void)
 }
 </code></pre>
 <ul>
-<li>如果模块始终都连接在端口上，也可以选择<strong>浮空输入</strong>，只要保证引脚不会悬空即可。</li>
+<li>模块始终连在端口上时也可用<strong>浮空输入</strong>，只要引脚不悬空。</li>
 </ul>
 <p><strong>main.c</strong>：</p>
 <pre><code class="language-c">#include &quot;Buzzer.h&quot;
@@ -454,36 +458,38 @@ int main(void)
 	}
 }
 </code></pre>
-<p>现象：遮住光敏电阻 → 蜂鸣器响；拿开 → 蜂鸣器不响。</p>
-<p><img src="../assets/images/stm32-08/12-buzzer.jpg" alt="图 12：Buzzer.c 驱动——PB12 推挽输出、Init 末尾 SetBits 默认不响、Buzzer_ON 用 ResetBits"></p>
-<p><em>图 12：Buzzer.c 驱动——PB12 推挽输出、Init 末尾 SetBits 默认不响、Buzzer_ON 用 ResetBits</em></p>
-<p><img src="../assets/images/stm32-08/13-light-init.jpg" alt="图 13：LightSensor_Init 完整代码（GPIOB 时钟、GPIO_Mode_IPU、Pin_13）"></p>
-<p><em>图 13：LightSensor_Init 完整代码（GPIOB 时钟、GPIO_Mode_IPU、Pin_13）</em></p>
-<p><img src="../assets/images/stm32-08/14-main-final.jpg" alt="图 14：最终 main.c——初始化 Buzzer/LightSensor 后，用 LightSensor_Get()==1 判断响/不响"></p>
-<p><em>图 14：最终 main.c——初始化 Buzzer/LightSensor 后，用 LightSensor_Get()==1 判断响/不响</em></p>
+<ul>
+<li>现象：遮住 → 响；拿开 → 不响。</li>
+</ul>
+<p><img src="../assets/images/stm32-08/12-buzzer.jpg" alt="图 12：Buzzer.c——PB12 推挽输出、默认不响"></p>
+<p><em>图 12：Buzzer.c——PB12 推挽输出、默认不响</em></p>
+<p><img src="../assets/images/stm32-08/13-light-init.jpg" alt="图 13：LightSensor_Init（GPIO_Mode_IPU、Pin_13）"></p>
+<p><em>图 13：LightSensor_Init（GPIO_Mode_IPU、Pin_13）</em></p>
+<p><img src="../assets/images/stm32-08/14-main-final.jpg" alt="图 14：最终 main.c——用 LightSensor_Get()==1 判断响/不响"></p>
+<p><em>图 14：最终 main.c——用 LightSensor_Get()==1 判断响/不响</em></p>
 <h2 id="7-本集总结-gpio-使用三步">7. 本集总结：GPIO 使用三步</h2>
 <ol>
 <li><strong>初始化时钟</strong>（<code>RCC_APB2PeriphClockCmd</code>）；</li>
-<li><strong>定义并赋值结构体</strong>：<code>GPIO_Mode</code> 选 8 种模式之一，<code>GPIO_Pin</code> 可以用按位或同时选多个引脚，<code>GPIO_Speed</code> 选输出速度（要求不高直接 50MHz）；</li>
+<li><strong>定义并赋值结构体</strong>：<code>GPIO_Mode</code> 选 8 种模式之一，<code>GPIO_Pin</code> 可按位或同时选多个引脚，<code>GPIO_Speed</code> 选输出速度（要求不高直接 50MHz）；</li>
 <li><strong>调用 <code>GPIO_Init</code></strong> 初始化指定的 GPIO 外设。</li>
 </ol>
 <ul>
-<li>读写 GPIO 口主要用 gpio.h 里的 <strong>8 个读写函数</strong>（4 个读 + 4 个写：<code>GPIO_SetBits/ResetBits/WriteBit/Write</code>、<code>GPIO_ReadInputDataBit/ReadInputData/ReadOutputDataBit/ReadOutputData</code>）。</li>
-<li><strong>模块化编程</strong>：外围硬件多的时候，把每个硬件的驱动单独提取到 <code>.c/.h</code>，好处是简化主函数逻辑、方便移植、方便分工合作（别人写驱动、你专注主程序逻辑）。</li>
-<li><strong>函数注释</strong>：既然要做封装，函数注释就要写清楚（用途/参数/返回值），方便使用这个模块的人快速上手。</li>
+<li>读写 GPIO 主要用 gpio.h 里的 <strong>8 个读写函数</strong>（4 个读 + 4 个写：<code>GPIO_SetBits/ResetBits/WriteBit/Write</code>、<code>GPIO_ReadInputDataBit/ReadInputData/ReadOutputDataBit/ReadOutputData</code>）。</li>
+<li><strong>模块化</strong>：驱动单独提取到 <code>.c/.h</code>，简化主函数、方便移植与分工。</li>
+<li><strong>函数注释</strong>：既然要封装，就写清用途/参数/返回值。</li>
 </ul>
 <h2 id="8-坑与易错点">8. 坑与易错点</h2>
 <ol>
-<li><strong>按键接 GND 就用上拉输入</strong>：按键一端接 GPIO、一端接 GND，按下读到 0；配置成 <code>GPIO_Mode_IPU</code>。</li>
-<li><strong>消抖必须做</strong>：<code>Delay_ms(20)</code> → <code>while</code> 等松手 → <code>Delay_ms(20)</code>，否则一次按下可能触发多次。</li>
+<li><strong>按键接 GND 就用上拉输入</strong>：按下读到 0，配 <code>GPIO_Mode_IPU</code>。</li>
+<li><strong>消抖必须做</strong>：<code>Delay_ms(20)</code> → <code>while</code> 等松手 → <code>Delay_ms(20)</code>，否则一次按下触发多次。</li>
 <li><strong>按键一般“松手后才动作”</strong>：用 <code>while</code> 等松手，保证一次按下只触发一次。</li>
-<li><strong>LED 默认低电平</strong>：GPIO 配置好后默认输出低电平，低电平点亮的 LED 会直接亮 → 在 Init 末尾 <code>GPIO_SetBits</code> 设默认状态。</li>
-<li><strong>输入模式下 GPIO_Speed 没用但仍要填</strong>：结构体三个成员都要赋值，填 50MHz 即可。</li>
+<li><strong>LED 默认低电平</strong>：GPIO 配置好后默认输出低，低电平点亮的 LED 会直接亮 → Init 末尾 <code>GPIO_SetBits</code> 设默认状态。</li>
+<li><strong>输入模式下 GPIO_Speed 没用但仍要填</strong>：三个成员都要赋值，填 50MHz 即可。</li>
 <li><strong><code>.h</code> 防重复包含</strong>：<code>#ifndef/#define/#endif</code> 三件套，声明放里面；<code>.c</code> 第一行 include <code>stm32f10x.h</code>；文件最后留空行。</li>
 <li><strong>模块内用到 Delay 要 include</strong>：Key.c 用 <code>Delay_ms</code> 要 <code>#include &quot;Delay.h&quot;</code>，否则报找不到文件。</li>
-<li><strong>全局/局部变量同名不同变量</strong>：main 的 KeyNum（全局）≠ Key.c 里的 KeyNum（局部），函数内优先用自己的局部变量。</li>
-<li><strong>光敏 DO 电平别记反</strong>：遮光 → DO 输出<strong>高电平(1)</strong>（指示灯灭）；有光 → <strong>低电平(0)</strong>（指示灯亮）；阈值用蓝色电位器调。</li>
-<li><strong>Keil 实时语法检查会滞后</strong>：偶尔报错/警告是语法检查更新慢，直接编译通过即可；Ctrl+Alt+空格 调代码提示。</li>
+<li><strong>全局/局部变量同名不同变量</strong>：main 的 KeyNum（全局）≠ Key.c 里的 KeyNum（局部）。</li>
+<li><strong>光敏 DO 电平别记反</strong>：遮光 → <strong>高电平(1)</strong>（指示灯灭）；有光 → <strong>低电平(0)</strong>（指示灯亮）；阈值用蓝色电位器调。</li>
+<li><strong>Keil 实时语法检查会滞后</strong>：偶尔的报错直接编译看结果；Ctrl+Alt+空格 调代码提示。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -495,7 +501,7 @@ int main(void)
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E7%9A%84%E4%B8%A4%E4%B8%AA%E5%B7%A5%E7%A8%8B">0. 本集的两个工程</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%B8%A4%E4%B8%AA%E5%B7%A5%E7%A8%8B%E4%B8%8E%E7%8E%B0%E8%B1%A1">0. 本集定位：两个工程与现象</a>
         <a class="level-2" href="#1-%E5%B7%A5%E7%A8%8B-1-%E7%A1%AC%E4%BB%B6%E6%8E%A5%E7%BA%BF">1. 工程 1：硬件接线</a>
         <a class="level-2" href="#2-%E6%A8%A1%E5%9D%97%E5%8C%96%E7%BC%96%E7%A8%8B-%E6%8A%8A%E9%A9%B1%E5%8A%A8%E6%90%AC%E5%87%BA%E4%B8%BB%E5%87%BD%E6%95%B0">2. 模块化编程：把驱动搬出主函数</a>
         <a class="level-2" href="#3-led-%E9%A9%B1%E5%8A%A8%E6%A8%A1%E5%9D%97-led-c-led-h">3. LED 驱动模块（LED.c / LED.h）</a>

@@ -177,31 +177,26 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>14 分钟</span>
+      <span>12 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">GPIO</span><span class="tag">外设</span>
     </div>
     <article class="prose"><h1>[3-1] GPIO输出 — 学习笔记</h1>
 <h2 id="一句话结论">一句话结论</h2>
-<p>这一集是 GPIO 的<strong>理论课</strong>：先演示 LED 闪烁 / 流水灯 / 蜂鸣器三个现象，再拆开 GPIO 的基本结构（APB2 总线 → 寄存器 + 驱动器）和位结构（输入：保护二极管、上下拉、施密特触发器、IDR；输出：ODR/BSRR/BRR、P-MOS/N-MOS），给出 <strong>8 种工作模式表</strong>，最后讲 LED / 蜂鸣器驱动电路和面包板用法——<strong>写代码在下一集 [3-2]</strong>。</p>
-<h2 id="0-本集的内容与程序现象">0. 本集的内容与程序现象</h2>
+<p>本集是 GPIO 的<strong>理论课</strong>：基本结构（APB2 → 寄存器 + 驱动器）、位结构（输入保护二极管/上下拉/施密特触发器，输出 ODR/BSRR + MOS 管）、<strong>8 种工作模式</strong>、LED 与蜂鸣器驱动电路、面包板；代码在下一集。</p>
+<h2 id="0-本集定位与现象">0. 本集定位与现象</h2>
 <ul>
-<li>本集属于“第一部分 GPIO 输出”（整个 GPIO 模块共 4 小节：[3-1] GPIO输出（输出理论）、[3-2] LED闪烁/流水灯/蜂鸣器（输出程序）、[3-3] GPIO输入（输入理论）、[3-4] 按键控制LED/光敏控制蜂鸣器（输入程序））；第二部分还会补充结构体、指针、枚举等 C 语言知识。</li>
-<li>视频开头用资料里现成的 3 个程序演示现象（代码下一集讲）：<ul>
-<li><strong>LED 闪烁</strong>：1 个 LED 不断闪烁；</li>
-<li><strong>LED 流水灯</strong>：8 个 LED 循环流水点亮；</li>
-<li><strong>蜂鸣器</strong>：有源蜂鸣器滴滴鸣响。</li>
-</ul>
-</li>
+<li>属“GPIO 输出”理论部分：GPIO 模块 4 小节依次是 [3-1] 输出理论、[3-2] 输出程序、[3-3] 输入理论、[3-4] 输入程序；第二部分还补结构体、指针、枚举等 C 语言知识。</li>
+<li>开场用现成程序演示三个现象（代码下一集讲）：<strong>LED 闪烁</strong>（1 个 LED 不断闪）、<strong>LED 流水灯</strong>（8 个 LED 循环流水）、<strong>蜂鸣器</strong>（有源蜂鸣器滴滴响）。</li>
 </ul>
 <p><img src="../assets/images/stm32-05/02-phenomenon.jpg" alt="图 1：在面包板上演示 LED 闪烁现象（左：面包板上的 LED；右：对应的 LED闪烁 工程代码）"></p>
 <p><em>图 1：在面包板上演示 LED 闪烁现象（左：面包板上的 LED；右：对应的 LED闪烁 工程代码）</em></p>
 <h2 id="1-gpio-是什么">1. GPIO 是什么</h2>
 <ul>
-<li><strong>GPIO = General Purpose Input Output，通用输入输出口</strong>，也就是平时说的“IO 口”。</li>
-<li>可根据使用场景配置为 <strong>8 种输入输出模式</strong>（下一节细说）。</li>
-<li>引脚电平为 <strong>0V～3.3V</strong>：数据 0 = 低电平 0V，数据 1 = 高电平 3.3V；<strong>部分引脚可容忍 5V 输入</strong>（输入 5V 也认作高电平），但输出最大只有 3.3V（因为供电只有 3.3V）。带 <strong>FT（Five Tolerate）</strong> 标记的引脚才能容忍 5V，可查 [1-2] 的引脚定义。</li>
-<li><strong>输出模式</strong>：控制端口输出高低电平，用来驱动 LED、控制蜂鸣器、模拟通信协议输出时序等；要驱动功率较大的设备，加驱动电路即可。</li>
-<li><strong>输入模式</strong>：读取端口的高低电平或电压，用于按键输入、外接模块电平信号输入、ADC 电压采集、模拟通信协议接收数据等。</li>
+<li><strong>GPIO = General Purpose Input Output</strong>，通用输入输出口，即平时说的“IO 口”；可配置成 <strong>8 种输入输出模式</strong>。</li>
+<li>引脚电平 <strong>0V～3.3V</strong>：数据 0 = 低电平 0V，数据 1 = 高电平 3.3V。</li>
+<li><strong>部分引脚可容忍 5V 输入</strong>（带 <strong>FT（Five Tolerate）</strong> 标记，查 [1-2] 的引脚定义表），但输出最大只有 3.3V。</li>
+<li><strong>输出模式</strong>：驱动 LED、控制蜂鸣器、模拟通信协议输出时序；驱动大功率设备再加驱动电路。</li>
+<li><strong>输入模式</strong>：按键输入、外接模块电平信号、ADC 电压采集、通信协议接收数据。</li>
 </ul>
 <p><img src="../assets/images/stm32-05/01-gpio-intro.jpg" alt="图 2：GPIO 简介——定义、8 种模式、电平范围与输入/输出用途"></p>
 <p><em>图 2：GPIO 简介——定义、8 种模式、电平范围与输入/输出用途</em></p>
@@ -209,59 +204,48 @@
 <p><em>图 3：STM32F103C8T6 引脚定义表（FT 列 = 可容忍 5V 输入的引脚）</em></p>
 <h2 id="2-gpio-基本结构">2. GPIO 基本结构</h2>
 <ul>
-<li>所有 GPIO 都挂在 <strong>APB2 外设总线</strong>上（对应系统结构图里 APB2 的位置）。</li>
-<li>GPIO 外设按 <strong>GPIOA、GPIOB、GPIOC……</strong> 命名，每个 GPIO 端口有 <strong>16 个引脚</strong>（编号 0～15）：GPIOA 的第 0 号叫 <strong>PA0</strong>，依次到 PA15；GPIOB 就是 PB0～PB15。</li>
-<li>每个 GPIO 模块内部主要包含 <strong>寄存器 + 驱动器</strong>：<ul>
-<li><strong>寄存器</strong>：一段特殊的存储器，内核可通过 APB2 总线读写；寄存器的<strong>每一位对应一个引脚</strong>——输出寄存器写 1 对应引脚输出高电平、写 0 输出低电平；输入寄存器读 1 表示对应端口现在是高电平、读 0 是低电平。STM32 是 32 位单片机，寄存器是 32 位，但端口只有 16 位，所以<strong>只用低 16 位</strong>，高 16 位没用。</li>
-<li><strong>驱动器</strong>：用来增加信号的驱动能力；寄存器只负责存数据，真正点灯要靠驱动器提供电流。</li>
+<li>所有 GPIO 都挂在 <strong>APB2 外设总线</strong>上；按 <strong>GPIOA、GPIOB、GPIOC……</strong> 命名，每个端口 <strong>16 个引脚</strong>（0～15），即 PA0～PA15、PB0～PB15。</li>
+<li>模块内部主要是 <strong>寄存器 + 驱动器</strong>：<ul>
+<li><strong>寄存器</strong>：特殊的存储器，内核经 APB2 总线读写；<strong>每一位对应一个引脚</strong>——输出寄存器写 1 对应引脚高电平、写 0 低电平，输入寄存器读 1 表示高电平、读 0 表示低电平。STM32 是 32 位机、寄存器 32 位，但端口只有 16 位，<strong>只用低 16 位</strong>。</li>
+<li><strong>驱动器</strong>：增加信号驱动能力；寄存器只存数据，真正点灯要靠驱动器提供电流。</li>
 </ul>
 </li>
 </ul>
 <p><img src="../assets/images/stm32-05/03-gpio-structure.jpg" alt="图 4：GPIO 基本结构——APB2 总线连接 GPIOA/GPIOB 的寄存器和驱动器，每端口 16 个引脚"></p>
 <p><em>图 4：GPIO 基本结构——APB2 总线连接 GPIOA/GPIOB 的寄存器和驱动器，每端口 16 个引脚</em></p>
 <h2 id="3-gpio-位结构-本集重点">3. GPIO 位结构（本集重点）</h2>
-<p>参考手册里的**「I/O 端口位的基本结构」图（手册图 13）<strong>：左边三个是寄存器，中间是驱动器，右边是某一个 IO 口的引脚；整个结构分成</strong>输入部分**（上）和<strong>输出部分</strong>（下）。</p>
+<p>参考手册**「I/O 端口位的基本结构」图（手册图 13）<strong>：左边三个寄存器，中间驱动器，右边某一个 IO 引脚；分成</strong>输入部分**（上）和<strong>输出部分</strong>（下）。</p>
 <p><img src="../assets/images/stm32-05/04-bit-structure.jpg" alt="图 5：GPIO 位结构总图（左：寄存器；中：输入/输出驱动器；右：IO 引脚与保护二极管）"></p>
 <p><em>图 5：GPIO 位结构总图（左：寄存器；中：输入/输出驱动器；右：IO 引脚与保护二极管）</em></p>
 <h3 id="3-1-输入部分">3.1 输入部分</h3>
 <ul>
-<li><strong>保护二极管</strong>：对输入电压限幅。输入电压高于 3.3V 时上方二极管导通，电流直接流入 VDD，不进入内部电路；输入电压低于 0V 时下方二极管导通，电流从 VSS 流出去；输入在 0～3.3V 之间时两个二极管都不导通，对电路没有影响——从而保护内部电路不被过高/过低电压损坏。</li>
-<li><strong>FT 引脚的额外保护</strong>：容忍 5V 的引脚，其上方保护二极管的电源标为 <strong>VDD_FT</strong>（与普通 VDD 不同），需要做特殊处理；否则直接接 VDD 3.3V、外部再接 5V 时，上方二极管会开启并产生比较大的电流。</li>
-<li><strong>上拉电阻 / 下拉电阻</strong>：上拉接 VDD、下拉接 VSS，两个开关都可以通过程序配置：<ul>
-<li>上拉导通、下拉断开 → <strong>上拉输入</strong>（悬空时默认高电平）；</li>
-<li>上拉断开、下拉导通 → <strong>下拉输入</strong>（悬空时默认低电平）；</li>
-<li>两个都断开 → <strong>浮空输入</strong>（悬空时电平不确定）。</li>
-<li>上拉/下拉阻值都比较大（弱上拉/弱下拉），目的是给悬空引脚一个默认电平，又尽量不影响正常输入。<strong>浮空输入使用时端口一定要接连续驱动源，不能悬空。</strong></li>
-</ul>
-</li>
-<li><strong>施密特触发器</strong>：对输入电压整形。输入高于上限阈值 → 输出瞬间变高；输入低于下限阈值 → 输出瞬间变低；处在上下限之间时<strong>保持原输出不变</strong>（滞回），从而避免信号波动造成误判。注意：中文手册里译作“肖特基触发器”是<strong>翻译错误</strong>，英文原文是施密特触发器。</li>
-<li><strong>输入数据寄存器（IDR）</strong>：用程序读某一位，就知道对应端口的输入电平。</li>
-<li>此外还有两路“旁路”：<strong>模拟输入</strong>接到 ADC（在施密特触发器之前，因为 ADC 要采模拟量）；<strong>复用功能输入</strong>接到其他需要读端口的外设（在触发器之后，如串口输入引脚）。</li>
+<li><strong>保护二极管</strong>：对输入电压限幅——高于 3.3V 时上管导通、电流流入 VDD 不进内部电路；低于 0V 时下管导通、电流从 VSS 流出；0～3.3V 之间都不导通，故不影响电路。</li>
+<li><strong>FT 引脚的额外保护</strong>：容忍 5V 的引脚上方二极管电源标为 <strong>VDD_FT</strong>（与普通 VDD 不同）；否则接 VDD 3.3V、外部又接 5V 时上管会开启并产生较大电流。</li>
+<li><strong>上拉/下拉电阻</strong>：上拉接 VDD、下拉接 VSS，开关可由程序配置——上拉通下拉断 = <strong>上拉输入</strong>（悬空默认高电平）；上拉断下拉通 = <strong>下拉输入</strong>（悬空默认低电平）；都断开 = <strong>浮空输入</strong>（电平不确定）。阻值都比较大的弱上拉/弱下拉，目的是给悬空引脚一个默认电平、又不影响正常输入。<strong>浮空输入必须接连续驱动源，不能悬空。</strong></li>
+<li><strong>施密特触发器</strong>：高于上限阈值输出变高、低于下限阈值输出变低，处于上下限之间时<strong>保持原输出</strong>（滞回），避免信号波动误判；中文手册译作“肖特基触发器”是<strong>翻译错误</strong>。</li>
+<li><strong>输入数据寄存器（IDR）</strong>：读某一位即知对应端口的输入电平。</li>
+<li>两路“旁路”：<strong>模拟输入</strong>接 ADC（在施密特触发器之前，因为 ADC 要采模拟量）；<strong>复用功能输入</strong>接其他需要读端口的外设（在触发器之后，如串口输入引脚）。</li>
 </ul>
 <h3 id="3-2-输出部分">3.2 输出部分</h3>
 <ul>
-<li>数字部分可以由<strong>输出数据寄存器（ODR）<strong>或</strong>片上外设</strong>控制，两者通过数据选择器接到输出控制：<ul>
-<li>选 ODR 控制 = 普通 IO 口输出，写 ODR 的某一位就操作对应端口；</li>
-<li>选片上外设 = 复用功能输出。</li>
-</ul>
-</li>
-<li>ODR 同时控制 16 个端口且只能整体读写，要<strong>单独改某一位而不影响其他位</strong>有三种办法：<ol>
-<li>先读 ODR，再用<strong>按位与/按位或</strong>改某一位，再写回；</li>
-<li>用<strong>位设置/清除寄存器 BSRR</strong>：低 16 位写 1 置位（输出高电平），高 16 位写 1 清除（输出低电平），其余位写 0 不产生影响，一步到位；清位也可以用 <strong>BRR</strong>（低 16 位写 1 清除）；</li>
-<li>读写 STM32 的<strong>位带（bit-band）区域</strong>，作用类似 51 单片机的位寻址（本课程主要用库函数，库函数用的是 BSRR/BRR 方式）。</li>
+<li>数字部分由<strong>输出数据寄存器（ODR）<strong>或</strong>片上外设</strong>经数据选择器控制：选 ODR = 普通 IO 输出，选片上外设 = 复用功能输出。</li>
+<li>ODR 同时控 16 个端口且只能整体读写，单独改一位有三种办法：<ol>
+<li>先读 ODR，用<strong>按位与/按位或</strong>改某一位再写回；</li>
+<li><strong>BSRR</strong>：低 16 位写 1 置位（高电平）、高 16 位写 1 清除（低电平），其余位写 0 无影响，一步到位；清位也可用 <strong>BRR</strong>（低 16 位写 1 清除）；</li>
+<li>读写<strong>位带（bit-band）区域</strong>，类似 51 的位寻址（本课用库函数，库函数用 BSRR/BRR）。</li>
 </ol>
 </li>
-<li>输出控制后面接 <strong>P-MOS + N-MOS</strong> 两个 MOS 管，分为三种输出方式：<ul>
-<li><strong>推挽输出</strong>：P-MOS 和 N-MOS 均有效。ODR=1 时上管导通、输出接 VDD = 高电平；ODR=0 时下管导通、输出接 VSS = 低电平；高低电平均有驱动能力。</li>
-<li><strong>开漏输出</strong>：P-MOS 无效。ODR=1 时输出相当于断开（高阻态，没有驱动能力）；ODR=0 时 N-MOS 导通、输出接 VSS = 低电平。只有低电平有驱动能力；可以作为通信协议（如 I2C）的驱动方式，也可以外接上拉电阻到 5V 来输出 5V 电平信号；在多机通信的情况下还可以避免各个设备相互干扰。</li>
-<li><strong>关闭</strong>：引脚配置为输入模式时两个 MOS 管都无效，端口电平由外部信号控制。</li>
+<li>输出控制后接 <strong>P-MOS + N-MOS</strong>，分三种输出方式：<ul>
+<li><strong>推挽输出</strong>：两管均有效——ODR=1 上管导通、输出接 VDD 为高电平；ODR=0 下管导通、输出接 VSS 为低电平；高低电平均有驱动能力。</li>
+<li><strong>开漏输出</strong>：P-MOS 无效——ODR=1 输出相当于断开（高阻态、无驱动能力）；ODR=0 下管导通、输出接 VSS 为低电平；只有低电平有驱动。可作 I2C 等通信驱动，也可外接上拉到 5V 输出 5V 电平；多机通信时还能避免设备相互干扰。</li>
+<li><strong>关闭</strong>：配成输入模式时两管都无效，端口电平由外部信号控制。</li>
 </ul>
 </li>
 </ul>
 <p><img src="../assets/images/stm32-05/05-output-part.jpg" alt="图 6：输出部分——ODR、位设置/清除寄存器、输出控制与 P-MOS/N-MOS（推挽/开漏）"></p>
 <p><em>图 6：输出部分——ODR、位设置/清除寄存器、输出控制与 P-MOS/N-MOS（推挽/开漏）</em></p>
 <h2 id="4-八种工作模式">4. 八种工作模式</h2>
-<p>通过配置 GPIO 的端口配置寄存器，上面的位结构电路可以变成以下 <strong>8 种模式</strong>：</p>
+<p>通过配置端口配置寄存器，位结构电路可变成以下 <strong>8 种模式</strong>：</p>
 <table>
 <thead>
 <tr>
@@ -312,15 +296,15 @@
 </tr>
 </tbody></table>
 <ul>
-<li>前三种输入模式电路结构基本一样，区别只是上拉/下拉电阻的连接；都属于数字输入，能读取端口高低电平。</li>
-<li><strong>模拟输入</strong>是 ADC 的专属配置：输出断开、施密特触发器关闭，引脚直接接 ADC，其他时候一般用不到。</li>
-<li>开漏/推挽输出都是数字输出，区别是高阻态 vs 有驱动能力；复用开漏/复用推挽的引脚电平由<strong>片上外设</strong>控制，通用输出部分不连接。</li>
-<li><strong>重要结论</strong>：输出模式下输入部分仍然有效（一个端口只能有一个输出，但可以有多个输入）；<strong>除模拟输入会关闭数字输入外，其余 7 种模式的数字输入都有效</strong>。</li>
+<li>前三种输入电路结构基本一样，只差上拉/下拉电阻；都属数字输入，能读取高低电平。</li>
+<li><strong>模拟输入</strong>是 ADC 专属：输出断开、施密特触发器关闭，引脚直接接 ADC，其他时候用不到。</li>
+<li>开漏/推挽都是数字输出，区别是高阻态 vs 有驱动能力；复用开漏/复用推挽由<strong>片上外设</strong>控制，通用输出部分不连接。</li>
+<li><strong>重要结论</strong>：输出模式下输入部分仍有效（一个端口只能有一个输出，但可有多个输入）；<strong>除模拟输入关闭数字输入外，其余 7 种模式数字输入都有效</strong>。</li>
 </ul>
 <p><img src="../assets/images/stm32-05/06-eight-modes.jpg" alt="图 7：八种工作模式表（浮空/上拉/下拉输入、模拟输入、开漏/推挽输出、复用开漏/复用推挽输出）"></p>
 <p><em>图 7：八种工作模式表（浮空/上拉/下拉输入、模拟输入、开漏/推挽输出、复用开漏/复用推挽输出）</em></p>
-<h2 id="5-gpio-寄存器-参考手册">5. GPIO 寄存器（参考手册）</h2>
-<p>本集只讲 GPIO，AFIO 以后再讲。参考手册 GPIO 章节先给出 8 种模式说明，还有一张<strong>外设 GPIO 配置表</strong>（使用片上外设引脚时按表里推荐配置）。</p>
+<h2 id="5-寄存器与输出速度">5. 寄存器与输出速度</h2>
+<p>本集只讲 GPIO，AFIO 以后再讲；手册里还有<strong>外设 GPIO 配置表</strong>（用片上外设引脚时按表推荐值配置）。</p>
 <table>
 <thead>
 <tr>
@@ -366,66 +350,58 @@
 </tr>
 </tbody></table>
 <ul>
-<li>每个引脚的模式由 <strong>4 位</strong>配置，16 个引脚共 64 位，所以要 CRL / CRH 两个 32 位寄存器。</li>
-<li>配置寄存器里还多了<strong>输出速度</strong>（MODE）这一项：可限制输出引脚的最大翻转速度（2/10/50MHz），设计目的是低功耗和稳定性；要求不高时一般配置成 <strong>50MHz</strong> 即可。</li>
-<li>BSRR 高 16 位和 BRR 低 16 位功能相同；单独位设置用 BSRR、单独位清除用 BRR 更方便（都在低 16 位写数据）；如果要对多个端口同时进行位设置和位清除，用 BSRR 一个寄存器可以保证同步性。</li>
-<li>LCKR 用于锁定配置，防止意外更改，用得不多。</li>
+<li>每个引脚由 <strong>4 位</strong>配置，16 个引脚共 <strong>64 位</strong>，所以要 CRL / CRH 两个 32 位寄存器。</li>
+<li>配置寄存器还多了<strong>输出速度</strong>（MODE）：限制引脚最大翻转速度（2/10/50MHz），目的是低功耗与稳定性；要求不高时配 <strong>50MHz</strong> 即可。</li>
+<li>BSRR 高 16 位与 BRR 低 16 位功能相同：单独置位用 BSRR、单独清位用 BRR 更方便；多个端口要同时置位和清位时，用一个 BSRR 才能保证同步。</li>
+<li>LCKR 锁定配置防意外更改，用得不多。</li>
 </ul>
 <p><img src="../assets/images/stm32-05/07-crl-register.jpg" alt="图 8：GPIOx_CRL 端口配置低寄存器（每引脚 4 位：CNF + MODE）"></p>
 <p><em>图 8：GPIOx_CRL 端口配置低寄存器（每引脚 4 位：CNF + MODE）</em></p>
 <p><img src="../assets/images/stm32-05/08-bsrr-register.jpg" alt="图 9：GPIOx_BSRR 位设置/清除寄存器（低 16 位 BS 置位，高 16 位 BR 清除）"></p>
 <p><em>图 9：GPIOx_BSRR 位设置/清除寄存器（低 16 位 BS 置位，高 16 位 BR 清除）</em></p>
-<h2 id="6-led-与蜂鸣器">6. LED 与蜂鸣器</h2>
+<h2 id="6-led-蜂鸣器与驱动电路">6. LED、蜂鸣器与驱动电路</h2>
 <ul>
-<li><strong>LED</strong>：发光二极管，正向通电点亮、反向通电不亮。电路符号左边是正极、右边负极；实物图里未剪脚的 LED <strong>长脚是正极、短脚是负极</strong>；从内部看，较小的一半是正极、较大的一半是负极。</li>
-<li><strong>蜂鸣器</strong>分为两类：<ul>
-<li><strong>有源蜂鸣器</strong>：内部自带振荡源，正负极接上直流电压即可持续发声，频率固定；<strong>本课程使用的就是有源蜂鸣器</strong>（模块内部用三极管驱动，信号脚<strong>低电平触发</strong>：接低电平响，接高电平关闭）。</li>
-<li><strong>无源蜂鸣器</strong>：内部不带振荡源，需要控制器提供振荡脉冲才发声，调整脉冲频率可发出不同频率的声音（51 教程用过，本集不涉及）。</li>
-</ul>
-</li>
+<li><strong>LED</strong>：发光二极管，正向通电点亮、反向通电不亮。符号左正右负；实物<strong>长脚是正极、短脚是负极</strong>；内部<strong>较小的一半是正极、较大的一半是负极</strong>。</li>
+<li><strong>有源蜂鸣器</strong>：自带振荡源，正负极接直流即持续发声、频率固定；<strong>本课使用的就是它</strong>，模块内三极管驱动，信号脚<strong>低电平触发</strong>（接低电平响，接高电平关闭）。</li>
+<li><strong>无源蜂鸣器</strong>：不带振荡源，需控制器给振荡脉冲，改脉冲频率可改音调（51 教程用过，本集不涉及）。</li>
 </ul>
 <p><img src="../assets/images/stm32-05/09-led-buzzer.jpg" alt="图 10：LED 与蜂鸣器介绍（LED 符号/实物、有源蜂鸣器模块与内部三极管电路）"></p>
 <p><em>图 10：LED 与蜂鸣器介绍（LED 符号/实物、有源蜂鸣器模块与内部三极管电路）</em></p>
-<h2 id="7-led-蜂鸣器驱动电路">7. LED / 蜂鸣器驱动电路</h2>
-<p><strong>LED 的两种接法：</strong></p>
+<p>LED 两种接法：</p>
 <ul>
-<li><strong>低电平驱动</strong>：LED 正极接 3.3V，负极通过限流电阻 R1 接到 PA0。PA0 输出低电平时，LED 两端产生电压差、正向导通电流点亮；输出高电平时两端都是 3.3V，没有电流，LED 熄灭。</li>
-<li><strong>高电平驱动</strong>：LED 负极接 GND，正极通过限流电阻接到 PA0；PA0 高电平点亮、低电平熄灭。</li>
-<li><strong>限流电阻一般都要接</strong>：一方面防止 LED 电流过大烧毁，另一方面可以调整亮度（太刺眼就增大阻值）。面包板插接 LED 时课程为简化电路省去了限流电阻，<strong>自己设计电路时要加上</strong>。</li>
-<li>两种接法在推挽输出下都可用；但一般倾向<strong>低电平驱动</strong>，因为很多单片机/芯片是“高电平弱驱动、低电平强驱动”，可以一定程度上避免高低电平打架（如果高电平驱动能力弱，就不能用高电平驱动接法）。</li>
+<li><strong>低电平驱动</strong>：正极接 3.3V，负极经限流电阻 R1 接 PA0；PA0 低电平时两端有压差、正向导通点亮，高电平时两端都是 3.3V、熄灭。</li>
+<li><strong>高电平驱动</strong>：负极接 GND，正极经限流电阻接 PA0；高电平点亮、低电平熄灭。</li>
+<li><strong>限流电阻一般都要接</strong>：防 LED 电流过大烧毁，还能调亮度（太刺眼就增大阻值）；面包板演示为简化省了，<strong>自己设计电路要加上</strong>。</li>
+<li>两种接法推挽下都可用，但一般倾向<strong>低电平驱动</strong>：很多芯片高电平弱驱动、低电平强驱动，高电平驱动可能驱不动。</li>
 </ul>
-<p><strong>蜂鸣器用三极管开关驱动</strong>（功率稍大，直接用 IO 口驱动会让 STM32 负担过重）：</p>
+<p>蜂鸣器用三极管开关驱动（直接 IO 驱动会让 STM32 负担过重）：</p>
 <ul>
-<li><strong>PNP 三极管</strong>（Q1 S8550，接在 VCC 侧）：基极给<strong>低电平</strong>导通（蜂鸣器响），给高电平截止。</li>
-<li><strong>NPN 三极管</strong>（S8050，接在 GND 侧）：基极给<strong>高电平</strong>导通，低电平断开。</li>
-<li>原因：三极管的通断需要在发射极和基极之间产生一定的开启电压；<strong>PNP 最好接在上边、NPN 最好接在下边</strong>，负载位置接错可能导致三极管不能开启。</li>
+<li><strong>PNP</strong>（Q1 S8550，接 VCC 侧）：基极给<strong>低电平</strong>导通（响），高电平截止。</li>
+<li><strong>NPN</strong>（S8050，接 GND 侧）：基极给<strong>高电平</strong>导通，低电平断开。</li>
+<li>原因：通断需在发射极与基极间产生开启电压；<strong>PNP 接上边、NPN 接下边</strong>，负载位置接错可能无法开启。</li>
 </ul>
 <p><img src="../assets/images/stm32-05/10-drive-circuits.jpg" alt="图 11：硬件电路——左侧 LED 低电平/高电平驱动电路，右侧蜂鸣器三极管驱动（PNP 上、NPN 下）"></p>
 <p><em>图 11：硬件电路——左侧 LED 低电平/高电平驱动电路，右侧蜂鸣器三极管驱动（PNP 上、NPN 下）</em></p>
 <p><img src="../assets/images/stm32-05/11-buzzer-transistor.jpg" alt="图 12：蜂鸣器三极管驱动——PNP（上，低电平导通）与 NPN（下，高电平导通）"></p>
 <p><em>图 12：蜂鸣器三极管驱动——PNP（上，低电平导通）与 NPN（下，高电平导通）</em></p>
-<h2 id="8-面包板的使用">8. 面包板的使用</h2>
+<h2 id="7-面包板的使用">7. 面包板的使用</h2>
 <ul>
-<li>面包板正面是插孔，背面是一条条金属爪；元件引脚插进孔里会被金属爪夹住，从而连通。</li>
-<li>连接规律：<ul>
-<li><strong>中间竖排 5 个孔内部相连</strong>（一列 5 孔为一组），元件插在同一纵列的不同孔位就连接在一起；</li>
-<li><strong>上下各两排（供电轨）整体相连</strong>，通常标有 + / -：第一排正极、第二排负极、第三排正极、第四排负极，需要供电时用跳线从这些孔引出来。</li>
-<li>有的面包板供电轨中间是<strong>断开</strong>的，需要自己用跳线把两边连起来（视频里这块恰好是连通的）。</li>
-</ul>
-</li>
-<li>示例：用面包板实现“电源直接点亮 LED”——供电轨接电源正负极 → 跳线引正极 → 限流电阻 → LED → 跳线接回负极。</li>
+<li>正面是插孔、背面是一条条金属爪；引脚插进孔被金属爪夹住即连通。</li>
+<li>规律：<strong>中间竖排 5 个孔内部相连</strong>（一列 5 孔一组）；<strong>上下各两排供电轨整体相连</strong>，标 + / -——第一排正极、第二排负极、第三排正极、第四排负极，供电时用跳线引出。</li>
+<li>有的面包板供电轨中间是<strong>断开</strong>的，要自己用跳线连起来（视频这块恰好连通）。</li>
+<li>示例“电源直接点亮 LED”：供电轨接电源正负极 → 跳线引正极 → 限流电阻 → LED → 跳线接回负极。</li>
 </ul>
 <p><img src="../assets/images/stm32-05/12-breadboard.jpg" alt="图 13：面包板正面（插孔）与背面金属爪"></p>
 <p><em>图 13：面包板正面（插孔）与背面金属爪</em></p>
 <p><img src="../assets/images/stm32-05/13-breadboard-example.jpg" alt="图 14：面包板接线示例——红/蓝线为“电源→限流电阻→LED→负极”的电流路径"></p>
 <p><em>图 14：面包板接线示例——红/蓝线为“电源→限流电阻→LED→负极”的电流路径</em></p>
-<h2 id="9-坑与易错点">9. 坑与易错点</h2>
+<h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>5V 不能乱接</strong>：只有带 FT 标记的引脚能容忍 5V 输入；输出最高 3.3V。</li>
-<li><strong>浮空输入不能悬空</strong>：必须接连续驱动源，否则电平不确定；不确定时优先用上拉/下拉输入。</li>
-<li><strong>ODR 只能整体读写</strong>：单独改一个引脚可以用读-改-写，但必须用 <code>&amp;=</code> / <code>|=</code> 只改目标位；更推荐 <strong>BSRR 置位 / BRR 清位</strong>（一步到位，库函数也是这么做的）。</li>
-<li><strong>输出模式下输入也有效</strong>：除模拟输入外，其他 7 种模式数字输入都可用（“一个输出、多个输入”）。</li>
-<li><strong>开漏输出高电平是高阻态</strong>：没有驱动能力；要输出 5V 需外接上拉电阻到 5V，I2C 等通信正是利用开漏。</li>
+<li><strong>5V 不能乱接</strong>：只有 FT 标记的引脚能容忍 5V 输入；输出最高 3.3V。</li>
+<li><strong>浮空输入不能悬空</strong>：必须接连续驱动源；不确定时优先用上拉/下拉输入。</li>
+<li><strong>ODR 只能整体读写</strong>：单独改一个引脚要用 <code>&amp;=</code> / <code>|=</code> 只改目标位；更推荐 <strong>BSRR 置位 / BRR 清位</strong>（一步到位，库函数也这么做）。</li>
+<li><strong>输出模式下输入也有效</strong>：除模拟输入外其余 7 种模式数字输入都可用（“一个输出、多个输入”）。</li>
+<li><strong>开漏输出高电平是高阻态</strong>：没有驱动能力；要输出 5V 需外接上拉到 5V，I2C 等通信正利用开漏。</li>
 <li><strong>限流电阻不能省</strong>：面包板演示省了，实际电路一定要加，否则 LED 可能烧毁。</li>
 <li><strong>三极管方向</strong>：PNP 接上边（基极低电平导通），NPN 接下边（基极高电平导通）；负载位置不对可能无法开启。</li>
 <li><strong>面包板供电轨不一定整排连通</strong>：用前先确认，必要时中间加跳线。</li>
@@ -442,18 +418,17 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E7%9A%84%E5%86%85%E5%AE%B9%E4%B8%8E%E7%A8%8B%E5%BA%8F%E7%8E%B0%E8%B1%A1">0. 本集的内容与程序现象</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D%E4%B8%8E%E7%8E%B0%E8%B1%A1">0. 本集定位与现象</a>
         <a class="level-2" href="#1-gpio-%E6%98%AF%E4%BB%80%E4%B9%88">1. GPIO 是什么</a>
         <a class="level-2" href="#2-gpio-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84">2. GPIO 基本结构</a>
         <a class="level-2" href="#3-gpio-%E4%BD%8D%E7%BB%93%E6%9E%84-%E6%9C%AC%E9%9B%86%E9%87%8D%E7%82%B9">3. GPIO 位结构（本集重点）</a>
         <a class="level-3" href="#3-1-%E8%BE%93%E5%85%A5%E9%83%A8%E5%88%86">3.1 输入部分</a>
         <a class="level-3" href="#3-2-%E8%BE%93%E5%87%BA%E9%83%A8%E5%88%86">3.2 输出部分</a>
         <a class="level-2" href="#4-%E5%85%AB%E7%A7%8D%E5%B7%A5%E4%BD%9C%E6%A8%A1%E5%BC%8F">4. 八种工作模式</a>
-        <a class="level-2" href="#5-gpio-%E5%AF%84%E5%AD%98%E5%99%A8-%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C">5. GPIO 寄存器（参考手册）</a>
-        <a class="level-2" href="#6-led-%E4%B8%8E%E8%9C%82%E9%B8%A3%E5%99%A8">6. LED 与蜂鸣器</a>
-        <a class="level-2" href="#7-led-%E8%9C%82%E9%B8%A3%E5%99%A8%E9%A9%B1%E5%8A%A8%E7%94%B5%E8%B7%AF">7. LED / 蜂鸣器驱动电路</a>
-        <a class="level-2" href="#8-%E9%9D%A2%E5%8C%85%E6%9D%BF%E7%9A%84%E4%BD%BF%E7%94%A8">8. 面包板的使用</a>
-        <a class="level-2" href="#9-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">9. 坑与易错点</a>
+        <a class="level-2" href="#5-%E5%AF%84%E5%AD%98%E5%99%A8%E4%B8%8E%E8%BE%93%E5%87%BA%E9%80%9F%E5%BA%A6">5. 寄存器与输出速度</a>
+        <a class="level-2" href="#6-led-%E8%9C%82%E9%B8%A3%E5%99%A8%E4%B8%8E%E9%A9%B1%E5%8A%A8%E7%94%B5%E8%B7%AF">6. LED、蜂鸣器与驱动电路</a>
+        <a class="level-2" href="#7-%E9%9D%A2%E5%8C%85%E6%9D%BF%E7%9A%84%E4%BD%BF%E7%94%A8">7. 面包板的使用</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>
   </aside>
 </div>

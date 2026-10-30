@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[6-1] TIM定时中断 · 我的学习笔记</title>
-  <meta name="description" content="江协科技 STM32 课程第 13 集 [6-1]（现象 + 理论）：片头先演示「定时器定时中断」和「定时器外部时钟」两个现成程序的现象，然后进入 PPT 与参考手册，讲 TIM 的定时器类型与芯片资源、时基单元（PSC 预分频器 / CNT 计数器 / ARR 自动重装寄存器）、向上·向下·中央对齐三种计数模式、内外时钟源（ETR 外部时钟模式 2、TRGI 外部时钟模式 1、编码器模式）、定时中断的基本结构、预分频器与计数器时序及影子（缓冲）寄存器、RCC 时钟树与「所有定时器都是 72MHz」的由来。本集不写代码、也没有讲 TIM 库函数，那部分在下一集 [6-2]。">
+  <meta name="description" content="江协科技 STM32 课程第 13 集 [6-1]（现象 + 理论）：片头先演示「定时器定时中断」和「定时器外部时钟」两个现成程序，然后进 PPT 与参考手册，讲 TIM 类型与芯片资源、时基单元（PSC/CNT/ARR）、三种计数模式、内外时钟源、定时中断基本结构、时序与影子寄存器、RCC 时钟树与「所有定时器都是 72MHz」的由来。本集不写代码，TIM 库函数在下一集 [6-2]。">
   <meta property="og:title" content="[6-1] TIM定时中断 · 我的学习笔记">
-  <meta property="og:description" content="江协科技 STM32 课程第 13 集 [6-1]（现象 + 理论）：片头先演示「定时器定时中断」和「定时器外部时钟」两个现成程序的现象，然后进入 PPT 与参考手册，讲 TIM 的定时器类型与芯片资源、时基单元（PSC 预分频器 / CNT 计数器 / ARR 自动重装寄存器）、向上·向下·中央对齐三种计数模式、内外时钟源（ETR 外部时钟模式 2、TRGI 外部时钟模式 1、编码器模式）、定时中断的基本结构、预分频器与计数器时序及影子（缓冲）寄存器、RCC 时钟树与「所有定时器都是 72MHz」的由来。本集不写代码、也没有讲 TIM 库函数，那部分在下一集 [6-2]。">
+  <meta property="og:description" content="江协科技 STM32 课程第 13 集 [6-1]（现象 + 理论）：片头先演示「定时器定时中断」和「定时器外部时钟」两个现成程序，然后进 PPT 与参考手册，讲 TIM 类型与芯片资源、时基单元（PSC/CNT/ARR）、三种计数模式、内外时钟源、定时中断基本结构、时序与影子寄存器、RCC 时钟树与「所有定时器都是 72MHz」的由来。本集不写代码，TIM 库函数在下一集 [6-2]。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,72 +177,65 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>39 分钟</span>
+      <span>27 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">时基单元</span>
     </div>
     <article class="prose"><h1>[6-1] TIM定时中断 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是定时器部分的**「现象 + 理论」课**——片头 01:36–03:00 演示两个<strong>已经写好的</strong>工程的现象（6-1 定时器定时中断、6-2 定时器外部时钟），之后 03:00–49:37 全是 PPT 与参考手册的理论讲解，<strong>没有新建工程、没有写代码、也没有讲 TIM 库函数</strong>。视频结尾原话是「本小节的内容就全部完成了，<strong>我们下一小节来开始写定时中断和内外时钟源选择的代码</strong>」。因此本笔记<strong>不包含</strong> <code>TIM_TimeBaseInit</code> / <code>TIM_ITConfig</code> / <code>NVIC</code> 等初始化步骤和中断服务函数的写法，那些在下一集 [6-2]。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>定时器（TIM = Timer）本质上就是<strong>一个计数器</strong>：给它喂一个<strong>已知频率的基准时钟</strong>，数到设定的个数就产生一次中断，数时钟的过程就是计时——72MHz 数 72 个是 1μs、数 72000 个是 1ms。STM32 的定时器用 <strong>PSC 预分频器 + CNT 计数器 + ARR 自动重装寄存器</strong>三个 16 位寄存器组成<strong>时基单元</strong>，预分频器把 72MHz 先分频（实际分频系数 = PSC+1）得到计数频率，计数器每来一个计数时钟加 1，<strong>加到等于 ARR 时产生更新事件与更新中断、计数器清零</strong>重新开始，于是溢出频率是 <code>72MHz/(PSC+1)/(ARR+1)</code>、溢出时间的倒数就是定时周期；三个 16 位寄存器都拉满时最大定时 <strong>59.65s</strong>，定时器级联还能长到离谱（两个约 8000 多年，三个约 34 万亿年）。定时器分<strong>高级 TIM1/TIM8</strong>（APB2）、<strong>通用 TIM2～TIM5</strong>、<strong>基本 TIM6/TIM7</strong>（都挂 APB1）三类且<strong>向下兼容</strong>，F103C8T6 只有 <strong>TIM1～TIM4</strong>（1 个高级 + 3 个通用、没有基本定时器）；时钟源除了内部 72MHz 还能选<strong>外部时钟模式 2（ETR 引脚）</strong>、<strong>外部时钟模式 1（TRGI：其它定时器/输入捕获通道）<strong>和</strong>编码器模式</strong>；而「为什么 APB1 只有 36MHz，定时器却还是 72MHz」的答案就在 <strong>RCC 时钟树</strong>那条「APB1 预分频系数≠1 则定时器时钟 ×2」的支路上。</p>
-<h2 id="0-本集定位-现象-理论-代码在下一集">0. 本集定位：现象 + 理论，代码在下一集</h2>
+<p>定时器本质就是计数器：喂一个已知频率的基准时钟，数到设定值就产生中断，计数即计时。时基单元 = PSC + CNT + ARR 三个 16 位寄存器，溢出频率 <code>72MHz/(PSC+1)/(ARR+1)</code>，最大定时 59.65s。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li>本集是定时器大节的<strong>第一部分（基本定时功能）的第 1 小节</strong>，对应 PPT 的 <code>06-TIM定时器</code>。整个定时器大节分 4 部分 8 小节：<strong>第一部分讲定时中断和内外时钟源选择</strong>（本集 [6-1] 理论 + 下一集 [6-2] 代码），第二部分讲<strong>输出比较</strong>（驱动舵机、直流电机），第三部分讲<strong>输入捕获和主从触发模式</strong>（测方波频率），第四部分讲<strong>编码器接口</strong>（更方便地读正交编码器、编码电机测速）。</li>
-<li>全片结构：<strong>01:36–03:00 两个现成工程的现象演示</strong> → 03:00–49:37 <strong>PPT 理论</strong>（简介 → 类型 → 三个结构图 → 定时中断基本结构 → 时序图 → RCC 时钟树）→ 结尾<strong>参考手册导读</strong>。</li>
-<li>本集<strong>没有代码过程</strong>：片头两个工程是现成的（Keil 标题栏里的工程目录名分别是 <code>6-1 定时器定时中断</code> 和 <code>6-2 定时器外部时钟</code>），第 1 章里那张 main.c 截图只是让你看清「现象是怎么来的」，<strong>不是本集讲过的代码写法</strong>。</li>
-<li>特别提醒：本集<strong>没有讲 TIM 的库函数</strong>。全片只在讲时钟树时说了一句「这就是我们在程序中写 <code>RCC_APB1/2PeriphClockCmd</code> 作用的地方」——那也只是指<strong>作用位置</strong>，不是用法讲解。<code>TIM_TimeBaseInit</code>、<code>TIM_ITConfig</code>、<code>NVIC</code> 配置等全部在 [6-2]。</li>
+<li>定时器大节第一部分（基本定时功能）的第 1 小节，对应 PPT <code>06-TIM定时器</code>；这是「现象 + 理论」课，代码在下一集 [6-2]。</li>
+<li>全片结构：01:36–03:00 两个现成工程的现象演示 → 03:00–49:37 PPT 理论（简介 → 类型 → 三个结构图 → 定时中断基本结构 → 时序图 → RCC 时钟树）→ 结尾参考手册导读。</li>
+<li>本集没有新建工程、没有写代码、也没有讲 TIM 库函数：<code>TIM_TimeBaseInit</code>、<code>TIM_ITConfig</code>、<code>NVIC</code> 的配置都在 [6-2]。</li>
+<li>片头两个工程是现成的（Keil 工程目录名分别是 <code>6-1 定时器定时中断</code> 和 <code>6-2 定时器外部时钟</code>），那张 main.c 截图只是让你看清现象怎么来的，不是本集讲过的写法。</li>
+<li>全片只在讲时钟树时提了一句「这就是程序里写 <code>RCC_APB1/2PeriphClockCmd</code> 作用的地方」，那只是指作用位置，不是用法讲解。</li>
 </ul>
 <h2 id="1-片头两个现象">1. 片头两个现象</h2>
-<p>第一部分一共两个程序，先用现成工程看现象。</p>
 <h3 id="1-1-程序-1-定时器定时中断-工程-6-1-定时器定时中断">1.1 程序 1：定时器定时中断（工程 <code>6-1 定时器定时中断</code>）</h3>
 <ul>
-<li>面包板上一块 STM32 最小系统板 + OLED 屏。</li>
-<li><strong>使用的是定时中断功能：定时器使用内部时钟定了一个 1 秒的时间</strong>，每隔 1 秒<strong>申请一次中断</strong>，在<strong>中断函数里执行 <code>Num++</code></strong>，最后在 <strong>OLED 上显示 <code>Num</code></strong>。</li>
-<li>画面里 OLED 显示 <code>Num:00009</code>，说明程序已经跑了 9 秒多——数字每秒自己加 1，不用主程序做任何事。</li>
-<li>这个工程的 main.c 很能说明「定时中断」的用法：<code>OLED_Init()</code>、<code>Timer_Init()</code> 之后死循环里只做一件事——<code>OLED_ShowNum(1, 5, Num, 5)</code>，<strong>计数的活全交给定时器的中断函数</strong>（本集不写这段代码，[6-2] 才写）。</li>
+<li>面包板上一块 STM32 最小系统板加一个 OLED 屏。</li>
+<li>用的是定时中断功能：定时器用内部时钟定了一个 1 秒的时间，每隔 1 秒申请一次中断，在中断函数里执行 <code>Num++</code>，最后在 OLED 上显示 <code>Num</code>。</li>
+<li>画面里 OLED 显示 <code>Num:00009</code>，说明程序已经跑了 9 秒多，数字每秒自己加 1，主程序什么都不用做。</li>
+<li>这个工程的 main.c 很能说明用法：<code>OLED_Init()</code>、<code>Timer_Init()</code> 之后死循环里只做一件事 <code>OLED_ShowNum(1, 5, Num, 5)</code>，计数的活全交给定时器的中断函数（本集不写这段，[6-2] 才写）。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/01-demo-timer-interrupt.jpg" alt="图 1：现象①定时器定时中断——面包板上的 STM32 与 OLED，内部 72MHz 时钟定时 1 秒，每进一次更新中断 Num++，屏幕显示 Num:00009"></p>
-<p><em>图 1：现象①定时器定时中断——面包板上的 STM32 与 OLED，内部 72MHz 时钟定时 1 秒，每进一次更新中断 Num++，屏幕显示 Num:00009</em></p>
+<p><em>图 1：现象①定时中断——内部 72MHz 时钟定时 1 秒，OLED 显示 Num:00009</em></p>
 <p><img src="../assets/images/stm32-13/02-demo-timer-code.jpg" alt="图 2：现象①工程 6-1 定时器定时中断 的 main.c——全局变量 Num、Timer_Init() 初始化定时器，主循环里只调 OLED_ShowNum 显示 Num（现成工程，本集不写代码）"></p>
-<p><em>图 2：现象①工程 <code>6-1 定时器定时中断</code> 的 main.c——全局变量 Num、Timer_Init() 初始化定时器，主循环里只调 OLED_ShowNum 显示 Num（现成工程，本集不写代码）</em></p>
+<p><em>图 2：现象①工程的 main.c——主循环只刷新 OLED，计数值由中断函数维护</em></p>
 <h3 id="1-2-程序-2-定时器外部时钟-工程-6-2-定时器外部时钟">1.2 程序 2：定时器外部时钟（工程 <code>6-2 定时器外部时钟</code>）</h3>
 <ul>
-<li>这个程序<strong>使用外部时钟来驱动定时器</strong>：在<strong>定时器指定的外部引脚</strong>上输入一个<strong>方波信号</strong>，用它来提供定时器<strong>计数的时钟</strong>。</li>
-<li>演示时暂时用<strong>对射式红外传感器</strong>来<strong>手动模拟一个外部时钟</strong>：拿挡光片<strong>依次遮挡、移开、遮挡、移开</strong>，就提供了一个方波。</li>
-<li>OLED 上除了 Num，下面还多显示一个 <strong>CNT</strong>，<strong>CNT 就是定时器里计数器的值</strong>。<strong>每遮挡、移开一次，计数器加 1</strong>；<strong>计数器计到 9 之后自动清 0</strong>，同时<strong>申请一次中断</strong>执行 <code>Num++</code>。</li>
-<li>所以外部时钟的两个用途：一是<strong>提供一段更加精准的时钟来计时</strong>；二是<strong>把外部时钟当做一个计数器</strong>，用来<strong>统计引脚上电平翻转的次数</strong>——毕竟<strong>定时器本质就是一个计数器</strong>。</li>
+<li>这个程序使用外部时钟来驱动定时器：在定时器指定的外部引脚上输入一个方波信号，用它来提供定时器计数的时钟。</li>
+<li>演示时暂时用对射式红外传感器手动模拟外部时钟：拿挡光片依次遮挡、移开、遮挡、移开，就提供了一个方波。</li>
+<li>OLED 上除了 Num 还多显示一个 CNT，CNT 就是定时器里计数器的值：每遮挡、移开一次计数器加 1，计到 9 之后自动清 0，同时申请一次中断执行 <code>Num++</code>。</li>
+<li>所以外部时钟有两个用途：一是提供一段更加精准的时钟来计时；二是把外部时钟当做一个计数器，统计引脚上电平翻转的次数——毕竟定时器本质就是一个计数器。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/03-demo-external-clock.jpg" alt="图 3：现象②定时器外部时钟——对射式红外传感器接在定时器外部引脚上，挡光片一挡一移产生方波，OLED 显示 Num 与 CNT:00002"></p>
-<p><em>图 3：现象②定时器外部时钟——对射式红外传感器接在定时器外部引脚上，挡光片一挡一移产生方波，OLED 显示 Num 与 CNT:00002</em></p>
+<p><em>图 3：现象②外部时钟——挡一次光 CNT 加 1，计到 9 清零并申请中断</em></p>
 <h2 id="2-tim-简介">2. TIM 简介</h2>
 <h3 id="2-1-定时器就是计数器">2.1 定时器就是计数器</h3>
 <ul>
-<li><strong>TIM 是英文 Timer 的缩写，意思是定时器。</strong></li>
-<li><strong>基本功能：定时器可以对输入的时钟进行计数，并在计数值达到设定值时触发中断。</strong> 也就是「<strong>定时触发中断</strong>」。</li>
-<li>由此可以看出来：<strong>定时器就是一个计数器</strong>。当这个计数器的<strong>输入是一个准确可靠的基准时钟</strong>时，<strong>对它计数的过程实际上就是计时的过程</strong>。</li>
-<li>换算举例（在 STM32 里定时器的<strong>基准时钟一般都是主频 72MHz</strong>）：<ul>
-<li><strong>对 72MHz 计 72 个数</strong>，就是 <strong>1MHz</strong>，也就是 <strong>1μs</strong> 的时间；</li>
-<li><strong>计 72000 个数</strong>，就是 <strong>1kHz</strong>，也就是 <strong>1ms</strong> 的时间。</li>
-</ul>
-</li>
+<li>TIM 是英文 Timer 的缩写，意思是定时器。</li>
+<li>基本功能：定时器可以对输入的时钟进行计数，并在计数值达到设定值时触发中断，也就是「定时触发中断」。</li>
+<li>由此可以看出：定时器就是一个计数器，当它的输入是一个准确可靠的基准时钟时，对它计数的过程实际上就是计时的过程。</li>
+<li>换算举例（STM32 里定时器的基准时钟一般都是主频 72MHz）：对 72MHz 计 72 个数就是 1MHz、也就是 1μs；计 72000 个数就是 1kHz、也就是 1ms。</li>
 </ul>
 <h3 id="2-2-时基单元与最大定时时间-59-65s">2.2 时基单元与最大定时时间 59.65s</h3>
 <ul>
-<li>STM32 的定时器拥有 <strong>16 位计数器、预分频器、自动重装寄存器</strong>的<strong>时基单元</strong>，在 <strong>72MHz 计数时钟下可以实现最大 59.65s 的定时</strong>。</li>
-<li>三个都是 16 位：<strong>2¹⁶ = 65536</strong>。如果<strong>预分频器设置最大、自动重装也设置最大</strong>，最大定时时间就是 <strong>65536 × 65536 / 72MHz ≈ 59.65s</strong>（把溢出频率取倒数得到），<strong>接近一分钟</strong>。</li>
-<li>嫌不够长还能<strong>级联</strong>：<strong>一个定时器的输出，当做另一个定时器的输入</strong>。级联两个，最大定时就是 <strong>59.65s × 65536 × 65536</strong>，<strong>大约 8000 多年</strong>；<strong>再级联一个</strong>又乘一次 <strong>65536 × 65536</strong>，<strong>大约 34 万亿年</strong>——指数爆炸。视频里调侃：小 STM32 三个定时器级联，就有「丈量宇宙年龄」的能力。</li>
+<li>STM32 的定时器拥有 16 位计数器、预分频器、自动重装寄存器组成的时基单元，在 72MHz 计数时钟下可以实现最大 59.65s 的定时。</li>
+<li>三个都是 16 位，2¹⁶ = 65536：预分频器设置最大、自动重装也设置最大，最大定时就是 65536 × 65536 / 72MHz ≈ 59.65s（把溢出频率取倒数得到），接近一分钟。</li>
+<li>嫌不够长还能级联：一个定时器的输出当做另一个定时器的输入。级联两个最大定时是 59.65s × 65536 × 65536，大约 8000 多年；再级联一个又乘一次 65536 × 65536，大约 34 万亿年，属于指数爆炸。</li>
 </ul>
 <h3 id="2-3-定时器不只会定时">2.3 定时器不只会定时</h3>
 <ul>
-<li>STM32 的定时器<strong>不仅具备基本的定时中断功能</strong>，而且还包含<strong>内外时钟源选择、输入捕获、输出比较、编码器接口、主从触发模式</strong>等多种功能。</li>
-<li>原因：<strong>定时器的基本结构非常通用</strong>，很多模块电路都能用到，所以 STM32 在它上面扩展了非常多功能。本大节的四部分就是把这几块功能拆开讲。</li>
+<li>STM32 的定时器不仅具备基本的定时中断功能，还包含内外时钟源选择、输入捕获、输出比较、编码器接口、主从触发模式等多种功能。</li>
+<li>原因是定时器的基本结构非常通用，很多模块电路都能用到，STM32 就在它上面扩展了很多功能；本大节的四部分就是把这几块功能拆开讲。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/04-timer-intro.jpg" alt="图 4：TIM 简介 PPT——定时器对输入时钟计数、到设定值触发中断；16 位计数器/预分频器/自动重装寄存器的时基单元，72MHz 下最大 59.65s；还有内外时钟源选择、输入捕获、输出比较、编码器接口、主从触发模式；分高级/通用/基本三类"></p>
-<p><em>图 4：TIM 简介 PPT——定时器对输入时钟计数、到设定值触发中断；16 位计数器/预分频器/自动重装寄存器的时基单元，72MHz 下最大 59.65s；还有内外时钟源选择、输入捕获、输出比较、编码器接口、主从触发模式；分高级/通用/基本三类</em></p>
+<p><em>图 4：TIM 简介 PPT 全貌——时基单元、最大 59.65s、五类扩展功能、三种类型</em></p>
 <h2 id="3-定时器类型与芯片资源">3. 定时器类型与芯片资源</h2>
 <h3 id="3-1-三种类型对照表">3.1 三种类型对照表</h3>
-<p>STM32 的定时器根据<strong>复杂度和应用场景</strong>分为<strong>高级定时器、通用定时器、基本定时器</strong>三种：<strong>高级最复杂、通用中等复杂且最常用、基本最简单</strong>。课程主要讲<strong>通用定时器</strong>。</p>
+<p>STM32 的定时器按复杂度和应用场景分为高级、通用、基本三种：高级最复杂，通用中等复杂且最常用，基本最简单；课程主要讲通用定时器。</p>
 <table>
 <thead>
 <tr>
@@ -272,70 +265,66 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>编号和类型的对应关系要熟悉</strong>：同一个芯片一般有很多个定时器，所以 TIM 后面会跟一个数字——<strong>TIM1 和 TIM8 是高级定时器；TIM2、3、4、5 是通用定时器；TIM6 和 TIM7 是基本定时器</strong>。</li>
-<li><strong>总线要记住</strong>：<strong>高级定时器连接的是性能更高的 APB2 总线；通用定时器和基本定时器连接的是 APB1 总线</strong>——这<strong>在 RCC 开启时钟的时候要注意一下</strong>。</li>
-<li><strong>功能是向下兼容的</strong>：<strong>高级定时器拥有通用定时器的全部功能，通用定时器又有基本定时器的全部功能</strong>，所以学会了通用定时器，再看高级和基本定时器就都没问题了。</li>
+<li>编号和类型的对应关系要熟悉：TIM1、TIM8 是高级定时器，TIM2、TIM3、TIM4、TIM5 是通用定时器，TIM6、TIM7 是基本定时器。</li>
+<li>总线要记住：高级定时器接性能更高的 APB2，通用和基本定时器接 APB1，RCC 开启时钟时要注意。</li>
+<li>功能是向下兼容的：高级拥有通用的全部功能，通用拥有基本的全部功能，学会通用再看高级和基本就没问题了。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/05-timer-types.jpg" alt="图 5：定时器类型 PPT——高级 TIM1/TIM8 挂 APB2（通用全部功能 + 重复计数器、死区生成、互补输出、刹车输入）；通用 TIM2～TIM5、基本 TIM6/TIM7 挂 APB1；STM32F103C8T6 的资源是 TIM1～TIM4"></p>
-<p><em>图 5：定时器类型 PPT——高级 TIM1/TIM8 挂 APB2（通用全部功能 + 重复计数器、死区生成、互补输出、刹车输入）；通用 TIM2～TIM5、基本 TIM6/TIM7 挂 APB1；STM32F103C8T6 的资源是 TIM1～TIM4</em></p>
+<p><em>图 5：三种定时器的编号、总线与功能差异</em></p>
 <h3 id="3-2-f103c8t6-的定时器资源">3.2 F103C8T6 的定时器资源</h3>
 <ul>
-<li>对于 <strong>STM32F103C8T6</strong> 这款芯片，它内部拥有的定时器资源是 <strong>TIM1 到 TIM4</strong>，也就是<strong>一个高级定时器和三个通用定时器，没有基本定时器</strong>。</li>
-<li><strong>不同的型号，定时器数量是不同的</strong>。使用这个外设之前，<strong>一定要查一下它是不是有这个外设</strong>，别操作到了不存在的外设，那样是不会起作用的。</li>
+<li>对 STM32F103C8T6 来说，内部定时器资源是 TIM1 到 TIM4，也就是一个高级定时器加三个通用定时器，没有基本定时器。</li>
+<li>不同型号的定时器数量不同，用这个外设之前一定要查一下芯片有没有，别操作不存在的外设，那样不会起作用。</li>
 </ul>
 <h3 id="3-3-高级定时器的结构升级">3.3 高级定时器的结构升级</h3>
-<p>对比通用定时器的结构，<strong>左上那一大部分都没有变化</strong>，主要改动在右边这几块：</p>
+<p>对比通用定时器的结构，左上那一大部分都没有变化，主要改动在右边这几块：</p>
 <ul>
-<li><strong>重复次数计数器</strong>：在「申请中断」的地方<strong>增加了一个重复次数计数器</strong>。有了这个计数器，就可以实现<strong>每隔几个计数周期才发生一次更新事件和更新中断</strong>——原来的结构是<strong>每个计数周期完成后都会更新</strong>，现在相当于<strong>对输出的更新信号又做了一次分频</strong>。对高级定时器来说，之前算的最大定时时间 59 秒多，<strong>在这里就还需要再乘一个 65536</strong>，定时时间又提升了很多。</li>
-<li><strong>输出比较模块的升级</strong>：<strong>DTG（Dead Time Generate）是死区生成电路</strong>，右边输出引脚<strong>由原来的一个变为了两个互补的输出</strong>，可以输出<strong>一对互补的 PWM 波</strong>。这些电路是为了<strong>驱动三相无刷电机</strong>——三相无刷电机比较常用，四轴飞行器、电动车的后轮、电钻等里面都可能是它。三相无刷电机的驱动电路一般需要 <strong>3 个桥臂、每个桥臂 2 个大功率开关管</strong>，总共需要 <strong>6 个</strong>，所以这里输出 PWM 引脚的<strong>前三路变为互补输出</strong>，<strong>第四路却没什么变化</strong>——因为三相电机只需要三路。</li>
-<li><strong>死区的作用</strong>：为了防止互补输出的 PWM 驱动桥臂时，在开关切换的瞬间<strong>由于器件的不理想造成短暂的直通现象</strong>，前面加上了<strong>死区生成电路</strong>，在开关切换瞬间<strong>产生一定时长的死区，让桥臂的上下管全都关断</strong>，防止直通。</li>
-<li><strong>刹车输入（BKIN，Break In）</strong>：为了给电机驱动提供<strong>安全保障</strong>。如果<strong>外部引脚 BKIN 产生了刹车信号</strong>，或者<strong>内部时钟失效产生了故障</strong>，控制电路就会<strong>自动切断电机的输出</strong>，防止意外发生。（后面讲 RCC 时会看到，这个刹车输入也接了 <strong>CSS 时钟安全系统</strong>。）</li>
-<li>这些功能<strong>主要是为三相无刷电机的驱动设计的，本课程暂时不会涉及到</strong>（高级定时器还有一些没详细介绍的内容，后续课程再说），<strong>简单说一下、有个印象就行，现在还不必深入了解</strong>。</li>
+<li>重复次数计数器：在申请中断的地方增加了一个重复次数计数器，可以实现每隔几个计数周期才发生一次更新事件和更新中断，相当于对更新信号又做了一次分频；前面算的 59 秒多在这里还要再乘一个 65536，定时时间又提升很多。</li>
+<li>输出比较模块的升级：DTG（Dead Time Generate）是死区生成电路，右边输出引脚由一个变两个互补输出，可以输出一对互补的 PWM 波。</li>
+<li>这样设计是为了驱动三相无刷电机：三相无刷电机比较常用，四轴飞行器、电动车的后轮、电钻里都可能是它。驱动电路一般需要 3 个桥臂、每个桥臂 2 个大功率开关管，总共 6 个，所以输出 PWM 引脚的前三路变为互补输出，第四路没什么变化，因为三相电机只需要三路。</li>
+<li>死区的作用：防止互补 PWM 驱动桥臂时，开关切换瞬间因器件不理想造成短暂的直通，死区生成电路会在切换瞬间产生一定时长的死区，让桥臂上下管全都关断。</li>
+<li>刹车输入（BKIN，Break In）：为电机驱动提供安全保障，外部引脚 BKIN 产生刹车信号、或内部时钟失效产生故障时，控制电路会自动切断电机输出（后面讲 RCC 会看到它也接了 CSS 时钟安全系统）。</li>
+<li>这些功能主要为三相无刷电机驱动设计，本课程暂时不涉及，简单说一下、有个印象就行。</li>
 </ul>
 <h2 id="4-时基单元与基本定时器结构">4. 时基单元与基本定时器结构</h2>
-<p>先看最简单的<strong>基本定时器</strong>（手册图 144 基本定时器框图）：它能完成<strong>定时中断</strong>和<strong>主模式触发 DAC</strong>两件事。</p>
+<p>先看最简单的基本定时器（手册图 144 基本定时器框图）：它能完成定时中断和主模式触发 DAC 两件事。</p>
 <h3 id="4-1-三个最重要的寄存器组成时基单元">4.1 三个最重要的寄存器组成时基单元</h3>
 <ul>
-<li>图中第一部分有<strong>三个最重要的寄存器</strong>：<strong>预分频器（PSC）、计数器（CNT）、自动重装寄存器（ARR）</strong>。它们构成了最基本的<strong>计数计时电路</strong>，所以这块电路就叫做<strong>时基单元</strong>。</li>
-<li><strong>预分频器之前连接的就是基准计数时钟的输入</strong>。由于<strong>基本定时器只能选择内部时钟</strong>，可以认为这根线直接连到了输入端的<strong>内部时钟 CK_INT</strong>；<strong>内部时钟的来源是 <code>RCC TIMxCLK</code>，频率一般就是系统主频 72MHz</strong>，所以通向时基单元的计数基准频率就是 <strong>72M</strong>。</li>
+<li>图中第一部分有三个最重要的寄存器：预分频器（PSC）、计数器（CNT）、自动重装寄存器（ARR），它们构成最基本的计数计时电路，所以叫时基单元。</li>
+<li>预分频器之前连接的就是基准计数时钟的输入；基本定时器只能选内部时钟，可以认为这根线直接连到内部时钟 CK_INT，它的来源是 <code>RCC TIMxCLK</code>，频率一般就是系统主频 72MHz。</li>
 </ul>
 <h3 id="4-2-预分频器-psc-实际分频系数-值-1">4.2 预分频器 PSC：实际分频系数 = 值 + 1</h3>
 <ul>
-<li><strong>预分频器可以对 72MHz 的计数时钟进行预分频</strong>：<ul>
-<li>寄存器写 <strong>0</strong>，就是<strong>不分频</strong>（1 分频），输出频率 = 输入频率 = <strong>72MHz</strong>；</li>
-<li>写 <strong>1</strong>，就是 <strong>2 分频</strong>，输出 = 72MHz/2 = <strong>36MHz</strong>；</li>
-<li>写 <strong>2</strong>，就是 <strong>3 分频</strong>，输出 = 72MHz/3，以此类推。</li>
-</ul>
-</li>
-<li>所以 <strong>预分频器的值和实际的分频系数相差了 1</strong>：<strong>实际分频系数 = 预分频器的值 + 1</strong>。</li>
-<li>预分频器是 <strong>16 位</strong>的，<strong>最大值可以写 65535，也就是 65536 分频</strong>。</li>
+<li>预分频器可以对 72MHz 的计数时钟进行预分频：写 0 不分频（1 分频），输出频率 72MHz；写 1 是 2 分频，输出 36MHz；写 2 是 3 分频，以此类推。</li>
+<li>所以预分频器的值和实际分频系数相差 1：实际分频系数 = 预分频器的值 + 1。</li>
+<li>预分频器是 16 位的，最大值可以写 65535，也就是 65536 分频。</li>
 </ul>
 <h3 id="4-3-计数器-cnt-与自动重装寄存器-arr">4.3 计数器 CNT 与自动重装寄存器 ARR</h3>
 <ul>
-<li><strong>计数时钟每来一个上升沿，计数器的值就加 1</strong>。计数器也是 <strong>16 位</strong>的，值可以从 <strong>0 一直加到 65535</strong>；<strong>如果再加，计数器就会回到 0 重新开始</strong>。所以计数器的值在计时过程中会<strong>不断自增运行</strong>。</li>
-<li><strong>当自增运行到目标值时产生中断，就完成了定时的任务</strong>。所以还需要一个<strong>存储目标值的寄存器</strong>，那就是<strong>自动重装寄存器 ARR</strong>。</li>
-<li><strong>自动重装寄存器也是 16 位</strong>的，它存的就是我们写入的<strong>计数目标值</strong>。运行过程中<strong>计数值不断自增，自动重装值是固定的目标</strong>；<strong>当计数值等于自动重装值时</strong>（也就是计时时间到了），它就会<strong>产生一个中断信号，并且清零计数器</strong>，计数器<strong>自动开始下一次</strong>的计数计时。</li>
-<li>图上那个<strong>向上的折线箭头</strong>就代表这里会<strong>产生中断信号</strong>。</li>
+<li>计数时钟每来一个上升沿，计数器的值就加 1；计数器也是 16 位，值可以从 0 加到 65535，再加就回到 0 重新开始，所以它的值在计时过程中会不断自增运行。</li>
+<li>自增到目标值时产生中断就完成了定时任务，所以还需要一个存储目标值的寄存器，那就是自动重装寄存器 ARR。</li>
+<li>ARR 也是 16 位，存的就是我们写入的计数目标值；运行过程中计数值不断自增、自动重装值固定，当计数值等于自动重装值时（计时时间到），就产生一个中断信号并清零计数器，自动开始下一次计数。</li>
+<li>图上那个向上的折线箭头就代表这里会产生产生中断信号。</li>
 </ul>
 <h3 id="4-4-更新中断与更新事件">4.4 更新中断与更新事件</h3>
 <ul>
-<li>这种「<strong>计数值等于自动重装值产生的中断</strong>」一般叫做**「更新中断」<strong>。更新中断之后就会</strong>通往 NVIC**，我们再配置好 NVIC 的定时器通道，定时器的更新中断就能得到 CPU 的响应了。</li>
-<li>图上<strong>向下的箭头</strong>代表这里会<strong>产生一个事件</strong>，对应的事件叫做**「更新事件」**。<strong>更新事件不会触发中断，但可以触发内部其他电路的工作</strong>。</li>
-<li>以上就是<strong>定时器定时中断的全部流程</strong>：<strong>从基准时钟 → 预分频器 → 计数器；计数器计数自增，同时不断地与自动重装寄存器进行比较；它俩值相等时（即计时时间到），产生一个更新中断和更新事件；CPU 响应更新中断，就完成了定时中断的任务。</strong></li>
+<li>「计数值等于自动重装值产生的中断」一般叫做更新中断，它之后通往 NVIC，配好 NVIC 的定时器通道，更新中断就能得到 CPU 的响应。</li>
+<li>图上向下的箭头代表这里会产生一个事件，叫更新事件；更新事件不会触发中断，但可以触发内部其它电路的工作。</li>
+<li>以上就是定时器定时中断的全部流程：基准时钟 → 预分频器 → 计数器；计数器自增的同时不断与自动重装寄存器比较；两者相等（计时时间到）时产生一个更新中断和更新事件；CPU 响应更新中断，完成定时中断的任务。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/06-basic-timer-block.jpg" alt="图 6：手册图 144 基本定时器框图——来自 RCC 的 TIMxCLK 经内部时钟 CK_INT 进触发控制器；红圈部分就是 PSC 预分频器、CNT 计数器、ARR 自动重装寄存器组成的时基单元（红圈并标出 U/UI 更新事件与更新中断）"></p>
-<p><em>图 6：手册图 144 基本定时器框图——来自 RCC 的 TIMxCLK 经内部时钟 CK_INT 进触发控制器；红圈部分就是 PSC 预分频器、CNT 计数器、ARR 自动重装寄存器组成的时基单元（红圈并标出 U/UI 更新事件与更新中断）</em></p>
+<p><em>图 6：手册图 144 基本定时器框图，红圈是时基单元，标出 U 与 UI</em></p>
 <p><img src="../assets/images/stm32-13/07-update-interrupt.jpg" alt="图 7：更新中断与更新事件——红箭头画出「计数值 = 自动重装值」的时刻，此时同时产生更新中断（UI，向上箭头）和更新事件（U，向下箭头）"></p>
-<p><em>图 7：更新中断与更新事件——红箭头画出「计数值 = 自动重装值」的时刻，此时同时产生更新中断（UI，向上箭头）和更新事件（U，向下箭头）</em></p>
+<p><em>图 7：CNT = ARR 的时刻同时产生更新中断（UI）与更新事件（U）</em></p>
 <h3 id="4-5-主模式触发-dac-trgo">4.5 主模式触发 DAC（TRGO）</h3>
 <ul>
-<li><strong>主从触发模式是 STM32 定时器的一大特色</strong>：它能让<strong>内部的硬件在不受程序的控制下自动运行</strong>；如果能把这个主从触发模式掌握好，在某些情景下<strong>会极大地减轻 CPU 的负担</strong>。</li>
-<li>基本定时器的<strong>主模式触发 DAC</strong> 有什么用：用 DAC 输出一段波形时，如果用正常的思路，就是<strong>先设置一个定时器产生中断，在中断里再触发 DAC 转换</strong>——这样也能做，但会让<strong>主程序处于频繁被中断的状态</strong>，影响主程序运行和其他中断的响应。</li>
-<li>所以定时器设计了一个<strong>主模式</strong>：可以<strong>把这个定时器的更新事件映射到「触发输出 TRGO（Trigger Out）」的位置</strong>，然后 <strong>TRGO 直接接到 DAC 的触发转换引脚</strong>上。这样<strong>定时器的更新就不需要再通过中断来触发 DAC 转换</strong>，<strong>整个过程不需要软件的参与，实现了硬件的自动化</strong>。</li>
-<li>除了主模式，还有更多硬件自动化的设计（后续再讲）。</li>
+<li>主从触发模式是 STM32 定时器的一大特色，它能让内部硬件不受程序控制自动运行，掌握好了在某些情景下能极大减轻 CPU 负担。</li>
+<li>基本定时器的主模式触发 DAC 有什么用：用 DAC 输出波形时，正常思路是定时器产生中断、在中断里触发 DAC 转换，但这样主程序会频繁被中断，影响其它中断的响应。</li>
+<li>所以定时器设计了一个主模式：把更新事件映射到触发输出 TRGO（Trigger Out），TRGO 直接接到 DAC 的触发转换引脚，整个过程不需要软件参与，实现硬件自动化。</li>
+<li>除了主模式，还有更多硬件自动化的设计，后续再讲。</li>
 </ul>
 <h2 id="5-计数模式">5. 计数模式</h2>
-<p>前面解释时用的都是<strong>向上计数</strong>模式：<strong>计数器从 0 开始向上自增，计到重装值，清零同时申请中断，然后开始下一轮，依次循环</strong>。</p>
+<p>前面解释时用的都是向上计数：计数器从 0 开始向上自增，计到重装值清零并申请中断，然后开始下一轮，依次循环。</p>
 <table>
 <thead>
 <tr>
@@ -361,110 +350,90 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>基本定时器仅支持向上计数这一种模式</strong>；<strong>通用定时器和高级定时器支持向上、向下、中央对齐这三种模式</strong>。</li>
-<li>模式虽然多，但<strong>最常用的还是向上计数模式</strong>，其他两种<strong>了解一下</strong>、主要掌握向上计数就行。</li>
+<li>基本定时器仅支持向上计数这一种模式，通用和高级支持向上、向下、中央对齐三种。</li>
+<li>模式虽多，最常用的还是向上计数，其它两种了解一下、主要掌握向上计数。</li>
 </ul>
 <h2 id="6-时钟源">6. 时钟源</h2>
 <h3 id="6-1-通用定时器框图-多了时钟源和捕获-比较">6.1 通用定时器框图：多了时钟源和捕获/比较</h3>
 <ul>
-<li>到通用定时器，<strong>结构瞬间复杂了很多</strong>。中间<strong>最核心的部分还是时基单元</strong>，结构和基本定时器<strong>一样</strong>（预分频器、计数器、自动重装寄存器），<strong>工作流程也一样</strong>（预分频器对时钟预分频、计数器自增计数）。</li>
-<li>上面的部分是<strong>内外时钟源选择和主从触发模式</strong>的结构，下面多出<strong>输出比较</strong>和<strong>输入捕获</strong>两块电路。</li>
+<li>到通用定时器，结构瞬间复杂了很多，但中间最核心的仍是时基单元，结构和基本定时器一样（预分频器、计数器、自动重装寄存器），工作流程也一样。</li>
+<li>上面的部分是内外时钟源选择和主从触发模式，下面多出输出比较和输入捕获两块电路。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/08-general-timer-block.jpg" alt="图 8：手册图 98 通用定时器框图——中间仍是 PSC/CNT/ARR 时基单元；左上为 ETR/ITRx/TIx 等外部时钟输入与主从触发；下方为 4 路输入捕获和 4 路输出比较（共用捕获/比较寄存器）"></p>
-<p><em>图 8：手册图 98 通用定时器框图——中间仍是 PSC/CNT/ARR 时基单元；左上为 ETR/ITRx/TIx 等外部时钟输入与主从触发；下方为 4 路输入捕获和 4 路输出比较（共用捕获/比较寄存器）</em></p>
+<p><em>图 8：手册图 98 通用定时器框图，多出时钟源选择与捕获/比较</em></p>
 <h3 id="6-2-外部时钟模式-2-etr-引脚">6.2 外部时钟模式 2：ETR 引脚</h3>
 <ul>
-<li>对<strong>基本定时器</strong>而言，<strong>只能选择内部时钟，也就是系统频率 72MHz</strong>；到了<strong>通用定时器</strong>，<strong>不仅可以选择内部的 72MHz 时钟，还可以选择外部时钟</strong>。</li>
-<li><strong>ETR（External）引脚的位置可以参考引脚定义表</strong>：表里 <strong>PA0 这一行写着 <code>TIM2_CH1_ETR</code></strong>，意思就是这个 <strong>TIM2 的 CH1 和 ETR 都复用在了 PA0 引脚</strong>上；下面还有 CH2、CH3、CH4 和其他定时器的引脚，也都能在表里找到。</li>
-<li>于是可以在 <strong>TIM2 的 ETR 引脚（也就是 PA0）上接一个外部方波时钟</strong>，然后<strong>配置内部的极性选择、边沿检测和预分频器电路</strong>，再配置<strong>输入滤波电路</strong>——外部信号难免有毛刺，这些电路可以对输入的波形<strong>滤波</strong>，同时也可以选择<strong>极性</strong>和<strong>预分频</strong>。</li>
-<li>最后<strong>滤波后的信号兵分两路</strong>：<strong>上面一路 ETRF 进入触发控制器</strong>，紧接着就可以选择<strong>作为时基单元的时钟</strong>了。如果要在 ETR 外部引脚提供时钟，或者<strong>想对 ETR 时钟进行计数、把这个定时器当做计数器来用</strong>，就走这一路——<strong>这一路在 STM32 里叫做「外部时钟模式 2」</strong>。</li>
+<li>基本定时器只能选内部时钟（系统频率 72MHz），通用定时器不仅可选内部 72MHz，还可以选外部时钟。</li>
+<li>ETR（External）引脚的位置可以查引脚定义表：表里 PA0 这一行写着 <code>TIM2_CH1_ETR</code>，意思是 TIM2 的 CH1 和 ETR 都复用在了 PA0 上。</li>
+<li>于是可以在 TIM2 的 ETR 引脚（PA0）上接一个外部方波时钟，经内部的极性选择、边沿检测、预分频电路，再配置输入滤波电路——外部信号难免有毛刺，这些电路可以对输入波形滤波，同时选择极性和预分频。</li>
+<li>滤波后的信号兵分两路：上面一路 ETRF 进入触发控制器，紧接着就可以作为时基单元的时钟；这一路在 STM32 里叫做外部时钟模式 2，想用引脚给时钟、或把定时器当计数器计数 ETR 时钟时就走这一路。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/09-etr-pin.jpg" alt="图 9：引脚定义表——红圈标出 PA0 的复用功能 TIM2_CH1_ETR，即 TIM2 的 CH1 和 ETR 都复用在这个引脚上"></p>
-<p><em>图 9：引脚定义表——红圈标出 PA0 的复用功能 <code>TIM2_CH1_ETR</code>，即 TIM2 的 CH1 和 ETR 都复用在这个引脚上</em></p>
+<p><em>图 9：PA0 的复用功能 TIM2_CH1_ETR</em></p>
 <p><img src="../assets/images/stm32-13/10-etr-clock-path.jpg" alt="图 10：外部时钟模式 2 的路径——红箭头从 TIMx_ETR 经极性选择/边沿检测/预分频、输入滤波 → ETRF → 触发控制器，作为时基单元的时钟"></p>
-<p><em>图 10：外部时钟模式 2 的路径——红箭头从 TIMx_ETR 经极性选择/边沿检测/预分频、输入滤波 → ETRF → 触发控制器，作为时基单元的时钟</em></p>
+<p><em>图 10：ETR 经极性、边沿、预分频、滤波 → ETRF → 触发控制器的通路</em></p>
 <h3 id="6-3-外部时钟模式-1-trgi-触发输入">6.3 外部时钟模式 1：TRGI（触发输入）</h3>
 <ul>
-<li>除了外部 ETR 引脚，还有一路可以提供时钟，就是 <strong>TRGI（Trigger In）</strong>。从名字看，它<strong>主要是用作触发输入</strong>、可以<strong>触发定时器的从模式</strong>；本小节讲的是<strong>把它当外部时钟来用</strong>的情况，你<strong>暂且就可以把这个 TRGI 当做外部时钟的输入</strong>。</li>
-<li>通过这一路的外部时钟有这些来源：<ol>
-<li><strong>ETR 引脚的信号</strong>：ETR 既可以从上面那一路进来当时钟，也可以从下面这一路进来当时钟，<strong>两种情况对于时钟输入而言是等价的</strong>，只不过下面这一路会<strong>占用触发输入的通道</strong>。</li>
-<li><strong>ITRx：来自其它定时器</strong>（级联用）。主模式的输出 <strong>TRGO 通向其它定时器时，就接到了其它定时器的 ITRx 引脚</strong>上。具体连接方式手册里有一张表——比如 <strong>TIM2 的 ITR0 是接在 TIM1 的 TRGO 上</strong>的；靠这一路就能实现<strong>定时器级联</strong>：先初始化 TIM3 选 TRGO 输出更新事件，再初始化 TIM2 选 <strong>ITR2（对应 TIM3 的 TRGO）</strong>、时钟选择<strong>外部时钟模式 1</strong>，这样 <strong>TIM3 的更新事件就可以驱动 TIM2 的时基单元</strong>。</li>
-<li><strong>TI1F_ED</strong>：连接的是<strong>输入捕获单元的 CH1 引脚</strong>，后缀 <strong>ED（Edge）是边沿</strong>的意思——通过这一路输入的时钟，<strong>上升沿和下降沿均有效</strong>。</li>
-<li><strong>TI1FP1</strong>：<strong>CH1 引脚</strong>的时钟；<strong>TI2FP2</strong>：<strong>CH2 引脚</strong>的时钟。</li>
+<li>除了 ETR 引脚，还有一路可以提供时钟，就是 TRGI（Trigger In）：它主要用作触发输入、可以触发定时器的从模式，本小节讲的是把它当外部时钟用，暂且就把它当外部时钟输入。</li>
+<li>通过这一路进来的外部时钟有这些来源：<ol>
+<li>ETR 引脚的信号：ETR 既可以从上面那一路当时钟，也可以从下面这一路当时钟，两种情况对时钟输入是等价的，只不过下面这一路会占用触发输入的通道。</li>
+<li>ITRx 来自其它定时器（级联用）：主模式的 TRGO 通向其它定时器时，就接到其它定时器的 ITRx 上，比如 TIM2 的 ITR0 是接在 TIM1 的 TRGO 上的。先初始化 TIM3 选 TRGO 输出更新事件，再初始化 TIM2 选 ITR2（对应 TIM3 的 TRGO）、时钟选外部时钟模式 1，TIM3 的更新事件就能驱动 TIM2 的时基单元。</li>
+<li>TI1F_ED：连接输入捕获单元的 CH1 引脚，后缀 ED（Edge）是边沿，通过这一路输入的时钟上升沿和下降沿均有效。</li>
+<li>TI1FP1 是 CH1 引脚的时钟，TI2FP2 是 CH2 引脚的时钟。</li>
 </ol>
 </li>
-<li>所以<strong>外部时钟模式 1</strong> 的输入就是：<strong>CH1 引脚的边沿、CH1 引脚、CH2 引脚</strong>，再加上 <strong>ETR</strong> 和 <strong>ITRx</strong>。设置这么复杂的输入，<strong>不仅仅是为了扩大时钟输入的范围，更多是为了某些特殊应用场景</strong>（比如定时器级联）；这些电路<strong>大概了解一下</strong>就行，<strong>对时钟输入而言最常用的还是内部的 72MHz 时钟</strong>，最简单最直接。</li>
+<li>设置这么复杂的输入，不只为了扩大时钟输入范围，更多是为了某些特殊场景（如定时器级联）；这些电路了解一下就行，对时钟输入而言最常用的还是内部 72MHz。</li>
 </ul>
 <h3 id="6-4-编码器模式">6.4 编码器模式</h3>
 <ul>
-<li>除了上面几种，还有<strong>编码器模式</strong>——这是<strong>编码器独用的模式</strong>，普通的时钟用不到它。</li>
+<li>除了上面几种，还有编码器模式——这是编码器独用的模式，普通的时钟用不到。</li>
 </ul>
 <h3 id="6-5-主模式输出与捕获-比较电路">6.5 主模式输出与捕获/比较电路</h3>
 <ul>
-<li>右边这个就是<strong>定时器的主模式输出</strong>：它可以把定时器内部的<strong>一些事件映射到这里来</strong>，<strong>用于触发其它定时器、DAC 或者 ADC</strong>。可见<strong>触发输出的范围比基本定时器更广</strong>一些（基本定时器只有 TRGO→DAC）。</li>
-<li>下面这部分包含两块电路：<ul>
-<li><strong>右边是输出比较电路</strong>，总共 <strong>4 个通道</strong>，分别对应 <strong>CH1 到 CH4 引脚</strong>，可以用于<strong>输出 PWM 波形、驱动电机</strong>；</li>
-<li><strong>左边是输入捕获电路</strong>，也是 <strong>4 个通道</strong>，对应 CH1 到 CH4 引脚，可以用于<strong>测输入方波的频率</strong>等；</li>
-<li>中间是<strong>捕获/比较寄存器</strong>，<strong>输入捕获和输出比较电路共用</strong>——因为两者不能同时使用，所以寄存器和引脚都是共用的。</li>
-</ul>
-</li>
+<li>右边是定时器的主模式输出：可以把内部一些事件映射过来，用于触发其它定时器、DAC 或 ADC，所以触发输出的范围比基本定时器更广（基本定时器只有 TRGO 到 DAC）。</li>
+<li>下面这部分包含两块电路：右边是输出比较，总共 4 个通道对应 CH1 到 CH4，可输出 PWM 波形、驱动电机；左边是输入捕获，也是 4 个通道对应 CH1 到 CH4，可测输入方波的频率。</li>
+<li>中间是捕获/比较寄存器，输入捕获和输出比较共用——因为两者不能同时使用，所以寄存器和引脚都是共用的。</li>
 </ul>
 <h2 id="7-定时中断基本结构">7. 定时中断基本结构</h2>
 <p><img src="../assets/images/stm32-13/11-tim-interrupt-structure.jpg" alt="图 11：定时中断基本结构（作者重画的简化图）——左：RCC 内部时钟 / ETR 外部时钟 / ITRx 其它定时器 / TIx 捕获通道 → 选择「内部时钟模式 / 外部时钟模式 2 / 外部时钟模式 1 / 编码器模式」；中：时基单元 PSC 预分频器 → CNT 计数器（与 ARR 自动重装器比较）+ 运行控制；右：中断输出控制 → NVIC"></p>
-<p><em>图 11：定时中断基本结构（作者重画的简化图）——左：RCC 内部时钟 / ETR 外部时钟 / ITRx 其它定时器 / TIx 捕获通道 → 选择「内部时钟模式 / 外部时钟模式 2 / 外部时钟模式 1 / 编码器模式」；中：时基单元 PSC 预分频器 → CNT 计数器（与 ARR 自动重装器比较）+ 运行控制；右：中断输出控制 → NVIC</em></p>
+<p><em>图 11：定时中断基本结构简化图，左时钟源、中时基单元、右中断输出</em></p>
 <ul>
-<li>这张图把无关的东西都去掉了，另外<strong>加了一些定时器框图里没体现出来的东西</strong>，专门用来讲本小节的两个任务：<strong>定时中断</strong>和<strong>内外时钟源选择</strong>。</li>
-<li><strong>中间最重要的还是时基单元</strong>：<strong>PSC（Prescaler）预分频器、CNT（Counter）计数器、ARR（Auto Reload Register）自动重装器</strong>这三个寄存器。</li>
-<li><strong>下面是运行控制</strong>，就是<strong>控制寄存器的一些位</strong>，比如<strong>启动/停止、向上或向下计数</strong>等等；<strong>操作这些寄存器就能控制时基单元的运行</strong>。</li>
-<li><strong>左边是为时基单元提供时钟的部分</strong>：可以选择 <strong>RCC 提供的内部时钟</strong>，也可以选择 <strong>ETR 引脚提供的外部时钟模式 2</strong>；<strong>本小节第一个程序（定时器定时中断）用的就是内部时钟这一路，第二个程序（定时器外部时钟）用的就是外部时钟模式 2 这一路</strong>。此外还有 <strong>TRGI 对应的一路（外部时钟模式 1）</strong>，包括 <strong>ETR 外部时钟、ITRx 其他定时器、TIx 输入捕获通道</strong>——这些就是定时器所有可选的时钟源；最后还有一个<strong>编码器模式</strong>，一般是编码器独用。</li>
-<li><strong>右边是「计时时间到、产生更新中断后」的信号去向</strong>：<ul>
-<li><strong>如果是高级定时器，这里还会多一个重复计数器</strong>（本小节暂不考虑）；</li>
-<li>中断信号会先在<strong>状态寄存器里置一个中断标志位</strong>，这个标志位再<strong>通过中断输出控制，到 NVIC 申请中断</strong>。</li>
-</ul>
-</li>
-<li>为什么要有<strong>中断输出控制</strong>：因为这个定时器模块<strong>有很多地方都要申请中断</strong>——不仅<strong>更新</strong>要申请中断，<strong>触发信号</strong>也会申请，还有 <strong>输入捕获</strong>和<strong>输出比较匹配时</strong>也会申请。这些中断都要经过中断输出控制：<strong>需要这个中断就允许，不需要就禁止</strong>。简单说，<strong>中断输出控制就是一个中断输出的允许位</strong>，需要某个中断时记得<strong>允许一下</strong>。</li>
+<li>这张图把无关的东西都去掉了，另外加了一些定时器框图里没体现出来的东西，专门用来讲本小节的两个任务：定时中断和内外时钟源选择。</li>
+<li>中间最重要的还是时基单元：PSC 预分频器、CNT 计数器、ARR 自动重装器。</li>
+<li>下面是运行控制，就是控制寄存器的一些位，比如启动/停止、向上或向下计数，操作这些寄存器就能控制时基单元。</li>
+<li>左边是给时基单元提供时钟的部分：可选 RCC 内部时钟，也可选 ETR 引脚的外部时钟模式 2；本小节程序一用的就是内部时钟，程序二用的是外部时钟模式 2。</li>
+<li>此外还有 TRGI 对应的一路（外部时钟模式 1），包括 ETR 外部时钟、ITRx 其它定时器、TIx 输入捕获通道，这些就是所有可选的时钟源，最后还有一个编码器模式。</li>
+<li>右边是「计时时间到、产生更新中断后」的信号去向：高级定时器这里还会多一个重复计数器（暂不考虑）；中断信号先在状态寄存器置一个中断标志位，再通过中断输出控制到 NVIC 申请中断。</li>
+<li>为什么要有中断输出控制：这个模块很多地方都要申请中断——更新要申请，触发信号也会申请，输入捕获和输出比较匹配时也会申请，需要就允许、不需要就禁止，所以它就是一个中断输出的允许位。</li>
 </ul>
 <h2 id="8-时序与公式">8. 时序与公式</h2>
-<h3 id="8-1-预分频器时序-手册图-99-预分频器参数从-1-变到-2-时">8.1 预分频器时序（手册图 99：预分频器参数从 1 变到 2 时）</h3>
+<h3 id="8-1-预分频器时序-手册图-99-参数从-1-变到-2">8.1 预分频器时序（手册图 99：参数从 1 变到 2）</h3>
 <ul>
-<li>第一行 <strong>CK_PSC</strong>：<strong>预分频器的输入时钟</strong>，就是前面「选内部时钟」那个位置，一般是 <strong>72MHz</strong>，这个时钟在不断地运行。</li>
-<li>下面 <strong>CNT_EN</strong>：<strong>计数器使能</strong>，<strong>高电平计数器正常运行，低电平计数器停止</strong>。</li>
-<li>再下面是 <strong>CK_CNT</strong>：<strong>计数器时钟</strong>。开始时计数器未使能，计数器时钟不运行；使能之后时钟才开始跑。<strong>后半段预分频器系数变为 2 了</strong>（能看到 CK_CNT 的频率变成一半）。</li>
-<li>在计数器时钟的驱动下，<strong>计数器寄存器</strong>跟着时钟的<strong>上升沿不断自增</strong>。中间某个位置之后，计数值变为 <strong>0</strong>——虽然图里没写，但<strong>可以推断出 ARR 自动重装值就是 FC</strong>（因为计到 FC 的下一个时钟就归零了）。<strong>当计数值计到和重装值相等，并且下一个时钟来临时，计数值才清零</strong>，同时<strong>产生一个更新事件</strong>。这就是一个计数周期的工作流程。</li>
-<li>最下面三行描述的是<strong>预分频寄存器的缓冲机制</strong>：<ul>
-<li><strong>预分频控制寄存器</strong>：这是<strong>供我们读写用的</strong>，它<strong>并不直接决定分频系数</strong>；</li>
-<li><strong>预分频缓冲器（影子寄存器）</strong>：<strong>这个才是真正起作用的寄存器</strong>（缓冲寄存器和影子寄存器是一个意思）；</li>
-<li><strong>预分频计数器</strong>：预分频器内部实际是靠<strong>计数</strong>来分频的（PSC=0 时一直为 0，直接输出原频率；PSC=1 时计 0、1，回到 0 时输出一个脉冲，于是输出频率是输入的 2 分频）。</li>
-</ul>
-</li>
-<li>为什么要影子寄存器：假如计数到一半时把分频值由 0 改成 1，<strong>如果立刻改变分频系数，计数频率会突然改变</strong>。有了缓冲寄存器，<strong>中途改的值不会立刻生效</strong>，而是<strong>等到本次计数周期结束、产生更新事件时</strong>，预分频寄存器的值才被<strong>传递到缓冲寄存器</strong>里、才生效。所以<strong>即使计数中途改变分频值，计数频率仍保持原来的频率，一直到本轮计数完成、下一轮计数时改变后的值才起作用</strong>。</li>
+<li>第一行 CK_PSC 是预分频器的输入时钟，就是前面选内部时钟那个位置，一般是 72MHz，一直在运行。</li>
+<li>下面 CNT_EN 是计数器使能：高电平计数器运行，低电平停止。</li>
+<li>再下面 CK_CNT 是计数器时钟：开始时未使能、时钟不运行，使能之后才开始跑；后半段预分频系数变成 2，能看到 CK_CNT 频率减半。</li>
+<li>在计数器时钟驱动下，计数器寄存器跟着上升沿不断自增；中间某个位置之后计数值变为 0，由图可推断 ARR 自动重装值就是 FC（计到 FC 的下一个时钟就归零）；计到和重装值相等且下一个时钟来临时才清零，同时产生一个更新事件。</li>
+<li>最下面三行描述预分频寄存器的缓冲机制：预分频控制寄存器供读写、不直接决定分频系数；预分频缓冲器（影子寄存器）才是真正起作用的寄存器；预分频计数器说明内部靠计数分频，PSC=0 时一直为 0 直接输出，PSC=1 时计 0、1，回到 0 时输出一个脉冲，即 2 分频。</li>
+<li>为什么要影子寄存器：假如计数到一半把分频值由 0 改成 1，若立刻生效计数频率会突变；有了缓冲，中途改的值不会立刻生效，要等本次计数周期结束、产生更新事件时才传递到缓冲寄存器，所以本轮频率不变、下一轮才用新值。</li>
 </ul>
 <h3 id="8-2-影子-缓冲-寄存器">8.2 影子（缓冲）寄存器</h3>
 <ul>
-<li>结构图里<strong>像这样带一个黑色阴影的寄存器，都有影子寄存器这样的缓冲机制</strong>：包括<strong>预分频器、自动重装寄存器</strong>和下面的<strong>捕获/比较寄存器</strong>。</li>
-<li>所以 <strong>ARR 自动重装寄存器也有一个缓冲寄存器</strong>，并且<strong>这个缓冲寄存器用还是不用，是可以自己设置的</strong>（靠 ARPE 位）。</li>
+<li>结构图里带一个黑色阴影的寄存器都有影子寄存器这样的缓冲机制：预分频器、自动重装寄存器，以及下面的捕获/比较寄存器。</li>
+<li>所以 ARR 也有一个缓冲寄存器，并且用不用是可以自己设置的（靠 ARPE 位）。</li>
 </ul>
 <h3 id="8-3-计数器时序-手册图-102-与溢出频率">8.3 计数器时序（手册图 102）与溢出频率</h3>
 <ul>
-<li>这张图是<strong>计数器时序图</strong>，条件是<strong>内部时钟分频因子为 2</strong>（分频系数为 2）：<ul>
-<li>第一行<strong>内部时钟 72MHz</strong>；第二行<strong>时钟使能</strong>，高电平启动；第三行<strong>计数器时钟</strong>，因为分频系数为 2，频率是上面的 1/2；</li>
-<li><strong>计数器在这个时钟每个上升沿自增</strong>；<strong>当增到 0036 的时候发生溢出</strong>——计到 36 之后<strong>再来一个上升沿，计数器清零</strong>；<strong>计数器溢出，产生一个更新事件脉冲</strong>，<strong>另外还会置一个更新中断标志位 UIF</strong>；</li>
-<li><strong>UIF 只要置 1 了就会去申请中断</strong>，<strong>中断响应后需要在中断程序中手动清零</strong>。</li>
-</ul>
-</li>
-<li>公式：<strong>计数器溢出频率 CK_CNT_OV = CK_CNT / (ARR + 1)</strong>，其中 <strong>ARR 的值也是要加 1 的</strong>。把 CK_CNT 的式子代进去：<ul>
-<li><strong>CK_CNT_OV = CK_PSC / (PSC + 1) / (ARR + 1)</strong>；</li>
-<li>用 <strong>72MHz / (PSC+1) / (ARR+1)</strong> 就能得到<strong>溢出频率</strong>；想算<strong>溢出时间</strong>，<strong>再取个倒数</strong>就行。</li>
-</ul>
-</li>
-<li>再结合 8.1 的式子：<strong>计数器计数频率 CK_CNT = CK_PSC / (PSC + 1)</strong>。</li>
+<li>条件是内部时钟分频因子为 2：第一行内部时钟 72MHz，第二行时钟使能高电平启动，第三行计数器时钟频率是它的一半。</li>
+<li>计数器在这个时钟每个上升沿自增，增到 0036 时发生溢出——再来一个上升沿计数器清零，产生一个更新事件脉冲，另外还会置一个更新中断标志位 UIF。</li>
+<li>UIF 只要置 1 就会去申请中断，中断响应后需要在中断程序里手动清零。</li>
+<li>公式：CK_CNT_OV = CK_CNT / (ARR + 1)，ARR 的值也要加 1；把 CK_CNT = CK_PSC / (PSC + 1) 代入，得到 CK_CNT_OV = CK_PSC / (PSC + 1) / (ARR + 1)，即溢出频率 <code>72MHz/(PSC+1)/(ARR+1)</code>，算溢出时间再取个倒数。</li>
 </ul>
 <h3 id="8-4-arr-预装-arpe-时序">8.4 ARR 预装（ARPE）时序</h3>
 <ul>
-<li>先看<strong>计数器无预装时序（ARPE=0）</strong>：计数器正在自增时<strong>突然把自动重装寄存器由 FF 改成 36</strong>，那么<strong>计数值的目标值就由 FF 变成了 36</strong>，所以<strong>计到 36 之后就直接更新、开始下一轮计数</strong>。</li>
-<li>再看<strong>有预装时序（ARPE=1）</strong>：计数中途把计数目标由 <strong>F5 改成 36</strong>，可以看到<strong>下面有个影子寄存器，这个影子寄存器才是真正起作用的</strong>——它还是 <strong>F5</strong>，所以<strong>本轮计数的目标还是计到 F5 才产生更新事件</strong>；<strong>同时要更改的 36 才被传递到影子寄存器</strong>，<strong>在下一个计数周期这个 36 才有效</strong>。</li>
-<li>所以说，<strong>引入影子寄存器的目的实际上是为了同步</strong>：<strong>让值的变化和更新事件同步发生，防止运行途中更改造成错误</strong>。</li>
-<li>反例：如果在这里不用影子寄存器，F5 改成 36 <strong>立刻生效</strong>，但此时计数值已经到了 F1——<strong>F1 只能往上加，而目标值却是比它还小的 36</strong>，那它就一直加，<strong>一直加到 FFF 再回到 0、再加到 36 才能产生更新</strong>，就会造成小问题。毕竟 STM32 要考虑到各种各样的情况，所以设计得比较严谨。</li>
+<li>无预装（ARPE=0）：计数中途把自动重装寄存器由 FF 改成 36，目标值立刻变 36，所以计到 36 就直接更新、开始下一轮。</li>
+<li>有预装（ARPE=1）：中途把目标由 F5 改成 36，下面的影子寄存器仍是 F5，本轮还是计到 F5 才产生更新事件，同时改后的 36 被传递到影子寄存器，下一个计数周期才有效。</li>
+<li>引入影子寄存器的目的是同步：让值的变化和更新事件同步发生，防止运行途中更改造成错误。</li>
+<li>反例：若不用影子寄存器，F5 改成 36 立刻生效，而计数值已到 F1——F1 只能往上加，目标却比它还小，那就要加到 FFF 回 0 再加到 36 才产生更新，会造成小问题。</li>
 </ul>
 <table>
 <thead>
@@ -496,93 +465,66 @@
 </tr>
 </tbody></table>
 <p><img src="../assets/images/stm32-13/12-psc-timing.jpg" alt="图 12：手册图 99 预分频器时序——CK_PSC、CNT_EN、CK_CNT、计数器寄存器（计到 FC 后归零）、更新事件，以及下面三行预分频控制寄存器/预分频缓冲器/预分频计数器；底部公式 CK_CNT = CK_PSC/(PSC+1)"></p>
-<p><em>图 12：手册图 99 预分频器时序——CK_PSC、CNT_EN、CK_CNT、计数器寄存器（计到 FC 后归零）、更新事件，以及下面三行预分频控制寄存器/预分频缓冲器/预分频计数器；底部公式 CK_CNT = CK_PSC/(PSC+1)</em></p>
+<p><em>图 12：手册图 99 预分频器时序，底部公式 CK_CNT = CK_PSC/(PSC+1)</em></p>
 <p><img src="../assets/images/stm32-13/13-counter-timing.jpg" alt="图 13：手册图 102 计数器时序（内部时钟分频因子 2）——计数器计到 0036 后溢出清零，产生计数器溢出、更新事件（UEV）和更新中断标志（UIF）；底部公式 CK_CNT_OV = CK_CNT/(ARR+1) = CK_PSC/(PSC+1)/(ARR+1)"></p>
-<p><em>图 13：手册图 102 计数器时序（内部时钟分频因子 2）——计数器计到 0036 后溢出清零，产生计数器溢出、更新事件（UEV）和更新中断标志（UIF）；底部公式 CK_CNT_OV = CK_CNT/(ARR+1) = CK_PSC/(PSC+1)/(ARR+1)</em></p>
+<p><em>图 13：手册图 102 计数器时序，计到 0036 溢出清零</em></p>
 <p><img src="../assets/images/stm32-13/14-arr-preload.jpg" alt="图 14：手册图 105 计数器无预装时序（ARPE=0）——计数途中把自动加载寄存器由 FF 写成 36，目标值立刻变成 36，计到 36 就清零进入下一轮"></p>
-<p><em>图 14：手册图 105 计数器无预装时序（ARPE=0）——计数途中把自动加载寄存器由 FF 写成 36，目标值立刻变成 36，计到 36 就清零进入下一轮</em></p>
+<p><em>图 14：手册图 105 无预装（ARPE=0）时 ARR 改了立刻生效</em></p>
 <h2 id="9-rcc-时钟树与-所有定时器都是-72mhz-的由来">9. RCC 时钟树与「所有定时器都是 72MHz」的由来</h2>
 <h3 id="9-1-时钟树是什么">9.1 时钟树是什么</h3>
 <ul>
-<li><strong>RCC 时钟树</strong>就是 STM32 中用来<strong>产生和配置时钟、并且把配置好的时钟发送到各个外设</strong>的系统。<strong>时钟是所有外设运行的基础，所以时钟也是最先需要配置的东西</strong>。</li>
-<li>程序中主函数之前还会执行一个 <strong><code>SystemInit</code> 函数</strong>，这个函数就是用来<strong>配置这个时钟树</strong>的。结构看上去复杂、配置起来比较麻烦，但<strong>ST 公司已经帮我们写好了 <code>SystemInit</code></strong>。</li>
-<li>时钟树可以从中间划一条界线：<strong>左边都是时钟的产生电路，右边都是时钟的分配电路</strong>，中间的 <strong>SYSCLK 就是系统时钟 72MHz</strong>。</li>
-<li><strong>时钟产生电路有四个振荡源</strong>：<ul>
-<li><strong>HSI：内部 8MHz 高速 RC 振荡器</strong>；</li>
-<li><strong>HSE：外部 4–16MHz 高速石英晶体振荡器</strong>，也就是晶振，<strong>一般都是接 8MHz</strong>；</li>
-<li><strong>LSE：外部 32.768kHz 低速晶振</strong>，<strong>一般给 RTC 提供时钟</strong>；</li>
-<li><strong>LSI：内部 40kHz 低速 RC 振荡器</strong>，<strong>给独立看门狗（IWDG）提供时钟</strong>。</li>
-</ul>
-</li>
-<li><strong>上面两个高速晶振是用来提供系统时钟的</strong>，<strong>AHB、APB2、APB1 的时钟都来源于这两个高速晶振</strong>。内部和外部都有一个 8MHz，都可以用；<strong>只是外部的石英振荡器比内部的 RC 振荡器更加稳定，所以一般都用外部晶振</strong>。但如果系统很简单、不需要那么精确的时钟，也可以使用内部 RC 振荡器，<strong>这样可以省下晶振的电路</strong>。</li>
+<li>RCC 时钟树是 STM32 中用来产生和配置时钟、并把配置好的时钟发送到各外设的系统；时钟是所有外设运行的基础，所以最先需要配置。</li>
+<li>主函数之前还会执行一个 <code>SystemInit</code> 函数，它就是配置时钟树的；结构看上去复杂，但 ST 已经帮我们写好了。</li>
+<li>时钟树可以从中间划一条界线：左边是时钟的产生电路，右边是分配电路，中间的 SYSCLK 就是系统时钟 72MHz。</li>
+<li>时钟产生电路有四个振荡源：HSI 内部 8MHz 高速 RC 振荡器；HSE 外部 4–16MHz 高速石英晶振，一般接 8MHz；LSE 外部 32.768kHz 低速晶振，一般给 RTC 提供时钟；LSI 内部 40kHz 低速 RC 振荡器，给独立看门狗 IWDG 提供时钟。</li>
+<li>上面两个高速晶振用来提供系统时钟，AHB、APB2、APB1 的时钟都来源于它们；内外都有 8MHz 可用，但外部石英晶振比内部 RC 稳定，一般用外部；系统简单、不需要精确时钟时可用内部 RC，省下晶振电路。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/15-rcc-clock-tree.jpg" alt="图 15：RCC 时钟树（手册图 8 时钟树）——左侧是四个振荡源 HSI 8MHz / HSE 4-16MHz / LSE 32.768kHz / LSI 40kHz 与 PLL 倍频、CSS；右侧是 SYSCLK 经 AHB/APB1/APB2 预分频分配到各外设，并单独给定时器 2～7、1 和 8 供时钟"></p>
-<p><em>图 15：RCC 时钟树（手册图 8 时钟树）——左侧是四个振荡源 HSI 8MHz / HSE 4-16MHz / LSE 32.768kHz / LSI 40kHz 与 PLL 倍频、CSS；右侧是 SYSCLK 经 AHB/APB1/APB2 预分频分配到各外设，并单独给定时器 2～7、1 和 8 供时钟</em></p>
+<p><em>图 15：RCC 时钟树，左侧振荡源与 PLL，右侧总线分配</em></p>
 <h3 id="9-2-systeminit-里-st-的配置流程">9.2 SystemInit 里 ST 的配置流程</h3>
 <ol>
-<li>首先<strong>启动内部时钟</strong>（HSI），<strong>选择内部 8MHz 为系统时钟</strong>，暂时以内部 8MHz 运行；</li>
-<li>然后<strong>启动外部时钟</strong>（HSE），<strong>配置外部时钟走 PLL 这一路</strong>，<strong>进入 PLL 锁相环进行倍频，8MHz 倍频 9 倍，得到 72MHz</strong>；</li>
-<li>等到<strong>锁相环输出稳定后，选择锁相环输出为系统时钟</strong>——这样就把<strong>系统时钟由 8MHz 切换为了 72MHz</strong>。</li>
+<li>先启动内部时钟 HSI，选择内部 8MHz 为系统时钟，暂时以内部 8MHz 运行；</li>
+<li>再启动外部时钟 HSE，配置它走 PLL 这一路，进入锁相环倍频，8MHz 倍频 9 倍得到 72MHz；</li>
+<li>等锁相环输出稳定后，选择锁相环输出为系统时钟，系统时钟就从 8MHz 切换成了 72MHz。</li>
 </ol>
-<p>（时间关系，视频没有带大家一步步分析 <code>SystemInit</code>，只讲了流程，可以自己对照源码看。）</p>
 <h3 id="9-3-晶振故障与-css-时钟安全系统">9.3 晶振故障与 CSS 时钟安全系统</h3>
 <ul>
-<li>分析时钟树可以解决一个实际问题：<strong>如果外部晶振出问题了</strong>，会出现一个现象——<strong>程序的时钟慢了大概 10 倍</strong>。比如用定时器定一个 1s 的时间，<strong>结果过了大概 10s 才进中断</strong>。</li>
-<li>原因就在这里：<strong>外部晶振出问题，系统时钟就无法切换到 72MHz，那它就会以内部的 8MHz 运行</strong>——8M 相比 72M 大概<strong>慢了 9 倍左右</strong>（视频说「大概 10 倍」）。作者就遇到过：画的板子<strong>焊接时把外部晶振的两个引脚焊短路了</strong>，把两个引脚分开时钟就正常变回 72M 了。</li>
-<li><strong>CSS（Clock Security System，时钟安全系统）</strong> 也是负责切换时钟的：它可以<strong>监测外部时钟的运行状态，一旦外部时钟失效，就会自动把外部时钟切换回内部时钟</strong>，保证系统时钟的运行，<strong>防止程序卡死造成事故</strong>。</li>
-<li><strong>高级定时器的刹车输入这里也有 CSS 的身影</strong>：一旦 CSS 检测到外部时钟失效，通过<strong>或门</strong>就会立刻反应到<strong>输出比较</strong>部分，让输出控制的<strong>电机立刻停止</strong>，防止意外。</li>
+<li>分析时钟树可以解决一个实际问题：外部晶振出问题会出现程序时钟慢大概 10 倍的现象，比如定 1s 的时间，结果大概 10s 才进中断。</li>
+<li>原因是晶振出问题就切不到 72MHz，只能以内部 8MHz 运行，8M 比 72M 大概慢 9 倍（视频说约 10 倍）；作者就遇到过晶振两个引脚被焊短路，分开后时钟就回到 72M。</li>
+<li>CSS（Clock Security System，时钟安全系统）负责切换时钟：它监测外部时钟运行状态，一旦失效就自动切回内部时钟，保证系统时钟运行，防止程序卡死造成事故。</li>
+<li>高级定时器的刹车输入这里也有 CSS 的身影：CSS 检测到外部时钟失效，通过或门立刻反应到输出比较部分，让电机立刻停止。</li>
 </ul>
 <h3 id="9-4-总线分频与定时器时钟-2">9.4 总线分频与定时器时钟 ×2</h3>
 <ul>
-<li><strong>时钟分配电路</strong>：系统时钟 72MHz 进入 <strong>AHB 总线</strong>，AHB 总线有个预分频器，<code>SystemInit</code> 里配置的<strong>分频系数为 1</strong>，所以 <strong>AHB 时钟就是 72MHz</strong>。</li>
-<li>然后进入 <strong>APB1 总线</strong>，这里配置的<strong>分频系数是 2</strong>，所以 <strong>APB1 总线的时钟为 72MHz/2 = 36MHz</strong>。</li>
-<li>问题来了：通用定时器和基本定时器接在 APB1 上，APB1 是 36MHz，<strong>按理说它们的时钟应该是 36MHz</strong>，可前面讲定时器时一直说「所有定时器的时钟都是 72MHz」，为啥？</li>
-<li>原因就在这下面的一条支路，上面写着：<strong>「如果 APB1 预分频系数 = 1 则频率不变，否则频率 ×2」</strong>。这一路是<strong>单独为定时器 2～7 开通</strong>的：这里的预分频系数给的是 2，所以<strong>频率要再 ×2</strong>，通向定时器 2～7 的时钟<strong>又回到了 72MHz</strong>。</li>
-<li>结论：<strong>无论是高级定时器、通用定时器还是基本定时器，它们的内部基准时钟都是 72MHz</strong>。这给使用带来了方便——<strong>不用再考虑不同定时器的时钟不一样的问题</strong>，<strong>当然前提是你不乱改 <code>SystemInit</code> 里的默认配置</strong>，要是改了这些时钟还得再另行分析。</li>
-<li>再看 <strong>APB2 的时钟</strong>：这里给的分频系数为 1，所以 <strong>APB2 和 AHB 一样都是 72MHz</strong>；接在 APB2 上的<strong>高级定时器也单独升了一路</strong>，但 APB2 的预分频系数就是 1，所以<strong>频率不变，定时器 1 和 8 的时钟就是 72MHz</strong>。</li>
-<li>在这些时钟输出这里，<strong>都有一个与门进行输出控制</strong>，控制位写的是<strong>外设时钟使能</strong>。<strong>这就是我们在程序中写 <code>RCC_APB1/2PeriphClockCmd</code> 作用的地方</strong>——<strong>打开时钟，就是在这个位置写 1，让左边的时钟能够通过与门输出给外设</strong>（本集只指出作用位置，函数用法在下一集讲）。</li>
-<li>剩下的还有一些给 ADC、SDIO 等等提供时钟的电路，自己看看就行。</li>
+<li>时钟分配电路：72MHz 进 AHB，AHB 预分频系数为 1，所以 AHB 时钟就是 72MHz；再进 APB1，分频系数是 2，所以 APB1 时钟为 72MHz/2 = 36MHz。</li>
+<li>问题来了：通用和基本定时器挂在 APB1 上，按理该是 36MHz，可前面一直说所有定时器都是 72MHz。</li>
+<li>原因在图下那条支路：<strong>如果 APB1 预分频系数 = 1 则频率不变，否则频率 ×2</strong>；这一路单独为定时器 2～7 开通，这里预分频系数给的是 2，所以频率再 ×2，通向定时器 2～7 的时钟又回到 72MHz。</li>
+<li>结论：无论高级、通用还是基本定时器，内部基准时钟都是 72MHz——前提是不乱改 <code>SystemInit</code> 里的默认配置，改了还得另行分析。</li>
+<li>APB2 的分频系数为 1，所以 APB2 和 AHB 一样是 72MHz；高级定时器也单独升了一路，但 APB2 分频系数就是 1，频率不变，定时器 1 和 8 的时钟就是 72MHz。</li>
+<li>这些时钟输出处都有一个与门做输出控制，控制位写的是外设时钟使能——<strong>这就是程序里写 <code>RCC_APB1/2PeriphClockCmd</code> 作用的地方</strong>，打开时钟就是在这里写 1，让左边的时钟通过与门输出给外设。</li>
 </ul>
 <p><img src="../assets/images/stm32-13/16-clock-72m.jpg" alt="图 16：APB1 定时器 ×2 支路——红圈标出「如果 APB1 预分频系数=1 则频率不变，否则频率×2」，这一路单独给定时器 2～7 供时钟，所以 APB1 虽然 36MHz、定时器时钟仍是 72MHz"></p>
-<p><em>图 16：APB1 定时器 ×2 支路——红圈标出「如果 APB1 预分频系数=1 则频率不变，否则频率×2」，这一路单独给定时器 2～7 供时钟，所以 APB1 虽然 36MHz、定时器时钟仍是 72MHz</em></p>
+<p><em>图 16：APB1 定时器 ×2 支路，36M 变回 72M</em></p>
 <h2 id="10-参考手册导读">10. 参考手册导读</h2>
 <ul>
-<li>在 STM32F10xx 参考手册里，<strong>关于定时器的介绍有 3 章</strong>：<strong>高级定时器、通用定时器、基本定时器各占一章</strong>，内容非常多。</li>
-<li>打开<strong>通用定时器</strong>这一章：<ul>
-<li><strong>首先是简介</strong>，这里有它的一些基本描述；</li>
-<li><strong>然后下面是结构图</strong>，<strong>这个还是很重要的</strong>；</li>
-<li>再下面就是<strong>功能描述</strong>：<strong>时基单元</strong>（14.3.1），里面有<strong>一些时序图</strong>，演示了<strong>预分频器的工作流程</strong>；下面用<strong>计数器的时序图</strong>这部分就比较多了——<strong>不仅有向上计数模式的更新，还有向下计数模式、中央对齐模式的</strong>；</li>
-<li>再下一节是<strong>时钟选择</strong>，想深入研究的话可以再看看，里面有<strong>手册图 120 外部时钟模式 1 下的控制电路</strong>、<strong>手册图 122 外部时钟模式 2 下的控制电路</strong>等；</li>
-<li>再下面就是<strong>捕获/比较通道的介绍</strong>——这个后续课程再讲。</li>
+<li>参考手册里关于定时器的介绍有 3 章：高级、通用、基本各占一章，内容非常多。</li>
+<li>打开通用定时器这一章：先是简介，然后是结构图（这个还是很重要的），再下面功能描述里有时基单元（14.3.1），里面有预分频器的工作流程时序图，以及向上、向下、中央对齐各模式的计数器时序图。</li>
+<li>再下一节是时钟选择，想深入研究可以看手册图 120 外部时钟模式 1 下的控制电路、手册图 122 外部时钟模式 2 下的控制电路；最后是捕获/比较通道的介绍，后续课程再讲。</li>
+<li>手册里的时序图（预分频缓冲器、计数器寄存器、更新中断标志 UIF 等）和 PPT 上的图一一对应，一般向上计数用得最多。</li>
 </ul>
-</li>
-<li>手册里的时序图（预分频器缓存器被置入预装载寄存器的值、计数器寄存器、更新中断标志 UIF 等）和 PPT 上的图是一一对应的，<strong>一般向上计数用得最多</strong>。</li>
-</ul>
-<h2 id="11-本集小结与-6-2-的衔接">11. 本集小结与 [6-2] 的衔接</h2>
-<ol>
-<li><strong>定时器本质就是一个计数器</strong>：对已知频率的基准时钟计数就是计时；72MHz 计 72 个 = 1μs，计 72000 个 = 1ms。</li>
-<li><strong>时基单元 = PSC 预分频器 + CNT 计数器 + ARR 自动重装寄存器</strong>，都是 <strong>16 位</strong>：预分频器<strong>实际分频系数 = PSC + 1</strong>，计数器<strong>0～65535 自动回卷</strong>，<strong>CNT = ARR 时清零并产生更新中断/更新事件</strong>；最大定时 <strong>59.65s</strong>，级联（两个约 8000 多年、三个约 34 万亿年）。</li>
-<li><strong>三种类型向下兼容</strong>：高级 TIM1/TIM8（APB2，多<strong>重复计数器、死区生成、互补输出、刹车输入</strong>，面向三相无刷电机）、通用 TIM2～TIM5（APB1，多<strong>内外时钟源选择、输入捕获、输出比较、编码器接口、主从触发</strong>）、基本 TIM6/TIM7（APB1，只有<strong>定时中断 + 主模式触发 DAC</strong>）；<strong>F103C8T6 只有 TIM1～TIM4</strong>。</li>
-<li><strong>计数模式</strong>：基本只支持<strong>向上</strong>；通用/高级支持<strong>向上、向下、中央对齐</strong>；最常用向上。</li>
-<li><strong>时钟源</strong>：内部 <strong>RCC TIMxCLK = 72MHz</strong>（最常用）；<strong>外部时钟模式 2</strong>（ETR 引脚，如 TIM2 的 ETR 在 <strong>PA0</strong>，经极性/边沿/滤波/预分频进触发控制器）；<strong>外部时钟模式 1</strong>（TRGI：<strong>ETR、ITRx 其它定时器（可级联）、TI1F_ED、TI1FP1、TI2FP2</strong>）；<strong>编码器模式</strong>。</li>
-<li><strong>定时中断结构</strong>：时钟源 → 触发控制器 → <strong>时基单元（PSC → CNT 与 ARR 比较）+ 运行控制</strong> → <strong>状态寄存器置 UIF 标志</strong> → <strong>中断输出控制（允许位）</strong> → <strong>NVIC</strong>；<strong>更新事件不触发中断</strong>，但可触发别的电路（如 <strong>TRGO 触发 DAC</strong>）。</li>
-<li><strong>时序与公式</strong>：<strong>CK_CNT = CK_PSC/(PSC+1)</strong>、<strong>CK_CNT_OV = CK_PSC/(PSC+1)/(ARR+1)</strong>，<strong>定时时间 = 1/溢出频率</strong>；<strong>PSC、ARR、捕获/比较寄存器都有影子（缓冲）寄存器</strong>，让改动与<strong>更新事件同步</strong>生效；ARR 的预装可由 <strong>ARPE</strong> 位选择开/关。</li>
-<li><strong>RCC 时钟树</strong>：HSI 8MHz / LSI 40kHz / HSE 8MHz / LSE 32.768kHz 四个振荡源；<code>SystemInit</code> 走 <strong>HSI → 启动 HSE → PLL 8MHz×9 = 72MHz → 切换到 PLL 输出</strong>；<strong>晶振故障会退回 8MHz 运行，定时慢约 10 倍</strong>，<strong>CSS</strong> 负责检测并切换；<strong>AHB 72M、APB1 36M（定时器 ×2 回 72M）、APB2 72M</strong>，所以<strong>所有定时器基准时钟都是 72MHz</strong>；时钟输出处的<strong>与门就是 <code>RCC_APB1/2PeriphClockCmd</code> 控制的使能位</strong>。</li>
-</ol>
-<p><strong>下一小节 [6-2]</strong> 就是本集的理论落地：<strong>开始写「定时中断」和「内外时钟源选择」的代码</strong>——定时器初始化（时基单元 PSC/ARR、计数模式）、更新中断的配置与 NVIC、以及外部时钟模式 2 的配置，对应片头演示的两个工程。本集<strong>没有讲任何 TIM 库函数</strong>，所以上面这些寄存器概念就是下一集写代码时「为什么要这么填参数」的依据。</p>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>预分频器是「值 + 1」才是实际分频系数</strong>：写 0 是 1 分频（不是 0 分频），写 65535 是 65536 分频；ARR 同理，<strong>算溢出频率时要 (ARR+1)</strong>。</li>
-<li><strong>「所有定时器都是 72MHz」是有前提的</strong>：前提是<strong>不改 <code>SystemInit</code> 的默认配置</strong>。改了时钟树（比如改 APB1 分频系数或 PLL）就得重新算，别把 72MHz 当常数硬编码进所有推导。</li>
-<li><strong>APB1 是 36MHz，但定时器不是 36MHz</strong>：因为那一条「APB1 预分频系数 ≠ 1 则频率 ×2」的支路单独给定时器供时钟——这是最容易懵的一点。</li>
-<li><strong>更新事件 ≠ 更新中断</strong>：更新事件<strong>不会触发中断</strong>，只是可以触发内部其它电路（如 TRGO→DAC）；要进中断还得经过「中断输出控制」这个<strong>允许位</strong>。</li>
-<li><strong>UIF 需要手动清零</strong>：中断响应后要在中断程序里手动清（这是 [6-2] 写代码时的坑，先记住）。</li>
-<li><strong>ARR 改值不是立刻生效的</strong>（ARPE=1 时）：走<strong>影子寄存器</strong>，要等<strong>这次更新事件</strong>后才生效；只有 <strong>ARPE=0（无预装）</strong> 才是立刻生效。改 PSC 也是一样，中途改不会立刻变计数频率。</li>
-<li><strong>基本定时器只能向上计数、只能内部时钟</strong>：别指望 TIM6/TIM7 做外部时钟或向下计数；而且 <strong>F103C8T6 根本没有基本定时器</strong>，TIM6/TIM7 在它上面不存在。</li>
-<li><strong>用外设前先查型号有没有这个外设</strong>：不同型号定时器数量不同，操作不存在的外设不会起作用。</li>
-<li><strong>ETR 和 TRGI 都能进外部时钟，但不是一回事</strong>：ETR 直接那一路上来是<strong>外部时钟模式 2</strong>，从 TRGI 进来（会<strong>占用触发输入通道</strong>）是<strong>外部时钟模式 1</strong>，两者对「当时钟」是等价的。</li>
-<li><strong>外部晶振出问题 → 时钟慢约 10 倍</strong>：现象是「定时 1s 结果 10s 才进中断」，实际是退回内部 8MHz 运行；先检查晶振焊接/起振，别先去怀疑代码。</li>
-<li><strong>本集没有代码、也没有 TIM 库函数</strong>：不要在本集找 <code>TIM_TimeBaseInit</code> / <code>TIM_ITConfig</code> / NVIC 配置的写法，那些在 [6-2]。</li>
+<li>预分频器实际分频系数 = 值 + 1，写 0 是 1 分频不是 0 分频；ARR 同理，算溢出频率要用 (ARR+1)。</li>
+<li>「所有定时器都是 72MHz」的前提是不改 <code>SystemInit</code> 默认配置，改了时钟树就要重算。</li>
+<li>APB1 是 36MHz 但定时器是 72MHz：靠「预分频系数 ≠ 1 就 ×2」的支路单独供时钟。</li>
+<li>更新事件不等于更新中断：事件不触发中断，要进中断还得过中断输出控制这个允许位。</li>
+<li>UIF 置位就会申请中断，中断响应后要在中断程序里手动清零。</li>
+<li>ARR 在 ARPE=1 时走影子寄存器，本次更新事件后才生效；ARPE=0 才立刻生效，PSC 同理。</li>
+<li>基本定时器只能向上计数、只能内部时钟；F103C8T6 上根本没有 TIM6/TIM7。</li>
+<li>用外设前先查型号有没有这个外设，操作不存在的外设不会起作用。</li>
+<li>ETR 直接进来是外部时钟模式 2，从 TRGI 进来是模式 1（占用触发输入通道）。</li>
+<li>外部晶振坏了时钟慢约 10 倍（定 1s 要 10s），实际是退回内部 8MHz，先查晶振。</li>
+<li>本集没有代码也没有 TIM 库函数，<code>TIM_TimeBaseInit</code>、<code>TIM_ITConfig</code>、NVIC 在 [6-2]。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -594,7 +536,7 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%8E%B0%E8%B1%A1-%E7%90%86%E8%AE%BA-%E4%BB%A3%E7%A0%81%E5%9C%A8%E4%B8%8B%E4%B8%80%E9%9B%86">0. 本集定位：现象 + 理论，代码在下一集</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E4%B8%A4%E4%B8%AA%E7%8E%B0%E8%B1%A1">1. 片头两个现象</a>
         <a class="level-3" href="#1-1-%E7%A8%8B%E5%BA%8F-1-%E5%AE%9A%E6%97%B6%E5%99%A8%E5%AE%9A%E6%97%B6%E4%B8%AD%E6%96%AD-%E5%B7%A5%E7%A8%8B-6-1-%E5%AE%9A%E6%97%B6%E5%99%A8%E5%AE%9A%E6%97%B6%E4%B8%AD%E6%96%AD">1.1 程序 1：定时器定时中断（工程 6-1 定时器定时中断）</a>
         <a class="level-3" href="#1-2-%E7%A8%8B%E5%BA%8F-2-%E5%AE%9A%E6%97%B6%E5%99%A8%E5%A4%96%E9%83%A8%E6%97%B6%E9%92%9F-%E5%B7%A5%E7%A8%8B-6-2-%E5%AE%9A%E6%97%B6%E5%99%A8%E5%A4%96%E9%83%A8%E6%97%B6%E9%92%9F">1.2 程序 2：定时器外部时钟（工程 6-2 定时器外部时钟）</a>
@@ -621,7 +563,7 @@
         <a class="level-3" href="#6-5-%E4%B8%BB%E6%A8%A1%E5%BC%8F%E8%BE%93%E5%87%BA%E4%B8%8E%E6%8D%95%E8%8E%B7-%E6%AF%94%E8%BE%83%E7%94%B5%E8%B7%AF">6.5 主模式输出与捕获/比较电路</a>
         <a class="level-2" href="#7-%E5%AE%9A%E6%97%B6%E4%B8%AD%E6%96%AD%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84">7. 定时中断基本结构</a>
         <a class="level-2" href="#8-%E6%97%B6%E5%BA%8F%E4%B8%8E%E5%85%AC%E5%BC%8F">8. 时序与公式</a>
-        <a class="level-3" href="#8-1-%E9%A2%84%E5%88%86%E9%A2%91%E5%99%A8%E6%97%B6%E5%BA%8F-%E6%89%8B%E5%86%8C%E5%9B%BE-99-%E9%A2%84%E5%88%86%E9%A2%91%E5%99%A8%E5%8F%82%E6%95%B0%E4%BB%8E-1-%E5%8F%98%E5%88%B0-2-%E6%97%B6">8.1 预分频器时序（手册图 99：预分频器参数从 1 变到 2 时）</a>
+        <a class="level-3" href="#8-1-%E9%A2%84%E5%88%86%E9%A2%91%E5%99%A8%E6%97%B6%E5%BA%8F-%E6%89%8B%E5%86%8C%E5%9B%BE-99-%E5%8F%82%E6%95%B0%E4%BB%8E-1-%E5%8F%98%E5%88%B0-2">8.1 预分频器时序（手册图 99：参数从 1 变到 2）</a>
         <a class="level-3" href="#8-2-%E5%BD%B1%E5%AD%90-%E7%BC%93%E5%86%B2-%E5%AF%84%E5%AD%98%E5%99%A8">8.2 影子（缓冲）寄存器</a>
         <a class="level-3" href="#8-3-%E8%AE%A1%E6%95%B0%E5%99%A8%E6%97%B6%E5%BA%8F-%E6%89%8B%E5%86%8C%E5%9B%BE-102-%E4%B8%8E%E6%BA%A2%E5%87%BA%E9%A2%91%E7%8E%87">8.3 计数器时序（手册图 102）与溢出频率</a>
         <a class="level-3" href="#8-4-arr-%E9%A2%84%E8%A3%85-arpe-%E6%97%B6%E5%BA%8F">8.4 ARR 预装（ARPE）时序</a>
@@ -631,7 +573,6 @@
         <a class="level-3" href="#9-3-%E6%99%B6%E6%8C%AF%E6%95%85%E9%9A%9C%E4%B8%8E-css-%E6%97%B6%E9%92%9F%E5%AE%89%E5%85%A8%E7%B3%BB%E7%BB%9F">9.3 晶振故障与 CSS 时钟安全系统</a>
         <a class="level-3" href="#9-4-%E6%80%BB%E7%BA%BF%E5%88%86%E9%A2%91%E4%B8%8E%E5%AE%9A%E6%97%B6%E5%99%A8%E6%97%B6%E9%92%9F-2">9.4 总线分频与定时器时钟 ×2</a>
         <a class="level-2" href="#10-%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C%E5%AF%BC%E8%AF%BB">10. 参考手册导读</a>
-        <a class="level-2" href="#11-%E6%9C%AC%E9%9B%86%E5%B0%8F%E7%BB%93%E4%B8%8E-6-2-%E7%9A%84%E8%A1%94%E6%8E%A5">11. 本集小结与 [6-2] 的衔接</a>
         <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>
   </aside>

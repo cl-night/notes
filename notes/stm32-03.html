@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[2-1] 软件安装 · 我的学习笔记</title>
-  <meta name="description" content="江协科技 STM32 课程第 3 集：Keil5 MDK（V5.24a）安装、STM32F1 器件支持包、软件注册、ST-LINK 与 CH340 驱动安装的完整步骤与踩坑。">
+  <meta name="description" content="Keil5 MDK（V5.24a）安装、STM32F1 器件支持包、软件注册、ST-LINK 与 CH340 驱动安装步骤与踩坑。">
   <meta property="og:title" content="[2-1] 软件安装 · 我的学习笔记">
-  <meta property="og:description" content="江协科技 STM32 课程第 3 集：Keil5 MDK（V5.24a）安装、STM32F1 器件支持包、软件注册、ST-LINK 与 CH340 驱动安装的完整步骤与踩坑。">
+  <meta property="og:description" content="Keil5 MDK（V5.24a）安装、STM32F1 器件支持包、软件注册、ST-LINK 与 CH340 驱动安装步骤与踩坑。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,15 +177,20 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-26">2026-10-26</time>
-      <span>8 分钟</span>
+      <span>5 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">开发环境</span><span class="tag">工具链</span>
     </div>
     <article class="prose"><h1>[2-1] 软件安装 — 学习笔记</h1>
 <ul>
-<li>素材目录：<code>vidsum_out/stm32_p3/</code>（<code>sheets/</code> 拼图、<code>frames/</code> 单帧、<code>transcript.txt</code>）</li>
+<li>素材目录：<code>vidsum_out/stm32_p3/</code>（<code>sheets/</code>、<code>frames/</code>、<code>transcript.txt</code>）</li>
 </ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>这一集是“工具链安装实录”，按 <strong>Keil5 MDK（V5.24a）→ STM32F1 器件支持包 → 软件注册 → ST-LINK 驱动 → CH340 驱动</strong> 五步装完；装好后 Keil 新建工程能选到 STM32F103C8，ST-LINK 和 USB 转串口都能被电脑正常识别，下一集就可以开始新建工程写代码。</p>
+<p>按 <strong>Keil5 MDK（V5.24a）→ 器件支持包 → 注册 → ST-LINK 驱动 → CH340 驱动</strong> 五步装完；装好后 Keil 能选 STM32F103C8，ST-LINK 与串口都被识别，下一集即可写代码。</p>
+<h2 id="本集定位">本集定位</h2>
+<ul>
+<li>只装工具链，不写代码。</li>
+<li>是后续所有实验的前提：Keil、器件包、驱动齐了才能建工程。</li>
+</ul>
 <h2 id="五步清单-一张表">五步清单（一张表）</h2>
 <table>
 <thead>
@@ -229,111 +234,84 @@
 </tbody></table>
 <h2 id="0-下载与资料包">0. 下载与资料包</h2>
 <ul>
-<li>软件下载链接在<strong>视频简介</strong>里：江协科技资料下载页 <a href="https://jiangxiekeji.com/download.html">https://jiangxiekeji.com/download.html</a>。</li>
-<li>下载的资料包（“资料”文件夹）里大致是：<code>参考文档 / 工具软件 / 固件库 / 课件PPT / 模块资料 / Keil5 MDK.zip</code>。</li>
-<li><code>Keil5 MDK.zip</code> 是加密压缩包：<ul>
-<li>解压密码是 <strong>32</strong>（UP 主提示：有密码的压缩包就在旁边找一下密码文档，本集画面里未显示该文件；视频里口述并输入的是 32）。</li>
-<li>右键 → “解压到 Keil5 MDK”，解压后得到 <code>MDK524a.EXE</code>（安装器）、<code>支持包\</code>（7 个 pack）、<code>keygen_new2032.zip</code>（注册机）。</li>
+<li>下载链接在<strong>视频简介</strong>：江协科技资料下载页 <a href="https://jiangxiekeji.com/download.html">https://jiangxiekeji.com/download.html</a>。</li>
+<li>资料包内容：<code>参考文档 / 工具软件 / 固件库 / 课件PPT / 模块资料 / Keil5 MDK.zip</code>。</li>
+<li><code>Keil5 MDK.zip</code> 是加密包，解压密码 <strong>32</strong>；密码文档就在压缩包旁边，别去第三方网站乱下。</li>
+<li>右键 → “解压到 Keil5 MDK”，得到 <code>MDK524a.EXE</code>（安装器）、<code>支持包\</code>（7 个 pack）、<code>keygen_new2032.zip</code>（注册机）。</li>
 </ul>
-</li>
-</ul>
-<h2 id="1-安装-keil5-mdk-mdk-arm-v5-24a">1. 安装 Keil5 MDK（MDK-ARM V5.24a）</h2>
+<h2 id="1-安装-keil5-mdk">1. 安装 Keil5 MDK</h2>
 <ol>
-<li>双击 <code>MDK524a.EXE</code>，启动 Setup MDK-ARM <strong>V5.24a</strong>（发布版 7/2017）。</li>
-<li>欢迎页 → Next；勾选 “I agree to all the terms…” → Next。</li>
-<li><strong>选择安装目录</strong>（全流程最关键的一步）：<ul>
-<li>默认装 C 盘（如 <code>C:\Keil_v5</code>）；C 盘空间够就直接 Next，也可以点 Browse 换盘。</li>
-<li>如果之前装过 <strong>Keil C51</strong>：可以直接选 C51 的安装目录，让 C51 和 MDK <strong>共存</strong>；以后在 Device 下拉列表里切到 <strong>Legacy Device</strong> 就能看到 51 型号。</li>
-<li>如果以前没装过 Keil：<strong>一定要新建一个目录</strong>（最好建在根目录下，视频示例 <code>D:\Keil5</code>），不要直接往已有目录里装。</li>
-<li>路径不要有<strong>中文和特殊字符</strong>（国外软件对中文路径支持差，容易出各种问题）。</li>
+<li>双击 <code>MDK524a.EXE</code> 启动 Setup MDK-ARM <strong>V5.24a</strong>（发布版 7/2017）；欢迎页勾选协议 → Next。</li>
+<li><strong>选安装目录</strong>（全流程最关键）：<ul>
+<li>默认装 C 盘（如 <code>C:\Keil_v5</code>），空间够就 Next，也可 Browse 换盘。</li>
+<li>装过 <strong>Keil C51</strong>：直接选 C51 目录即可<strong>共存</strong>，之后 Device 下拉切到 <strong>Legacy Device</strong> 才看得到 51 型号。</li>
+<li>没装过 Keil：<strong>一定要新建目录</strong>（最好在根目录，视频示例 <code>D:\Keil5</code>），不要往已有目录里装。</li>
+<li>路径不要有<strong>中文和特殊字符</strong>。</li>
 </ul>
 </li>
-<li>选好目录后，下面的 <strong>Pack 路径会自动跟随</strong>成 <code>&lt;Keil目录&gt;\ARM\PACK</code>，直接 Next。</li>
-<li>个人信息页（姓名 / 公司 / 邮箱）随便填 → Next → 开始安装，需要等几分钟。</li>
-<li>安装过程中会弹窗询问是否安装 <strong>ULINK 驱动</strong>（ULINK 是 Keil 自家的调试器）→ 点“是”。</li>
-<li>完成页取消勾选“显示发布说明文档”→ Finish。</li>
-<li>安装完会自动弹出 <strong>Pack Installer</strong> 窗口，先关掉，第 2 步再讲。</li>
+<li>Pack 路径自动跟随为 <code>&lt;Keil目录&gt;\ARM\PACK</code>，直接 Next。</li>
+<li>个人信息页随便填 → Next → 安装，等几分钟。</li>
+<li>弹窗问是否装 <strong>ULINK 驱动</strong>（Keil 自家调试器）→ 点“是”。</li>
+<li>完成页取消“显示发布说明文档”→ Finish；随后弹出的 <strong>Pack Installer</strong> 先关掉。</li>
 </ol>
 <h2 id="2-安装器件支持包-dfp">2. 安装器件支持包（DFP）</h2>
-<p><strong>为什么需要</strong>：Keil5 起把“器件支持包（Device Family Pack, DFP）”独立出来了（Keil4 及更早不用）。ARM 芯片型号太多、升级换代快，软件不可能内置全部型号，全部内置也太占空间；所以“开发哪种芯片就装哪种支持包”。<strong>不装支持包，新建工程时 Device 列表里只有 ARM 一项，找不到 STM32 型号。</strong></p>
 <ul>
-<li>验证“没装”的现象：打开 Keil → <strong>Project → New uVision Project</strong> → 随便起个工程名 → Target 窗口的 Device 列表只有 ARM，没有 STM32。</li>
-<li>视频演示机之前装过 C51：此时 Device 下拉可切到 <strong>Legacy Device</strong> 查看 51 型号；只装 MDK 的电脑这个下拉列表无法切换。</li>
+<li>Keil5 起把器件支持包（Device Family Pack, DFP）独立出来（Keil4 及更早不用）：芯片型号太多、升级换代快，全内置太占空间，开发哪种芯片就装哪种包。</li>
+<li><strong>不装支持包</strong>：新建工程 Device 列表只有 ARM，找不到 STM32；用 Project → New uVision Project 即可验证。</li>
+<li>演示机装过 C51，Device 下拉可切到 <strong>Legacy Device</strong>；只装 MDK 的电脑切不了。</li>
 </ul>
 <p><strong>方式 A：离线安装（课程使用，推荐）</strong></p>
 <ol>
-<li>打开 <code>Keil5 MDK\支持包\</code>，资料包预置了 7 个常见系列：F0 2.0.0、<strong>F1 2.2.0</strong>、F4 1.0.8、L0 1.6.0、L1 1.2.0、L4 1.4.0、W1 1.0.0。</li>
-<li>本课程用 F1 系列 → 双击 <code>Keil.STM32F1xx_DFP.2.2.0.pack</code>。</li>
-<li>目标路径会自动指向 Keil 安装目录下的 PACK，直接 Next，等待一小会 → Finish。</li>
-<li>重新打开 Keil 新建工程：Device 里出现 <strong>STM32F1 Series</strong>，展开后是 F103 → <strong>STM32F103C8</strong>，说明能正常建工程了。</li>
+<li><code>Keil5 MDK\支持包\</code> 预置 7 个常见系列：F0 2.0.0、<strong>F1 2.2.0</strong>、F4 1.0.8、L0 1.6.0、L1 1.2.0、L4 1.4.0、W1 1.0.0。</li>
+<li>本课程用 F1 → 双击 <code>Keil.STM32F1xx_DFP.2.2.0.pack</code>，路径自动指向 PACK → Next → Finish。</li>
+<li>重开 Keil 新建工程：Device 出现 <strong>STM32F1 Series</strong> → F103 → <strong>STM32F103C8</strong>，说明能建工程。</li>
 </ol>
-<p><strong>方式 B：在线安装（拓展，按需用）</strong></p>
+<p><strong>方式 B：在线安装（拓展）</strong></p>
 <ol>
-<li>打开 Keil，点工具栏上的绿色 <strong>Pack Installer</strong> 按钮（<strong>需要联网</strong>）。</li>
-<li>它会自动从 Keil 官网获取最新支持包列表（网速慢，要等；如果没有自动获取，点一下更新按钮）。</li>
-<li>加载完能看到很多公司，包含 Keil 支持的全部 ARM 芯片。其中也能看到国产兼容芯片：GigaDevice <strong>GD32F103C8</strong>、MindMotion <strong>MM32F103C8T</strong>，UP 主介绍它们基本和 STM32F103C8T6 兼容（当时 STM32 涨价，国产替代也发展起来了）。</li>
-<li>展开 <code>STMicroelectronics</code> → 选需要的系列（视频用 <strong>STM32F2</strong> 演示）→ 在右侧找后缀为 <code>DFP</code> 的文件 → 点 <strong>Install</strong>，Keil 会自动从官网下载并安装。</li>
-<li>关闭后 Keil 提示“支持包目录已更改，是否重新加载” → 选“是”，再新建工程就能看到刚装的系列。</li>
-<li>也可以自己用浏览器到 Keil 官网下载 pack，下完按离线方式安装，效果一样。</li>
+<li>点工具栏绿色 <strong>Pack Installer</strong>（<strong>需要联网</strong>），它会从 Keil 官网取最新支持包列表，网速慢要等，没自动获取就点一下更新按钮。</li>
+<li>列表含 Keil 支持的全部 ARM 芯片，也有国产兼容芯片：GigaDevice <strong>GD32F103C8</strong>、MindMotion <strong>MM32F103C8T</strong>，基本与 STM32F103C8T6 兼容。</li>
+<li><code>STMicroelectronics</code> → 选系列（视频用 <strong>STM32F2</strong> 演示）→ 右侧找后缀 <code>DFP</code> 的文件 → <strong>Install</strong>。</li>
+<li>关闭后 Keil 提示“支持包目录已更改，是否重新加载” → 选“是”，再新建工程就能看到刚装的系列；也可官网下 pack 按离线方式装。</li>
 </ol>
 <h2 id="3-软件注册">3. 软件注册</h2>
 <ul>
-<li>Keil 是<strong>付费软件</strong>，不注册功能受限。UP 主大意：个人用户学习用盗版问题也不大，<strong>公司使用就要考虑版权问题</strong>（合规提醒：商业项目请购买正版 License）。</li>
-<li>操作步骤：<ol>
-<li>关闭 Keil；在 Keil uVision5 图标上 <strong>右键 → 以管理员身份运行</strong>（这一步必须，否则后面 Add LIC 会提示“权限不够”）。</li>
-<li>打开后点 File → <strong>License Management</strong>，复制右上角的 <strong>CID</strong>（Computer ID）。</li>
-<li>打开 <code>Keil5 MDK\keygen_new2032.zip</code> 解压得到注册机；如果杀毒软件把文件删了，需要先关杀毒软件再重新解压。</li>
-<li>双击打开注册机，把刚复制的 CID 粘贴进去；<strong>Target 选 ARM</strong>（注册 MDK 用；要注册 C51 才选 C51）。</li>
-<li>点 <strong>Generate</strong> 生成注册码，选中并复制。</li>
-<li>回到 License Management，把注册码粘贴到 <strong>New License ID Code</strong>，点 <strong>Add LIC</strong>。</li>
-<li>看到 <code>*** LIC Added Successfully ***</code>，且列表里 <strong>MDK-ARM Plus</strong> 的使用期限显示到 <strong>2032 年</strong>（演示机里 PK51 到 2031 年），就代表注册成功。</li>
-<li>如果点 Add LIC 后弹出报错窗口，基本就是启动时<strong>没有以管理员身份运行</strong>；注册完成后，以后双击打开即可，不需要再右键管理员。</li>
-</ol>
-</li>
+<li>Keil 是<strong>付费软件</strong>，不注册功能受限；公司使用要考虑版权，商业项目请购买正版 License。</li>
 </ul>
-<h2 id="4-安装-st-link-驱动">4. 安装 ST-LINK 驱动</h2>
 <ol>
-<li>把 ST-LINK 插到电脑 USB 口。</li>
-<li>此电脑 → 右键 → 属性 → <strong>设备管理器</strong>；在“其他设备”里能看到 ST-LINK 且图标带<strong>黄色感叹号</strong> → 说明驱动没装。</li>
-<li>如果设备管理器里 ST-LINK 没有感叹号 → 已装过驱动，跳过这一步。</li>
-<li>驱动就在 Keil 安装目录里：<code>&lt;Keil安装目录&gt;\ARM\STLink\USBDriver\</code><ul>
-<li><strong>dpinst_amd64.exe</strong>：64 位系统用</li>
-<li><strong>dpinst_x86.exe</strong>：32 位系统用</li>
-</ul>
-</li>
-<li>双击对应位数的程序 → 下一步 → 完成；设备管理器会自动刷新，ST-LINK 的感叹号消失即成功。</li>
-<li>Keil 安装目录的 <strong>ARM 文件夹</strong>下还有 <code>Segger</code> 文件夹，里面是 <strong>J-Link</strong> 驱动：J-Link 也是常用调试器，用 J-Link 的话可以顺手装，本课程用 ST-LINK。</li>
+<li>关闭 Keil，右键 uVision5 图标 → <strong>以管理员身份运行</strong>（否则 Add LIC 提示“权限不够”）。</li>
+<li>File → <strong>License Management</strong>，复制右上角 <strong>CID</strong>。</li>
+<li>解压 <code>Keil5 MDK\keygen_new2032.zip</code> 得注册机；杀毒软件删了文件就先关杀毒再解压。</li>
+<li>粘贴 CID，<strong>Target 选 ARM</strong>（注册 C51 才选 C51）→ <strong>Generate</strong> → 复制注册码。</li>
+<li>回 License Management，粘到 <strong>New License ID Code</strong> → <strong>Add LIC</strong>。</li>
+<li>出现 <code>*** LIC Added Successfully ***</code>，且 <strong>MDK-ARM Plus</strong> 期限到 <strong>2032 年</strong>（演示机 PK51 到 2031 年）即成功；之后双击打开即可，不用再管理员运行。</li>
 </ol>
-<h2 id="5-安装-usb-转串口驱动">5. 安装 USB 转串口驱动</h2>
+<h2 id="4-驱动安装-st-link-ch340">4. 驱动安装（ST-LINK / CH340）</h2>
 <ul>
-<li>本课程串口模块用 <strong>CH340</strong> 芯片（和 51 开发板上的芯片一样）；玩过 51 的话大概率已经装过。</li>
-<li>把 USB 转串口模块插到电脑上，设备管理器“其他设备”里会出现 <code>USB Serial</code> 并带感叹号 → 需要装驱动；能正常识别就不用装。</li>
-<li>驱动位置：资料包 <code>工具软件\USB转串口CH340驱动\CH341SER.EXE</code>（WCH 的自解压安装器，解压到 <code>C:\WCH.CN\CH341SER</code>）。</li>
-<li>双击 <code>CH341SER.EXE</code> → 先弹出 WinRAR 自解压窗口（Destination folder: <code>C:\WCH.CN\CH341SER</code>），点 <strong>Install</strong> → 继续弹出“驱动安装(X64)”（INF 为 <code>CH341SER.INF</code>），点“安装” → 出现“驱动安装成功”；</li>
-<li>设备管理器 → <strong>端口(COM 和 LPT)</strong> 下出现 <code>USB-SERIAL CH340 (COM3)</code> 且没有感叹号，即安装完成。</li>
+<li>ST-LINK：插入 USB → 此电脑 → 右键 → 属性 → <strong>设备管理器</strong>；“其他设备”里带<strong>黄色感叹号</strong>说明没装驱动；没有感叹号就跳过。</li>
+<li>驱动在 <code>&lt;Keil安装目录&gt;\ARM\STLink\USBDriver\</code>：<strong>dpinst_amd64.exe</strong> 给 64 位、<strong>dpinst_x86.exe</strong> 给 32 位。</li>
+<li>双击对应程序 → 下一步 → 完成，感叹号消失即成功。</li>
+<li>同目录下的 <code>Segger</code> 文件夹是 <strong>J-Link</strong> 驱动，用 J-Link 才装，本课程用 ST-LINK。</li>
+<li>CH340：串口模块用 <strong>CH340</strong>（和 51 开发板一样），玩过 51 大概率已装；插入后“其他设备”出现 <code>USB Serial</code> 带感叹号才要装。</li>
+<li>驱动：<code>工具软件\USB转串口CH340驱动\CH341SER.EXE</code>（WCH 自解压安装器，解到 <code>C:\WCH.CN\CH341SER</code>）。</li>
+<li>双击 <code>CH341SER.EXE</code> → 自解压窗口点 <strong>Install</strong> → “驱动安装(X64)”（INF 为 <code>CH341SER.INF</code>）点“安装” → 提示“驱动安装成功”。</li>
+<li>设备管理器 → <strong>端口(COM 和 LPT)</strong> 出现 <code>USB-SERIAL CH340 (COM3)</code> 且无感叹号才算完成。</li>
 </ul>
-<h2 id="6-装完自检与下一步">6. 装完自检与下一步</h2>
+<h2 id="5-自检与下一步">5. 自检与下一步</h2>
 <ul>
-<li>五步装完，本集结束；从下一集 <strong>[2-2] 新建工程</strong> 开始正式写代码。</li>
-<li>自检清单：<ul>
-<li><input disabled="" type="checkbox"> Keil uVision5 能正常打开，License Management 里 MDK-ARM 不是 Evaluation 版。</li>
-<li><input disabled="" type="checkbox"> 新建工程，Device 能选到 STM32F103C8。</li>
-<li><input disabled="" type="checkbox"> 插 ST-LINK，设备管理器里没有感叹号。</li>
-<li><input disabled="" type="checkbox"> 插 USB 转串口，端口里出现 CH340 的 COM 号。</li>
+<li>五步装完，下一集 <strong>[2-2] 新建工程</strong> 开始写代码。</li>
+<li>自检：uVision5 能开且 MDK-ARM 不是 Evaluation 版；Device 能选 STM32F103C8；插 ST-LINK 无感叹号；插 USB 转串口出现 CH340 的 COM 号。</li>
 </ul>
-</li>
-</ul>
-<h2 id="7-坑与易错点">7. 坑与易错点</h2>
+<h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>解压密码</strong>：<code>Keil5 MDK.zip</code> 需要密码 <strong>32</strong>；UP 主提示密码文档就在压缩包旁边，别去第三方网站乱下。</li>
-<li><strong>路径中文/特殊字符</strong>：Keil 安装目录、工程目录都尽量用纯英文；中文路径容易引发奇怪问题。</li>
-<li><strong>C51 共存</strong>：装 MDK 时选 C51 的安装目录可共存；之后在 Device 下拉选 <strong>Legacy Device</strong> 才能看到 51 型号。</li>
-<li><strong>不装 DFP 就看不到芯片</strong>：新建工程 Device 只有 ARM 时，先装 <code>Keil.STM32F1xx_DFP</code>。</li>
-<li><strong>注册必须以管理员身份运行</strong>：否则 Add LIC 提示权限不够；注册成功一次之后就不用了。</li>
-<li><strong>注册机被杀毒软件删掉</strong>：解压前先关杀毒或加白名单，否则解压出来找不到文件。</li>
-<li><strong>Pack Installer 需要联网且慢</strong>：在线安装只是拓展用法；课程主线用离线 pack，速度快且不受网络影响。</li>
-<li><strong>ST-LINK 驱动别装错位数</strong>：64 位系统用 <code>dpinst_amd64.exe</code>，32 位系统用 <code>dpinst_x86.exe</code>。</li>
-<li><strong>CH340 要看 COM 号</strong>：设备管理器“端口”里出现 COM 号才说明真正可用，只有“驱动安装成功”弹窗还不够。</li>
+<li><strong>解压密码</strong>：<code>Keil5 MDK.zip</code> 密码 <strong>32</strong>；密码文档就在压缩包旁边，别去第三方网站乱下。</li>
+<li><strong>路径中文/特殊字符</strong>：Keil 安装目录、工程目录都尽量纯英文，中文路径容易出怪问题。</li>
+<li><strong>C51 共存</strong>：装 MDK 时选 C51 目录可共存；之后 Device 下拉选 <strong>Legacy Device</strong> 才看得到 51 型号。</li>
+<li><strong>不装 DFP 就看不到芯片</strong>：Device 只有 ARM 时，先装 <code>Keil.STM32F1xx_DFP</code>。</li>
+<li><strong>注册必须以管理员身份运行</strong>，否则 Add LIC 提示权限不够；成功一次之后就不用了。</li>
+<li><strong>注册机被杀毒软件删掉</strong>：解压前先关杀毒或加白名单。</li>
+<li><strong>Pack Installer 需要联网且慢</strong>：在线只是拓展，主线用离线 pack，快且不受网络影响。</li>
+<li><strong>ST-LINK 驱动别装错位数</strong>：64 位用 <code>dpinst_amd64.exe</code>，32 位用 <code>dpinst_x86.exe</code>。</li>
+<li><strong>CH340 要看 COM 号</strong>：端口里出现 COM 号才真正可用，只有“驱动安装成功”弹窗不够。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -345,15 +323,15 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#%E4%BA%94%E6%AD%A5%E6%B8%85%E5%8D%95-%E4%B8%80%E5%BC%A0%E8%A1%A8">五步清单（一张表）</a>
         <a class="level-2" href="#0-%E4%B8%8B%E8%BD%BD%E4%B8%8E%E8%B5%84%E6%96%99%E5%8C%85">0. 下载与资料包</a>
-        <a class="level-2" href="#1-%E5%AE%89%E8%A3%85-keil5-mdk-mdk-arm-v5-24a">1. 安装 Keil5 MDK（MDK-ARM V5.24a）</a>
+        <a class="level-2" href="#1-%E5%AE%89%E8%A3%85-keil5-mdk">1. 安装 Keil5 MDK</a>
         <a class="level-2" href="#2-%E5%AE%89%E8%A3%85%E5%99%A8%E4%BB%B6%E6%94%AF%E6%8C%81%E5%8C%85-dfp">2. 安装器件支持包（DFP）</a>
         <a class="level-2" href="#3-%E8%BD%AF%E4%BB%B6%E6%B3%A8%E5%86%8C">3. 软件注册</a>
-        <a class="level-2" href="#4-%E5%AE%89%E8%A3%85-st-link-%E9%A9%B1%E5%8A%A8">4. 安装 ST-LINK 驱动</a>
-        <a class="level-2" href="#5-%E5%AE%89%E8%A3%85-usb-%E8%BD%AC%E4%B8%B2%E5%8F%A3%E9%A9%B1%E5%8A%A8">5. 安装 USB 转串口驱动</a>
-        <a class="level-2" href="#6-%E8%A3%85%E5%AE%8C%E8%87%AA%E6%A3%80%E4%B8%8E%E4%B8%8B%E4%B8%80%E6%AD%A5">6. 装完自检与下一步</a>
-        <a class="level-2" href="#7-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">7. 坑与易错点</a>
+        <a class="level-2" href="#4-%E9%A9%B1%E5%8A%A8%E5%AE%89%E8%A3%85-st-link-ch340">4. 驱动安装（ST-LINK / CH340）</a>
+        <a class="level-2" href="#5-%E8%87%AA%E6%A3%80%E4%B8%8E%E4%B8%8B%E4%B8%80%E6%AD%A5">5. 自检与下一步</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>
   </aside>
 </div>

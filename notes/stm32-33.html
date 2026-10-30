@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[10-3] 软件I2C读写MPU6050 · 我的学习笔记</title>
-  <meta name="description" content="STM32 [10-3]：两层模块手写。MyI2C 层——开漏 PB10/PB11、W_SCL/W_SDA/R_SDA 带 10us 延时、Start/Stop/SendByte 高位先行/ReceiveByte/应答；0xD0 应答、0xA0 无应答。MPU6050 层——WriteReg/ReadReg（重复起始+非应答）、Init 六条、GetData 指针返 6 轴；AZ≈0.95g。">
+  <meta name="description" content="STM32 [10-3]：两层模块手写。MyI2C 层——PB10/PB11 开漏、10us 延时、Start/Stop/SendByte 高位先行/ReceiveByte/应答，0xD0 应答、0xA0 无应答。MPU6050 层——WriteReg/ReadReg（重复起始+非应答）、Init 六条、GetData 指针返 6 轴；AZ≈0.95g。">
   <meta property="og:title" content="[10-3] 软件I2C读写MPU6050 · 我的学习笔记">
-  <meta property="og:description" content="STM32 [10-3]：两层模块手写。MyI2C 层——开漏 PB10/PB11、W_SCL/W_SDA/R_SDA 带 10us 延时、Start/Stop/SendByte 高位先行/ReceiveByte/应答；0xD0 应答、0xA0 无应答。MPU6050 层——WriteReg/ReadReg（重复起始+非应答）、Init 六条、GetData 指针返 6 轴；AZ≈0.95g。">
+  <meta property="og:description" content="STM32 [10-3]：两层模块手写。MyI2C 层——PB10/PB11 开漏、10us 延时、Start/Stop/SendByte 高位先行/ReceiveByte/应答，0xD0 应答、0xA0 无应答。MPU6050 层——WriteReg/ReadReg（重复起始+非应答）、Init 六条、GetData 指针返 6 轴；AZ≈0.95g。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,45 +177,43 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>26 分钟</span>
+      <span>18 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">I2C</span><span class="tag">软件I2C</span><span class="tag">MPU6050</span><span class="tag">分层</span>
     </div>
     <article class="prose"><h1>[10-3] 软件I2C读写MPU6050 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 10 的代码课（超长实操）</strong>——<strong>两层模块从零手写</strong>：先写 <strong>MyI2C 协议层</strong>（软件模拟 I2C 时序，不占 STM32 硬件外设），再在它之上写 <strong>MPU6050 驱动层</strong>（读写寄存器、配置、取数），最后由 main 应用层调用。结尾 1:02:45 总结<strong>分层架构</strong>，<strong>无下集预告</strong>（下一集应是硬件 I2C）。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>工程由 <strong>OLED 显示工程</strong>复制改名 <strong><code>10-1 软件I2C读写MPU6050</code></strong>，接线很简单：<strong>VCC/GND 供 3.3V、SCL→PB10、SDA→PB11</strong>（<strong>软件 I2C 不占外设资源、引脚可任意指定</strong>，这是它相对硬件 I2C 的最大优点；模块自带上拉电阻，无需外挂）。程序分三层：<strong>main（应用层）→ MPU6050（驱动层）→ MyI2C（协议层）</strong>。<strong>协议层 <code>MyI2C.c/h</code></strong> 全部是「用 GPIO 手动翻转电平模拟时序」：<code>MyI2C_Init</code> = 开 <strong>GPIOB 时钟</strong> + <strong><code>GPIO_Mode_Out_OD</code>（开漏输出，兼具输入输出、可释放总线）</strong> + <strong><code>GPIO_Pin_10 | GPIO_Pin_11</code></strong> + <strong><code>GPIO_Speed_50MHz</code></strong> + <code>GPIO_Init</code> + 最后 <strong><code>GPIO_SetBits(GPIOB, GPIO_Pin_10 | GPIO_Pin_11)</code> 把总线置高释放（空闲态）</strong>；三个底层函数 <strong><code>MyI2C_W_SCL(uint8_t BitValue)</code>／<code>MyI2C_W_SDA(uint8_t BitValue)</code>／<code>MyI2C_R_SDA()</code></strong>，内部用 <strong><code>GPIO_WriteBit(GPIOB, GPIO_Pin_10, (BitAction)BitValue)</code>／<code>GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11)</code> + <code>Delay_us(10)</code></strong>——<strong>不用宏定义而用函数封装</strong>的原因：宏替换<strong>语义不明显</strong>（<code>SCL_PORT</code> 这类看不出是置位还是复位）、<strong>换引脚要改很多处</strong>、<strong>主频高时不好加延时</strong>；<strong>延时 10us 是经验值</strong>（F1 不加延时 MPU6050 也跟得上，保险起见加；I2C 可以慢）。<strong>起始</strong> <code>MyI2C_Start</code> = <code>W_SDA(1); W_SCL(1); W_SDA(0); W_SCL(0);</code>（SCL 高电平期间 SDA 下降沿；先释放 SDA 保险）；<strong>终止</strong> <code>MyI2C_Stop</code> = <code>W_SDA(0); W_SCL(1); W_SDA(1);</code>（SCL 高电平期间 SDA 上升沿，结束回到双高）；<strong>发送一个字节</strong> <code>MyI2C_SendByte(uint8_t Byte)</code> = <code>for (i = 0; i &lt; 8; i ++) { W_SDA(Byte &amp; (0x80 &gt;&gt; i)); W_SCL(1); W_SCL(0); }</code>（<strong>高位先行</strong>，<code>Byte &amp; 0x80</code> 非 0 即 1）；<strong>接收一个字节</strong> <code>MyI2C_ReceiveByte()</code> = <strong>先 <code>W_SDA(1)</code> 释放 SDA</strong>，再 <code>for</code> 8 次 <code>W_SCL(1); if (R_SDA()) Byte |= (0x80 &gt;&gt; i); W_SCL(0);</code>；<strong>发送应答</strong> <code>MyI2C_SendAck(uint8_t AckBit)</code> = <code>W_SDA(AckBit); W_SCL(1); W_SCL(0);</code>；<strong>接收应答</strong> <code>MyI2C_ReceiveAck()</code> = 释放 SDA → <code>W_SCL(1)</code> → 读 SDA → <code>W_SCL(0)</code> → 返回（<strong>0 = 应答、1 = 非应答</strong>；主机置 1 后仍可能读到 0——因为<strong>开漏 + 弱上拉，从机可以把线拉低</strong>）。<strong>先验证时序</strong>：main 里写「点名时序」<code>Start → SendByte(0xD0) → Ack = ReceiveAck() → Stop</code>，OLED 显示 Ack=<strong>0</strong>（MPU6050 应答）；改成 <strong>0xA0</strong> → 显示 <strong>1</strong>（无此设备）→ 可扩展成<strong>从机地址扫描</strong>；<strong>AD0 改名实验</strong>：AD0 飞线接高后要用 <strong>1101001（0xD2/0xD3）</strong> 才应答，改回 0xD0 又不理人。<strong>驱动层 <code>MPU6050.c/h + MPU6050_Reg.h</code></strong>（像「继承」一样包含 MyI2C）：<strong><code>#define MPU6050_ADDRESS 0xD0</code></strong>；<strong><code>MPU6050_WriteReg(RegAddress, Data)</code></strong> = Start → SendByte(0xD0) → ReceiveAck → SendByte(RegAddress) → RA → SendByte(Data) → RA → Stop；<strong><code>MPU6050_ReadReg(RegAddress)</code></strong> = Start → 0xD0 → RA → RegAddress → RA → <strong><code>MyI2C_Start()</code> 重复起始（切换读写方向）</strong> → SendByte(<strong>0xD0 | 0x01 = 0xD1</strong>) → RA → <code>Data = MyI2C_ReceiveByte()</code> → <strong><code>MyI2C_SendAck(1)</code> 非应答</strong> → Stop → return Data；<strong>验证</strong>：<code>WriteReg(0x6B, 0x00)</code> 解除睡眠（<strong>否则写别的寄存器无效</strong>）→ <code>WriteReg(0x19, 0xAA)</code> 再读 0x19 得 0xAA（写 0x66 读回 0x66）→ 读 <strong>WHO_AM_I(0x75) = 0x68</strong> 说明通信正常；<strong><code>MPU6050_Init</code> 六条</strong>：<code>PWR_MGMT_1 = 0x01</code>（解睡 + 时钟选陀螺 PLL）、<code>PWR_MGMT_2 = 0x00</code>、<code>SMPLRT_DIV = 0x09</code>、<code>CONFIG = 0x06</code>、<code>GYRO_CONFIG = 0x18</code>（±2000°/s）、<code>ACCEL_CONFIG = 0x18</code>（±16g）；<strong><code>MPU6050_GetData(int16_t *AccX, *AccY, *AccZ, *GyroX, *GyroY, *GyroZ)</code></strong> 用<strong>指针实现多返回值</strong>：<code>DataH = ReadReg(ACCEL_XOUT_H); DataL = ReadReg(ACCEL_XOUT_L); *AccX = (DataH &lt;&lt; 8) | DataL;</code> 六轴同理。<strong>main</strong>：<code>OLED_ShowString(1,1,&quot;ID:&quot;)</code> + <code>ID = MPU6050_GetID()</code>（内部 <code>return MPU6050_ReadReg(MPU6050_WHO_AM_I)</code>）+ 循环 <code>GetData</code> + <code>OLED_ShowSignedNum</code> 分三行显示 6 个值。<strong>现象</strong>：ID 显示 <code>0x68</code>；水平放置时 <strong>AX≈+122（有零偏，不是精确 0）</strong>、<strong>AZ≈1944</strong>，按 <code>1944/32768 = x/16g</code> 算得 <strong>≈0.95g</strong>（理论 1g，误差正常）；倾斜时 AX/AY 变化、翻转芯片 Z 变负、转动时陀螺仪数值变化。</p>
-<h2 id="0-本集定位-代码课-两层模块从零手写">0. 本集定位：代码课（两层模块从零手写）</h2>
+<p>复制 OLED 工程改名 <code>10-1 软件I2C读写MPU6050</code>，SCL→PB10、SDA→PB11，用 GPIO 开漏模拟时序；其上是 MyI2C → MPU6050 → main 三层。点名 0xD0 应答、0xA0 无应答。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是代码课</strong>：00:00 看接线图 → 面包板接线 → 复制 OLED 工程改名 → 在 <strong>Hardware</strong> 目录下新建 <strong>MyI2C.c/h</strong>（协议层）与 <strong>MPU6050.c/h + MPU6050_Reg.h</strong>（驱动层）→ 逐函数写码、编译下载、用 OLED 验证 → 1:02:45 总结分层架构。</li>
-<li><strong>主线</strong>：<strong>软件模拟 I2C 时序</strong>（完全用 GPIO 翻转，不占用 STM32 的 I2C 硬件外设），再用它去读写 MPU6050 的寄存器。</li>
-<li><strong>片尾无下集预告</strong>；本集<strong>不涉及</strong>：硬件 I2C 外设（下一集）、DMP、姿态解算。</li>
-<li>理论部分见 <code>notes/stm32-31-I2C通信协议.md</code>（时序基本单元/完整时序）与 <code>notes/stm32-32-MPU6050简介.md</code>（寄存器/参数）。</li>
+<li>模块 10 的代码课（超长实操）：<strong>两层模块从零手写</strong>。</li>
+<li>先写 MyI2C 协议层（GPIO 翻转模拟时序，不占硬件 I2C 外设），再写 MPU6050 驱动层，最后由 main 调用。</li>
+<li>1:02:45 总结分层架构，无下集预告。</li>
+<li>本集不涉及：硬件 I2C 外设（下一集）、DMP、姿态解算。</li>
+<li>理论见 <code>notes/stm32-31-I2C通信协议.md</code> 与 <code>notes/stm32-32-MPU6050简介.md</code>。</li>
+<li>下文 <code>WriteReg</code>、<code>ReceiveAck</code>、<code>GetData</code> 分别是 <code>MPU6050_WriteReg</code>、<code>MyI2C_ReceiveAck</code>、<code>MPU6050_GetData</code> 的简写。</li>
 </ul>
 <h2 id="1-接线与工程建立">1. 接线与工程建立</h2>
 <h3 id="1-1-硬件接线">1.1 硬件接线</h3>
 <ul>
-<li><strong>VCC/GND</strong>：分别接电源正负极（3.3V 供电，模块内部有 LDO）；</li>
-<li><strong>SCL → PB10、SDA → PB11</strong>（本集用这两个脚，<strong>别与串口的 PA9/PA10 混淆</strong>）；</li>
-<li><strong>软件 I2C 不占用 STM32 内部外设资源，所以端口可以任意指定</strong>——SCL 接 PA0、PA8 都行，<strong>这是软件 I2C 相比硬件 I2C 的优点</strong>；</li>
-<li><strong>模块内部自带上拉电阻</strong>（4.7K），所以<strong>不需要外接上拉</strong>；</li>
-<li><strong>STM32 是主机、MPU6050 是从机</strong>；我们只写<strong>主机端</strong>程序；</li>
-<li><strong>AD0</strong> 引脚可改从机地址最低位（模块内置下拉，<strong>悬空即 0x68</strong>），后面做「改名实验」用；</li>
-<li>面包板接线：MPU6050 插面包板、电源跳线、SCL/SDA 飞线到 PB10/PB11，插 ST-Link，<strong>模块上的电源指示灯亮</strong>即供电正常（不亮要查供电、或模块坏了）。</li>
+<li>VCC/GND 供 3.3V（模块内有 LDO）；SCL→PB10、SDA→PB11，别与串口的 PA9/PA10 混淆。</li>
+<li>软件 I2C 不占内部外设，端口可任意指定（PA0、PA8 都行），这是它相对硬件 I2C 的优点。</li>
+<li>模块自带 4.7K 上拉，不需外接；STM32 是主机、MPU6050 是从机，只写主机端程序。</li>
+<li>AD0 可改从机地址最低位（模块内置下拉，悬空即 0x68），后面做改名实验。</li>
+<li>面包板接好后模块电源指示灯亮即供电正常；不亮查供电或模块。</li>
 </ul>
 <p><img src="../assets/images/stm32-33/01-wiring.jpg" alt="图 1：接线图 10-1 软件I2C读写MPU6050——左侧 MPU6050 模块（AD0/XCL/XDA/SDA/SCL/GND/VCC），中间 STM32 最小系统板（绿/黄飞线接到 PB10/PB11），下方 OLED，右上 ST-Link；字幕「在这里，VCC和GND分别接到电源正负极进行供电」"></p>
 <p><em>图 1：接线图 <code>10-1 软件I2C读写MPU6050</code>——左侧 MPU6050 模块（AD0/XCL/XDA/SDA/SCL/GND/VCC），中间 STM32 最小系统板（绿/黄飞线接到 PB10/PB11），下方 OLED，右上 ST-Link；字幕「在这里，VCC和GND分别接到电源正负极进行供电」</em></p>
 <h3 id="1-2-复制工程-建好分层框架">1.2 复制工程、建好分层框架</h3>
 <ul>
-<li>复制 <strong>OLED 显示工程</strong>，改名 <strong><code>10-1 软件I2C读写MPU6050</code></strong>，先编译；</li>
-<li>程序的整体架构（手绘三层）：<strong>main 应用层 → MPU6050 驱动层 → MyI2C 协议层</strong>；</li>
-<li>在 <strong>Hardware</strong> 目录下新建文件（<strong>模块名加前缀防止和库函数重名</strong>）：先建 <strong>MyI2C.c / MyI2C.h</strong>，写 <strong>I2C 底层的 GPIO 初始化 + 6 个时序基本单元</strong>（起始、终止、发送字节、接收字节、发送应答、接收应答）；再建 <strong>MPU6050.c / MPU6050.h / MPU6050_Reg.h</strong>，基于 I2C 层实现<strong>指定地址写/读寄存器</strong>、配置、取数。</li>
+<li>复制 OLED 显示工程，改名 <code>10-1 软件I2C读写MPU6050</code>，先编译。</li>
+<li>架构三层：main 应用层 → MPU6050 驱动层 → MyI2C 协议层。</li>
+<li>在 Hardware 下新建 <code>MyI2C.c/h</code>（模块名加前缀防和库函数重名），写 GPIO 初始化 + 6 个时序基本单元。</li>
+<li>再建 <code>MPU6050.c/h + MPU6050_Reg.h</code>，基于 I2C 层实现指定地址读写、配置、取数。</li>
 </ul>
 <p><img src="../assets/images/stm32-33/02-new-myi2c.jpg" alt="图 2：工程 10-1 软件I2C读写MPU6050 中新建 MyI2C.c——#include &quot;stm32f10x.h&quot; 后正在写 void MyI2C_Init(v；左侧 Hardware 组下已出现 MyI2C.c / MyI2C.h"></p>
 <p><em>图 2：工程 <code>10-1 软件I2C读写MPU6050</code> 中新建 <code>MyI2C.c</code>——<code>#include &quot;stm32f10x.h&quot;</code> 后正在写 <code>void MyI2C_Init(v</code>；左侧 Hardware 组下已出现 MyI2C.c / MyI2C.h</em></p>
 <h2 id="2-myi2c-协议层-软件模拟-i2c">2. MyI2C 协议层（软件模拟 I2C）</h2>
-<h3 id="2-1-myi2c-init-开漏输出-释放总线">2.1 <code>MyI2C_Init</code>：开漏输出 + 释放总线</h3>
+<h3 id="2-1-myi2c-c-的-myi2c-init-开漏输出-释放总线">2.1 <code>MyI2C.c</code> 的 <code>MyI2C_Init</code>：开漏输出 + 释放总线</h3>
 <pre><code class="language-c">void MyI2C_Init(void)
 {
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
@@ -230,13 +228,13 @@
 }
 </code></pre>
 <ul>
-<li><strong>两个任务</strong>：① 把 SCL/SDA 初始化为<strong>开漏输出模式</strong>；② 把 SCL/SDA <strong>置高电平释放总线</strong>（此时 I2C 总线处于<strong>空闲状态</strong>）；</li>
-<li><strong>开漏输出</strong>虽然名字带「输出」，但<strong>兼具输入输出功能</strong>，而且<strong>输出高电平＝释放引脚</strong>，正好符合 I2C 的「线与 + 弱上拉」硬件规定；</li>
-<li>初始化代码从 <code>LED.c</code> 的 GPIO 初始化复制改：端口改 <strong>GPIOB</strong>、引脚改 <strong>Pin_10 | Pin_11</strong>、模式改 <strong>GPIO_Mode_Out_OD</strong>；</li>
-<li><strong><code>GPIO_SetBits(...)</code> 这一行容易漏</strong>：不释放总线，后续时序会从错误电平开始。</li>
+<li>两个任务：SCL/SDA 初始化为开漏输出；再置高释放总线（空闲态）。</li>
+<li>开漏兼具输入输出，输出高电平＝释放引脚，正好符合 I2C 的线与 + 弱上拉。</li>
+<li>代码由 <code>LED.c</code> 的 GPIO 初始化改：端口 GPIOB、引脚 <code>GPIO_Pin_10 | GPIO_Pin_11</code>、模式 <code>GPIO_Mode_Out_OD</code>、速度 <code>GPIO_Speed_50MHz</code>，最后 <code>GPIO_Init</code> 与 <code>GPIO_SetBits(GPIOB, GPIO_Pin_10 | GPIO_Pin_11)</code>。</li>
+<li><code>GPIO_SetBits</code> 这一行容易漏，不释放总线后续时序就从错误电平开始。</li>
 </ul>
-<p><img src="../assets/images/stm32-33/03-myi2c-init-mid.jpg" alt="图 3：MyI2C.c 中的 MyI2C_Init（GPIO_Mode_Out_OD、GPIO_Pin_10 | GPIO_Pin_11、GPIO_Speed_50MHz、GPIO_Init(GPIOB, …)、GPIO_SetBits(GPIOB, GPIO_Pin_10 | GPIO_Pin_11)）；下方 MyI2C_Start 里还留着宏写法 GPIO_SetBits(SCL_PORT, SCL_PIN);（红叉＝宏未定义，后面改成函数）；字幕「参数是uint8_t BitValue」"></p>
-<p><em>图 3：<code>MyI2C.c</code> 中的 <code>MyI2C_Init</code>（<code>GPIO_Mode_Out_OD</code>、<code>GPIO_Pin_10 | GPIO_Pin_11</code>、<code>GPIO_Speed_50MHz</code>、<code>GPIO_Init(GPIOB, …)</code>、<code>GPIO_SetBits(GPIOB, GPIO_Pin_10 | GPIO_Pin_11)</code>）；下方 <code>MyI2C_Start</code> 里还留着*<em>宏写法</em></em> <code>GPIO_SetBits(SCL_PORT, SCL_PIN);</code>（红叉＝宏未定义，后面改成函数）；字幕「参数是uint8_t BitValue」*</p>
+<p><img src="../assets/images/stm32-33/03-myi2c-init-mid.jpg" alt="图 3：MyI2C_Init（GPIO_Mode_Out_OD、GPIO_Pin_10 | GPIO_Pin_11、GPIO_Speed_50MHz、GPIO_Init(GPIOB, …)、GPIO_SetBits(GPIOB, GPIO_Pin_10 | GPIO_Pin_11)）；下方 MyI2C_Start 留着宏写法 GPIO_SetBits(SCL_PORT, SCL_PIN);"></p>
+<p><em>图 3：<code>MyI2C_Init</code>（<code>GPIO_Mode_Out_OD</code>、<code>GPIO_Pin_10 | GPIO_Pin_11</code>、<code>GPIO_Speed_50MHz</code>、<code>GPIO_Init(GPIOB, …)</code>、<code>GPIO_SetBits(GPIOB, GPIO_Pin_10 | GPIO_Pin_11)</code>）；下方 <code>MyI2C_Start</code> 留着宏写法 <code>GPIO_SetBits(SCL_PORT, SCL_PIN);</code></em></p>
 <h3 id="2-2-三个底层函数-w-scl-w-sda-r-sda">2.2 三个底层函数：W_SCL / W_SDA / R_SDA</h3>
 <pre><code class="language-c">void MyI2C_W_SCL(uint8_t BitValue)
 {
@@ -260,11 +258,12 @@ uint8_t MyI2C_R_SDA(void)
 }
 </code></pre>
 <ul>
-<li><strong>为什么用函数封装而不是宏定义</strong>：直接用宏（<code>#define SCL_PORT GPIOB</code> / <code>#define SCL_PIN GPIO_Pin_10</code>）或带参宏替换整个 <code>GPIO_WriteBit</code> 也是可行且常见的写法，但缺点明显——<strong>语义不明</strong>（看不出是置位还是复位）、<strong>换引脚要改动很多处</strong>、<strong>主频高的芯片需要加软件延时的时候不方便</strong>；所以作者选择<strong>定义函数</strong>，延时也方便加在函数里，<strong>移植到别的单片机只需改这几个函数</strong>；</li>
-<li><strong>延时 <code>Delay_us(10)</code></strong>：对 <strong>STM32F1 + MPU6050</strong> 来说，<strong>即使不加延时也能跟得上</strong>，但<strong>保险起见延时 10us</strong>（I2C 是同步时序，可以慢）；<strong>换更高主频的芯片时要按手册时序要求调整</strong>。</li>
+<li>签名：<code>MyI2C_W_SCL(uint8_t BitValue)</code>、<code>MyI2C_W_SDA(uint8_t BitValue)</code>、<code>MyI2C_R_SDA()</code>；内部就是 <code>GPIO_WriteBit(GPIOB, GPIO_Pin_10, (BitAction)BitValue)</code> 与 <code>GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_11)</code> 加 <code>Delay_us(10)</code>，即 <code>GPIO_WriteBit</code> 写、读回用 <code>GPIO_ReadInputDataBit</code>。</li>
+<li>不用宏（<code>#define SCL_PORT GPIOB</code>、<code>#define SCL_PIN GPIO_Pin_10</code>）的原因：<code>SCL_PORT</code> 这类写法语义不明、换引脚要改多处、主频高时不好加延时。</li>
+<li>函数封装好移植，只改这几个函数；<code>Delay_us(10)</code> 是经验值，F1 不加也能跑，换高主频芯片要按手册时序调。</li>
 </ul>
-<p><img src="../assets/images/stm32-33/04-wscl-delay.jpg" alt="图 4：MyI2C.c 顶部——#include &quot;Delay.h&quot;；void MyI2C_W_SCL(uint8_t BitValue)：GPIO_WriteBit(GPIOB, GPIO_Pin_10, (BitAction)BitValue); + Delay_us(10);（高亮）；下方是 MyI2C_Init 全文（末行 GPIO_SetBits）；字幕「但是快的话，就还是要看一下手册里对时序时间的要求」"></p>
-<p><em>图 4：<code>MyI2C.c</code> 顶部——<code>#include &quot;Delay.h&quot;</code>；<code>void MyI2C_W_SCL(uint8_t BitValue)</code>：<code>GPIO_WriteBit(GPIOB, GPIO_Pin_10, (BitAction)BitValue);</code> + <code>Delay_us(10);</code>（高亮）；下方是 <code>MyI2C_Init</code> 全文（末行 <code>GPIO_SetBits</code>）；字幕「但是快的话，就还是要看一下手册里对时序时间的要求」</em></p>
+<p><img src="../assets/images/stm32-33/04-wscl-delay.jpg" alt="图 4：MyI2C.c 顶部——#include &quot;Delay.h&quot;；void MyI2C_W_SCL(uint8_t BitValue) 里 GPIO_WriteBit(GPIOB, GPIO_Pin_10, (BitAction)BitValue); + Delay_us(10);；下方 MyI2C_Init 末行 GPIO_SetBits"></p>
+<p><em>图 4：<code>MyI2C.c</code> 顶部——<code>#include &quot;Delay.h&quot;</code>；<code>void MyI2C_W_SCL(uint8_t BitValue)</code> 里 <code>GPIO_WriteBit(GPIOB, GPIO_Pin_10, (BitAction)BitValue);</code> + <code>Delay_us(10);</code>；下方 <code>MyI2C_Init</code> 末行 <code>GPIO_SetBits</code></em></p>
 <h3 id="2-3-起始与终止">2.3 起始与终止</h3>
 <pre><code class="language-c">void MyI2C_Start(void)
 {
@@ -282,8 +281,8 @@ void MyI2C_Stop(void)
 }
 </code></pre>
 <ul>
-<li><strong>起始</strong>：<code>SDA=1, SCL=1, SDA=0, SCL=0</code>——<strong>先释放 SDA 是为了保险</strong>（起始条件要求 SCL 高电平期间 SDA 由高变低，若 SDA 原本是低电平就没法产生下降沿）；最后拉低 SCL 是<strong>占用总线</strong>且让每个时序单元「低电平开始、低电平结束」便于拼接；</li>
-<li><strong>终止</strong>：<code>SDA=0, SCL=1, SDA=1</code>——先拉低 SDA、释放 SCL 让它回高（此时 SCL 高、SDA 低），再释放 SDA 产生<strong>上升沿</strong>；结束之后 SCL/SDA 都回到高电平（空闲态）。</li>
+<li>起始（<code>MyI2C_Start()</code>）<code>SDA=1, SCL=1, SDA=0, SCL=0</code>：先释放 SDA 是保险（否则没有下降沿），最后拉低 SCL 占用总线、让每个单元低电平开始、低电平结束。</li>
+<li>终止 <code>SDA=0, SCL=1, SDA=1</code>：SCL 高电平期间产生上升沿，结束后回到双高空闲态。</li>
 </ul>
 <p><img src="../assets/images/stm32-33/05-write-timing-ppt.jpg" alt="图 5：PPT「I2C时序」指定地址写页（上集内容，本集写代码时对照）——对于指定设备在指定地址下写入指定数据；下方是实测波形，标注 Send Byte: 0xD0 (Slave Address + R/W)、RA 0、Send Byte: 0x19 (Reg Address)、RA 0、Send Byte: 0xAA (Data)、RA 0、P；字幕「先看一下指定地址写」"></p>
 <p><em>图 5：PPT「I2C时序」指定地址写页（上集内容，本集写代码时对照）——对于指定设备在指定地址下写入指定数据；下方是实测波形，标注 <code>Send Byte: 0xD0 (Slave Address + R/W)</code>、<code>RA 0</code>、<code>Send Byte: 0x19 (Reg Address)</code>、<code>RA 0</code>、<code>Send Byte: 0xAA (Data)</code>、<code>RA 0</code>、<code>P</code>；字幕「先看一下指定地址写」</em></p>
@@ -302,9 +301,10 @@ void MyI2C_Stop(void)
 }
 </code></pre>
 <ul>
-<li><strong><code>Byte &amp; 0x80</code></strong>：<code>0x80</code> 是二进制 <code>1000 0000</code>，按位与的结果<strong>只取决于 Byte 的最高位</strong>——是 0 结果就是 0、是 1 结果非 0；因为 <code>W_SDA</code> 参数会赋给 <code>BitAction</code>（非 0 即 1），<strong>可以直接把按位与的结果传进去</strong>（不放心也可以写 <code>if (Byte &amp; 0x80) W_SDA(1); else W_SDA(0);</code>）；</li>
-<li><strong>第 i 次循环用 <code>0x80 &gt;&gt; i</code></strong>：<code>i=0</code> 取 B7、<code>i=1</code> 取 B6 …… <strong>高位先行</strong>；<strong>加括号确保优先级</strong>；</li>
-<li><strong>SCL 低电平期间放数据、高电平期间从机读数据</strong>——所以「改变 SDA」只能发生在低电平期间。</li>
+<li><code>MyI2C_SendByte(uint8_t Byte)</code> 的一行写法：<code>for (i = 0; i &lt; 8; i ++) { W_SDA(Byte &amp; (0x80 &gt;&gt; i)); W_SCL(1); W_SCL(0); }</code>。</li>
+<li><code>Byte &amp; 0x80</code>：<code>0x80</code> 是 <code>1000 0000</code>，结果只取决于最高位，非 0 即 1，可直接传给 <code>BitAction</code>；不放心可写 <code>if (Byte &amp; 0x80) W_SDA(1); else W_SDA(0);</code>。</li>
+<li>第 i 次用 <code>0x80 &gt;&gt; i</code>：<code>i=0</code> 取 B7、<code>i=1</code> 取 B6，高位先行；括号保证优先级。</li>
+<li>SCL 低电平放数据、高电平从机读，所以只能在低电平期间改 <code>W_SDA</code>。</li>
 </ul>
 <p><img src="../assets/images/stm32-33/07-sendbyte-msb.jpg" alt="图 7：MyI2C_SendByte 首行高亮 MyI2C_W_SDA(Byte &amp; 0x80);（准备改成 for 循环 + 0x80 &gt;&gt; i）；字幕「如果你不放心的话，也可以写」"></p>
 <p><em>图 7：<code>MyI2C_SendByte</code> 首行高亮 <code>MyI2C_W_SDA(Byte &amp; 0x80);</code>（准备改成 for 循环 + <code>0x80 &gt;&gt; i</code>）；字幕「如果你不放心的话，也可以写」</em></p>
@@ -324,12 +324,13 @@ void MyI2C_Stop(void)
 }
 </code></pre>
 <blockquote>
-<p><strong>来源说明</strong>：接收字节的<strong>完整函数体没有落在任何一帧画面里</strong>，本代码块按<strong>口述（21:30–24:30）+ 发送字节的对称结构推导</strong>整理——逻辑是「先释放 SDA → 8 次（高电平读、低电平移）→ 用 <code>0x80 &gt;&gt; i</code> 拼成字节」。</p>
+<p>来源：完整函数体未落在任何一帧画面里，按口述 21:30–24:30 与发送字节的对称结构整理。</p>
 </blockquote>
 <ul>
-<li><strong>关键点 1：主机接收前必须先释放 SDA</strong>——否则线与把总线拽低，从机发什么主机都读成 0；</li>
-<li><strong>关键点 2：SCL 低电平＝从机「写」数据（变换电平）、高电平＝主机「读」数据</strong>——这种「读写分离」设计同时保证了<strong>起始/终止条件的特异性</strong>（数据位期间 SCL 高电平绝对不许动 SDA，只有起始/终止时 SCL 高电平期间 SDA 才允许跳变）；</li>
-<li>答疑（作者原话意思）：<strong>for 循环里主机没写过 SDA，读出来为什么会有变化？</strong> 因为<strong>I2C 是在通信，总线那边有从机</strong>——<strong>主机不断拨动 SCL 时钟，从机就有义务在低电平期间改变 SDA</strong>，所以主机读到的数据是<strong>从机控制</strong>的；如果主机自己写 SDA，那就不是通信了。</li>
+<li><code>MyI2C_ReceiveByte()</code> 先 <code>W_SDA(1)</code> 释放 SDA，否则线与把总线拽低，从机发什么主机都读成 0。</li>
+<li>SCL 低电平＝从机写数据、高电平＝主机读数据；数据位期间 SCL 高电平绝不许动 SDA，只有起始/终止才允许跳变。</li>
+<li>循环结构：<code>W_SCL(1); if (R_SDA()) Byte |= (0x80 &gt;&gt; i); W_SCL(0);</code>。</li>
+<li>答疑：主机没写过 SDA 却有变化，因为从机在低电平期间改 SDA。</li>
 </ul>
 <h3 id="2-6-发送应答-接收应答">2.6 发送应答 / 接收应答</h3>
 <pre><code class="language-c">void MyI2C_SendAck(uint8_t AckBit)
@@ -350,10 +351,11 @@ uint8_t MyI2C_ReceiveAck(void)
 }
 </code></pre>
 <blockquote>
-<p><strong>来源说明</strong>：这两个函数的完整函数体同样<strong>未逐行落帧</strong>，代码按口述（22:00–24:20）整理。</p>
+<p>来源：这两个函数的完整函数体同样未逐行落帧，按口述 22:00–24:20 整理。</p>
 </blockquote>
 <ul>
-<li><strong>答疑</strong>：<code>ReceiveAck</code> 里主机 <code>W_SDA(1)</code> 之后，读到的值<strong>仍然可能是 0</strong>——因为 <strong>I2C 引脚是「开漏输出 + 弱上拉」</strong>，主机置 1 只是「放手」，<strong>从机可以把线拉低</strong>：<strong>读到 0 = 从机应答（ACK）、读到 1 = 没人应答（NACK）</strong>。</li>
+<li>发送应答 <code>MyI2C_SendAck(uint8_t AckBit)</code> 就三行 <code>W_SDA(AckBit); W_SCL(1); W_SCL(0);</code>；<code>MyI2C_ReceiveAck()</code> 则是先 <code>W_SDA(1)</code> 交还 SDA，再 <code>W_SCL(1)</code> 读、<code>W_SCL(0)</code> 收尾。</li>
+<li>主机置 1 后仍可能读到 0：引脚是开漏 + 弱上拉，从机可以把线拉低；0 = 应答、1 = 非应答。</li>
 </ul>
 <h2 id="3-先验证时序-点名测试与-ad0-改名">3. 先验证时序：点名测试与 AD0 改名</h2>
 <h3 id="3-1-点名-时序">3.1 「点名」时序</h3>
@@ -368,24 +370,24 @@ MyI2C_Stop();
 OLED_ShowNum(1, 1, Ack, 3);    // 显示应答位
 </code></pre>
 <ul>
-<li><strong>不急着写上层</strong>，先用这条<strong>最短的指定地址写「半截」时序</strong>（只发地址、不写数据）验证底层时序和接线是否正确；</li>
-<li><strong>0xD0 = 1101 0000</strong>：高 7 位是 MPU6050 地址 1101000，最低位 0 表示<strong>写</strong>；</li>
-<li>下载后 <strong>OLED 显示 0</strong>（MPU6050 给了应答），说明<strong>硬件接线和时序都没问题</strong>；这就是「点名」——「就是看看你这个人在不在」。</li>
-</ul>
-<h3 id="3-2-寻址改错-无应答-ad0-改名实验">3.2 寻址改错 → 无应答；AD0 改名实验</h3>
-<ul>
-<li>把寻址改成 <strong>0xA0</strong>（总线上没这个设备）→ OLED 显示 <strong>1</strong>（无应答）——<strong>符合预期</strong>；利用这个「点名」时序可以做<strong>从机地址扫描</strong>（for 循环遍历所有地址、把应答位为 0 的记下来）；</li>
-<li><strong>AD0 改名实验</strong>：把 AD0 <strong>飞线接高电平</strong> → 用新名字 <strong>1101001（0xD2 写 / 0xD3 读）</strong> 才叫得应，改回 <strong>0xD0</strong> 又「不理人」；</li>
-<li>结论：<strong>同一条总线挂多个同型号芯片时，可以靠 AD0 改地址避免冲突</strong>；本芯片只有 AD0 一个（2 个地址），若有 AD0+AD1 可有 4 个地址。</li>
+<li>先不写上层，用这条最短的「指定地址写半截」时序（<code>Start → SendByte(0xD0) → Ack = ReceiveAck() → Stop</code>）验底层与接线。</li>
+<li><code>0xD0</code> = <code>1101 0000</code>：高 7 位地址 <code>1101000</code>，最低位 0 表示写。</li>
+<li>OLED 显示 0（MPU6050 给了应答），说明接线与时序都没问题。</li>
 </ul>
 <p><img src="../assets/images/stm32-33/08-main-rollcall.jpg" alt="图 8：main「点名」测试——OLED_Init(); MyI2C_Init();、MyI2C_Start();、MyI2C_SendByte(0xD0);  // 1101 000 0、uint8_t Ack = MyI2C_ReceiveAck();、MyI2C_Stop();、OLED_ShowNum(1, 1, Ack, 3);；字幕「就是看看你这个人在不在」"></p>
 <p><em>图 8：main「点名」测试——<code>OLED_Init(); MyI2C_Init();</code>、<code>MyI2C_Start();</code>、<code>MyI2C_SendByte(0xD0);  // 1101 000 0</code>、<code>uint8_t Ack = MyI2C_ReceiveAck();</code>、<code>MyI2C_Stop();</code>、<code>OLED_ShowNum(1, 1, Ack, 3);</code>；字幕「就是看看你这个人在不在」</em></p>
+<h3 id="3-2-寻址改错与-ad0-改名实验">3.2 寻址改错与 AD0 改名实验</h3>
+<ul>
+<li>把寻址改成 <code>0xA0</code>（总线上没这个设备）→ 显示 1（无应答），符合预期；据此可做从机地址扫描。</li>
+<li>AD0 飞线接高后，要用 <code>1101001</code>（<code>0xD2</code> 写 / <code>0xD3</code> 读）才叫得应，改回 <code>0xD0</code> 又不理人。</li>
+<li>同一条总线挂多个同型号芯片时可靠 AD0 改地址避冲突；本芯片只有 AD0（2 个地址），有 AD0+AD1 则 4 个。</li>
+</ul>
 <h2 id="4-mpu6050-驱动层">4. MPU6050 驱动层</h2>
 <h3 id="4-1-新建模块">4.1 新建模块</h3>
 <ul>
-<li>在 Hardware 下新建 <strong>MPU6050.c / MPU6050.h</strong>（<strong>建立在 MyI2C 之上，像类继承</strong>：<code>#include &quot;MyI2C.h&quot;</code>，<code>MPU6050_Init</code> 里先调 <code>MyI2C_Init()</code>）；</li>
-<li>再新建 <strong>MPU6050_Reg.h</strong> 存<strong>寄存器地址宏定义</strong>（免得每次查手册；本集确认用到的宏名见存疑）；</li>
-<li><strong><code>#define MPU6050_ADDRESS 0xD0</code></strong>（把从机地址宏定义，方便改、也突出这是从机地址）。</li>
+<li><code>MPU6050.c/h</code> 建在 MyI2C 之上（像类继承）：<code>#include &quot;MyI2C.h&quot;</code>，<code>MPU6050_Init</code> 里先调 <code>MyI2C_Init()</code>。</li>
+<li><code>MPU6050_Reg.h</code> 存寄存器地址宏定义，免得每次查手册。</li>
+<li><code>#define MPU6050_ADDRESS 0xD0</code>：从机地址宏定义，方便改也突出它。</li>
 </ul>
 <p><img src="../assets/images/stm32-33/09-new-mpu6050.jpg" alt="图 9：新建 MPU6050.c（#include &quot;stm32f10x.h&quot;、空的 void MPU6050_Init(void)）；工程 Hardware 组下已有 MyI2C.c/h、MPU6050.c/h；字幕「先include一下MyI2C.h」"></p>
 <p><em>图 9：新建 <code>MPU6050.c</code>（<code>#include &quot;stm32f10x.h&quot;</code>、空的 <code>void MPU6050_Init(void)</code>）；工程 Hardware 组下已有 MyI2C.c/h、MPU6050.c/h；字幕「先include一下MyI2C.h」</em></p>
@@ -407,12 +409,12 @@ void MPU6050_WriteReg(uint8_t RegAddress, uint8_t Data)
 }
 </code></pre>
 <ul>
-<li>完整对应 P31 的「<strong>指定地址写</strong>」时序：<code>S → 地址+W → RA → 寄存器地址 → RA → 数据 → RA → P</code>；</li>
-<li><strong>每个字节后都调 <code>ReceiveAck()</code> 收应答</strong>，但<strong>本函数没有对返回值做判断</strong>——「如果展开写会增加很多代码，为了保证时序结构清晰，这里就不判断了」；需要时可以在接收应答处加判断；</li>
-<li><strong>进阶（本集未实现）</strong>：指定地址写<strong>多个字节</strong>就是把「发送一个字节 + 接收应答」用 for 循环重复、把数组各字节依次发出——<strong>作者只提了思路、留作课后练习</strong>。</li>
+<li>完整对应 P31 的「指定地址写」：<code>S → 地址+W → RA → 寄存器地址 → RA → 数据 → RA → P</code>。</li>
+<li>每字节后都调 <code>ReceiveAck()</code> 收应答，但不判断返回值——展开写会增加很多代码，为保证时序结构清晰这里不判断。</li>
+<li>进阶（未实现）：写多字节就是把「发送一个字节 + 接收应答」用 <code>for</code> 重复、数组依次发出。</li>
 </ul>
-<p><img src="../assets/images/stm32-33/10-writereg.jpg" alt="图 10：MPU6050.c——#include &quot;MyI2C.h&quot;、#define MPU6050_ADDRESS 0xD0，void MPU6050_WriteReg(uint8_t RegAddress, uint8_t Data) 完整九行（Start → SendByte(MPU6050_ADDRESS) → ReceiveAck → SendByte(RegAddress) → ReceiveAck（高亮）→ SendByte(Data) → ReceiveAck → Stop）；下方是 MPU6050_Init 开头 MyI2C_Init();；字幕「那如果，你想指定地址写多个字节的话」"></p>
-<p><em>图 10：<code>MPU6050.c</code>——<code>#include &quot;MyI2C.h&quot;</code>、<code>#define MPU6050_ADDRESS 0xD0</code>，<code>void MPU6050_WriteReg(uint8_t RegAddress, uint8_t Data)</code> 完整九行（Start → SendByte(MPU6050_ADDRESS) → ReceiveAck → SendByte(RegAddress) → ReceiveAck（高亮）→ SendByte(Data) → ReceiveAck → Stop）；下方是 <code>MPU6050_Init</code> 开头 <code>MyI2C_Init();</code>；字幕「那如果，你想指定地址写多个字节的话」</em></p>
+<p><img src="../assets/images/stm32-33/10-writereg.jpg" alt="图 10：MPU6050.c 里 #include &quot;MyI2C.h&quot;、#define MPU6050_ADDRESS 0xD0，void MPU6050_WriteReg(uint8_t RegAddress, uint8_t Data) 完整九行；下方 MPU6050_Init 开头 MyI2C_Init();"></p>
+<p><em>图 10：<code>MPU6050.c</code> 里 <code>#include &quot;MyI2C.h&quot;</code>、<code>#define MPU6050_ADDRESS 0xD0</code>，<code>void MPU6050_WriteReg(uint8_t RegAddress, uint8_t Data)</code> 完整九行；下方 <code>MPU6050_Init</code> 开头 <code>MyI2C_Init();</code></em></p>
 <h3 id="4-3-读寄存器-mpu6050-readreg">4.3 读寄存器 <code>MPU6050_ReadReg</code></h3>
 <pre><code class="language-c">uint8_t MPU6050_ReadReg(uint8_t RegAddress)
 {
@@ -435,13 +437,13 @@ void MPU6050_WriteReg(uint8_t RegAddress, uint8_t Data)
 }
 </code></pre>
 <ul>
-<li>前半段和 <code>WriteReg</code> <strong>一模一样</strong>（只指定地址、还没有写数据）；<strong>设置完地址后要转入读时序，就必须重新发起始条件、重新指定读写位</strong>——这就是 P31 讲的 <strong>Sr（重复起始）</strong>；</li>
-<li><strong><code>MPU6050_ADDRESS | 0x01</code></strong>：0xD0 是写地址，<strong>或上 1 变成 0xD1（读）</strong>；</li>
-<li><strong>接收完一个字节后必须给非应答 <code>SendAck(1)</code></strong>：本集只读 1 个字节，<strong>不给非应答从机就会以为主机还要、继续占用 SDA</strong>，之后 Stop 可能产生不了；要连续读多个字节时，前面都给应答、<strong>最后一个给非应答</strong>；</li>
-<li><strong>进阶（本集未实现）</strong>：用 for 循环把「接收字节 + 发送应答」重复，可以连续读多个寄存器（例如从 0x3B 起连续读 14 个字节一次取完 6 轴数据，更高效）——<strong>作者只提了思路、留作课后练习</strong>。</li>
+<li>前半段和 <code>MPU6050_WriteReg(RegAddress, Data)</code> 一模一样（<code>MyI2C_Start(); SendByte(MPU6050_ADDRESS); ReceiveAck(); SendByte(RegAddress); ReceiveAck();</code>），<code>MPU6050_ReadReg(RegAddress)</code> 只是后面换成收数据；设完地址要转读，必须重新起始（Sr）、重新指定读写位。</li>
+<li><code>MPU6050_ADDRESS | 0x01</code>：0xD0 或上 1 变成 <code>0xD1</code>（读）。</li>
+<li><code>Data = MyI2C_ReceiveByte()</code> 后必须 <code>MyI2C_SendAck(1)</code> 非应答，否则从机继续占 SDA、Stop 可能产生不了；连读时前面应答、最后一个非应答。</li>
+<li>进阶（未实现）：从 <code>0x3B</code> 起连读 14 字节一次取完 6 轴。</li>
 </ul>
-<p><img src="../assets/images/stm32-33/11-readreg.jpg" alt="图 11：MPU6050_ReadReg(uint8_t RegAddress) 完整——MyI2C_Start(); SendByte(MPU6050_ADDRESS); ReceiveAck(); SendByte(RegAddress); ReceiveAck(); 然后空行 `MyI2C_Start();`（重复起始）、SendByte(MPU6050_ADDRESS | 0x01); ReceiveAck(); MyI2C_ReceiveByte();（高亮）；字幕「这个函数的返回值就是接收到的数据」"></p>
-<p>*图 11：<code>MPU6050_ReadReg(uint8_t RegAddress)</code> 完整——<code>MyI2C_Start(); SendByte(MPU6050_ADDRESS); ReceiveAck(); SendByte(RegAddress); ReceiveAck();</code> 然后空行 <strong><code>MyI2C_Start();</code>（重复起始）</strong>、<code>SendByte(MPU6050_ADDRESS | 0x01); ReceiveAck(); MyI2C_ReceiveByte();</code>（高亮）；字幕「这个函数的返回值就是接收到的数据」*</p>
+<p><img src="../assets/images/stm32-33/11-readreg.jpg" alt="图 11：MPU6050_ReadReg(uint8_t RegAddress) 完整，重复起始处高亮；SendByte(MPU6050_ADDRESS | 0x01); ReceiveAck(); MyI2C_ReceiveByte();"></p>
+<p><em>图 11：<code>MPU6050_ReadReg(uint8_t RegAddress)</code> 完整，重复起始处高亮；<code>SendByte(MPU6050_ADDRESS | 0x01); ReceiveAck(); MyI2C_ReceiveByte();</code></em></p>
 <h3 id="4-4-验证读写寄存器">4.4 验证读写寄存器</h3>
 <pre><code class="language-c">OLED_Init();
 MPU6050_Init();
@@ -452,9 +454,9 @@ uint8_t ID = MPU6050_ReadReg(0x75);  /* WHO_AM_I */
 OLED_ShowHexNum(1, 1, ID, 2);
 </code></pre>
 <ul>
-<li><strong>先写 PWR_MGMT_1(0x6B) = 0x00 解除睡眠</strong>——<strong>芯片上电默认是睡眠模式，睡眠模式下写其它寄存器是无效的</strong>（这是本集第一个要记住的坑）；</li>
-<li>再往 <strong>0x19（SMPLRT_DIV）写 0xAA</strong>，然后读 0x19 验证，<strong>读回 0xAA</strong>；改成写 0x66 读回 0x66 → <strong>读写寄存器都正常</strong>；</li>
-<li>读 <strong>WHO_AM_I(0x75) = 0x68</strong>，说明<strong>指定地址读</strong>通信正常；作者提到<strong>有的模块 ID 读出是 0x98</strong>（网上没查到原因，不影响使用）。</li>
+<li>先 <code>WriteReg(0x6B, 0x00)</code> 解除睡眠：芯片上电默认睡眠，睡眠模式下写其它寄存器无效。</li>
+<li>再 <code>WriteReg(0x19, 0xAA)</code> 读回 <code>0xAA</code>；改成 <code>0x66</code> 读回 <code>0x66</code>，读写寄存器都正常。</li>
+<li>读 <code>WHO_AM_I(0x75)</code> = <code>0x68</code>；有的模块读出 <code>0x98</code>，网上没查到原因，不影响使用。</li>
 </ul>
 <p><img src="../assets/images/stm32-33/12-main-rw-test.jpg" alt="图 12：main 读写验证——OLED_Init(); MPU6050_Init();、MPU6050_WriteReg(0x6B, 0x00);、MPU6050_WriteReg(0x19, 0xAA);（高亮）、uint8_t ID = MPU6050_ReadReg(0x75);、OLED_ShowHexNum(1, 1, ID, 2);；字幕「那到底有没有写入成功呢」"></p>
 <p><em>图 12：main 读写验证——<code>OLED_Init(); MPU6050_Init();</code>、<code>MPU6050_WriteReg(0x6B, 0x00);</code>、<code>MPU6050_WriteReg(0x19, 0xAA);</code>（高亮）、<code>uint8_t ID = MPU6050_ReadReg(0x75);</code>、<code>OLED_ShowHexNum(1, 1, ID, 2);</code>；字幕「那到底有没有写入成功呢」</em></p>
@@ -471,6 +473,9 @@ OLED_ShowHexNum(1, 1, ID, 2);
     MPU6050_WriteReg(MPU6050_ACCEL_CONFIG, 0x18);       /* 加速度 ±16g */
 }
 </code></pre>
+<ul>
+<li>六条配置即 <code>PWR_MGMT_1 = 0x01</code>、<code>PWR_MGMT_2 = 0x00</code>、<code>SMPLRT_DIV = 0x09</code>、<code>CONFIG = 0x06</code>、<code>GYRO_CONFIG = 0x18</code>、<code>ACCEL_CONFIG = 0x18</code>。</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -482,7 +487,7 @@ OLED_ShowHexNum(1, 1, ID, 2);
 <tbody><tr>
 <td><strong>PWR_MGMT_1</strong></td>
 <td><strong>0x01</strong></td>
-<td>清 <strong>SLEEP</strong>（解除睡眠）+ <strong>CLKSEL = 1</strong>（选 X 轴陀螺 PLL 作时钟源；上集讲过强烈建议用陀螺晶振）</td>
+<td>清 <strong>SLEEP</strong>（解除睡眠）+ <strong>CLKSEL = 1</strong>（选 X 轴陀螺 PLL 作时钟源）</td>
 </tr>
 <tr>
 <td><strong>PWR_MGMT_2</strong></td>
@@ -497,7 +502,7 @@ OLED_ShowHexNum(1, 1, ID, 2);
 <tr>
 <td><strong>CONFIG</strong></td>
 <td><strong>0x06</strong></td>
-<td>EXT_SYNC 全 0（不用外部同步）+ <strong>DLPF_CFG = 6</strong>（开数字低通滤波，输出更平滑）</td>
+<td>EXT_SYNC 全 0 + <strong>DLPF_CFG = 6</strong>（开数字低通滤波，输出更平滑）</td>
 </tr>
 <tr>
 <td><strong>GYRO_CONFIG</strong></td>
@@ -511,8 +516,10 @@ OLED_ShowHexNum(1, 1, ID, 2);
 </tr>
 </tbody></table>
 <ul>
-<li><strong>寄存器宏名来自 <code>MPU6050_Reg.h</code></strong>；<strong>每一位的含义按 P32 手册总结</strong>：0x18 = <code>0001 1000</code> → 自测位 0、满量程选择位 11；0x01 = <code>0000 0001</code> → 解睡 + 时钟源 1。</li>
+<li>寄存器宏名来自 <code>MPU6050_Reg.h</code>；按 P32 手册：<code>0x18</code> = <code>0001 1000</code>（自测位 0、满量程选择位 11），<code>0x01</code> = <code>0000 0001</code>（解睡 + 时钟源 1）。</li>
 </ul>
+<p><img src="../assets/images/stm32-33/13-init-7lines.jpg" alt="图 13：MPU6050_Init 七行写入（MPU6050_WriteReg(MPU6050_PWR_MGMT_1, 0x01); PWR_MGMT_2, 0x00; SMPLRT_DIV, 0x09; CONFIG, 0x06; GYRO_CONFIG, 0x18; ACCEL_CONFIG, 0x18）；下方 void MPU6050_GetData( 起始"></p>
+<p><em>图 13：<code>MPU6050_Init</code> 的 7 行写入；下方 <code>void MPU6050_GetData(</code> 起始</em></p>
 <h3 id="5-2-mpu6050-getdata-指针返回-6-个值">5.2 <code>MPU6050_GetData</code>：指针返回 6 个值</h3>
 <pre><code class="language-c">void MPU6050_GetData(int16_t *AccX, int16_t *AccY, int16_t *AccZ,
                      int16_t *GyroX, int16_t *GyroY, int16_t *GyroZ)
@@ -528,14 +535,13 @@ OLED_ShowHexNum(1, 1, ID, 2);
 }
 </code></pre>
 <ul>
-<li><strong>多返回值的方法</strong>：① 全局变量（简单直接，但不利于封装）② <strong>指针传地址（本集用）</strong> ③ 把多个变量打包成结构体统一返回（更高阶）——「指针教程里讲过」；</li>
-<li><strong>读法</strong>：每个轴的高字节 <code>_H</code>、低字节 <code>_L</code> 分别读出来，<strong><code>(DataH &lt;&lt; 8) | DataL</code></strong> 拼成 16 位，再通过指针写回主函数的变量；</li>
-<li><strong>答疑</strong>：<code>DataH</code> 是 <code>uint8_t</code>，<strong>左移 8 位会不会把高位丢掉？</strong>——最终赋值的目标是 <strong><code>int16_t</code> 变量</strong>，<strong>移出去的位并不会丢失</strong>（手册说明数据是 16 位补码），实测没问题；不放心可以把两个局部变量改成 16 位类型。</li>
+<li>原型 <code>void MPU6050_GetData(int16_t *AccX, int16_t *AccY, int16_t *AccZ, int16_t *GyroX, int16_t *GyroY, int16_t *GyroZ)</code>：6 个返回值用指针传地址（另两种办法用全局变量、结构体打包）；函数体里 <code>uint8_t DataH, DataL;</code> 先读两个字节。</li>
+<li>每个轴读高字节 <code>_H</code>、低字节 <code>_L</code>，再 <code>(DataH &lt;&lt; 8) | DataL</code> 拼成 16 位，经指针写回主函数。</li>
+<li>即 <code>DataH = ReadReg(ACCEL_XOUT_H); DataL = ReadReg(ACCEL_XOUT_L); *AccX = (DataH &lt;&lt; 8) | DataL;</code>。</li>
+<li><code>DataH</code> 是 <code>uint8_t</code>，左移 8 位不丢位：赋值目标是 <code>int16_t</code>（16 位补码）；不放心可把中间变量改成 16 位。</li>
 </ul>
-<p><img src="../assets/images/stm32-33/13-init-7lines.jpg" alt="图 13：MPU6050_Init 完整七行（MyI2C_Init(); + MPU6050_WriteReg(MPU6050_PWR_MGMT_1, 0x01); PWR_MGMT_2, 0x00; SMPLRT_DIV, 0x09; CONFIG, 0x06; GYRO_CONFIG, 0x18; ACCEL_CONFIG, 0x18）；下方 void MPU6050_GetData( 起始；字幕「然后6个全局变量在主函数里进行共享」"></p>
-<p><em>图 13：<code>MPU6050_Init</code> 完整七行（<code>MyI2C_Init();</code> + <code>MPU6050_WriteReg(MPU6050_PWR_MGMT_1, 0x01); PWR_MGMT_2, 0x00; SMPLRT_DIV, 0x09; CONFIG, 0x06; GYRO_CONFIG, 0x18; ACCEL_CONFIG, 0x18</code>）；下方 <code>void MPU6050_GetData(</code> 起始；字幕「然后6个全局变量在主函数里进行共享」</em></p>
-<p><img src="../assets/images/stm32-33/14-getdata.jpg" alt="图 14：void MPU6050_GetData(int16_t *AccX, int16_t *AccY, int16_t *AccZ, int16_t *GyroX, int16_t *GyroY, int16_t *GyroZ)；函数体 uint8_t DataH, DataL;、DataH = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_H);、DataL = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_L);，正在输入 DataH &lt;&lt; 8 | Dat…（高亮）；字幕「再或上低8位」"></p>
-<p><em>图 14：<code>void MPU6050_GetData(int16_t *AccX, int16_t *AccY, int16_t *AccZ, int16_t *GyroX, int16_t *GyroY, int16_t *GyroZ)</code>；函数体 <code>uint8_t DataH, DataL;</code>、<code>DataH = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_H);</code>、<code>DataL = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_L);</code>，正在输入 <code>DataH &lt;&lt; 8 | Dat…</code>（高亮）；字幕「再或上低8位」</em></p>
+<p><img src="../assets/images/stm32-33/14-getdata.jpg" alt="图 14：MPU6050_GetData 函数体：DataH = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_H);、DataL = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_L);，正在敲 DataH &lt;&lt; 8 | Dat…"></p>
+<p><em>图 14：<code>MPU6050_GetData</code> 函数体：<code>DataH = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_H);</code>、<code>DataL = MPU6050_ReadReg(MPU6050_ACCEL_XOUT_L);</code></em></p>
 <h2 id="6-main-与实验现象">6. main 与实验现象</h2>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
 #include &quot;Delay.h&quot;
@@ -564,43 +570,38 @@ int main(void)
 }
 </code></pre>
 <ul>
-<li><strong><code>MPU6050_GetID()</code></strong> 是最后补的小函数：<code>return MPU6050_ReadReg(MPU6050_WHO_AM_I);</code>——把 WHO_AM_I 的读法封装起来；</li>
-<li>main 里定义 <strong><code>int16_t AX, AY, AZ, GX, GY, GZ;</code></strong>，循环里<strong>传地址</strong>给 <code>GetData</code>，再用 <strong><code>OLED_ShowSignedNum</code>（有符号数显示）</strong> 分三行两列显示（2 行 1 列 AX、3 行 1 列 AY ……）。</li>
-</ul>
-<p><strong>现象</strong>：</p>
-<ul>
-<li><strong>ID 显示 <code>0x68</code></strong>（十六进制 68）；</li>
-<li>芯片<strong>水平放置</strong>时：<strong>AX≈+122、AY≈−15（GX≈−18，都不是精确的 0、有零偏）</strong>；<strong>AZ≈1944</strong>——按比例换算 <strong><code>1944/32768 = x/16g</code> → x ≈ 0.95g</strong>（标准应是 1g，误差正常），说明加速度测量基本正确；</li>
-<li><strong>倾斜</strong>：X 轴方向倾斜时加速度的 Z 分量与另一面同时受力（数据变化）；<strong>把芯片翻过来（Z 轴朝下）→ 让 Z 轴输出负值</strong>；</li>
-<li><strong>转动</strong>：右侧三个是角速度，绕各轴转动时对应数值变化；具体角速度同样按 <strong><code>读数/32768 = x/满量程</code></strong> 换算。</li>
+<li><code>MPU6050_GetID()</code> 是最后补的小函数：<code>return MPU6050_ReadReg(MPU6050_WHO_AM_I)</code>。</li>
+<li>先 <code>OLED_ShowString(1,1,&quot;ID:&quot;)</code> + <code>ID = MPU6050_GetID()</code> 显示 ID；变量是 <code>int16_t AX, AY, AZ, GX, GY, GZ;</code>，循环里 <code>MPU6050_GetData(&amp;AX, &amp;AY, &amp;AZ, &amp;GX, &amp;GY, &amp;GZ);</code>，再用 <code>OLED_ShowSignedNum</code> 分行显示（<code>OLED_ShowSignedNum(2, 1, AX, 5);</code>、<code>OLED_ShowSignedNum(3, 1, AY, 5);</code> 往下排）。</li>
+<li>现象：ID 显示 <code>0x68</code>（十六进制 68）；水平放置时 AX≈+122、AY≈−15、GX≈−18（有零偏），AZ≈1944，按 <code>1944/32768 = x/16g</code> 得 ≈0.95g。</li>
+<li>倾斜时 Z 分量与另一面同时受力，翻转（Z 朝下）输出负值；转动时角速度按 <code>读数/32768 = x/满量程</code> 换算。</li>
 </ul>
 <p><img src="../assets/images/stm32-33/15-phenomenon.jpg" alt="图 15：实验现象——面包板上 MPU6050 + STM32 + OLED 全貌，OLED 显示三行有符号数 +00122 -00018 / -00015 -00004 / +01944 -00007；字幕「目前这个芯片是水平放置」"></p>
 <p><em>图 15：实验现象——面包板上 MPU6050 + STM32 + OLED 全貌，OLED 显示三行有符号数 <code>+00122 -00018</code> / <code>-00015 -00004</code> / <code>+01944 -00007</code>；字幕「目前这个芯片是水平放置」</em></p>
-<p><img src="../assets/images/stm32-33/16-main-final.jpg" alt="图 16：main 完整——uint8_t ID; int16_t AX, AY, AZ, GX, GY, GZ;、OLED_Init(); MPU6050_Init();、OLED_ShowString(1, 1, &quot;ID:&quot;);（高亮）、ID = MPU6050_GetID();、OLED_ShowHexNum(1, 4, ID, 2);，while 里 MPU6050_GetData(&amp;AX, &amp;AY, &amp;AZ, &amp;GX, &amp;GY, &amp;GZ);、OLED_ShowSignedNum(2, 1, AX, 5);、OLED_ShowSignedNum(3, 1, AY, 5);；字幕「在这里，我们只需要调用GetData函数」"></p>
-<p><em>图 16：main 完整——<code>uint8_t ID; int16_t AX, AY, AZ, GX, GY, GZ;</code>、<code>OLED_Init(); MPU6050_Init();</code>、<code>OLED_ShowString(1, 1, &quot;ID:&quot;);</code>（高亮）、<code>ID = MPU6050_GetID();</code>、<code>OLED_ShowHexNum(1, 4, ID, 2);</code>，while 里 <code>MPU6050_GetData(&amp;AX, &amp;AY, &amp;AZ, &amp;GX, &amp;GY, &amp;GZ);</code>、<code>OLED_ShowSignedNum(2, 1, AX, 5);</code>、<code>OLED_ShowSignedNum(3, 1, AY, 5);</code>；字幕「在这里，我们只需要调用GetData函数」</em></p>
+<p><img src="../assets/images/stm32-33/16-main-final.jpg" alt="图 16：main 完整：uint8_t ID; int16_t AX, AY, AZ, GX, GY, GZ;、OLED_Init(); MPU6050_Init();、OLED_ShowString(1, 1, &quot;ID:&quot;);、ID = MPU6050_GetID();、OLED_ShowHexNum(1, 4, ID, 2);"></p>
+<p><em>图 16：main 完整：<code>uint8_t ID; int16_t AX, AY, AZ, GX, GY, GZ;</code>、<code>OLED_Init(); MPU6050_Init();</code>、<code>OLED_ShowString(1, 1, &quot;ID:&quot;);</code>、<code>ID = MPU6050_GetID();</code>、<code>OLED_ShowHexNum(1, 4, ID, 2);</code></em></p>
 <h2 id="7-分层架构总结">7. 分层架构总结</h2>
 <ul>
-<li><strong>最底层：I2C 协议层（MyI2C）</strong>——<strong>引脚是哪两个、什么配置、时序怎么写</strong>，这些「协议相关」的内容都在这一层；</li>
-<li><strong>中间层：MPU6050 驱动层</strong>——主要关注<strong>如何读写寄存器、怎么配置寄存器、怎么读取数据</strong>，这些「驱动相关」的内容；</li>
-<li><strong>最上层：应用层（main）</strong>——<strong>只需要调用 <code>MPU6050_GetData</code> 这样的函数</strong>，关注点放在自己的功能设计上；</li>
-<li><strong>分层的意义</strong>：每层只专注自己的事、其他层的事情不需要管；<strong>移植时只改对应层</strong>（换引脚/换单片机改协议层、换传感器改驱动层），代码好管理、好复用。</li>
+<li>最底层 I2C 协议层（MyI2C）：引脚是哪两个、什么配置、时序怎么写。</li>
+<li>中间层 MPU6050 驱动层：如何读写寄存器、怎么配置、怎么取数。</li>
+<li>应用层 main：只调 <code>MPU6050_GetData</code> 这样的函数。</li>
+<li>意义：每层只管自己的事，移植只改对应层，代码好管理、好复用。</li>
 </ul>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>SCL/SDA 接 PB10/PB11</strong>（本集），别和串口的 PA9/PA10 混；软件 I2C 引脚可以任意指定，但要和代码里的 <code>GPIO_Pin_x</code> 一致。</li>
-<li><strong>GPIO 必须配成开漏输出 <code>GPIO_Mode_Out_OD</code></strong>：I2C 靠开漏 + 上拉做线与，配推挽会出问题。</li>
-<li><strong>初始化最后要 <code>GPIO_SetBits</code> 释放总线</strong>：不置高，总线起始电平就不对。</li>
-<li><strong>延时 <code>Delay_us(10)</code> 是经验值</strong>：F1 不加也能跑，但换高主频芯片要按手册时序调。</li>
-<li><strong>起始条件前先 <code>W_SDA(1)</code></strong>：否则 SDA 本来就是低电平，产生不了下降沿。</li>
-<li><strong>高位先行</strong>：<code>Byte &amp; (0x80 &gt;&gt; i)</code> 从 B7 到 B0；这与串口低位先行相反。</li>
-<li><strong>读字节/读应答前必须先释放 SDA（<code>W_SDA(1)</code>）</strong>：否则线与把总线拽低、从机发不出来。</li>
-<li><strong>应答 0 = ACK、1 = NACK</strong>：主机置 1 后仍可能读到 0，因为从机可以把线拉低。</li>
-<li><strong>读寄存器要用重复起始（Sr）</strong>：读写方向只能在起始条件后指定，所以必须 <code>Start() → 地址|0x01</code>。</li>
-<li><strong>读最后 1 个字节必须给非应答 <code>SendAck(1)</code></strong>：否则从机继续发、SDA 被占，Stop 可能不生效。</li>
-<li><strong>写寄存器前先解除睡眠</strong>：<code>WriteReg(PWR_MGMT_1, 0x00)</code>（或 0x01），否则<strong>所有写操作无效</strong>——最容易卡住的坑。</li>
-<li><strong><code>DataH &lt;&lt; 8 | DataL</code></strong> 要拼成 int16 有符号值；<code>uint8_t</code> 移位后再赋给 int16 不丢位（不放心就用 16 位中间变量）。</li>
-<li><strong>现象不是精确 0/1g</strong>：AX≈+122 有零偏、AZ≈1944≈0.95g——传感器有误差、安装也有偏差，属正常。</li>
-<li><strong>多字节读写本集没写代码</strong>：写多字节、读 0x3B 起连续 14 字节都只提了思路（作者留作课后练习），需要自己扩展。</li>
+<li>SCL/SDA 是 PB10/PB11，别和串口 PA9/PA10 混；要与代码里的 <code>GPIO_Pin_x</code> 一致。</li>
+<li>GPIO 必须配开漏输出 <code>GPIO_Mode_Out_OD</code>：I2C 靠开漏 + 上拉做线与，推挽会出问题。</li>
+<li>初始化最后要 <code>GPIO_SetBits</code> 释放总线（<code>GPIO_SetBits(...)</code>），否则起始电平不对。</li>
+<li><code>Delay_us(10)</code> 是经验值：F1 不加也能跑，换高主频芯片按手册时序调。</li>
+<li>起始条件前先 <code>W_SDA(1)</code>，否则 SDA 本来是低电平，产生不了下降沿。</li>
+<li>高位先行：<code>Byte &amp; (0x80 &gt;&gt; i)</code> 从 B7 到 B0，与串口低位先行相反。</li>
+<li>读字节/读应答前先 <code>W_SDA(1)</code> 释放 SDA，否则线与把总线拽低、从机发不出来。</li>
+<li>应答 0 = ACK、1 = NACK：主机置 1 后仍可能读到 0。</li>
+<li>读寄存器要用重复起始：<code>Start() → 地址|0x01</code>，读写方向只能在起始后指定。</li>
+<li>读最后 1 个字节必须给非应答 <code>SendAck(1)</code>，否则从机继续发、Stop 可能不生效。</li>
+<li>写寄存器前先解除睡眠：<code>WriteReg(PWR_MGMT_1, 0x00)</code>（或 0x01），否则所有写无效。</li>
+<li><code>DataH &lt;&lt; 8 | DataL</code> 要拼成 int16 有符号值；<code>uint8_t</code> 移位后赋给 int16 不丢位。</li>
+<li>现象不是精确 0/1g：AX≈+122 有零偏、AZ≈1944≈0.95g，传感器与安装误差属正常。</li>
+<li>多字节读写本集没写代码：写多字节、读 0x3B 起 14 字节都只提了思路。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -612,12 +613,12 @@ int main(void)
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E4%B8%A4%E5%B1%82%E6%A8%A1%E5%9D%97%E4%BB%8E%E9%9B%B6%E6%89%8B%E5%86%99">0. 本集定位：代码课（两层模块从零手写）</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%BB%BA%E7%AB%8B">1. 接线与工程建立</a>
         <a class="level-3" href="#1-1-%E7%A1%AC%E4%BB%B6%E6%8E%A5%E7%BA%BF">1.1 硬件接线</a>
         <a class="level-3" href="#1-2-%E5%A4%8D%E5%88%B6%E5%B7%A5%E7%A8%8B-%E5%BB%BA%E5%A5%BD%E5%88%86%E5%B1%82%E6%A1%86%E6%9E%B6">1.2 复制工程、建好分层框架</a>
         <a class="level-2" href="#2-myi2c-%E5%8D%8F%E8%AE%AE%E5%B1%82-%E8%BD%AF%E4%BB%B6%E6%A8%A1%E6%8B%9F-i2c">2. MyI2C 协议层（软件模拟 I2C）</a>
-        <a class="level-3" href="#2-1-myi2c-init-%E5%BC%80%E6%BC%8F%E8%BE%93%E5%87%BA-%E9%87%8A%E6%94%BE%E6%80%BB%E7%BA%BF">2.1 MyI2C_Init：开漏输出 + 释放总线</a>
+        <a class="level-3" href="#2-1-myi2c-c-%E7%9A%84-myi2c-init-%E5%BC%80%E6%BC%8F%E8%BE%93%E5%87%BA-%E9%87%8A%E6%94%BE%E6%80%BB%E7%BA%BF">2.1 MyI2C.c 的 MyI2C_Init：开漏输出 + 释放总线</a>
         <a class="level-3" href="#2-2-%E4%B8%89%E4%B8%AA%E5%BA%95%E5%B1%82%E5%87%BD%E6%95%B0-w-scl-w-sda-r-sda">2.2 三个底层函数：W_SCL / W_SDA / R_SDA</a>
         <a class="level-3" href="#2-3-%E8%B5%B7%E5%A7%8B%E4%B8%8E%E7%BB%88%E6%AD%A2">2.3 起始与终止</a>
         <a class="level-3" href="#2-4-%E5%8F%91%E9%80%81%E4%B8%80%E4%B8%AA%E5%AD%97%E8%8A%82-%E9%AB%98%E4%BD%8D%E5%85%88%E8%A1%8C">2.4 发送一个字节（高位先行）</a>
@@ -625,7 +626,7 @@ int main(void)
         <a class="level-3" href="#2-6-%E5%8F%91%E9%80%81%E5%BA%94%E7%AD%94-%E6%8E%A5%E6%94%B6%E5%BA%94%E7%AD%94">2.6 发送应答 / 接收应答</a>
         <a class="level-2" href="#3-%E5%85%88%E9%AA%8C%E8%AF%81%E6%97%B6%E5%BA%8F-%E7%82%B9%E5%90%8D%E6%B5%8B%E8%AF%95%E4%B8%8E-ad0-%E6%94%B9%E5%90%8D">3. 先验证时序：点名测试与 AD0 改名</a>
         <a class="level-3" href="#3-1-%E7%82%B9%E5%90%8D-%E6%97%B6%E5%BA%8F">3.1 「点名」时序</a>
-        <a class="level-3" href="#3-2-%E5%AF%BB%E5%9D%80%E6%94%B9%E9%94%99-%E6%97%A0%E5%BA%94%E7%AD%94-ad0-%E6%94%B9%E5%90%8D%E5%AE%9E%E9%AA%8C">3.2 寻址改错 → 无应答；AD0 改名实验</a>
+        <a class="level-3" href="#3-2-%E5%AF%BB%E5%9D%80%E6%94%B9%E9%94%99%E4%B8%8E-ad0-%E6%94%B9%E5%90%8D%E5%AE%9E%E9%AA%8C">3.2 寻址改错与 AD0 改名实验</a>
         <a class="level-2" href="#4-mpu6050-%E9%A9%B1%E5%8A%A8%E5%B1%82">4. MPU6050 驱动层</a>
         <a class="level-3" href="#4-1-%E6%96%B0%E5%BB%BA%E6%A8%A1%E5%9D%97">4.1 新建模块</a>
         <a class="level-3" href="#4-2-%E5%86%99%E5%AF%84%E5%AD%98%E5%99%A8-mpu6050-writereg">4.2 写寄存器 MPU6050_WriteReg</a>

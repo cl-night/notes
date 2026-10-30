@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[9-3] USART串口发送与接收 · 我的学习笔记</title>
-  <meta name="description" content="STM32 [9-3]：9-1 串口发送——RXD→PA9/TXD→PA10 交叉、GND 共地；Serial_Init（PA9 AF_PP、9600/8/1/无、Tx）；SendByte=SendData+等 TXE；封装 Array/String/Number；printf 三法（MicroLIB+fputc）。9-2 发送+接收——PA10 IPU、Mode=Tx 或 Rx，查询法/中断法。">
+  <meta name="description" content="STM32 [9-3]：9-1 串口发送——RXD→PA9、TXD→PA10 交叉、GND 共地；Serial_Init（PA9 AF_PP、9600/8/1/无、Tx）；SendByte 写 DR 后等 TXE；封装 Array/String/Number；printf 三法（MicroLIB + fputc）。9-2 发送+接收——PA10 IPU、Mode 改 Tx 或 Rx，查询法/中断法。">
   <meta property="og:title" content="[9-3] USART串口发送与接收 · 我的学习笔记">
-  <meta property="og:description" content="STM32 [9-3]：9-1 串口发送——RXD→PA9/TXD→PA10 交叉、GND 共地；Serial_Init（PA9 AF_PP、9600/8/1/无、Tx）；SendByte=SendData+等 TXE；封装 Array/String/Number；printf 三法（MicroLIB+fputc）。9-2 发送+接收——PA10 IPU、Mode=Tx 或 Rx，查询法/中断法。">
+  <meta property="og:description" content="STM32 [9-3]：9-1 串口发送——RXD→PA9、TXD→PA10 交叉、GND 共地；Serial_Init（PA9 AF_PP、9600/8/1/无、Tx）；SendByte 写 DR 后等 TXE；封装 Array/String/Number；printf 三法（MicroLIB + fputc）。9-2 发送+接收——PA10 IPU、Mode 改 Tx 或 Rx，查询法/中断法。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,42 +177,41 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>29 分钟</span>
+      <span>19 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">串口</span><span class="tag">USART</span><span class="tag">发送</span><span class="tag">接收</span>
     </div>
     <article class="prose"><h1>[9-3] USART串口发送与接收 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 9（USART）的代码课</strong>，<strong>现场写两个程序</strong>——① <code>9-1 串口发送</code>（只发不收）② <code>9-2 串口发送+接收</code>（查询法 + 中断法）。理论（USART 框图/帧格式/波特率/采样）全在 <strong>P26 [9-2]</strong>，本集只套用。片尾 59:26「目前只支持 1 个字节的接收……下一小节讲数据包」——<strong>多字节数据包（发送+接收）在 P28</strong>；<strong>本集无 DMA、无多字节协议</strong>。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>本集把 P26 的 USART 外设理论落成两个工程。<strong>接线</strong>：USB 转串口模块的<strong>跳线帽插在 VCC-3V3</strong>（选 <strong>3.3V TTL 电平</strong>，STM32 是 3.3V 器件），<strong>模块 RXD → PA9（PA9 是 STM32 的 TX，发送接对方接收，要交叉）</strong>、<strong>模块 TXD → PA10（PA10 是 STM32 的 RX）</strong>、<strong>GND 共地</strong>（单端信号必须共地才能比较电平）；两边都有独立供电，<strong>电源正极不接</strong>，两个程序接线完全一样。<strong>程序一 <code>9-1 串口发送</code></strong> 由 OLED 工程复制、新建 <code>Serial.c/Serial.h</code>。<code>Serial_Init</code> 四步：<strong>① <code>RCC_APB2PeriphClockCmd</code> 开 USART1 与 GPIOA 时钟（USART1 是 APB2 外设）② GPIO 配 PA9 为 <code>GPIO_Mode_AF_PP</code> 复用推挽输出（引脚定义表：USART1 TX=PA9、RX=PA10；若用 USART2/3 要查对应引脚）③ <code>USART_Init</code> 六成员：<code>USART_BaudRate = 9600</code>、<code>USART_HardwareFlowControl = USART_HardwareFlowControl_None</code>、<code>USART_Mode = USART_Mode_Tx</code>（接收时 <code>Tx | Rx</code>）、<code>USART_Parity = USART_Parity_No</code>、<code>USART_StopBits = USART_StopBits_1</code>、<code>USART_WordLength = USART_WordLength_8b</code> ④ <code>USART_Cmd(USART1, ENABLE)</code></strong>（要接收就再加 <code>USART_ITConfig</code> + NVIC）。<strong>发送一个字节</strong> <code>Serial_SendByte</code>：<strong><code>USART_SendData(USART1, Byte)</code> 把数据写进 DR</strong>（库函数内部就是 <code>USARTx-&gt;DR = (Data &amp; 0x01FF)</code>），然后<strong>必须等 <code>USART_FLAG_TXE</code> 置 1</strong>——<code>while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);</code>，因为<strong>数据从 TDR 转移到移位寄存器之前不能写下一个、否则会覆盖</strong>；而 <strong>TXE 在对 DR 的写操作时由硬件自动清零</strong>（手册 SR 位7），<strong>所以不用手动清标志位</strong>。在这个基础上封装：<code>Serial_SendArray(uint8_t *Array, uint16_t Length)</code>（for 循环逐个发）、<code>Serial_SendString(char *String)</code>（循环到 <code>&#39;\0&#39;</code>，字符串末尾编译器自动补结束标志、所以存储空间比字符数大 1）、<code>Serial_SendNumber(uint32_t Number, uint8_t Length)</code>（<strong>先自己写 <code>Serial_Pow</code> 次方函数</strong>，用 <code>Number / Serial_Pow(10, Length - i - 1) % 10 + &#39;0&#39;</code> 逐位取出并转成 ASCII 字符；<strong><code>Serial_Pow</code> 不是库函数</strong>）。<strong>printf 三种移植方法</strong>（①最常用）：<strong>① 勾选 Keil 工程的「Use MicroLIB」，在 Serial.c 里 <code>#include &lt;stdio.h&gt;</code> 并重写 <code>int fputc(int ch, FILE *f){ Serial_SendByte(ch); return ch; }</code>——printf 底层就是往 fputc 输出字符，重定向后 printf 就打到串口了</strong>；② <code>sprintf</code> 格式化到字符串数组、再 <code>Serial_SendString</code>（<strong>不需要重定向</strong>）；③ 自己封装 <code>Serial_Printf(char *format, ...)</code>（<code>va_list / va_start / vsprintf / va_end</code>，要 <code>#include &lt;stdarg.h&gt;</code>）。<strong>中文乱码</strong>：要么 <strong>Keil 与串口助手都用 UTF8，并在 C/C++ 杂项里加 <code>--no-multibyte-chars</code></strong>；要么<strong>两边都用 GB2312/GBK</strong>（不用加参数，兼容性更好）。<strong>程序二 <code>9-2 串口发送+接收</code></strong> 由 9-1 复制、接线不变：<strong>GPIO 增加 PA10 配 <code>GPIO_Mode_IPU</code> 上拉输入</strong>（也可浮空，串口空闲是高电平所以不用下拉）、<strong><code>USART_Mode = USART_Mode_Tx | USART_Mode_Rx</code></strong>。接收有<strong>两种写法</strong>：<strong>查询法</strong>——主循环 <code>if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == SET) { RxData = USART_ReceiveData(USART1); ... }</code>，<strong>读 DR 会自动清 RXNE</strong>；<strong>中断法</strong>——<code>USART_ITConfig(USART1, USART_IT_RXNE, ENABLE)</code> + <code>NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2)</code> + <code>NVIC_Init</code>（通道 <code>USART1_IRQn</code>、<strong>抢占 1、子优先级 1—先随便给</strong>），在 <strong><code>USART1_IRQHandler</code></strong> 里<strong>读 DR 存到全局变量、置接收标志、调 <code>USART_ClearITPendingBit</code> 清挂起位</strong>，再封装 <code>Serial_GetRxFlag()</code>（<strong>读到标志后自动清零</strong>）与 <code>Serial_GetRxData()</code>。<strong>现象</strong>：串口助手 HEX 模式发 <code>41</code> → <strong>OLED 显示 <code>41</code>、同时把 <code>41</code> 回传电脑</strong>；发 <code>42</code> 同理。</p>
-<h2 id="0-本集定位-代码课-两个程序-多字节数据包在-p28">0. 本集定位：代码课（两个程序），多字节数据包在 P28</h2>
+<p>两个工程：<code>9-1 串口发送</code>（只发）与 <code>9-2 串口发送+接收</code>（查询法/中断法）。发送的骨架是「写 DR 后等 <code>USART_FLAG_TXE</code>」，接收的骨架是「等 <code>USART_FLAG_RXNE</code> 后读 DR」，读写 DR 都会自动清对应标志。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯代码课</strong>：00:00 看接线图 → 面包板接线 → 设备管理器确认 COM 口 → 复制 OLED 工程 → 新建 <code>Serial</code> 模块 → 全程 Keil 写码/编译/下载 → 串口助手看现象；47:50 起复制改出第二个工程。</li>
-<li><strong>两个程序</strong>：① <code>9-1 串口发送</code>（只发送）；② <code>9-2 串口发送+接收</code>（查询法/中断法各演示一遍）。</li>
-<li><strong>本集不涉及</strong>：<strong>DMA</strong>、<strong>多字节数据包协议</strong>（片尾 59:26 明确说「目前只支持 1 个字节的接收，下一小节讲数据包」）、<code>USART_ITConfig</code> 只配了 <strong>RXNE</strong> 这一种中断。</li>
-<li><strong>理论引用 P26 即可</strong>：USART 框图、TDR/RDR、TXE/RXNE、引脚映射、波特率公式，本笔记不再推导，详见 <code>notes/stm32-26-USART串口外设.md</code>。</li>
+<li>模块 9 的代码课，现场写两个程序：<code>9-1 串口发送</code>、<code>9-2 串口发送+接收</code>；新建 <code>Serial.c/Serial.h</code> 模块。</li>
+<li>理论（USART 框图、帧格式、波特率、采样）全在 P26 [9-2]，详见 <code>notes/stm32-26-USART串口外设.md</code>，本集只套用。</li>
+<li>流程：00:00 看接线图 → 新建 <code>Serial</code> 模块 → Keil 写码/编译/下载 → 串口助手看现象；47:50 起复制改出第二个工程。</li>
+<li>本集不涉及 DMA、多字节数据包；片尾 59:26「目前只支持 1 个字节的接收……下一小节讲数据包」，数据包在 P28。</li>
+<li><code>USART_ITConfig</code> 只配了 <code>USART_IT_RXNE</code> 一种中断。</li>
 </ul>
 <h2 id="1-接线与工程准备">1. 接线与工程准备</h2>
-<h3 id="1-1-接线-模块-rxd-pa9-txd-pa10-gnd-共地">1.1 接线：模块 RXD→PA9、TXD→PA10、GND 共地</h3>
+<h3 id="1-1-接线-rxd-pa9-txd-pa10-gnd-共地">1.1 接线：RXD→PA9、TXD→PA10、GND 共地</h3>
 <ul>
-<li><strong>跳线帽</strong>：USB 转串口模块上的跳线帽要<strong>插在 VCC 和 3V3 这两个脚上</strong>，<strong>选择通信的 TTL 电平为 3.3V</strong>（上一集 P26 讲过：跳线帽既选电平又给 CH340 供电）；如果不是就拔下来换到这个位置；</li>
-<li><strong>通信引脚</strong>：<strong>模块的 TXD 和 RXD 要接到 STM32 的 PA9 和 PA10</strong>——为什么是这两个？查引脚定义表：<strong>USART1 的 TX 是 PA9、RX 是 PA10</strong>；我们计划用 <strong>USART1</strong> 通信，所以选这两个；如果要用 USART2/3，就要在表里找对应引脚；</li>
-<li><strong>TX 和 RX 要交叉连接</strong>（这一点一定要注意、别接错）：<strong>PA9 是 STM32 的 TX（发送），接的是串口模块的 RXD（接收）</strong>；<strong>模块的 TXD（发送）接 STM32 的 PA10（RX，接收）</strong>；</li>
-<li><strong>GND 共地</strong>：<strong>两个设备之间要把负极接在一起</strong>——单端信号是相对 GND 的电压，<strong>只有共地电平才有高低的参考</strong>（「就像两个人比身高，必须站在同一地平面上」）；一般多个系统互连都要共地；</li>
-<li><strong>供电</strong>：串口模块和 ST-Link <strong>都插在电脑上</strong>，两边都有独立供电，<strong>所以通信的电源正极不需要接</strong>，只接 3 根线；</li>
-<li><strong>第一个程序只有 STM32 发送</strong>，所以<strong>理论上一根通信线就够</strong>；但第二个程序要接收，两根都要接——为了两个程序接线一致，<strong>干脆把两根都接上</strong>；</li>
-<li><strong>面包板接线</strong>：串口模块用 <strong>3 根公对母杜邦线</strong>：<strong>棕色 = GND → 电源负极</strong>、<strong>红色 = RXD → PA9</strong>、<strong>橙色 = TXD → PA10</strong>；两个 USB 都插电脑（USB 口不够可用拓展坞）；</li>
-<li><strong>驱动检查</strong>：<code>此电脑 → 属性 → 设备管理器</code>，端口目录下能看到 <strong>USB-SERIAL CH340（COM12）</strong>、<strong>有 COM 号且图标没有感叹号</strong>就说明驱动正常；否则要装驱动（第二节软件安装里讲过）。</li>
+<li>跳线帽插在 VCC 与 3V3 两脚，把 TTL 电平选成 3.3V（STM32 是 3.3V 器件，跳线帽同时给 CH340 供电）。</li>
+<li>通信引脚选 PA9/PA10：查引脚定义表，USART1 的 TX 是 PA9、RX 是 PA10；用 USART2/3 要另找引脚。</li>
+<li>TX 与 RX 必须交叉：模块 RXD → PA9（STM32 的 TX），模块 TXD → PA10（STM32 的 RX）。</li>
+<li>GND 共地：单端信号以 GND 为参考，不共地就没有电平基准；多系统互连一般都要共地。</li>
+<li>供电：串口模块与 ST-Link 都插电脑、各自独立供电，所以电源正极不接，只接 3 根线。</li>
+<li>程序一只有 STM32 发送，一根通信线就够；为与程序二一致，两根都接。</li>
+<li>面包板：3 根公对母杜邦线——棕色 GND → 电源负极、红色 RXD → PA9、橙色 TXD → PA10；USB 口不够用拓展坞。</li>
+<li>驱动：<code>此电脑 → 属性 → 设备管理器</code>，端口下出现 <code>USB-SERIAL CH340 (COM12)</code>、图标无感叹号即正常。</li>
 </ul>
-<p><img src="../assets/images/stm32-27/01-wiring.jpg" alt="图 1：接线图 9-1 串口发送——右下是 USB 转串口模块（5V/VCC/3V3/TXD/RXD/GND，红圈标出跳线帽插在 VCC-3V3 上），画面用蓝/黄/绿杜邦线（口述里说的棕/红/橙是另一种配色，见存疑），把 GND→电源负极、RXD→PA9、TXD→PA10 接起来；上方是 STM32 最小系统板与 OLED；字幕「要插在VCC和3V3这两个脚上，选择通信的TTL电平为3.3V」"></p>
-<p><em>图 1：接线图 <code>9-1 串口发送</code>——右下是 USB 转串口模块（5V/VCC/3V3/TXD/RXD/GND，红圈标出跳线帽插在 VCC-3V3 上），画面用蓝/黄/绿杜邦线（口述里说的棕/红/橙是另一种配色，见存疑），把 GND→电源负极、RXD→PA9、TXD→PA10 接起来；上方是 STM32 最小系统板与 OLED；字幕「要插在VCC和3V3这两个脚上，选择通信的TTL电平为3.3V」</em></p>
+<p><img src="../assets/images/stm32-27/01-wiring.jpg" alt="图 1：接线图 9-1 串口发送——右下是 USB 转串口模块（5V/VCC/3V3/TXD/RXD/GND，红圈标出跳线帽插在 VCC-3V3），把 GND→电源负极、RXD→PA9、TXD→PA10 接起来"></p>
+<p><em>图 1：接线图 <code>9-1 串口发送</code>——右下是 USB 转串口模块（5V/VCC/3V3/TXD/RXD/GND，红圈标出跳线帽插在 VCC-3V3），把 GND→电源负极、RXD→PA9、TXD→PA10 接起来</em></p>
 <h3 id="1-2-工程准备">1.2 工程准备</h3>
 <ul>
-<li>复制 <strong>OLED 工程</strong>，改名 <strong><code>9-1 串口发送</code></strong>，删掉原来的代码、编译；</li>
-<li>老规矩给串口<strong>新建模块</strong>：<code>Serial.c / Serial.h</code>，在 <code>Serial.c</code> 里写 <strong><code>void Serial_Init(void)</code></strong>；</li>
-<li><strong>初始化流程</strong>（照 P26 的 USART 基本结构图）：<strong>① 开 USART 和 GPIO 时钟 → ② 配 GPIO 引脚 → ③ 用 <code>USART_Init</code> 结构体配 USART 参数 → ④ <code>USART_Cmd</code> 开启</strong>；如果还需要<strong>接收</strong>，就在开启 USART 之前<strong>再加 <code>USART_ITConfig</code> 和 NVIC 的代码</strong>——「整个初始化流程非常中规中矩」；</li>
-<li>初始化完成后：<strong>发送数据调发送函数、接收数据调接收函数、获取发送/接收状态调获取标志位的函数</strong>——这就是 USART 外设的使用思路。</li>
+<li>复制 OLED 工程，改名 <code>9-1 串口发送</code>，删掉原代码并编译。</li>
+<li>新建模块 <code>Serial.c / Serial.h</code>，在 <code>Serial.c</code> 里写 <code>void Serial_Init(void)</code>。</li>
+<li>初始化四步：① 开 USART 与 GPIO 时钟 ② 配 GPIO ③ <code>USART_Init</code> 填参数 ④ <code>USART_Cmd(USART1, ENABLE)</code> 开启。</li>
+<li>若要接收，在 <code>USART_Cmd</code> 之前再加 <code>USART_ITConfig</code> 与 NVIC。</li>
+<li>之后就是调发送函数、接收函数、<code>USART_GetFlagStatus</code> 查状态。</li>
 </ul>
 <h2 id="2-serial-init-程序一-只发送">2. <code>Serial_Init</code>：程序一（只发送）</h2>
 <h3 id="2-1-时钟与-gpio">2.1 时钟与 GPIO</h3>
@@ -234,13 +233,13 @@ void Serial_Init(void)
     ...
 </code></pre>
 <ul>
-<li><strong>USART1 挂在 APB2 上</strong>，所以开时钟用 <code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE)</code>；GPIOA 也在 APB2，一起开；</li>
-<li><strong>GPIO 引脚</strong>：从 LED.c 复制初始化代码，改成 <strong><code>GPIO_Mode_AF_PP</code>（复用推挽）</strong>、<strong><code>GPIO_Pin_9</code></strong>、<code>GPIO_Speed_50MHz</code>；</li>
-<li>关于<strong>接收引脚 RX 的配置</strong>：<strong>普通输入模式和复用功能输入模式在库函数里是混在一起的，不用分</strong>——所以 RX 引脚就按普通输入配（<strong>浮空输入或上拉输入</strong>）：<strong>串口空闲状态是高电平，所以不能用下拉</strong>；具体用哪种可以看手册的「GPIO 配置推荐表」（一般：复用功能输出选复用推挽、输入选浮空或上拉均可）；</li>
-<li><strong>本程序只需要发送</strong>（用不到 RX 引脚），所以只配 PA9。</li>
+<li>开时钟都用 <code>RCC_APB2PeriphClockCmd</code>：USART1 挂在 APB2，写 <code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE)</code>；GPIOA 也在 APB2，一起开。</li>
+<li>PA9 配 <code>GPIO_Mode_AF_PP</code>（复用推挽）、<code>GPIO_Pin_9</code>、<code>GPIO_Speed_50MHz</code>。</li>
+<li>RX 引脚不必单独配复用：库函数里普通输入与复用功能输入混在一起，浮空或上拉都行。</li>
+<li>串口空闲是高电平，所以 RX 不能配下拉；程序一用不到 RX，只配 PA9。</li>
 </ul>
-<p><img src="../assets/images/stm32-27/02-serial-init-clock.jpg" alt="图 2：Serial.c 开头——#include &quot;stm32f10x.h&quot;、void Serial_Init(void)、RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE); 与 RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);；左侧项目树 9-1 串口发送 的 Hardware 组下新增 Serial.c/Serial.h"></p>
-<p><em>图 2：<code>Serial.c</code> 开头——<code>#include &quot;stm32f10x.h&quot;</code>、<code>void Serial_Init(void)</code>、<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);</code> 与 <code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);</code>；左侧项目树 <code>9-1 串口发送</code> 的 Hardware 组下新增 Serial.c/Serial.h</em></p>
+<p><img src="../assets/images/stm32-27/02-serial-init-clock.jpg" alt="图 2：Serial.c 开头——#include &quot;stm32f10x.h&quot;、void Serial_Init(void)、RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE); 与 RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);"></p>
+<p><em>图 2：<code>Serial.c</code> 开头——<code>#include &quot;stm32f10x.h&quot;</code>、<code>void Serial_Init(void)</code>、<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);</code> 与 <code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);</code></em></p>
 <h3 id="2-2-usart-init-六成员与-usart-cmd">2.2 <code>USART_Init</code> 六成员与 <code>USART_Cmd</code></h3>
 <pre><code class="language-c">    USART_InitTypeDef USART_InitStructure;
     USART_InitStructure.USART_BaudRate = 9600;
@@ -265,42 +264,43 @@ void Serial_Init(void)
 <tbody><tr>
 <td><code>USART_BaudRate</code></td>
 <td><strong><code>9600</code></strong></td>
-<td><strong>直接写波特率数值</strong>，<code>USART_Init</code> 内部会自动算好对应的分频系数（P26 的 BRR/DIV），不用自己算</td>
+<td>直接写波特率数值，<code>USART_Init</code> 内部自动算分频系数（P26 的 BRR/DIV）</td>
 </tr>
 <tr>
 <td><code>USART_HardwareFlowControl</code></td>
 <td><strong><code>USART_HardwareFlowControl_None</code></strong></td>
-<td>可选 None / CTS / RTS / CTS+RTS；<strong>我们不用流控，选 None</strong></td>
+<td>可选 None / CTS / RTS / CTS+RTS；不用流控选 None</td>
 </tr>
 <tr>
 <td><code>USART_Mode</code></td>
 <td><strong><code>USART_Mode_Tx</code></strong></td>
-<td>可选 Tx / Rx；<strong>同时收发就 <code>Tx | Rx</code></strong>；本程序只发送，选 Tx</td>
+<td>可选 Tx / Rx；同时收发写 <code>Tx | Rx</code>；本程序只发送</td>
 </tr>
 <tr>
 <td><code>USART_Parity</code></td>
 <td><strong><code>USART_Parity_No</code></strong></td>
-<td>无校验 / 奇校验 / 偶校验；<strong>选无校验</strong></td>
+<td>无校验 / 奇 / 偶；选无校验</td>
 </tr>
 <tr>
 <td><code>USART_StopBits</code></td>
 <td><strong><code>USART_StopBits_1</code></strong></td>
-<td>0.5 / 1 / 1.5 / 2 位；<strong>一般用 1 位</strong></td>
+<td>0.5 / 1 / 1.5 / 2 位；一般用 1 位</td>
 </tr>
 <tr>
 <td><code>USART_WordLength</code></td>
 <td><strong><code>USART_WordLength_8b</code></strong></td>
-<td>8 位 / 9 位（含校验位）；<strong>不需要校验就选 8 位</strong></td>
+<td>8 位 / 9 位（含校验位）；不校验选 8 位</td>
 </tr>
 </tbody></table>
 <ul>
-<li>组合起来就是<strong>最常用的参数：9600、8 位数据、1 位停止、无校验、无流控</strong>；</li>
-<li>最后 <strong><code>USART_Cmd(USART1, ENABLE);</code></strong> 开启 USART，初始化完成。</li>
+<li>六个成员依次填 <code>USART_BaudRate = 9600</code>、<code>USART_HardwareFlowControl = USART_HardwareFlowControl_None</code>、<code>USART_Mode = USART_Mode_Tx</code>、<code>USART_Parity = USART_Parity_No</code>、<code>USART_StopBits = USART_StopBits_1</code>、<code>USART_WordLength = USART_WordLength_8b</code>。</li>
+<li>六个成员传进 <code>USART_Init(USART1, &amp;USART_InitStructure);</code>，组合成最常用参数：9600、8 位数据、1 位停止、无校验、无流控。</li>
+<li>最后 <code>USART_Cmd(USART1, ENABLE);</code> 开启 USART，初始化完成。</li>
 </ul>
-<p><img src="../assets/images/stm32-27/03-gpio-and-baud.jpg" alt="图 3：Serial.c 中段——GPIO 部分 GPIO_Mode_AF_PP/GPIO_Pin_9/GPIO_Speed_50MHz/GPIO_Init(GPIOA, …)；USART_InitTypeDef USART_InitStructure; 后正在填 USART_InitStructure.USART_BaudRate = 9600;（高亮），其余成员待填（红叉标记）；字幕「写完之后，这个Init函数内部会自动算好9600对应的分频系数」"></p>
-<p><em>图 3：<code>Serial.c</code> 中段——GPIO 部分 <code>GPIO_Mode_AF_PP</code>/<code>GPIO_Pin_9</code>/<code>GPIO_Speed_50MHz</code>/<code>GPIO_Init(GPIOA, …)</code>；<code>USART_InitTypeDef USART_InitStructure;</code> 后正在填 <code>USART_InitStructure.USART_BaudRate = 9600;</code>（高亮），其余成员待填（红叉标记）；字幕「写完之后，这个Init函数内部会自动算好9600对应的分频系数」</em></p>
-<p><img src="../assets/images/stm32-27/04-usart-init-full.jpg" alt="图 4：Serial.c 中 USART_Init 六成员填完——BaudRate = 9600、HardwareFlowControl = USART_HardwareFlowControl_None、Mode = USART_Mode_Tx、Parity = USART_Parity_No、StopBits = USART_StopBits_1、WordLength = USART_WordLength_8b，USART_Init(USART1, &amp;USART_InitStructure);，以及正在输入的 USART_Cmd；字幕「USART_Cmd(USART1, ENABLE)」"></p>
-<p><em>图 4：<code>Serial.c</code> 中 <code>USART_Init</code> 六成员填完——<code>BaudRate = 9600</code>、<code>HardwareFlowControl = USART_HardwareFlowControl_None</code>、<code>Mode = USART_Mode_Tx</code>、<code>Parity = USART_Parity_No</code>、<code>StopBits = USART_StopBits_1</code>、<code>WordLength = USART_WordLength_8b</code>，<code>USART_Init(USART1, &amp;USART_InitStructure);</code>，以及正在输入的 <code>USART_Cmd</code>；字幕「USART_Cmd(USART1, ENABLE)」</em></p>
+<p><img src="../assets/images/stm32-27/03-gpio-and-baud.jpg" alt="图 3：Serial.c 中段——GPIO_Mode_AF_PP/GPIO_Pin_9/GPIO_Speed_50MHz/GPIO_Init(GPIOA, …)；USART_InitTypeDef USART_InitStructure; 后正在填 USART_InitStructure.USART_BaudRate = 9600;（高亮）"></p>
+<p><em>图 3：<code>Serial.c</code> 中段——<code>GPIO_Mode_AF_PP</code>/<code>GPIO_Pin_9</code>/<code>GPIO_Speed_50MHz</code>/<code>GPIO_Init(GPIOA, …)</code>；<code>USART_InitTypeDef USART_InitStructure;</code> 后正在填 <code>USART_InitStructure.USART_BaudRate = 9600;</code>（高亮）</em></p>
+<p><img src="../assets/images/stm32-27/04-usart-init-full.jpg" alt="图 4：六成员填完——BaudRate = 9600、HardwareFlowControl = USART_HardwareFlowControl_None、Mode = USART_Mode_Tx、Parity = USART_Parity_No、StopBits = USART_StopBits_1、WordLength = USART_WordLength_8b"></p>
+<p><em>图 4：六成员填完——<code>BaudRate = 9600</code>、<code>HardwareFlowControl = USART_HardwareFlowControl_None</code>、<code>Mode = USART_Mode_Tx</code>、<code>Parity = USART_Parity_No</code>、<code>StopBits = USART_StopBits_1</code>、<code>WordLength = USART_WordLength_8b</code></em></p>
 <h2 id="3-发送一个字节-serial-sendbyte">3. 发送一个字节：<code>Serial_SendByte</code></h2>
 <pre><code class="language-c">void Serial_SendByte(uint8_t Byte)
 {
@@ -309,37 +309,39 @@ void Serial_Init(void)
 }
 </code></pre>
 <ul>
-<li><strong><code>USART_SendData(USART1, Byte)</code></strong>：把数据写进 USART 的 <strong>DR 寄存器</strong>；看库函数源码，它内部就是 <strong><code>USARTx-&gt;DR = (Data &amp; (uint16_t)0x01FF);</code></strong>（<strong>把高 7 位清零</strong>，只保留 9 位数据）；</li>
-<li><strong>写完之后数据会通向 TDR → 再由硬件转移到发送移位寄存器 → 通过 TX 引脚发送出去</strong>——这一步<strong>单片机内部软硬件高度配合</strong>，我们不用管；</li>
-<li><strong>为什么调用完还要 <code>while</code> 等待</strong>：<strong>数据从 TDR 转移到移位寄存器之前，不能再写下一个，否则会数据覆盖</strong>——所以写完 DR 要<strong>等 <code>USART_FLAG_TXE</code>（发送数据寄存器空）置 1</strong> 再返回；</li>
-<li><strong><code>USART_GetFlagStatus(USART1, USART_FLAG_TXE)</code></strong>：第一个参数选 USART，第二个参数选要检查的标志位——可选的有 <strong>CTS（CTS 改变）、LBD（LIN 断开检测）、TXE（发送数据寄存器空）、TC（发送完成）、RXNE（接收数据寄存器非空）、IDLE（空闲检测）、ORE（溢出错误）、NE（噪声错误）、FE（帧错误）、PE（校验错误）</strong>；</li>
-<li><strong>TXE 需要手动清零吗？不用</strong>：看手册 <strong>SR 位7 TXE</strong>——「<strong>当 TDR 寄存器中的数据被硬件转移到移位寄存器的时候，该位被硬件置位</strong>；如果 USART_CR1 中的 TXEIE 为 1 则产生中断；<strong>对 USART_DR 的写操作，将该位清零</strong>」——所以<strong>写 DR 时它自动清零</strong>，下次发送前会自动置位。</li>
+<li><code>USART_SendData(USART1, Byte)</code> 把数据写进 DR；库函数内部是 <code>USARTx-&gt;DR = (Data &amp; (uint16_t)0x01FF);</code>，即 <code>USARTx-&gt;DR = (Data &amp; 0x01FF)</code>，高 7 位清零、只留 9 位数据。</li>
+<li>数据再从 TDR 转到发送移位寄存器、由 TX 引脚发出，这一步软硬件配合、不用管。</li>
+<li>必须等 <code>USART_FLAG_TXE</code> 置 1：<code>USART_GetFlagStatus(USART1, USART_FLAG_TXE)</code> 返回非 RESET 才能写下一个。</li>
+<li>写法就是一个 <code>while</code> 空循环：<code>while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);</code>，不等会覆盖。</li>
+<li><code>USART_GetFlagStatus</code> 第二个参数可选：<code>USART_FLAG_CTS</code>（CTS 改变）、<code>LBD</code>（LIN 断开检测）、<code>TXE</code>、<code>TC</code>、<code>RXNE</code>、<code>IDLE</code>、<code>ORE</code>、<code>NE</code>、<code>FE</code>、<code>PE</code>。</li>
+<li>TXE 不用手动清：手册 SR 位7 写明「对 <code>USART_DR</code> 的写操作将该位清零」，写 DR 时硬件自动清。</li>
 </ul>
-<p><img src="../assets/images/stm32-27/05-senddata-source.jpg" alt="图 5：stm32f10x_usart.c 里 USART_SendData 的源码——void USART_SendData(USART_TypeDef* USARTx, uint16_t Data)，函数体 USARTx-&gt;DR = (Data &amp; (uint16_t)0x01FF);（高亮）；字幕「要想学好单片机，程序思维和电路分析都是必不可少的」"></p>
-<p><em>图 5：<code>stm32f10x_usart.c</code> 里 <code>USART_SendData</code> 的源码——<code>void USART_SendData(USART_TypeDef* USARTx, uint16_t Data)</code>，函数体 <code>USARTx-&gt;DR = (Data &amp; (uint16_t)0x01FF);</code>（高亮）；字幕「要想学好单片机，程序思维和电路分析都是必不可少的」</em></p>
-<p><img src="../assets/images/stm32-27/06-flag-status-list.jpg" alt="图 6：USART_GetFlagStatus 的注释参数列表——@arg USART_FLAG_CTS、LBD、`USART_FLAG_TXE`（高亮）、TC、RXNE、IDLE、ORE、NE、FE、PE；字幕「复制，放到这里」"></p>
-<p><em>图 6：<code>USART_GetFlagStatus</code> 的注释参数列表——<code>@arg USART_FLAG_CTS</code>、<code>LBD</code>、<strong><code>USART_FLAG_TXE</code>（高亮）</strong>、<code>TC</code>、<code>RXNE</code>、<code>IDLE</code>、<code>ORE</code>、<code>NE</code>、<code>FE</code>、<code>PE</code>；字幕「复制，放到这里」</em></p>
-<p><img src="../assets/images/stm32-27/07-sr-txe-tc-rxne.jpg" alt="图 7：参考手册 USART_SR 位说明——位7 `TXE`（发送数据寄存器空）：TDR 数据被硬件转移到移位寄存器时置位、TXEIE=1 产生中断、对 USART_DR 的写操作将该位清零、单缓冲器传输中使用；位6 TC（发送完成）；位5 `RXNE`（读数据寄存器非空）：RDR 数据转移到 USART_DR 时置位、读 DR 可清零"></p>
-<p>*图 7：参考手册 USART_SR 位说明——位7 <strong><code>TXE</code>（发送数据寄存器空）</strong>：TDR 数据被硬件转移到移位寄存器时置位、TXEIE=1 产生中断、<strong>对 USART_DR 的写操作将该位清零</strong>、单缓冲器传输中使用；位6 <code>TC</code>（发送完成）；位5 <strong><code>RXNE</code>（读数据寄存器非空）</strong>：RDR 数据转移到 USART_DR 时置位、读 DR 可清零*</p>
+<p><img src="../assets/images/stm32-27/05-senddata-source.jpg" alt="图 5：stm32f10x_usart.c 里 USART_SendData 的源码——void USART_SendData(USART_TypeDef* USARTx, uint16_t Data)，函数体 USARTx-&gt;DR = (Data &amp; (uint16_t)0x01FF);（高亮）"></p>
+<p><em>图 5：<code>stm32f10x_usart.c</code> 里 <code>USART_SendData</code> 的源码——<code>void USART_SendData(USART_TypeDef* USARTx, uint16_t Data)</code>，函数体 <code>USARTx-&gt;DR = (Data &amp; (uint16_t)0x01FF);</code>（高亮）</em></p>
+<p><img src="../assets/images/stm32-27/06-flag-status-list.jpg" alt="图 6：USART_GetFlagStatus 注释里的参数——@arg USART_FLAG_CTS、LBD、TXE、TC、RXNE、IDLE、ORE、NE、FE、PE（USART_FLAG_TXE 高亮）"></p>
+<p><em>图 6：<code>USART_GetFlagStatus</code> 注释里的参数——<code>@arg USART_FLAG_CTS</code>、<code>LBD</code>、<code>TXE</code>、<code>TC</code>、<code>RXNE</code>、<code>IDLE</code>、<code>ORE</code>、<code>NE</code>、<code>FE</code>、<code>PE</code>（<code>USART_FLAG_TXE</code> 高亮）</em></p>
+<p><img src="../assets/images/stm32-27/07-sr-txe-tc-rxne.jpg" alt="图 7：参考手册 USART_SR——位7 TXE：TDR 数据转走时硬件置位、TXEIE=1 产生中断、写 USART_DR 清零；位6 TC；位5 RXNE：RDR 数据转到 DR 时置位、读 DR 清零"></p>
+<p><em>图 7：参考手册 <code>USART_SR</code>——位7 <code>TXE</code>：TDR 数据转走时硬件置位、TXEIE=1 产生中断、写 <code>USART_DR</code> 清零；位6 <code>TC</code>；位5 <code>RXNE</code>：RDR 数据转到 DR 时置位、读 DR 清零</em></p>
 <h3 id="3-1-现象-串口助手看发送">3.1 现象：串口助手看发送</h3>
 <ul>
-<li>把 <code>Serial_Init</code>、<code>Serial_SendByte</code> 放头文件声明、编译；main 里先 <code>Serial_Init()</code> 再 <code>Serial_SendByte(0x41)</code>——<strong>上电初始化后就会通过串口发一次 0x41</strong>，TX 引脚产生波形；</li>
-<li>打开串口助手：<strong>选 COM 号，其他参数要与程序一致</strong>——<strong>波特率 9600、数据位 8、停止位 1、校验位无</strong>；按 STM32 复位后<strong>收到 <code>41</code></strong>；</li>
-<li><strong>接收模式</strong>：<strong>HEX 模式</strong>显示的是<strong>原始数据 <code>41</code></strong>；<strong>文本模式</strong>会按字符集解析，<code>0x41</code> 对应字符 <strong><code>A</code></strong>——这就是 P25 讲过的「HEX/文本」区别。</li>
+<li>main 里 <code>Serial_Init()</code> 之后调 <code>Serial_SendByte(0x41)</code>，上电就发一次，TX 引脚产生波形。</li>
+<li>串口助手选 COM 号，波特率 9600、数据位 8、停止位 1、校验位无。</li>
+<li>复位后收到 <code>41</code>：HEX 模式显示原始数据 <code>41</code>，文本模式按字符集解析成 <code>A</code>（就是 P25 讲过的 HEX/文本区别）。</li>
 </ul>
 <h2 id="4-数据模式与-ascii-码表">4. 数据模式与 ASCII 码表</h2>
 <ul>
-<li><strong>HEX 模式 / 十六进制模式 / 二进制模式</strong>：<strong>以原始数据的形式显示</strong>——数据是什么就显示什么（只能显示 0～9、A～F 这些十六进制字符）；</li>
-<li><strong>文本模式 / 字符模式</strong>：<strong>以原始数据编码后的形式显示</strong>——把每个字节按字符集编码查表、显示对应的字符；</li>
-<li><strong>ASCII 码表</strong>：<strong><code>0x41</code> = <code>A</code></strong>、<strong><code>0x61</code> = <code>a</code></strong>、<strong><code>0x30</code>～<code>0x39</code> = <code>0</code>～<code>9</code></strong>、各种标点符号，还有<strong>不可见字符</strong>（<code>0x00</code> 空字符、<code>\r</code>=<code>0x0D</code>、<code>\n</code>=<code>0x0A</code>、<code>\t</code>=<code>0x09</code> 等）；<strong><code>0x00</code> 在字符串里是结束标志</strong>；</li>
-<li><strong>汉字等多字节字符</strong>：ASCII 只有英文，中文要用 <strong>GB2312/GBK/GB18030</strong> 或 <strong>Unicode/UTF8</strong> 等字符集——<strong>「对应外国也有相应的字符集」</strong>；</li>
-<li><strong>收发模型</strong>：发送方把 <code>0x41</code> 发到线上，接收方收到 <code>0x41</code>——<strong>如果显示文本，发送方要先「编码」（把 <code>&#39;A&#39;</code> 编成 <code>0x41</code>）、接收方再「译码」（把 <code>0x41</code> 解成 <code>&#39;A&#39;</code>）</strong>；</li>
-<li>所以程序里 <code>Serial_SendByte(0x41)</code> 与 <code>Serial_SendByte(&#39;A&#39;)</code> 发出去的是同一个数据。</li>
+<li>HEX 模式 / 十六进制模式 / 二进制模式：以原始数据形式显示，只能显示 0～9、A～F。</li>
+<li>文本模式 / 字符模式：把每个字节按字符集编码查表、显示对应字符。</li>
+<li>ASCII：<code>0x41</code> = <code>A</code>、<code>0x61</code> = <code>a</code>、<code>0x30</code>～<code>0x39</code> = <code>0</code>～<code>9</code>，还有标点与不可见字符。</li>
+<li>不可见字符：<code>0x00</code>（空字符，字符串的结束标志）、<code>\r</code>=<code>0x0D</code>、<code>\n</code>=<code>0x0A</code>、<code>\t</code>=<code>0x09</code>。</li>
+<li>汉字等多字节字符要靠 GB2312/GBK/GB18030 或 Unicode/UTF8 等字符集。</li>
+<li>收发模型：发送方编码（<code>&#39;A&#39;</code> → <code>0x41</code>）、接收方译码（<code>0x41</code> → <code>&#39;A&#39;</code>），线上始终是 <code>0x41</code>。</li>
+<li>所以 <code>Serial_SendByte(0x41)</code> 与 <code>Serial_SendByte(&#39;A&#39;)</code> 发的是同一个数据。</li>
 </ul>
-<p><img src="../assets/images/stm32-27/08-data-mode-ppt.jpg" alt="图 8：PPT「数据模式」——HEX模式/十六进制模式/二进制模式：以原始数据的形式显示；文本模式/字符模式：以原始数据编码后的形式显示；左侧 ASCII 码表（DEC/HEX/字符/解释），右侧收发模型：发送方 0x41 → 线路 0x41 → 接收方 0x41，发送方下方「编码 ← &#39;A&#39;」、接收方下方「译码 → &#39;A&#39;」；字幕「这就是文本模式，或者叫做字符模式」"></p>
-<p><em>图 8：PPT「数据模式」——<strong>HEX模式/十六进制模式/二进制模式：以原始数据的形式显示</strong>；<strong>文本模式/字符模式：以原始数据编码后的形式显示</strong>；左侧 ASCII 码表（DEC/HEX/字符/解释），右侧收发模型：发送方 <code>0x41</code> → 线路 <code>0x41</code> → 接收方 <code>0x41</code>，发送方下方「编码 ← &#39;A&#39;」、接收方下方「译码 → &#39;A&#39;」；字幕「这就是文本模式，或者叫做字符模式」</em></p>
-<p><img src="../assets/images/stm32-27/09-ascii-table.jpg" alt="图 9：ASCII 码表全页——DEC/HEX/字符/解释四列（0～127）：0x00 = (NUL) 空字符、0x41 = A 大写字母A、0x61 = a 小写字母a、0x30～0x39 = 字符 0～9 等；字幕「对应外国也有相应的字符集」"></p>
-<p><em>图 9：ASCII 码表全页——DEC/HEX/字符/解释四列（0～127）：<code>0x00</code> = (NUL) 空字符、<code>0x41</code> = <code>A</code> 大写字母A、<code>0x61</code> = <code>a</code> 小写字母a、<code>0x30</code>～<code>0x39</code> = 字符 <code>0</code>～<code>9</code> 等；字幕「对应外国也有相应的字符集」</em></p>
+<p><img src="../assets/images/stm32-27/08-data-mode-ppt.jpg" alt="图 8：PPT「数据模式」——HEX模式/十六进制模式/二进制模式以原始数据显示；文本模式/字符模式以编码后的形式显示；右侧收发模型：发送方 0x41 → 线路 0x41 → 接收方，发送方「编码 ← &#39;A&#39;」、接收方「译码 → &#39;A&#39;」"></p>
+<p><em>图 8：PPT「数据模式」——HEX模式/十六进制模式/二进制模式以原始数据显示；文本模式/字符模式以编码后的形式显示；右侧收发模型：发送方 <code>0x41</code> → 线路 <code>0x41</code> → 接收方，发送方「编码 ← &#39;A&#39;」、接收方「译码 → &#39;A&#39;」</em></p>
+<p><img src="../assets/images/stm32-27/09-ascii-table.jpg" alt="图 9：ASCII 码表全页（0～127）——0x00 = (NUL) 空字符、0x41 = A 大写字母A、0x61 = a 小写字母a、0x30～0x39 = 字符 0～9"></p>
+<p><em>图 9：ASCII 码表全页（0～127）——<code>0x00</code> = (NUL) 空字符、<code>0x41</code> = <code>A</code> 大写字母A、<code>0x61</code> = <code>a</code> 小写字母a、<code>0x30</code>～<code>0x39</code> = 字符 <code>0</code>～<code>9</code></em></p>
 <h2 id="5-封装常用发送函数">5. 封装常用发送函数</h2>
 <h3 id="5-1-serial-sendarray-发送数组">5.1 <code>Serial_SendArray</code>：发送数组</h3>
 <pre><code class="language-c">void Serial_SendArray(uint8_t *Array, uint16_t Length)
@@ -352,9 +354,10 @@ void Serial_Init(void)
 }
 </code></pre>
 <ul>
-<li>参数：<strong><code>uint8_t *Array</code>（数组首地址）+ <code>uint16_t Length</code>（长度）</strong>——<strong>数组本身没法判断什么时候结束，所以必须额外给长度</strong>；长度用 16 位够用（「发送个几 K 的数据都够」）；</li>
-<li>逻辑：for 循环执行 <code>Length</code> 次、每次调用 <code>Serial_SendByte</code> 发一个字节；</li>
-<li>测试：定义 <code>uint8_t MyArray[] = {0x42, 0x43, 0x44, 0x45};</code>，<code>Serial_SendArray(MyArray, 4)</code> → 串口助手收到 <code>42 43 44 45</code>。</li>
+<li>原型 <code>Serial_SendArray(uint8_t *Array, uint16_t Length)</code>：<code>uint8_t *Array</code> 是首地址、<code>uint16_t Length</code> 是长度。</li>
+<li>数组自己不知道何时结束，所以必须额外给长度。</li>
+<li>长度用 16 位够用，几 K 的数据都能发；<code>for</code> 循环 <code>Length</code> 次、每次发一个字节。</li>
+<li>测试：<code>uint8_t MyArray[] = {0x42, 0x43, 0x44, 0x45};</code> + <code>Serial_SendArray(MyArray, 4)</code> → 收到 <code>42 43 44 45</code>。</li>
 </ul>
 <h3 id="5-2-serial-sendstring-发送字符串">5.2 <code>Serial_SendString</code>：发送字符串</h3>
 <pre><code class="language-c">void Serial_SendString(char *String)
@@ -367,9 +370,9 @@ void Serial_Init(void)
 }
 </code></pre>
 <ul>
-<li><strong>字符串有结束标志，所以不需要长度参数</strong>：<code>for</code> 循环的条件是 <strong><code>String[i] != &#39;\0&#39;</code></strong>（<code>&#39;\0&#39;</code> 就是 ASCII 的 <code>0x00</code>，<strong>空字符的转义字符表示形式</strong>）；</li>
-<li>写完字符串后<strong>编译器会自动补上结束标志位</strong>，所以<strong>字符串的存储空间比字符个数大 1</strong>；</li>
-<li>现象：文本模式下显示 <code>HelloWorld!</code>；<strong>要换行就用转义字符 <code>\r\n</code></strong>——<strong>必须两个一起用</strong>（<code>\r</code>=<code>0x0D</code> 回车、<code>\n</code>=<code>0x0A</code> 换行，都是不可见的控制字符）。</li>
+<li>原型 <code>Serial_SendString(char *String)</code>：有结束标志就不用长度，循环条件 <code>String[i] != &#39;\0&#39;</code>（<code>&#39;\0&#39;</code> 即 <code>0x00</code> 的转义写法）。</li>
+<li>编译器自动补结束标志，所以字符串的存储空间比字符个数大 1。</li>
+<li>文本模式显示 <code>HelloWorld!</code>；换行用 <code>\r\n</code>，必须两个一起（<code>\r</code>=<code>0x0D</code> 回车、<code>\n</code>=<code>0x0A</code> 换行）。</li>
 </ul>
 <h3 id="5-3-serial-sendnumber-发送数字-十进制拆位">5.3 <code>Serial_SendNumber</code>：发送数字（十进制拆位）</h3>
 <pre><code class="language-c">uint32_t Serial_Pow(uint32_t X, uint32_t Y)
@@ -392,27 +395,30 @@ void Serial_SendNumber(uint32_t Number, uint8_t Length)
 }
 </code></pre>
 <ul>
-<li>目标：<strong>把 Number 的个位、十位、百位……依次转成字符数字发出去</strong>，电脑上就看到「字符串形式的数字」；</li>
-<li><strong>十进制拆位的原理</strong>：取某一位 = <strong><code>数字 / 10^x % 10</code></strong>——<strong><code>/10^x</code> 把这一位右边去掉，<code>%10</code> 把左边去掉</strong>；以 <code>12345</code> 为例：<code>/10000%10 = 1</code>（万位）、<code>/1000%10 = 2</code>（千位）、<code>/100%10 = 3</code>（百位）……</li>
-<li><strong>先写一个次方函数 <code>Serial_Pow</code></strong>（<strong>这是作者自己写的、不是标准库函数</strong>）：<code>Result</code> 初值 1，<code>while (Y --) Result *= X;</code> 循环乘 Y 次，返回 <code>X^Y</code>；</li>
-<li><strong>循环变量要反过来：<code>Length - i - 1</code></strong>——因为遍历是从 0 开始的，而 <code>10^0</code> 是个位，<strong>第一次循环要发最高位，所以指数是 <code>Length-1</code></strong>；例如 <code>Length = 2</code>：第一次 <code>2-0-1 = 1</code>（发十位）、第二次 <code>2-1-1 = 0</code>（发个位）；</li>
-<li><strong>最后要加 ASCII 偏移 <code>+ &#39;0&#39;</code></strong>：字符 <code>&#39;0&#39;</code> 对应 <code>0x30</code>，所以把数字 0～9 加上 <code>0x30</code>（或直接写 <code>&#39;0&#39;</code>）就变成字符 <code>&#39;0&#39;</code>～<code>&#39;9&#39;</code>；</li>
-<li>测试：<code>Serial_SendNumber(12345, 5)</code> → 文本模式显示 <code>12345</code>；<strong><code>SendNumber</code> 默认是十进制、无符号显示</strong>；</li>
-<li>其实 <strong><code>SendString</code>/<code>SendNumber</code> 和 OLED 的 <code>ShowString</code>/<code>ShowNum</code> 是一样的逻辑</strong>，可以对照看。</li>
+<li>原型 <code>Serial_SendNumber(uint32_t Number, uint8_t Length)</code>：把 Number 的个位、十位、百位……依次转成字符。</li>
+<li>拆位公式：<code>Number / Serial_Pow(10, Length - i - 1) % 10 + &#39;0&#39;</code>。</li>
+<li>取某一位 = <code>数字 / 10^x % 10</code>：<code>/10^x</code> 去掉这一位右边，<code>%10</code> 去掉左边。</li>
+<li>例：<code>12345</code> → <code>/10000%10 = 1</code>（万位）、<code>/1000%10 = 2</code>（千位）、<code>/100%10 = 3</code>（百位）。</li>
+<li><code>Serial_Pow</code> 是自写的次方函数（不是库函数）：<code>Result</code> 初值 1，<code>while (Y --) Result *= X;</code> 循环 Y 次，返回 <code>X^Y</code>。</li>
+<li>指数要写 <code>Length - i - 1</code>（第一次是 <code>Length-1</code>）：从 0 开始遍历，而 <code>10^0</code> 是个位，第一次发最高位。</li>
+<li>例 <code>Length = 2</code>：第一次 <code>2-0-1 = 1</code> 发十位、第二次 <code>2-1-1 = 0</code> 发个位。</li>
+<li>最后加 <code>+ &#39;0&#39;</code>（<code>0x30</code>）把 0～9 变成字符 <code>&#39;0&#39;</code>～<code>&#39;9&#39;</code>；默认十进制无符号显示。</li>
+<li>测试 <code>Serial_SendNumber(12345, 5)</code> → 显示 <code>12345</code>。</li>
+<li><code>SendString</code>/<code>SendNumber</code> 与 OLED 的 <code>ShowString</code>/<code>ShowNum</code> 是同一套逻辑。</li>
 </ul>
-<p><img src="../assets/images/stm32-27/10-sendarray-sendstring.jpg" alt="图 10：Serial.c 中 Serial_SendByte 的 while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);、Serial_SendArray（for (i = 0; i &lt; Length; i ++) { Serial_SendByte(Array 的 i 号元素); }）与 Serial_SendString 的循环条件 for (i = 0; String 的 i 号元素 != &#39;\0&#39; 正在输入；字幕「这就是空字符的转义字符表示形式」"></p>
-<p><em>图 10：<code>Serial.c</code> 中 <code>Serial_SendByte</code> 的 <code>while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);</code>、<code>Serial_SendArray</code>（<code>for (i = 0; i &lt; Length; i ++) { Serial_SendByte(Array 的 i 号元素); }</code>）与 <code>Serial_SendString</code> 的循环条件 <code>for (i = 0; String 的 i 号元素 != &#39;\0&#39;</code> 正在输入；字幕「这就是空字符的转义字符表示形式」</em></p>
-<p><img src="../assets/images/stm32-27/11-pow-sendnumber-fputc.jpg" alt="图 11：Serial.c 中 Serial_Pow（uint32_t Result = 1; while (Y --) { Result *= X; } return Result;）、Serial_SendNumber（for (i = 0; i &lt; Length; i ++) { Serial_SendByte(Number / Serial_Pow(10, Length - i - 1) % 10 + &#39;0&#39;); }），以及开始写 int fputc(int ch, FILE；字幕「int fputc(int ch, FILE *f)」"></p>
-<p>*图 11：<code>Serial.c</code> 中 <code>Serial_Pow</code>（<code>uint32_t Result = 1; while (Y --) { Result *= X; } return Result;</code>）、<code>Serial_SendNumber</code>（<code>for (i = 0; i &lt; Length; i ++) { Serial_SendByte(Number / Serial_Pow(10, Length - i - 1) % 10 + &#39;0&#39;); }</code>），以及开始写 <code>int fputc(int ch, FILE</code>；字幕「int fputc(int ch, FILE <em>f)」</em></p>
+<p><img src="../assets/images/stm32-27/10-sendarray-sendstring.jpg" alt="图 10：Serial_SendArray（for (i = 0; i &lt; Length; i ++) { Serial_SendByte(Array 的 i 号元素); }）与 Serial_SendString 的循环条件 for (i = 0; String 的 i 号元素 != &#39;\0&#39; 正在输入"></p>
+<p><em>图 10：<code>Serial_SendArray</code>（<code>for (i = 0; i &lt; Length; i ++) { Serial_SendByte(Array 的 i 号元素); }</code>）与 <code>Serial_SendString</code> 的循环条件 <code>for (i = 0; String 的 i 号元素 != &#39;\0&#39;</code> 正在输入</em></p>
+<p><img src="../assets/images/stm32-27/11-pow-sendnumber-fputc.jpg" alt="图 11：Serial_Pow 与 Serial_SendNumber 的代码"></p>
+<p><em>图 11：<code>Serial_Pow</code>（<code>uint32_t Result = 1; while (Y --) { Result *= X; } return Result;</code>）与 <code>Serial_SendNumber</code>（<code>for (i = 0; i &lt; Length; i ++) { Serial_SendByte(Number / Serial_Pow(10, Length - i - 1) % 10 + &#39;0&#39;); }</code>）</em></p>
 <h2 id="6-printf-的三种移植方法">6. printf 的三种移植方法</h2>
 <blockquote>
-<p><code>printf</code> 是 C 语言里非常强大的格式化打印函数，默认输出到屏幕；单片机没有屏幕，所以要<strong>重定向到串口</strong>。</p>
+<p><code>printf</code> 默认输出到屏幕，单片机没有屏幕，所以要重定向到串口。</p>
 </blockquote>
 <h3 id="6-1-方法1-use-microlib-重写-fputc-最常用">6.1 方法①：Use MicroLIB + 重写 <code>fputc</code>（最常用）</h3>
 <ol>
-<li>打开工程选项，<strong>勾上「Use MicroLIB」</strong>——MicroLIB 是 Keil 为嵌入式平台优化的精简库，<code>printf</code> 会用到它；</li>
-<li>在 <code>Serial.c</code> 里 <strong><code>#include &lt;stdio.h&gt;</code></strong>；</li>
-<li>重写 <strong><code>fputc</code></strong>：</li>
+<li>工程选项里勾上「Use MicroLIB」——Keil 为嵌入式精简过的库，<code>printf</code> 会用到它。</li>
+<li><code>Serial.c</code> 里 <code>#include &lt;stdio.h&gt;</code>。</li>
+<li>重写 <code>fputc</code>：</li>
 </ol>
 <pre><code class="language-c">int fputc(int ch, FILE *f)
 {
@@ -421,14 +427,14 @@ void Serial_SendNumber(uint32_t Number, uint8_t Length)
 }
 </code></pre>
 <ul>
-<li><strong>原理</strong>：<strong><code>printf</code> 底层就是通过 <code>fputc</code> 一个字符一个字符地输出</strong>，所以把 <code>fputc</code> 重定向到串口发送，<code>printf</code> 就打到串口了；</li>
-<li>测试：<code>printf(&quot;Num=%d\r\n&quot;, 666);</code> 就能在串口助手看到 <code>Num=666</code>；</li>
-<li><strong>踩坑</strong>：如果没 <code>#include &lt;stdio.h&gt;</code>，会报<strong>隐式声明警告</strong>（<code>implicit declaration</code>）——在头文件里补上即可。</li>
+<li>原理：<code>printf</code> 底层就是一个字符一个字符地调 <code>fputc</code>，重定向它 printf 就打到串口。</li>
+<li>测试 <code>printf(&quot;Num=%d\r\n&quot;, 666);</code> → 串口助手看到 <code>Num=666</code>。</li>
+<li>坑：漏 <code>#include &lt;stdio.h&gt;</code> 会报隐式声明警告（<code>implicit declaration</code>）。</li>
 </ul>
 <h3 id="6-2-方法2-sprintf-serial-sendstring">6.2 方法②：<code>sprintf</code> + <code>Serial_SendString</code></h3>
 <ul>
-<li>用 <strong><code>sprintf</code></strong> 先把格式化内容<strong>写到一个字符串数组</strong>里，再 <code>Serial_SendString</code> 发出去；</li>
-<li><strong>这种方法不涉及重定向、也不需要勾 MicroLIB</strong>，适合只想偶尔格式化一次的场合。</li>
+<li>先用 <code>sprintf</code> 把格式化内容写到字符串数组，再 <code>Serial_SendString</code> 发出去。</li>
+<li>不涉及重定向、不用勾 MicroLIB，适合偶尔格式化一次的场合。</li>
 </ul>
 <h3 id="6-3-方法3-自己封装-serial-printf-可变参数">6.3 方法③：自己封装 <code>Serial_Printf</code>（可变参数）</h3>
 <pre><code class="language-c">void Serial_Printf(char *format, ...)
@@ -442,30 +448,31 @@ void Serial_SendNumber(uint32_t Number, uint8_t Length)
 }
 </code></pre>
 <ul>
-<li>用 <strong><code>va_list / va_start / vsprintf / va_end</code></strong> 处理可变参数（<strong>要 <code>#include &lt;stdarg.h&gt;</code></strong>）；</li>
-<li>其实<strong>就是在 <code>sprintf</code> 外面再包一层</strong>，把格式化结果用 <code>Serial_SendString</code> 发出去——封装好后用起来和 <code>printf</code> 一样方便。</li>
+<li>用 <code>Serial_Printf(char *format, ...)</code> 加 <code>va_list / va_start / vsprintf / va_end</code> 处理可变参数，要 <code>#include &lt;stdarg.h&gt;</code>。</li>
+<li>就是在 <code>sprintf</code> 外面再包一层，用起来和 <code>printf</code> 一样。</li>
 </ul>
 <blockquote>
-<p><strong>作者说：最常见的是第一种（MicroLIB + fputc）</strong>；②③ 属于扩展了解。另外 <strong>C 标准库里的 <code>printf</code> 只有一个</strong>，如果想同时保留屏幕输出和串口输出，就要用别的方式（本集笔记不展开）。</p>
+<p>最常用的是方法①；②③ 属于扩展。C 标准库的 <code>printf</code> 只有一个，要同时保留屏幕输出与串口输出得另想办法。</p>
 </blockquote>
-<p><img src="../assets/images/stm32-27/12-fputc-serial-printf.jpg" alt="图 12：Serial.c 尾部——int fputc(int ch, FILE *f) { Serial_SendByte(ch); return ch; } 与 void Serial_Printf(char *format, ...) { char String 数组（100 字节）; va_list arg; va_start(arg, format); vsprintf(String, format, arg); va_end(arg); Serial_SendString(String); }；字幕「如果学过了，那其实是基本操作」"></p>
-<p><em>图 12：<code>Serial.c</code> 尾部——<code>int fputc(int ch, FILE *f) { Serial_SendByte(ch); return ch; }</code> 与 <code>void Serial_Printf(char *format, ...) { char String 数组（100 字节）; va_list arg; va_start(arg, format); vsprintf(String, format, arg); va_end(arg); Serial_SendString(String); }</code>；字幕「如果学过了，那其实是基本操作」</em></p>
+<p><img src="../assets/images/stm32-27/12-fputc-serial-printf.jpg" alt="图 12：Serial.c 尾部——int fputc(int ch, FILE *f) { Serial_SendByte(ch); return ch; } 与 Serial_Printf 的可变参数实现"></p>
+<p><em>图 12：<code>Serial.c</code> 尾部——<code>int fputc(int ch, FILE *f) { Serial_SendByte(ch); return ch; }</code> 与 <code>Serial_Printf</code> 的可变参数实现</em></p>
 <h3 id="6-4-中文乱码怎么办">6.4 中文乱码怎么办</h3>
 <ul>
-<li><strong>乱码原因</strong>：<strong>Keil 保存源文件的编码</strong>和<strong>串口助手解析数据的编码</strong>不一致；</li>
-<li><strong>方案 A（UTF8）</strong>：<strong>Keil 与串口助手都选 UTF8</strong>，并且在工程选项 <strong>C/C++ → Misc Controls 里加上 <code>--no-multibyte-chars</code></strong>；这个方案<strong>有时兼容性不太好</strong>；</li>
-<li><strong>方案 B（GB2312/GBK）</strong>：<strong>Keil 的 Encoding 选 GB2312</strong>，<strong>串口助手的编码选 GBK</strong>，<strong>不用加任何参数、兼容性更好</strong>——「推荐这种」；</li>
-<li>两种方案任选一种、两边保持一致即可；实在乱码也可以用转码软件确认。</li>
+<li>原因：Keil 保存源文件的编码与串口助手解析数据的编码不一致。</li>
+<li>方案 A（UTF8）：Keil 与串口助手都选 UTF8，并在 C/C++ → Misc Controls 加 <code>--no-multibyte-chars</code>；兼容性有时不好。</li>
+<li>方案 B（GB2312/GBK）：Keil 的 Encoding 选 GB2312、串口助手编码选 GBK，不加任何参数，兼容性更好，推荐。</li>
+<li>两边保持一致即可；实在乱码可用转码软件确认。</li>
 </ul>
 <h3 id="6-5-程序一最终现象">6.5 程序一最终现象</h3>
 <ul>
-<li>恢复演示版代码后下载，串口助手（HEX 模式）依次收到：<strong><code>41</code></strong>（SendByte）、<strong><code>42 43 44 45</code></strong>（SendArray，文本模式下显示 <code>ABCDE</code>）、<strong><code>Num1=111</code></strong>（SendString + SendNumber）、<strong><code>Num2=222</code></strong>（printf）、<strong><code>Num3=333</code></strong>（sprintf）、<strong><code>Num4=444</code></strong>（Serial_Printf）——和片头演示完全一样。</li>
+<li>恢复演示代码后，HEX 模式依次收到 <code>41</code>（SendByte）、<code>42 43 44 45</code>（SendArray，文本模式显示 <code>ABCDE</code>）。</li>
+<li>接着 <code>Num1=111</code>（SendString + SendNumber）、<code>Num2=222</code>（printf）、<code>Num3=333</code>（sprintf）、<code>Num4=444</code>（Serial_Printf）。</li>
 </ul>
 <h2 id="7-程序二-9-2-串口发送-接收">7. 程序二：<code>9-2 串口发送+接收</code></h2>
 <h3 id="7-1-初始化改动-加-pa10-与接收模式">7.1 初始化改动：加 PA10 与接收模式</h3>
 <ul>
-<li><strong>接线不变</strong>（两根通信线前面已经都接了），从 9-1 <strong>复制代码</strong>、改名 <strong><code>9-2 串口发送+接收</code></strong>；</li>
-<li><strong>GPIO 增加 PA10</strong>：</li>
+<li>接线不变（两根通信线前面都接了），从 9-1 复制代码、改名 <code>9-2 串口发送+接收</code>。</li>
+<li>GPIO 追加 PA10：</li>
 </ul>
 <pre><code class="language-c">    /* 在 Serial_Init 的 GPIO 部分追加：PA10（USART1_RX）上拉输入 */
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
@@ -474,9 +481,9 @@ void Serial_SendNumber(uint32_t Number, uint8_t Length)
     GPIO_Init(GPIOA, &amp;GPIO_InitStructure);
 </code></pre>
 <ul>
-<li>RX 引脚配<strong>上拉输入 <code>GPIO_Mode_IPU</code></strong>（也可以浮空输入）——串口空闲是高电平，所以不用下拉；</li>
-<li><strong><code>USART_Mode</code> 改成 <code>USART_Mode_Tx | USART_Mode_Rx</code></strong>（同时收发；如果只收不发就去掉 Tx）；</li>
-<li>接收有<strong>两种方法</strong>：<strong>查询法</strong>（主循环不断查 RXNE）与<strong>中断法</strong>（RXNE 触发中断）。</li>
+<li>RX 配 <code>GPIO_Mode_IPU</code> 上拉输入（也可浮空）：串口空闲是高电平，不用下拉。</li>
+<li><code>USART_Mode</code> 改成 <code>USART_Mode = USART_Mode_Tx | USART_Mode_Rx</code>；只收不发就去掉 Tx。</li>
+<li>接收两种方法：查询法（主循环不断查 RXNE）、中断法（RXNE 触发中断）。</li>
 </ul>
 <h3 id="7-2-查询法">7.2 查询法</h3>
 <pre><code class="language-c">uint8_t RxData;
@@ -498,16 +505,16 @@ int main(void)
 }
 </code></pre>
 <ul>
-<li><strong>流程</strong>：先定义变量 <strong><code>uint8_t RxData</code></strong> 存数据 → 主循环<strong>判断 <code>USART_FLAG_RXNE</code> 是否置 1</strong>（收到数据）→ 用 <strong><code>USART_ReceiveData(USART1)</code></strong> 读 DR → 把数据<strong>显示在 OLED 上</strong>、并<strong>原样回传给电脑</strong>；</li>
-<li><strong><code>USART_ReceiveData</code> 内部就是读 DR</strong>；<strong>读 DR 会自动清 RXNE</strong>，所以<strong>不需要手动清标志位</strong>（手册 SR 位5 也是这么写的）；</li>
-<li><strong>现象</strong>：串口助手发送区写 <code>41</code>（HEX 模式，两个数一组）发送 → <strong>OLED 显示 <code>41</code></strong>、同时接收区回传 <code>41</code>；改发 <code>AF</code> 也一样。</li>
+<li>流程：<code>uint8_t RxData</code> 存数据 → 主循环判 <code>USART_FLAG_RXNE</code> 是否置 1 → <code>USART_ReceiveData(USART1)</code> 读 DR → OLED 显示并原样回传电脑。</li>
+<li><code>USART_ReceiveData</code> 内部就是读 DR；读 DR 自动清 RXNE，不用手动清（手册 SR 位5）。</li>
+<li>现象：HEX 模式发 <code>41</code> → OLED 显示 <code>41</code>、回传 <code>41</code>；发 <code>AF</code> 也一样。</li>
 </ul>
-<p><img src="../assets/images/stm32-27/13-query-main.jpg" alt="图 13：程序二查询法 main.c——#include &quot;Serial.h&quot;、uint8_t RxData;、OLED_Init(); Serial_Init();，主循环 if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == SET) { RxData = USART_ReceiveData(USART1); OLED_Show…（正在输入）；字幕「所以这里读完DR，就不需要我们再清除标志位了」"></p>
-<p><em>图 13：程序二查询法 <code>main.c</code>——<code>#include &quot;Serial.h&quot;</code>、<code>uint8_t RxData;</code>、<code>OLED_Init(); Serial_Init();</code>，主循环 <code>if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == SET) { RxData = USART_ReceiveData(USART1); OLED_Show…</code>（正在输入）；字幕「所以这里读完DR，就不需要我们清除标志位了」</em></p>
-<p><img src="../assets/images/stm32-27/14-sr-rxne-manual.jpg" alt="图 14：参考手册 USART_SR——位7 TXE、位6 TC、位5 `RXNE`：RDR 数据被转移到 USART_DR 时置位、RXNEIE=1 产生中断、对 USART_DR 的读操作将该位清零、也可写 0 清除（多缓冲通信用）；字幕「这里有RXNE标志位的说明」"></p>
-<p>*图 14：参考手册 USART_SR——位7 <code>TXE</code>、位6 <code>TC</code>、位5 <strong><code>RXNE</code></strong>：RDR 数据被转移到 USART_DR 时置位、RXNEIE=1 产生中断、<strong>对 USART_DR 的读操作将该位清零</strong>、也可写 0 清除（多缓冲通信用）；字幕「这里有RXNE标志位的说明」*</p>
+<p><img src="../assets/images/stm32-27/13-query-main.jpg" alt="图 13：程序二查询法 main.c——#include &quot;Serial.h&quot;、uint8_t RxData;、OLED_Init(); Serial_Init();，主循环 if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == SET) { RxData = USART_ReceiveData(USART1); OLED_Show…"></p>
+<p><em>图 13：程序二查询法 <code>main.c</code>——<code>#include &quot;Serial.h&quot;</code>、<code>uint8_t RxData;</code>、<code>OLED_Init(); Serial_Init();</code>，主循环 <code>if (USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == SET) { RxData = USART_ReceiveData(USART1); OLED_Show…</code></em></p>
+<p><img src="../assets/images/stm32-27/14-sr-rxne-manual.jpg" alt="图 14：参考手册 USART_SR——位7 TXE、位6 TC、位5 RXNE：RDR 数据转到 USART_DR 时置位、RXNEIE=1 产生中断、读 USART_DR 清零"></p>
+<p><em>图 14：参考手册 <code>USART_SR</code>——位7 <code>TXE</code>、位6 <code>TC</code>、位5 <code>RXNE</code>：RDR 数据转到 <code>USART_DR</code> 时置位、RXNEIE=1 产生中断、读 <code>USART_DR</code> 清零</em></p>
 <h3 id="7-3-中断法">7.3 中断法</h3>
-<p><strong>① 开启 RXNE 中断 + 配置 NVIC</strong>（放在 <code>Serial_Init</code> 里、<code>USART_Cmd</code> 之前）：</p>
+<p>① 开启 RXNE 中断 + 配置 NVIC（放在 <code>Serial_Init</code> 里、<code>USART_Cmd</code> 之前）：</p>
 <pre><code class="language-c">    USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
 
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
@@ -522,12 +529,14 @@ int main(void)
     USART_Cmd(USART1, ENABLE);
 </code></pre>
 <ul>
-<li><strong><code>USART_ITConfig(USART1, USART_IT_RXNE, ENABLE)</code></strong>：开启 RXNE 中断；</li>
-<li><strong><code>NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2)</code></strong>：优先级分组 2；然后 <code>NVIC_Init</code>：通道 <strong><code>USART1_IRQn</code></strong>、使能、<strong>抢占优先级 1、子优先级 1</strong>——<strong>这里是「先随便给」的，实际项目再按需求设计</strong>；</li>
-<li><strong>中断函数名查启动文件</strong>：<code>startup_stm32f10x_md.s</code> 里写的是 <strong><code>USART1_IRQHandler</code></strong>，格式是「外设名 + <code>_IRQHandler</code>」；</li>
-<li><strong>RXNE 置 1 时就会申请中断</strong>，程序跳进中断函数。</li>
+<li><code>USART_ITConfig(USART1, USART_IT_RXNE, ENABLE)</code> 开启 RXNE 中断。</li>
+<li><code>NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2)</code> 优先级分组 2；<code>NVIC_InitTypeDef NVIC_InitStructure;</code> 里填 <code>NVIC_IRQChannel = USART1_IRQn</code>、<code>IRQChannelCmd = ENABLE</code>、<code>IRQChannelPreemptionPriority = 1</code>、<code>IRQChannelSubPriority = 1</code>。</li>
+<li>中断通道就是 <code>USART1_IRQn</code>，最后把结构体交给 <code>NVIC_Init</code>：<code>NVIC_Init(&amp;NVIC_InitStructure);</code>。</li>
+<li>优先级先随便给，实际项目再按需求设计。</li>
+<li>中断函数名查启动文件 <code>startup_stm32f10x_md.s</code>：<code>USART1_IRQHandler</code>，格式是「外设名 + <code>_IRQHandler</code>」。</li>
+<li>RXNE 置 1 时就会申请中断，程序跳进中断函数。</li>
 </ul>
-<p><strong>② 中断函数与模块封装</strong>：</p>
+<p>② 中断函数与模块封装：</p>
 <pre><code class="language-c">uint8_t Serial_RxData;
 uint8_t Serial_RxFlag;
 
@@ -557,11 +566,12 @@ uint8_t Serial_GetRxData(void)
 }
 </code></pre>
 <ul>
-<li><strong>在中断函数里接收数据</strong>：<code>USART_GetITStatus(USART1, USART_IT_RXNE) == SET</code> 判断是不是 RXNE 中断 → <strong>读 DR 存到全局变量 <code>Serial_RxData</code></strong> → <strong>置标志 <code>Serial_RxFlag = 1</code></strong> → <strong><code>USART_ClearITPendingBit(USART1, USART_IT_RXNE)</code> 清中断挂起位</strong>（注意：<strong>读了 DR 其实会自动清 RXNE，但中断挂起位还是要清</strong>，所以这句保留）；</li>
-<li><strong>为什么要在中断里转存</strong>：中断函数里不适合写太多代码（OLED 显示等应在主循环做），所以中断里只做「读走数据、置标志」，主循环再去取；</li>
-<li><strong><code>Serial_GetRxFlag()</code></strong>：<strong>读标志后自动清零</strong>（防止重复处理同一个数据）——收到数据时返回 1、否则 0；</li>
-<li><strong><code>Serial_GetRxData()</code></strong>：返回收到的数据；</li>
-<li>把这两个函数放头文件声明，main 里改成：</li>
+<li>中断里判 <code>USART_GetITStatus(USART1, USART_IT_RXNE) == SET</code> → 读 DR 存到 <code>Serial_RxData</code> → 置 <code>Serial_RxFlag = 1</code>。</li>
+<li>最后仍要 <code>USART_ClearITPendingBit(USART1, USART_IT_RXNE)</code> 清挂起位：读 DR 自动清的是 RXNE，挂起位不自动清。</li>
+<li>中断里只做「读走数据、置标志」，OLED 显示等处理放主循环。</li>
+<li><code>Serial_GetRxFlag()</code> 读到标志后自动清零，防止同一数据被重复处理；收到返回 1、否则 0。</li>
+<li><code>Serial_GetRxData()</code> 返回收到的数据。</li>
+<li>两个函数在头文件声明后，main 里改成：</li>
 </ul>
 <pre><code class="language-c">        if (Serial_GetRxFlag() == 1)
         {
@@ -571,16 +581,20 @@ uint8_t Serial_GetRxData(void)
         }
 </code></pre>
 <ul>
-<li><strong>现象</strong>：与查询法一致——HEX 模式发 <code>41</code> → <strong>OLED 显示 <code>41</code>、回传 <code>41</code></strong>；发 <code>42</code> → 显示/回传 <code>42</code>。</li>
+<li>现象与查询法一致：HEX 模式发 <code>41</code> → OLED 显示 <code>41</code>、回传 <code>41</code>；发 <code>42</code> → 显示/回传 <code>42</code>。</li>
 </ul>
-<p><img src="../assets/images/stm32-27/15-interrupt-config.jpg" alt="图 15：程序二 Serial.c 的中断配置——USART_Mode = USART_Mode_Tx | USART_Mode_Rx;（可见）、USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);、NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);、NVIC_InitTypeDef NVIC_InitStructure; + NVIC_IRQChannel = USART1_IRQn、IRQChannelCmd = ENABLE、IRQChannelPreemptionPriority = 1、IRQChannelSubPriority = 1、NVIC_Init(&amp;NVIC_InitStructure);、USART_Cmd(USART1, ENABLE);；字幕「之后，我们可以在中断函数里接收数据」"></p>
-<p><em>图 15：程序二 <code>Serial.c</code> 的中断配置——<code>USART_Mode = USART_Mode_Tx | USART_Mode_Rx;</code>（可见）、<code>USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);</code>、<code>NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);</code>、<code>NVIC_InitTypeDef NVIC_InitStructure;</code> + <code>NVIC_IRQChannel = USART1_IRQn</code>、<code>IRQChannelCmd = ENABLE</code>、<code>IRQChannelPreemptionPriority = 1</code>、<code>IRQChannelSubPriority = 1</code>、<code>NVIC_Init(&amp;NVIC_InitStructure);</code>、<code>USART_Cmd(USART1, ENABLE);</code>；字幕「之后，我们可以在中断函数里接收数据」</em></p>
-<p><img src="../assets/images/stm32-27/16-irqhandler.jpg" alt="图 16：Serial.c 的 USART1_IRQHandler——if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET) { USART_ClearITPendingBit…（正在输入，行 108 标红）；上方可见 Serial_Printf 的尾部；字幕「USART_ClearITPendingBit，参数和这一样」"></p>
-<p><em>图 16：<code>Serial.c</code> 的 <code>USART1_IRQHandler</code>——<code>if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET) { USART_ClearITPendingBit…</code>（正在输入，行 108 标红）；上方可见 <code>Serial_Printf</code> 的尾部；字幕「USART_ClearITPendingBit，参数和这一样」</em></p>
-<p><img src="../assets/images/stm32-27/17-getrxflag.jpg" alt="图 17：Serial.c 的 Serial_GetRxFlag——uint8_t Serial_GetRxFlag(void) { if (Serial_RxFlag == 1) { Serial_RxFlag = 0; return …（正在输入 return 1;），下方是 void USART1_IRQHandler(void) 的起始；字幕「再return 1;」"></p>
-<p><em>图 17：<code>Serial.c</code> 的 <code>Serial_GetRxFlag</code>——<code>uint8_t Serial_GetRxFlag(void) { if (Serial_RxFlag == 1) { Serial_RxFlag = 0; return …</code>（正在输入 <code>return 1;</code>），下方是 <code>void USART1_IRQHandler(void)</code> 的起始；字幕「再return 1;」</em></p>
-<p><img src="../assets/images/stm32-27/18-serial-h.jpg" alt="图 18：Serial.h 的函数声明——void Serial_Init(void);、void Serial_SendByte(uint8_t Byte);、void Serial_SendArray(uint8_t *Array, uint16_t Length);、void Serial_SendString(char *String);、void Serial_SendNumber(uint32_t Number, uint8_t Length);、void Serial_Printf(char *format, ...);，以及正在输入的 uint8_t Serial_GetRxFlag(void)；字幕「先把这两个Get函数，放在头文件声明一下」"></p>
-<p><em>图 18：<code>Serial.h</code> 的函数声明——<code>void Serial_Init(void);</code>、<code>void Serial_SendByte(uint8_t Byte);</code>、<code>void Serial_SendArray(uint8_t *Array, uint16_t Length);</code>、<code>void Serial_SendString(char *String);</code>、<code>void Serial_SendNumber(uint32_t Number, uint8_t Length);</code>、<code>void Serial_Printf(char *format, ...);</code>，以及正在输入的 <code>uint8_t Serial_GetRxFlag(void)</code>；字幕「先把这两个Get函数，放在头文件声明一下」</em></p>
+<p><img src="../assets/images/stm32-27/15-interrupt-config.jpg" alt="图 15：程序二 Serial.c 的中断配置——USART_Mode = USART_Mode_Tx | USART_Mode_Rx;、USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);、NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); 与 NVIC 四成员"></p>
+<p><em>图 15：程序二 <code>Serial.c</code> 的中断配置——<code>USART_Mode = USART_Mode_Tx | USART_Mode_Rx;</code>、<code>USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);</code>、<code>NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);</code> 与 NVIC 四成员</em></p>
+<p><img src="../assets/images/stm32-27/16-irqhandler.jpg" alt="图 16：Serial.c 的 USART1_IRQHandler——if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET) { USART_ClearITPendingBit…（正在输入，行 108 标红）"></p>
+<p><em>图 16：<code>Serial.c</code> 的 <code>USART1_IRQHandler</code>——<code>if (USART_GetITStatus(USART1, USART_IT_RXNE) == SET) { USART_ClearITPendingBit…</code>（正在输入，行 108 标红）</em></p>
+<p><img src="../assets/images/stm32-27/17-getrxflag.jpg" alt="图 17：Serial_GetRxFlag——uint8_t Serial_GetRxFlag(void) { if (Serial_RxFlag == 1) { Serial_RxFlag = 0; return …（正在输入 return 1;），下方是 void USART1_IRQHandler(void) 的起始"></p>
+<p><em>图 17：<code>Serial_GetRxFlag</code>——<code>uint8_t Serial_GetRxFlag(void) { if (Serial_RxFlag == 1) { Serial_RxFlag = 0; return …</code>（正在输入 <code>return 1;</code>），下方是 <code>void USART1_IRQHandler(void)</code> 的起始</em></p>
+<ul>
+<li><code>Serial.h</code> 里声明 <code>void Serial_Init(void);</code>、<code>void Serial_SendByte(uint8_t Byte);</code>、<code>void Serial_SendArray(uint8_t *Array, uint16_t Length);</code> 与 <code>void Serial_SendString(char *String);</code>。</li>
+<li>继续声明 <code>void Serial_SendNumber(uint32_t Number, uint8_t Length);</code>、<code>void Serial_Printf(char *format, ...);</code>、<code>uint8_t Serial_GetRxFlag(void)</code> 与 <code>uint8_t Serial_GetRxData(void)</code>。</li>
+</ul>
+<p><img src="../assets/images/stm32-27/18-serial-h.jpg" alt="图 18：Serial.h 里的函数声明">(../assets/images/stm32-27/18-serial-h.jpg)</p>
+<p><em>图 18：<code>Serial.h</code> 里的函数声明（Init/SendByte/SendArray/SendString/SendNumber/Printf/GetRxFlag）</em></p>
 <h2 id="8-两个程序代码差异对照">8. 两个程序代码差异对照</h2>
 <table>
 <thead>
@@ -597,23 +611,23 @@ uint8_t Serial_GetRxData(void)
 </tr>
 <tr>
 <td>GPIO</td>
-<td><strong>只配 PA9</strong>（<code>GPIO_Mode_AF_PP</code>）</td>
-<td>PA9（AF_PP）+ <strong>PA10（<code>GPIO_Mode_IPU</code>）</strong></td>
+<td>只配 PA9（<code>GPIO_Mode_AF_PP</code>）</td>
+<td>PA9（AF_PP）+ PA10（<code>GPIO_Mode_IPU</code>）</td>
 </tr>
 <tr>
 <td><code>USART_Mode</code></td>
-<td><strong><code>USART_Mode_Tx</code></strong></td>
-<td><strong><code>USART_Mode_Tx | USART_Mode_Rx</code></strong></td>
+<td><code>USART_Mode_Tx</code></td>
+<td><code>USART_Mode_Tx | USART_Mode_Rx</code></td>
 </tr>
 <tr>
 <td>中断</td>
 <td>无</td>
-<td><strong><code>USART_ITConfig(RXNE)</code> + NVIC（抢占1/子1）</strong></td>
+<td><code>USART_ITConfig(RXNE)</code> + NVIC（抢占1/子1）</td>
 </tr>
 <tr>
 <td>接收方式</td>
 <td>无</td>
-<td><strong>查询法</strong>（主循环查 RXNE）/ <strong>中断法</strong>（USART1_IRQHandler + GetRxFlag）</td>
+<td>查询法（主循环查 RXNE）/ 中断法（<code>USART1_IRQHandler</code> + GetRxFlag）</td>
 </tr>
 <tr>
 <td>额外函数</td>
@@ -628,26 +642,26 @@ uint8_t Serial_GetRxData(void)
 </tbody></table>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>TX/RX 必须交叉</strong>：模块 RXD 接 STM32 的 TX（PA9）、模块 TXD 接 STM32 的 RX（PA10）；接成 RXD-RXD 一定收不到。</li>
-<li><strong>GND 必须共地</strong>：单端信号以 GND 为参考，不共地电平没有比较基准。</li>
-<li><strong>跳线帽插 VCC-3V3（3.3V TTL）</strong>：STM32 是 3.3V 器件；电平选错可能通信异常。</li>
-<li><strong>USART1 的 TX/RX 固定是 PA9/PA10</strong>：用 USART2/3 要按引脚定义表换脚。</li>
-<li><strong><code>USART_Init</code> 里直接写波特率数值</strong>（9600），分频系数库函数自动算，<strong>不用手写 BRR</strong>。</li>
-<li><strong>只发送时 <code>Mode = USART_Mode_Tx</code></strong>；<strong>要接收必须改成 <code>Tx | Rx</code></strong>——忘了改就永远收不到。</li>
-<li><strong>发送一个字节后必须等 TXE</strong>：<code>while (USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);</code>，否则连续写 DR 会覆盖数据。</li>
-<li><strong>TXE 不需要手动清</strong>：写 DR 时硬件自动清零——这也是为什么循环里判断的是 TXE 而不用清标志。</li>
-<li><strong>RXNE 读 DR 自动清</strong>：查询法里读完 <code>USART_ReceiveData</code> 就不用再清 RXNE；但<strong>中断里要清中断挂起位 <code>USART_ClearITPendingBit</code></strong>。</li>
-<li><strong>RX 引脚配上拉输入或浮空</strong>：串口空闲是高电平，<strong>不能配下拉</strong>。</li>
-<li><strong>字符串必须 <code>&#39;\0&#39;</code> 结尾</strong>：<code>Serial_SendString</code> 靠 <code>String[i] != &#39;\0&#39;</code> 判断结束；字符串数组空间比字符数大 1。</li>
-<li><strong>换行用 <code>\r\n</code> 两个字符</strong>：只写 <code>\n</code> 在某些串口助手上不会回到行首。</li>
-<li><strong><code>Serial_Pow</code> 是作者自写函数</strong>，不是标准库；<code>SendNumber</code> 依赖它做十进制拆位，<strong>指数要用 <code>Length-i-1</code></strong> 而不是 <code>i</code>。</li>
-<li><strong>不加 <code>&#39;0&#39;</code> 偏移就发不出字符</strong>：数字 0～9 必须加 <code>0x30</code>（或 <code>&#39;0&#39;</code>）才是字符 <code>&#39;0&#39;</code>～<code>&#39;9&#39;</code>。</li>
-<li><strong>printf 方法①要勾 Use MicroLIB 且 <code>#include &lt;stdio.h&gt;</code></strong>：否则报隐式声明、且可能没输出。</li>
-<li><strong>中文乱码</strong>：UTF8 方案要两边都 UTF8 且加 <code>--no-multibyte-chars</code>；更稳的是两边都用 GB2312/GBK。</li>
-<li><strong>中断函数名必须与启动文件一致</strong>：<code>USART1_IRQHandler</code>（不是自己随便起名），否则中断进不来。</li>
-<li><strong>中断里不要写太多代码</strong>：只读数据、置标志，显示/处理放主循环（这也是 GetRxFlag 的用途）。</li>
-<li><strong><code>GetRxFlag</code> 读后自动清零</strong>：主循环处理好一个数据再取下一个，避免同一数据被重复处理。</li>
-<li><strong>本集只支持单字节接收</strong>：多字节数据包（帧头/长度/校验）<strong>在 P28</strong>，本集不要提前用。</li>
+<li><strong>TX/RX 必须交叉</strong>：模块 RXD 接 PA9、TXD 接 PA10，接成 RXD-RXD 必收不到。</li>
+<li><strong>GND 必须共地</strong>：单端信号以 GND 为参考，不共地没有电平基准。</li>
+<li><strong>跳线帽插 VCC-3V3</strong>：选 3.3V TTL，STM32 是 3.3V 器件，选错通信异常。</li>
+<li><strong>USART1 的 TX/RX 固定 PA9/PA10</strong>：换 USART2/3 要查引脚定义表。</li>
+<li><strong><code>USART_Init</code> 直接写 9600</strong>：分频系数库函数自动算，不用手写 BRR。</li>
+<li><strong>要接收必须改 <code>Tx | Rx</code></strong>：只写 <code>USART_Mode_Tx</code> 永远收不到。</li>
+<li><strong>发完字节必须等 TXE</strong>：不等就写下一个 DR，数据会被覆盖。</li>
+<li><strong>TXE 不用手动清</strong>：写 DR 时硬件自动清零。</li>
+<li><strong>RXNE 读 DR 自动清</strong>：但中断挂起位仍要 <code>USART_ClearITPendingBit</code>。</li>
+<li><strong>RX 引脚不能配下拉</strong>：串口空闲是高电平，用上拉或浮空。</li>
+<li><strong>字符串必须 <code>&#39;\0&#39;</code> 结尾</strong>：空间比字符数大 1，靠它判结束。</li>
+<li><strong>换行用 <code>\r\n</code> 两个字符</strong>：只写 <code>\n</code> 有的助手不回行首。</li>
+<li><strong><code>Serial_Pow</code> 是自写函数</strong>：指数写 <code>Length-i-1</code>，不是 <code>i</code>。</li>
+<li><strong>不加 <code>&#39;0&#39;</code> 偏移发不出字符</strong>：0～9 要加 <code>0x30</code> 才是 <code>&#39;0&#39;</code>～<code>&#39;9&#39;</code>。</li>
+<li><strong>printf 方法①要勾 Use MicroLIB</strong>：并 <code>#include &lt;stdio.h&gt;</code>，否则报隐式声明。</li>
+<li><strong>中文乱码</strong>：两边编码要一致；UTF8 方案还要加 <code>--no-multibyte-chars</code>。</li>
+<li><strong>中断函数名要对齐启动文件</strong>：写 <code>USART1_IRQHandler</code>，自己起名进不来。</li>
+<li><strong>中断里别写太多代码</strong>：只读数据、置标志，显示放主循环。</li>
+<li><strong><code>GetRxFlag</code> 读后自动清零</strong>：避免同一数据被重复处理。</li>
+<li><strong>本集只支持单字节接收</strong>：多字节数据包（帧头/长度/校验）在 P28。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -659,9 +673,9 @@ uint8_t Serial_GetRxData(void)
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E4%B8%A4%E4%B8%AA%E7%A8%8B%E5%BA%8F-%E5%A4%9A%E5%AD%97%E8%8A%82%E6%95%B0%E6%8D%AE%E5%8C%85%E5%9C%A8-p28">0. 本集定位：代码课（两个程序），多字节数据包在 P28</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 接线与工程准备</a>
-        <a class="level-3" href="#1-1-%E6%8E%A5%E7%BA%BF-%E6%A8%A1%E5%9D%97-rxd-pa9-txd-pa10-gnd-%E5%85%B1%E5%9C%B0">1.1 接线：模块 RXD→PA9、TXD→PA10、GND 共地</a>
+        <a class="level-3" href="#1-1-%E6%8E%A5%E7%BA%BF-rxd-pa9-txd-pa10-gnd-%E5%85%B1%E5%9C%B0">1.1 接线：RXD→PA9、TXD→PA10、GND 共地</a>
         <a class="level-3" href="#1-2-%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1.2 工程准备</a>
         <a class="level-2" href="#2-serial-init-%E7%A8%8B%E5%BA%8F%E4%B8%80-%E5%8F%AA%E5%8F%91%E9%80%81">2. Serial_Init：程序一（只发送）</a>
         <a class="level-3" href="#2-1-%E6%97%B6%E9%92%9F%E4%B8%8E-gpio">2.1 时钟与 GPIO</a>

@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[6-2] 定时器定时中断 / 定时器外部时钟 · 我的学习笔记</title>
-  <meta name="description" content="江协科技 STM32 课程第 14 集 [6-2]（代码课）：把 [6-1] 的定时器理论写成两个程序——「6-1 定时器定时中断」（新建 Timer.c/Timer.h、Timer_Init 七步：RCC 开 TIM2 时钟、TIM_InternalClockConfig、TIM_TimeBaseInit 配 PSC=7200-1/ARR=10000-1 定 1s、TIM_ITConfig 开更新中断、NVIC 配置、TIM_Cmd 启动、TIM2_IRQHandler 里 Num++/清标志）和「6-2 定时器外部时钟」（复制工程、删内部时钟、改 TIM_ETRClockMode2Config 走 PA0/ETR、配 GPIO、PSC=0/ARR=9，挡光一次 CNT+1、到 9 清零并 Num++），并记录了 EGR 更新事件导致「上电 Num 从 1 开始」的坑与 TIM_ClearFlag 修复、跨文件变量 extern 两种方案、改 PSC/ARR 观察中断频率。">
+  <meta name="description" content="江协科技 STM32 课程第 14 集 [6-2]（代码课）：把 [6-1] 的定时器理论写成两个程序——「6-1 定时器定时中断」（新建 Timer.c/Timer.h，Timer_Init 七步：RCC 开 TIM2 时钟、TIM_InternalClockConfig、TIM_TimeBaseInit 配 PSC=7200-1/ARR=10000-1 定 1s、TIM_ITConfig 开更新中断、NVIC、TIM_Cmd、中断里 Num++ 并清标志）与「6-2 定时器外部时钟」（改 TIM_ETRClockMode2Config 走 PA0/ETR、配 GPIO、PSC=1-1/ARR=10-1），并记录 EGR 导致「上电 Num 从 1 开始」的坑与 TIM_ClearFlag 修复、跨文件变量 extern 两种方案。">
   <meta property="og:title" content="[6-2] 定时器定时中断 / 定时器外部时钟 · 我的学习笔记">
-  <meta property="og:description" content="江协科技 STM32 课程第 14 集 [6-2]（代码课）：把 [6-1] 的定时器理论写成两个程序——「6-1 定时器定时中断」（新建 Timer.c/Timer.h、Timer_Init 七步：RCC 开 TIM2 时钟、TIM_InternalClockConfig、TIM_TimeBaseInit 配 PSC=7200-1/ARR=10000-1 定 1s、TIM_ITConfig 开更新中断、NVIC 配置、TIM_Cmd 启动、TIM2_IRQHandler 里 Num++/清标志）和「6-2 定时器外部时钟」（复制工程、删内部时钟、改 TIM_ETRClockMode2Config 走 PA0/ETR、配 GPIO、PSC=0/ARR=9，挡光一次 CNT+1、到 9 清零并 Num++），并记录了 EGR 更新事件导致「上电 Num 从 1 开始」的坑与 TIM_ClearFlag 修复、跨文件变量 extern 两种方案、改 PSC/ARR 观察中断频率。">
+  <meta property="og:description" content="江协科技 STM32 课程第 14 集 [6-2]（代码课）：把 [6-1] 的定时器理论写成两个程序——「6-1 定时器定时中断」（新建 Timer.c/Timer.h，Timer_Init 七步：RCC 开 TIM2 时钟、TIM_InternalClockConfig、TIM_TimeBaseInit 配 PSC=7200-1/ARR=10000-1 定 1s、TIM_ITConfig 开更新中断、NVIC、TIM_Cmd、中断里 Num++ 并清标志）与「6-2 定时器外部时钟」（改 TIM_ETRClockMode2Config 走 PA0/ETR、配 GPIO、PSC=1-1/ARR=10-1），并记录 EGR 导致「上电 Num 从 1 开始」的坑与 TIM_ClearFlag 修复、跨文件变量 extern 两种方案。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,61 +177,50 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>24 分钟</span>
+      <span>19 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">定时器</span><span class="tag">TIM</span><span class="tag">中断</span>
     </div>
     <article class="prose"><h1>[6-2] 定时器定时中断 / 定时器外部时钟 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是 [6-1] 的<strong>代码课</strong>——上一集已经把定时器类型、时基单元、计数模式、时钟源、定时中断结构、时序公式都讲完了（理论见上一集笔记 <code>stm32-13</code>），本集直接写代码，一共两个程序：<strong>① <code>6-1 定时器定时中断</code></strong>、<strong>② <code>6-2 定时器外部时钟</code></strong>。全程是「复制工程改名 → 新建 Timer 模块 → 写 <code>Timer_Init()</code> → 编译下载 → 看现象 → 改参数做实验」。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>本集把 [6-1] 的结构图一步步变成代码：<strong>先复制「OLED显示屏」工程改名为 <code>6-1 定时器定时中断</code></strong>，在 <code>System</code> 里新建 <strong><code>Timer.c</code> / <code>Timer.h</code></strong> 模块，然后在 <code>Timer_Init()</code> 里按 <strong>七步</strong> 配置——<strong>① RCC 开 TIM2 时钟（TIM2 在 APB1，必须用 <code>RCC_APB1PeriphClockCmd</code>）→ ② <code>TIM_InternalClockConfig</code> 选内部时钟（默认就是内部时钟，可省）→ ③ <code>TIM_TimeBaseInit</code> 配时基单元（<code>PSC=7200-1</code>、<code>ARR=10000-1</code>，72MHz/7200/10000 = <strong>1Hz 即 1s</strong>）→ ④ <code>TIM_ITConfig</code> 允许更新中断输出到 NVIC → ⑤ <code>NVIC_PriorityGroupConfig(2)</code> + <code>NVIC_Init</code>（<code>TIM2_IRQn</code>、抢占 2/响应 1）→ ⑥ <code>TIM_Cmd</code> 启动计数器 → ⑦ 写 <code>TIM2_IRQHandler</code> 中断函数（查 <code>TIM_GetITStatus</code> == SET → 用户代码 → <code>TIM_ClearITPendingBit</code>）</strong>；主循环里只需 <code>OLED_ShowNum(1,5,Num,5)</code>，Num 就每秒自己加 1。中间踩了一个经典坑：<code>TIM_TimeBaseInit</code> 末尾有一句 <code>TIMX-&gt;EGR = TIM_PSCReloadMode_Immediate</code>，为了让 PSC 立刻生效而<strong>手动产生了更新事件</strong>，副作用是<strong>上电立刻进一次中断、Num 从 1 开始</strong>——在 TimeBaseInit 之后、ITConfig 之前加一句 <strong><code>TIM_ClearFlag(TIM2, TIM_FLAG_Update)</code></strong> 解决。第二个程序复制第一个改名，<strong>删掉 <code>TIM_InternalClockConfig</code>、改用 <code>TIM_ETRClockMode2Config</code> 走外部时钟模式 2</strong>，把对射式红外传感器的 <strong>DO 接到 PA0（TIM2_CH1_ETR）</strong>，别忘了<strong>先把 PA0 配成 GPIO 输入</strong>，<code>PSC=1-1</code>、<code>ARR=10-1</code>，于是<strong>挡光一次 CNT 加 1、加到 9 自动清零并 <code>Num++</code></strong>。</p>
-<h2 id="0-本集定位-代码课-理论见-6-1">0. 本集定位：代码课，理论见 [6-1]</h2>
+<p>定时器初始化的七步是：开时钟、选时钟源、配时基、开更新中断、配 NVIC、启动计数器、写中断函数，<code>PSC=7200-1</code> 与 <code>ARR=10000-1</code> 让 72MHz 变成 1Hz 即 1s。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>理论部分（定时器类型/时基单元/计数模式/时钟源/定时中断结构/时序公式/RCC 时钟树）在上一集 [6-1] 已全部讲完</strong>，本集不重复，只写代码。上一集的关键结论直接拿来用：<ul>
-<li>时基单元 <strong>PSC 预分频器 + CNT 计数器 + ARR 自动重装寄存器</strong>，溢出频率 <strong><code>CK_CNT_OV = 72MHz/(PSC+1)/(ARR+1)</code></strong>；</li>
-<li>定时中断的信号流向是「时钟源 → 时基单元 → 更新事件/更新中断 → 中断输出控制 → NVIC」；</li>
-<li><strong>TIM2 是 APB1 总线上的通用定时器</strong>，但它的内部基准时钟仍是 <strong>72MHz</strong>；</li>
-<li><strong>PA0 复用 <code>TIM2_CH1_ETR</code></strong>，可作为 TIM2 外部时钟模式 2 的 ETR 引脚。</li>
-</ul>
-</li>
-<li>本集两个程序对应上一集片头演示的两个现象：<strong>① 内部时钟定时 1s，每秒中断一次 Num++；② 外部时钟（挡光片产生方波）驱动计数器，CNT 计到 9 清零并 Num++</strong>。</li>
-<li>全程是<strong>工程操作 + 写代码 + 编译下载 + 看现象</strong>，没有新的理论章节。</li>
+<li>[6-1] 的代码课：定时器类型、时基单元、计数模式、时钟源、结构图、时序公式、时钟树都在上一集（笔记 <code>stm32-13</code>），本集只写代码。</li>
+<li>七步依次是 <code>RCC_APB1PeriphClockCmd</code> → <code>TIM_InternalClockConfig</code> → <code>TIM_TimeBaseInit</code> → <code>TIM_ITConfig</code> → <code>NVIC_PriorityGroupConfig(2)</code> + <code>NVIC_Init</code> → <code>TIM_Cmd</code> → <code>TIM2_IRQHandler</code>。</li>
+<li>两个程序：① <code>6-1 定时器定时中断</code>（内部时钟定 1s，每秒中断一次 Num++）；② <code>6-2 定时器外部时钟</code>（挡光片产生方波驱动计数器，CNT 到 9 清零并 Num++）。</li>
+<li>全程流程：复制工程改名 → 新建 Timer 模块 → 写 <code>Timer_Init()</code> → 编译下载 → 看现象 → 改参数做实验，没有新的理论章节。</li>
+<li>直接沿用上一集结论：时基单元 = PSC + CNT + ARR，溢出频率 <code>CK_CNT_OV = 72MHz/(PSC+1)/(ARR+1)</code>；中断流向是时钟源 → 时基单元 → 更新事件/中断 → 中断输出控制 → NVIC。</li>
+<li>TIM2 是 APB1 上的通用定时器，但内部基准时钟仍是 72MHz；PA0 复用 <code>TIM2_CH1_ETR</code>，就是外部时钟模式 2 的 ETR 引脚。</li>
 </ul>
 <h2 id="1-程序一-接线与工程准备">1. 程序一：接线与工程准备</h2>
 <h3 id="1-1-接线图-只要一个-oled">1.1 接线图：只要一个 OLED</h3>
 <ul>
-<li>打开程序源码里的「接线图」文件夹，看 <strong><code>6-1 定时器定时中断.jpg</code></strong>：这张接线<strong>非常简单，只需要插一个 OLED 屏幕</strong>，和之前 OLED 显示屏的接线图是一样的。</li>
-<li>原因：<strong>定时器和中断系统的电路都在 STM32 内部</strong>，定时中断是为我们程序设计提供服务的，所以<strong>芯片外面只需要接一个 OLED 显示数据</strong>就行。</li>
-<li>面包板上实际也是<strong>只插好了 OLED 显示屏</strong>，其他什么都没有。</li>
+<li>源码里的接线图 <code>6-1 定时器定时中断.jpg</code>：只需要插一个 OLED 屏幕，和之前 OLED 显示屏的接线一样。</li>
+<li>原因是定时器和中断系统的电路都在 STM32 内部，定时中断是为程序设计服务的，芯片外面只需要 OLED 显示数据。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/01-wiring-6-1.jpg" alt="图 1：程序一接线图——最小系统板 + ST-LINK + OLED 屏，定时器和中断电路都在芯片内部，外面只接 OLED 显示数据"></p>
-<p><em>图 1：程序一接线图——最小系统板 + ST-LINK + OLED 屏，定时器和中断电路都在芯片内部，外面只接 OLED 显示数据</em></p>
+<p><em>图 1：程序一接线图，外面只接一个 OLED</em></p>
 <h3 id="1-2-复制工程并改名">1.2 复制工程并改名</h3>
 <ol>
-<li>回到工程文件夹，<strong>复制「OLED显示屏」的工程</strong>（配套程序里的 <code>4-1 OLED显示屏</code>）；</li>
-<li>改名为 <strong><code>6-1 定时器定时中断</code></strong>，双击 <code>.uvprojx</code> 打开；</li>
-<li>把 main.c 里演示 OLED 用的那些代码（<code>OLED_ShowChar</code>、<code>OLED_ShowString</code>、<code>OLED_ShowNum</code>、<code>OLED_ShowSignedNum</code>、<code>OLED_ShowHexNum</code>、<code>OLED_ShowBinNum</code> 那一串）<strong>先删掉</strong>；</li>
-<li>编译一下 —— <code>0 Error(s), 0 Warning(s)</code>，下载 <code>Application running ...</code>，没有问题。</li>
+<li>复制「OLED显示屏」的工程（配套程序里的 <code>4-1 OLED显示屏</code>）；</li>
+<li>改名 <code>6-1 定时器定时中断</code>，双击 <code>.uvprojx</code> 打开；</li>
+<li>把 main.c 里演示 OLED 的代码（<code>OLED_ShowChar</code>、<code>OLED_ShowString</code>、<code>OLED_ShowNum</code>、<code>OLED_ShowSignedNum</code>、<code>OLED_ShowHexNum</code>、<code>OLED_ShowBinNum</code> 那一串）先删掉；</li>
+<li>编译一遍：<code>0 Error(s), 0 Warning(s)</code>，下载后 <code>Application running ...</code>，没有问题。</li>
 </ol>
 <p><img src="../assets/images/stm32-14/02-copy-project.jpg" alt="图 2：复制「OLED显示屏」工程并改名为 6-1 定时器定时中断，准备把 main.c 里的 OLED 演示代码删掉"></p>
-<p><em>图 2：复制「OLED显示屏」工程并改名为 <code>6-1 定时器定时中断</code>，准备把 main.c 里的 OLED 演示代码删掉</em></p>
+<p><em>图 2：复制工程并改名 <code>6-1 定时器定时中断</code></em></p>
 <h3 id="1-3-新建-timer-c-timer-h-模块">1.3 新建 Timer.c / Timer.h 模块</h3>
 <ul>
-<li><strong>先给定时器建一个模块</strong>：在工程管理的 <strong><code>System</code> 目录处右键 → Add New Item to Group &#39;System&#39;</strong>。</li>
-<li>为什么放 <code>System</code>：<strong>因为定时器不涉及外部硬件</strong>，所以放在 <code>System</code> 文件夹里；也可以放其他文件夹，工程里的文件夹都是自己建的，怎么放都行。</li>
-<li>依次建两个文件：<ul>
-<li><strong><code>Timer.c</code></strong>：选 <strong>C File (.c)</strong>，名字 <strong><code>Timer</code></strong>，存储路径后面加上 <strong><code>\System</code></strong>，Add；</li>
-<li><strong><code>Timer.h</code></strong>：再右键 Add New Item，选 <strong>Header File (.h)</strong>，名字也叫 <strong><code>Timer</code></strong>，路径同样加 <strong><code>\System</code></strong>，Add。</li>
-</ul>
-</li>
-<li><code>Timer.h</code> 里写固定部分：<strong><code>#ifndef TIMER_H</code> / <code>#define TIMER_H</code> / … / <code>#endif</code></strong>；再右键添一个头文件，模块就建好了。</li>
-<li>之后老规矩：<strong>上来先写一个初始化函数 <code>void Timer_Init(void)</code></strong>，在里面初始化定时器。</li>
+<li>在工程管理里对 <code>System</code> 目录右键 → Add New Item to Group &#39;System&#39;。</li>
+<li>定时器不涉及外部硬件，所以放 <code>System</code> 文件夹；工程里的文件夹都是自己建的，放哪都行。</li>
+<li>依次建两个文件：<code>Timer.c</code>（C File，名字 <code>Timer</code>，路径后面加 <code>\System</code>）、<code>Timer.h</code>（Header File，名字 <code>Timer</code>，路径同样加 <code>\System</code>）。</li>
+<li><code>Timer.h</code> 里写固定部分 <code>#ifndef TIMER_H</code> / <code>#define TIMER_H</code> / … / <code>#endif</code>。</li>
+<li>之后老规矩：上来先写初始化函数 <code>void Timer_Init(void)</code>。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/03-new-timer-module.jpg" alt="图 3：在 System 组右键 Add New Item，新建 Timer 模块——先建 C 文件（C File），路径加上 \System，名字 Timer"></p>
-<p><em>图 3：在 <code>System</code> 组右键 Add New Item，新建 Timer 模块——先建 C 文件（C File），路径加上 <code>\System</code>，名字 Timer</em></p>
+<p><em>图 3：在 System 组新建 Timer.c 与 Timer.h</em></p>
 <h2 id="2-写代码前先认函数-定时器库函数地图">2. 写代码前先认函数：定时器库函数地图</h2>
-<p>视频先打开 <code>Library\stm32f10x_tim.h</code> 拖到最后，把定时器的库函数过了一遍（数量非常多，本小节先介绍这些常用的）：</p>
+<p>先打开 <code>Library\stm32f10x_tim.h</code> 拖到最后，把常用库函数过一遍。</p>
 <h3 id="2-1-初始化相关">2.1 初始化相关</h3>
 <table>
 <thead>
@@ -267,7 +256,7 @@
 <td>对应「中断输出控制」，<code>TIM_IT</code> 可选 Update/CC1～CC4/COM/Trigger/Break</td>
 </tr>
 </tbody></table>
-<h3 id="2-2-时钟源选择的-6-个函数-对应-时基单元的时钟选择">2.2 时钟源选择的 6 个函数（对应「时基单元的时钟选择」）</h3>
+<h3 id="2-2-时钟源选择的-6-个函数">2.2 时钟源选择的 6 个函数</h3>
 <table>
 <thead>
 <tr>
@@ -293,7 +282,7 @@
 </tr>
 <tr>
 <td><code>TIM_ETRClockMode2Config(TIMx, ExtTRGPrescaler, ExtTRGPolarity, ExtTRGFilter)</code></td>
-<td><strong>ETR 经外部时钟模式 2</strong> 输入的时钟（本集程序二用这个）</td>
+<td><strong>ETR 经外部时钟模式 2</strong> 输入的时钟（程序二用这个）</td>
 </tr>
 <tr>
 <td><code>TIM_ETRConfig(...)</code></td>
@@ -301,54 +290,48 @@
 </tr>
 </tbody></table>
 <ul>
-<li>对 <strong>ETR 输入的外部时钟</strong>而言，模式 1 和模式 2 这两个函数<strong>是等效的，参数也一样</strong>；<strong>如果不需要触发输入的功能，两个函数可以互换</strong>。</li>
+<li>对 ETR 输入的外部时钟，模式 1 和模式 2 这两个函数是等效的、参数也一样；不需要触发输入功能时两者可以互换。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/04-timer-lib-functions.jpg" alt="图 4：stm32f10x_tim.h 末尾的库函数——高亮的是时钟源选择相关的 6 个函数（InternalClock / ITRx / TIx / ETR 模式 1 / ETR 模式 2 / ETRConfig）"></p>
-<p><em>图 4：<code>stm32f10x_tim.h</code> 末尾的库函数——高亮的是时钟源选择相关的 6 个函数（InternalClock / ITRx / TIx / ETR 模式 1 / ETR 模式 2 / ETRConfig）</em></p>
+<p><em>图 4：<code>stm32f10x_tim.h</code> 末尾的时钟源选择 6 个函数</em></p>
 <h3 id="2-3-单独改关键参数-读写计数器">2.3 单独改关键参数、读写计数器</h3>
 <ul>
-<li>初始化之后还想改 PSC/ARR 这些关键参数，可以用这些单独的函数：<ul>
-<li><code>TIM_PrescalerConfig(TIMx, Prescaler, TIM_PSCReloadMode)</code>：单独写预分频值（<strong>第二个参数是预分频值 Prescaler，第三个参数 <code>TIM_PSCReloadMode</code> 才是写入模式</strong>；因为 PSC 有缓冲器，写进去的值要等更新事件才生效）；</li>
-<li><code>TIM_CounterModeConfig(TIMx, CounterMode)</code>：改计数模式；</li>
-<li><code>TIM_ARRPreloadConfig(TIMx, NewState)</code>：<strong>ARR 预装功能（ARPE）</strong> 使能/失能；</li>
-<li><code>TIM_SetCounter(TIMx, Counter)</code>：给计数器写一个值；</li>
-<li><code>TIM_SetAutoreload(TIMx, Autoreload)</code>：给自动重装寄存器写一个值；</li>
-<li><code>TIM_GetCounter(TIMx)</code>：<strong>读当前计数器的值</strong>（本集程序二用来显示 CNT）；</li>
-<li><code>TIM_GetPrescaler(TIMx)</code>：读当前预分频值。</li>
-</ul>
-</li>
+<li><code>TIM_PrescalerConfig(TIMx, Prescaler, TIM_PSCReloadMode)</code>：单独写预分频值，第二个参数是预分频值、第三个 <code>TIM_PSCReloadMode</code> 才是写入模式（PSC 有缓冲器，写入要等更新事件才生效）。</li>
+<li><code>TIM_CounterModeConfig(TIMx, CounterMode)</code> 改计数模式；<code>TIM_ARRPreloadConfig(TIMx, NewState)</code> 使能/失能 ARR 预装（ARPE）。</li>
+<li><code>TIM_SetCounter(TIMx, Counter)</code> 给计数器写值；<code>TIM_SetAutoreload(TIMx, Autoreload)</code> 给自动重装寄存器写值。</li>
+<li><code>TIM_GetCounter(TIMx)</code> 读当前计数值（程序二用来显示 CNT）；<code>TIM_GetPrescaler(TIMx)</code> 读当前预分频值。</li>
 </ul>
 <h3 id="2-4-标志位-中断标志位">2.4 标志位 / 中断标志位</h3>
 <ul>
-<li>最后 4 个就是上一节见过的：<code>TIM_GetFlagStatus</code> / <code>TIM_ClearFlag</code> / <code>TIM_GetITStatus</code> / <code>TIM_ClearITPendingBit</code>——<strong>获取标志位和清除标志位</strong>，写中断函数时要用。</li>
+<li>最后 4 个：<code>TIM_GetFlagStatus</code> / <code>TIM_ClearFlag</code> / <code>TIM_GetITStatus</code> / <code>TIM_ClearITPendingBit</code>，获取和清除标志位，写中断函数要用。</li>
 </ul>
 <h2 id="3-timer-init-七步">3. Timer_Init() 七步</h2>
 <h3 id="3-1-步骤总览">3.1 步骤总览</h3>
-<p>对照 [6-1] 的「定时中断基本结构」图，初始化大体分七步：</p>
+<p>对照 [6-1] 的定时中断基本结构图，初始化大体分七步：</p>
 <ol>
-<li><strong>RCC 开启时钟</strong>（基本上每个代码的第一步）；</li>
-<li><strong>选择时基单元的时钟源</strong>（定时中断选内部时钟）；</li>
-<li><strong>配置时基单元</strong>（预分频器、自动重装器、计数模式等，用一个结构体配置）；</li>
-<li><strong>配置中断输出控制</strong>，允许更新中断输出到 NVIC；</li>
-<li><strong>配置 NVIC</strong>（上一集用过，流程一样）；</li>
-<li><strong>运行控制</strong>：使能计数器，否则计数器不会运行；</li>
-<li><strong>写定时器中断函数</strong>，这样它就能每隔一段时间自动执行一次。</li>
+<li>RCC 开启时钟（基本每段代码的第一步）；</li>
+<li>选时基单元的时钟源（定时中断选内部时钟）；</li>
+<li>配时基单元（预分频器、自动重装器、计数模式，用一个结构体）；</li>
+<li>配中断输出控制，允许更新中断输出到 NVIC；</li>
+<li>配 NVIC；</li>
+<li>运行控制：使能计数器，否则计数器不运行；</li>
+<li>写定时器中断函数，让它每隔一段时间自动执行一次。</li>
 </ol>
 <h3 id="3-2-1-rcc-开启时钟">3.2 ① RCC 开启时钟</h3>
 <pre><code class="language-c">RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);   // 注意用 APB1！TIM2 是 APB1 总线的外设
 </code></pre>
 <ul>
-<li>这里<strong>要使用 APB1 的开启时钟函数，因为 TIM2 是 APB1 总线的外设</strong>（[6-1] 的表：通用定时器 TIM2～TIM5 挂 APB1；只有高级定时器 TIM1/TIM8 才用 APB2）。</li>
-<li>打开时钟后，<strong>定时器的基准时钟和整个外设的工作时钟就都同时打开了</strong>。</li>
+<li>要用 APB1 的开启时钟函数，因为 TIM2 是 APB1 总线外设（[6-1] 的表：TIM2～TIM5 挂 APB1，只有 TIM1/TIM8 用 APB2）。</li>
+<li>打开时钟后，定时器的基准时钟和外设的工作时钟就都打开了。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/05-rcc-apb1-tim2.jpg" alt="图 5：Timer.c 第一步——RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE)，因为 TIM2 是 APB1 总线上的外设"></p>
-<p><em>图 5：<code>Timer.c</code> 第一步——<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE)</code>，因为 TIM2 是 APB1 总线上的外设</em></p>
+<p><em>图 5：第一步用 APB1 的时钟函数开 TIM2</em></p>
 <h3 id="3-3-2-选择时基单元的时钟源">3.3 ② 选择时基单元的时钟源</h3>
 <pre><code class="language-c">TIM_InternalClockConfig(TIM2);   // 选择内部时钟（72MHz）；这行不写也行，定时器上电默认就是内部时钟
 </code></pre>
 <ul>
-<li>参数只有一个 TIMx，写 <strong>TIM2</strong>，TIM2 的时基单元就由内部时钟驱动。</li>
-<li>视频特别说明：<strong>很多人的代码都不写这个函数</strong>，因为<strong>定时器上电后默认就是使用内部时钟</strong>；但为了步骤完整还是写上了。</li>
+<li>参数只有一个 TIMx，写 TIM2，时基单元就由内部时钟驱动。</li>
+<li>很多人的代码都不写这个函数，因为定时器上电默认就是内部时钟，为了步骤完整还是写上。</li>
 </ul>
 <h3 id="3-4-3-配置时基单元-tim-timebaseinit">3.4 ③ 配置时基单元（TIM_TimeBaseInit）</h3>
 <pre><code class="language-c">TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStructure;
@@ -360,37 +343,32 @@ TIM_TimeBaseInitStructure.TIM_RepetitionCounter = 0;              // 重复计�
 TIM_TimeBaseInit(TIM2, &amp;TIM_TimeBaseInitStructure);
 </code></pre>
 <ul>
-<li>结构体类型名按惯例从 <code>TIM_TimeBaseInit</code> 的函数定义上面那段注释里找，变量名起 <code>TIM_TimeBaseInitStructure</code>。</li>
-<li><strong>第一个参数 <code>TIM_ClockDivision</code>（时钟分频）</strong>：这个参数在 [6-1] 讲原理时一直没出现过。它其实<strong>跟时基单元关系不大</strong>——定时器的外部信号输入引脚上一般有<strong>滤波器</strong>，滤波器在工作时<strong>要在一个固定的采样频率下采样 N 个点，N 个采样值全都相同才输出</strong>，否则保持上次输出（或输出低电平）；<strong>采样频率可以由内部时钟直接来，也可以由内部时钟加一个时钟分频而来，就是由 <code>TIM_ClockDivision</code> 决定的</strong>。可选值就是 <strong>1 分频（<code>TIM_CKD_DIV1</code>）、2 分频、4 分频</strong>，这里<strong>随便配一个</strong>，选 <strong>1 分频</strong>。</li>
-<li><strong>第二个参数 <code>TIM_CounterMode</code>（计数器模式）</strong>：可选<strong>向上计数、向下计数和三种中央对齐模式</strong>，这里选<strong>向上计数</strong> <code>TIM_CounterMode_Up</code>。</li>
-<li><strong>后三个参数</strong>：<ul>
-<li><code>TIM_Period</code> = <strong>ARR 自动重装器的值</strong>；</li>
-<li><code>TIM_Prescaler</code> = <strong>PSC 预分频器的值</strong>；</li>
-<li><code>TIM_RepetitionCounter</code> = <strong>重复计数器的值</strong>，这是<strong>高级定时器才有的</strong>，这里用不到，<strong>直接给 0</strong>。</li>
+<li>结构体类型名从 <code>TIM_TimeBaseInit</code> 函数定义上面的注释里找，变量名起 <code>TIM_TimeBaseInitStructure</code>。</li>
+<li>参数 <code>TIM_ClockDivision</code>（时钟分频）：跟时基关系不大——外部信号输入引脚上一般有滤波器，滤波器要在固定采样频率下采样 N 个点、全都相同才输出；采样频率可由内部时钟直接来，也可加一个分频，就由它决定。可选 1 分频 <code>TIM_CKD_DIV1</code>、2 分频、4 分频，这里随便配一个、选 1 分频。</li>
+<li>参数 <code>TIM_CounterMode</code>：可选向上、向下和三种中央对齐模式，这里选向上计数 <code>TIM_CounterMode_Up</code>。</li>
+<li>后三个参数：<code>TIM_Period</code> 是 ARR 自动重装值，<code>TIM_Prescaler</code> 是 PSC 预分频值，<code>TIM_RepetitionCounter</code> 是重复计数器（高级定时器才有，这里直接给 0）。</li>
+<li>这里没有 CNT 的参数，需要的话用 <code>TIM_SetCounter</code> / <code>TIM_GetCounter</code> 单独操作。</li>
 </ul>
-</li>
-<li>注意这里<strong>没有 CNT 计数器的参数</strong>——需要的话用 <code>TIM_SetCounter</code> / <code>TIM_GetCounter</code> 单独操作。</li>
-</ul>
-<p><strong>1 秒是怎么算出来的</strong>（用 [6-1] 的公式）：</p>
+<p>1 秒是怎么算出来的（用 [6-1] 的公式）：</p>
 <pre><code>定时频率 = 72MHz / (PSC + 1) / (ARR + 1)
 </code></pre>
 <ul>
-<li>要定时 <strong>1s</strong>，就是定时频率 <strong>1Hz</strong>：给 <strong>PSC = 7200</strong>、<strong>ARR = 10000</strong>，<strong>两个参数都再减 1</strong>（因为预分频器和计数器都有 1 个数的偏差）：</li>
+<li>要定时 1s 就是定时频率 1Hz：给 PSC = 7200、ARR = 10000，两个参数都再减 1（预分频器和计数器都差 1 个数）：</li>
 </ul>
 <pre><code>72M / 7200 = 10kHz  →  10k / 10000 = 1Hz  →  1s
 </code></pre>
 <ul>
-<li><strong>PSC 和 ARR 的取值都要在 0～65535 之间</strong>（16 位），不要超范围。</li>
-<li><strong>PSC 和 ARR 的取值不是唯一的</strong>：预分频给少点、自动重装给多点，就是「以比较高的频率计比较多的数」；反过来就是「以比较低的频率计比较少的数」，两种都能达到目标定时时间。<strong>要么记公式，要么理解工作流程</strong>。</li>
+<li>PSC 和 ARR 的取值都要在 0～65535 之间（16 位），不要超范围。</li>
+<li>两者的取值不唯一：预分频给少、自动重装给多，就是「以较高频率计较多的数」，反过来也行——要么记公式，要么理解工作流程。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/06-timebase-struct.jpg" alt="图 6：TIM_TimeBaseInit 的五个参数——ClockDivision=DIV1、CounterMode=Up、Period=10000-1、Prescaler=7200-1、RepetitionCounter=0，即 72MHz/7200/10000 = 1Hz = 1s"></p>
-<p><em>图 6：<code>TIM_TimeBaseInit</code> 的五个参数——ClockDivision=DIV1、CounterMode=Up、Period=10000-1、Prescaler=7200-1、RepetitionCounter=0，即 72MHz/7200/10000 = 1Hz = 1s</em></p>
+<p><em>图 6：<code>TIM_TimeBaseInit</code> 五个参数，即 72MHz/7200/10000 = 1s</em></p>
 <h3 id="3-5-4-使能更新中断-tim-itconfig">3.5 ④ 使能更新中断（TIM_ITConfig）</h3>
 <pre><code class="language-c">TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE);   // 开启更新中断到 NVIC 的通路
 </code></pre>
 <ul>
-<li>参数：<strong>TIMx</strong> 写 TIM2；<strong>TIM_IT</strong> 选择要配置哪个中断输出，可以下面这些值任意组合，<strong>第一个就是 <code>TIM_IT_Update</code> 更新中断</strong>；<strong>NewState</strong> 直接 <code>ENABLE</code>。</li>
-<li>这样就<strong>开启了更新中断到 NVIC 的通路</strong>（对应结构图里的「中断输出控制」）。</li>
+<li>参数 TIMx 写 TIM2；TIM_IT 选要配置哪个中断输出，可任意组合，第一个就是 <code>TIM_IT_Update</code> 更新中断；NewState 写 <code>ENABLE</code>。</li>
+<li>这样就开启了更新中断到 NVIC 的通路，对应结构图里的「中断输出控制」。</li>
 </ul>
 <h3 id="3-6-5-配置-nvic">3.6 ⑤ 配置 NVIC</h3>
 <pre><code class="language-c">NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);   // 优先级分组选分组 2
@@ -403,17 +381,17 @@ NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;                 // 响应优�
 NVIC_Init(&amp;NVIC_InitStructure);
 </code></pre>
 <ul>
-<li>NVIC 上一集已经讲过，这里直接写：先 <code>NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2)</code> 选分组 2，再 <code>NVIC_InitTypeDef NVIC_InitStructure</code> 配置通道。</li>
-<li>通道从 <strong><code>IRQn_Type</code></strong> 枚举里找，在列表里选中 <strong><code>TIM2_IRQn</code></strong> ——这就是定时器 2 在 NVIC 里的通道；抢占/响应优先级给 <strong>2 和 1</strong>。</li>
+<li>先 <code>NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2)</code> 选分组 2，再用 <code>NVIC_InitTypeDef NVIC_InitStructure</code> 配通道。</li>
+<li>通道从 <code>IRQn_Type</code> 枚举里找 <code>TIM2_IRQn</code>，抢占/响应优先级给 2 和 1。</li>
 </ul>
 <h3 id="3-7-6-启动定时器-tim-cmd">3.7 ⑥ 启动定时器（TIM_Cmd）</h3>
 <pre><code class="language-c">TIM_Cmd(TIM2, ENABLE);   // 使能计数器
 </code></pre>
 <ul>
-<li>第一个参数 TIM2，第二个 <code>ENABLE</code>。<strong>这样定时器才开始工作</strong>，产生更新时就会触发中断。到这里定时中断的初始化代码就完成了。</li>
+<li>第一个参数 TIM2、第二个 <code>ENABLE</code>，这样定时器才开始工作，产生更新时就会触发中断。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/07-nvic-and-cmd.jpg" alt="图 7：初始化后半段——TIM_ITConfig 开更新中断、NVIC_PriorityGroupConfig(分组 2)、NVIC_Init（TIM2_IRQn、抢占 2/响应 1）、最后 TIM_Cmd(TIM2, ENABLE) 启动"></p>
-<p><em>图 7：初始化后半段——TIM_ITConfig 开更新中断、NVIC_PriorityGroupConfig(分组 2)、NVIC_Init（TIM2_IRQn、抢占 2/响应 1）、最后 TIM_Cmd(TIM2, ENABLE) 启动</em></p>
+<p><em>图 7：开更新中断、配 NVIC、TIM_Cmd 启动</em></p>
 <h3 id="3-8-7-中断函数-tim2-irqhandler">3.8 ⑦ 中断函数 TIM2_IRQHandler</h3>
 <pre><code class="language-c">void TIM2_IRQHandler(void)
 {
@@ -425,9 +403,9 @@ NVIC_Init(&amp;NVIC_InitStructure);
 }
 </code></pre>
 <ul>
-<li><strong>函数名从哪来</strong>：打开工程里的<strong>启动文件</strong>（<code>startup_stm32f10x_md.s</code>）找，定时器 2 的中断函数就是 <strong><code>TIM2_IRQHandler</code></strong>——当定时器产生更新中断时，这个函数就会<strong>自动被执行</strong>。（这一版先写在 <code>Timer.c</code> 里；后面 4.3 会把它挪到 main.c。）</li>
-<li>进函数后按规矩：<strong>先用 <code>TIM_GetITStatus</code> 检查中断标志位</strong>（第一个参数 TIM2，第二个想看哪个中断的标志位，这里选 <code>TIM_IT_Update</code>），<strong>如果 == SET 就执行用户代码</strong>；<strong>最后别忘了 <code>TIM_ClearITPendingBit(TIM2, TIM_IT_Update)</code> 清除标志位</strong>。</li>
-<li>写完别忘了把初始化函数的声明放进 <code>Timer.h</code>（<code>void Timer_Init(void);</code>）。</li>
+<li>函数名从启动文件 <code>startup_stm32f10x_md.s</code> 里找，定时器 2 的就是 <code>TIM2_IRQHandler</code>，产生更新中断时会自动执行（这版先写在 <code>Timer.c</code> 里，4.3 再挪到 main.c）。</li>
+<li>进函数先 <code>TIM_GetITStatus</code> 检查中断标志位（参数 TIM2 和 <code>TIM_IT_Update</code>），等于 SET 就执行用户代码，最后别忘了 <code>TIM_ClearITPendingBit(TIM2, TIM_IT_Update)</code> 清标志位。</li>
+<li>写完把初始化函数声明放进 <code>Timer.h</code>：<code>void Timer_Init(void);</code>。</li>
 </ul>
 <h2 id="4-中断函数与跨文件变量">4. 中断函数与跨文件变量</h2>
 <h3 id="4-1-主函数-调用初始化-显示-num">4.1 主函数：调用初始化 + 显示 Num</h3>
@@ -451,25 +429,28 @@ int main(void)
 	}
 }
 </code></pre>
+<ul>
+<li>主循环里只做 <code>OLED_ShowNum(1,5,Num,5)</code> 这一件事（源码里写成带空格的形式），计数全交给定时中断。</li>
+</ul>
 <h3 id="4-2-跨文件变量-直接写会报错">4.2 跨文件变量：直接写会报错</h3>
 <ul>
-<li>想让定时器<strong>每秒自动给 Num 加 1</strong>，Num 就要在中断函数里 <code>Num++</code>；但<strong>这个中断函数在 Timer 模块里</strong>，Num 定义在 main.c 里——这就成了<strong>跨越不同 .c 文件的变量</strong>，直接写 <code>Num++</code> 编译会报错：</li>
+<li>中断函数在 Timer 模块里，Num 定义在 main.c 里，成了跨 .c 文件的变量，直接写 <code>Num++</code> 编译会报错：</li>
 </ul>
 <pre><code>System\Timer.c(35): error:  #20: identifier &quot;Num&quot; is undefined
 </code></pre>
 <ul>
-<li><strong>方案一：用 <code>extern</code> 声明。</strong> 在<strong>使用变量的那个文件的上面</strong>（Timer.c 开头）写：</li>
+<li>方案一：在<strong>使用变量的那个文件</strong>（Timer.c）开头用 <code>extern</code> 声明：</li>
 </ul>
 <pre><code class="language-c">extern uint16_t Num;   // 告诉编译器：Num 这个变量在别的文件里定义，你自己去找
 </code></pre>
 <ul>
-<li><code>extern</code> 声明变量，就是告诉编译器「我现在有 Num 这个变量，它在别的文件里定义了，至于在哪里，你自己去找吧」，然后编译器就会去找。</li>
-<li>顺带一提：<strong>头文件里的函数声明其实也是用 <code>extern</code> 实现的</strong>（函数前面本来就有一个 <code>extern</code>，只是这个 <code>extern</code> 可以省略，所以一般不写）。</li>
+<li><code>extern</code> 声明变量就是告诉编译器「这个变量在别的文件里定义了，你自己去找」。</li>
+<li>顺带一提：头文件里的函数声明其实也是用 <code>extern</code> 实现的，只是函数前的 <code>extern</code> 可以省略，所以一般不写。</li>
 </ul>
 <h3 id="4-3-方案二-把中断函数复制到-main-c-视频最终采用">4.3 方案二：把中断函数复制到 main.c（视频最终采用）</h3>
 <ul>
-<li><strong>第二种方案：直接把这个中断函数复制一下，放到主函数后面</strong>，这样它们就在一个文件里了，<strong><code>extern</code> 声明就不需要了</strong>。</li>
-<li>于是把 Timer.c 里的中断函数<strong>注释掉，留作「中断函数模板」</strong>，哪个文件想用就复制过去：</li>
+<li>直接把中断函数复制到主函数后面，这样就在一个文件里了，<code>extern</code> 声明也不需要了。</li>
+<li>于是把 Timer.c 里的中断函数注释掉、留作「中断函数模板」，哪个文件想用就复制过去：</li>
 </ul>
 <pre><code class="language-c">void TIM2_IRQHandler(void)      // 主函数每秒自动把 Num++
 {
@@ -481,38 +462,38 @@ int main(void)
 }
 </code></pre>
 <ul>
-<li>视频解释：<strong>对于定时中断而言，这个中断函数就是为别的文件服务的</strong>，所以中断函数可以放在使用它的地方、这样更方便。</li>
+<li>对定时中断而言，这个中断函数就是为别的文件服务的，放在使用它的地方更方便。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/08-extern-num-error.jpg" alt="图 8：跨文件使用变量报错——System\Timer.c(35): error: #20: identifier &quot;Num&quot; is undefined，在 Timer.c 上方加 extern uint16_t Num; 即可（方案一）"></p>
-<p><em>图 8：跨文件使用变量报错——<code>System\Timer.c(35): error: #20: identifier &quot;Num&quot; is undefined</code>，在 Timer.c 上方加 <code>extern uint16_t Num;</code> 即可（方案一）</em></p>
+<p><em>图 8：跨文件报错 <code>identifier &quot;Num&quot; is undefined</code>，加 extern 声明解决</em></p>
 <p><img src="../assets/images/stm32-14/09-timer2-irqhandler.jpg" alt="图 9：Timer.c 里的 TIM2_IRQHandler（方案二之前，中断函数还写在 Timer.c 中；第 3 行是 extern uint16_t Num;，Build Output 仍报 identifier &quot;Num&quot; is undefined）"></p>
-<p><em>图 9：Timer.c 里的 TIM2_IRQHandler（方案二之前，中断函数还写在 Timer.c 中；第 3 行是 <code>extern uint16_t Num;</code>，Build Output 仍报 <code>identifier &quot;Num&quot; is undefined</code>）</em></p>
+<p><em>图 9：方案二之前中断函数还留在 Timer.c 里</em></p>
 <h2 id="5-现象验证-一个经典坑">5. 现象验证：一个经典坑</h2>
 <h3 id="5-1-现象1-num-每秒-1">5.1 现象①：Num 每秒 +1</h3>
 <ul>
-<li>编译下载后可以看现象：<strong>Num 的值正在执行每秒加 1 的操作</strong>。</li>
+<li>编译下载后，Num 每秒加 1。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/10-phenomenon-1.jpg" alt="图 10：现象①——OLED 显示 Num:00006，每过 1 秒数字自动加 1（主循环只负责刷新，计数全在更新中断里做）"></p>
-<p><em>图 10：现象①——OLED 显示 <code>Num:00006</code>，每过 1 秒数字自动加 1（主循环只负责刷新，计数全在更新中断里做）</em></p>
+<p><em>图 10：现象①，OLED 显示 <code>Num:00006</code></em></p>
 <h3 id="5-2-坑-复位后-num-从-1-开始">5.2 坑：复位后 Num 从 1 开始</h3>
 <ul>
-<li>但是这里有个问题：<strong>按复位键复位一下，会发现 Num 是从 1 开始计数的</strong>；多复位几次，<strong>每次程序刚一开始，Num 就立刻变成 1 了</strong>。</li>
-<li>按理说 Num 的初始值是 0，应该从 0 开始计数，<strong>但一上电就立刻变为 1</strong>——这说明<strong>中断函数在初始化之后就立刻进入了一次</strong>。</li>
+<li>按复位键复位一下，会发现 Num 是从 1 开始计数的；多复位几次，每次程序一开始 Num 就立刻变成 1。</li>
+<li>初始值应是 0，一上电就变 1，说明中断函数在初始化之后就立刻进了一次。</li>
 </ul>
 <h3 id="5-3-原因-timebaseinit-末尾的-egr-手动更新事件">5.3 原因：TimeBaseInit 末尾的 EGR 手动更新事件</h3>
 <ul>
-<li>打开 <strong><code>TIM_TimeBaseInit</code> 函数</strong>，在<strong>最后</strong>可以看到这一句：</li>
+<li>打开 <code>TIM_TimeBaseInit</code> 函数，最后有一句 <code>TIMX-&gt;EGR = TIM_PSCReloadMode_Immediate</code>，即手动产生一个更新事件：</li>
 </ul>
 <pre><code class="language-c">/* Generate an update event to reload the Prescaler and the Repetition counter
    values immediately */
 TIMX-&gt;EGR = TIM_PSCReloadMode_Immediate;
 </code></pre>
 <ul>
-<li>为什么要加这一句：<strong>预分频器有缓冲寄存器，我们写的值只有在更新事件时才真正起作用</strong>；所以为了让值<strong>立刻生效</strong>，就在这里<strong>手动生成了一个更新事件</strong>，这样预分频器的值就有效了。</li>
-<li><strong>但它的副作用是：更新事件和更新中断是同时发生的</strong>——更新中断会置更新中断标志位，<strong>这就是刚一上电就立刻进中断的原因</strong>。</li>
+<li>因为预分频器有缓冲寄存器，写的值要等更新事件才起作用，所以这里手动生成一个更新事件让值立刻生效。</li>
+<li>副作用是更新事件和更新中断同时发生，更新中断会置标志位——这就是上电立刻进中断的原因。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/11-egr-side-effect.jpg" alt="图 11：坑的根源——TIM_TimeBaseInit 末尾的 TIMX-&gt;EGR = TIM_PSCReloadMode_Immediate;（注释：产生一个更新事件，立刻重装预分频器和重复计数器的值）"></p>
-<p><em>图 11：坑的根源——<code>TIM_TimeBaseInit</code> 末尾的 <code>TIMX-&gt;EGR = TIM_PSCReloadMode_Immediate;</code>（注释：产生一个更新事件，立刻重装预分频器和重复计数器的值）</em></p>
+<p><em>图 11：坑的根源是 <code>TIMX-&gt;EGR = TIM_PSCReloadMode_Immediate;</code></em></p>
 <h3 id="5-4-修复-timebaseinit-之后-itconfig-之前清一次标志">5.4 修复：TimeBaseInit 之后、ITConfig 之前清一次标志</h3>
 <pre><code class="language-c">TIM_TimeBaseInit(TIM2, &amp;TIM_TimeBaseInitStructure);
 
@@ -520,56 +501,52 @@ TIM_ClearFlag(TIM2, TIM_FLAG_Update);      // ★ 手动清除更新标志位，
 TIM_ITConfig(TIM2, TIM_IT_Update, ENABLE); //   然后再开启更新中断
 </code></pre>
 <ul>
-<li>解决方案非常简单：<strong>在 <code>TIM_TimeBaseInit</code> 的后面、开启中断的前面</strong>，手动调用一下 <strong><code>TIM_ClearFlag(TIM2, TIM_FLAG_Update)</code></strong>，把更新中断标志位清除掉，<strong>就能避免刚初始化完就进中断的问题</strong>。</li>
-<li>修复后再下载：<strong>上电后数字从 0 开始增加</strong>，没问题了。</li>
+<li>在 <code>TIM_TimeBaseInit</code> 之后、开启中断之前调用 <code>TIM_ClearFlag(TIM2, TIM_FLAG_Update)</code> 清除更新标志位，就能避免刚初始化完就进中断。</li>
+<li>修复后再下载，上电后数字从 0 开始增加。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/12-clear-flag-fix.jpg" alt="图 12：修复——在 TimeBaseInit 之后、TIM_ITConfig 之前加一句 TIM_ClearFlag(TIM2, TIM_FLAG_Update);"></p>
-<p><em>图 12：修复——在 TimeBaseInit 之后、TIM_ITConfig 之前加一句 <code>TIM_ClearFlag(TIM2, TIM_FLAG_Update);</code></em></p>
+<p><em>图 12：TimeBaseInit 后、ITConfig 前加一句 <code>TIM_ClearFlag</code></em></p>
 <h3 id="5-5-观察-cnt-计数器值在-0-9999-之间飞速变化">5.5 观察 CNT：计数器值在 0～9999 之间飞速变化</h3>
 <pre><code class="language-c">OLED_ShowNum(2, 5, TIM_GetCounter(TIM2), 5);   // 在主循环里读 CNT 并显示
 </code></pre>
 <ul>
-<li>加这一行后下载，可以看到<strong>下面这个计数器的值在飞速变化</strong>，变化范围<strong>从 0 一直到自动重装值</strong>——ARR 写的是 <strong>10000-1</strong>，所以<strong>从 0 自增到 9999，总共 10000 个数；计 10000 次就是 1s</strong>。</li>
+<li>加这行后下载，计数器的值在飞速变化，范围从 0 一直到自动重装值：ARR 写的是 10000-1，所以从 0 自增到 9999，共 10000 个数，计 10000 次就是 1s。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/13-show-cnt.jpg" alt="图 13：主循环里加 OLED_ShowNum(2, 5, TIM_GetCounter(TIM2), 5) 观察 CNT——在 0～9999 之间飞速循环（10000 个数 = 1s）"></p>
-<p><em>图 13：主循环里加 <code>OLED_ShowNum(2, 5, TIM_GetCounter(TIM2), 5)</code> 观察 CNT——在 0～9999 之间飞速循环（10000 个数 = 1s）</em></p>
+<p><em>图 13：CNT 在 0～9999 之间飞速循环</em></p>
 <h3 id="5-6-改-psc-arr-的实验-中断频率怎么变">5.6 改 PSC/ARR 的实验：中断频率怎么变</h3>
 <ul>
-<li><strong>实验一：把 Period 改小</strong>——<code>TIM_Period</code> 从 <code>10000 - 1</code> 改成 <strong><code>1000 - 1</code></strong>，中断周期变成 <strong>0.1s</strong>，CNT 在 0～999 之间循环，<strong>上面 Num++ 的速度也比原来快了 10 倍</strong>。</li>
-<li><strong>实验二：把 Prescaler 改小</strong>——把 <code>TIM_Prescaler</code> 从 <code>7200 - 1</code> 改成 <strong><code>720 - 1</code></strong>、Period 还是 <code>10000 - 1</code>：这就是<strong>以原来 10 倍的计数频率计 10000 个数</strong>，<strong>Num++ 的速度同样是原来的 10 倍</strong>。</li>
-<li>这就是<strong>预分频值和自动重装值对中断频率的影响</strong>，之后还会经常和它们打交道，可以多玩一玩这部分（实验完记得把值改回来）。</li>
+<li>实验一：<code>TIM_Period</code> 从 <code>10000 - 1</code> 改成 <code>1000 - 1</code>，中断周期变 0.1s，CNT 在 0～999 之间循环，Num++ 速度比原来快 10 倍。</li>
+<li>实验二：<code>TIM_Prescaler</code> 从 <code>7200 - 1</code> 改成 <code>720 - 1</code>、Period 仍是 <code>10000 - 1</code>，就是以原来 10 倍的计数频率计 10000 个数，Num++ 同样快 10 倍。</li>
+<li>这就是预分频值和自动重装值对中断频率的影响；实验完记得把值改回来。</li>
 </ul>
 <h2 id="6-程序二-定时器外部时钟">6. 程序二：定时器外部时钟</h2>
 <h3 id="6-1-接线-对射式红外传感器-do-pa0">6.1 接线：对射式红外传感器 DO → PA0</h3>
 <ul>
-<li>打开接线图文件夹里的 <strong><code>6-2 定时器外部时钟.jpg</code></strong>：右下角是一个 <strong>OLED 显示屏</strong>，上面接了一个<strong>对射式红外传感器</strong>，它的 <strong>DO（数字输出）接到 PA0 引脚</strong>。</li>
-<li><strong>PA0 引脚就是 TIM2 的 ETR 引脚</strong>（[6-1] 引脚定义表里 PA0 = <code>TIM2_CH1_ETR</code>），我们就在这个引脚上输入一个<strong>外部时钟</strong>。</li>
-<li>面包板上接线：传感器接 3 根杜邦线，<strong>VCC → 正极、GND → 负极、DO → PA0</strong>，这样就好了。</li>
+<li>接线图 <code>6-2 定时器外部时钟.jpg</code>：右下角是 OLED，上面接对射式红外传感器，DO（数字输出）接到 PA0。</li>
+<li>PA0 就是 TIM2 的 ETR 引脚（[6-1] 引脚定义表里 PA0 = <code>TIM2_CH1_ETR</code>），我们在这个引脚上输入外部时钟。</li>
+<li>接线：传感器三根杜邦线，VCC → 正极、GND → 负极、DO → PA0。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/14-wiring-6-2.jpg" alt="图 14：程序二接线图——最小系统板 + OLED + 对射式红外传感器，VCC→正极、GND→负极、DO→PA0（PA0 即 TIM2 的 ETR 引脚）"></p>
-<p><em>图 14：程序二接线图——最小系统板 + OLED + 对射式红外传感器，VCC→正极、GND→负极、<strong>DO→PA0</strong>（PA0 即 TIM2 的 ETR 引脚）</em></p>
+<p><em>图 14：程序二接线，DO 接 PA0（TIM2 的 ETR）</em></p>
 <h3 id="6-2-复制工程并改配置">6.2 复制工程并改配置</h3>
 <ul>
-<li><strong>复制 <code>6-1 定时器定时中断</code> 工程</strong>，改名 <strong><code>6-2 定时器外部时钟</code></strong>，在这个工程的基础上改：<ul>
-<li>基本任务<strong>仍然是定时中断</strong>，只是时钟部分<strong>不再使用内部时钟</strong>；</li>
-<li><strong>把 <code>TIM_InternalClockConfig(TIM2)</code> 这一行删掉</strong>；</li>
-<li>到 <code>stm32f10x_tim.h</code> 里找选择时钟的函数，复制 <strong><code>TIM_ETRClockMode2Config</code></strong>（通过 ETR 引脚的外部时钟模式 2 配置）放到原来的位置。</li>
-</ul>
-</li>
+<li>复制 <code>6-1 定时器定时中断</code> 工程，改名 <code>6-2 定时器外部时钟</code>：基本任务仍是定时中断，只是时钟不再用内部时钟。</li>
+<li>把 <code>TIM_InternalClockConfig(TIM2)</code> 这一行删掉，换成 <code>TIM_ETRClockMode2Config</code>（通过 ETR 引脚的外部时钟模式 2）。</li>
 </ul>
 <pre><code class="language-c">TIM_ETRClockMode2Config(TIM2, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted, 0x00);
 </code></pre>
 <ul>
-<li><strong>参数一</strong>：TIM2。</li>
-<li><strong>参数二 <code>TIM_ExtTRGPrescaler</code>（外部触发预分频器）</strong>：可以是 <code>TIM_ExtTRGPSC_OFF</code>（关闭预分频）、<code>DIV2</code>、<code>DIV4</code>、<code>DIV8</code>，即<strong>对 ETR 外部时钟再提前做一次分频</strong>；这里<strong>不需要分频，选 <code>TIM_ExtTRGPSC_OFF</code></strong>。</li>
-<li><strong>参数三 <code>TIM_ExtTRGPolarity</code>（外部触发极性）</strong>：<code>TIM_ExtTRGPolarity_Inverted</code> 是<strong>反向（低电平或下降沿有效）</strong>；<code>TIM_ExtTRGPolarity_NonInverted</code> 是<strong>不反向（高电平或上升沿有效）</strong>。按需求来，这里选<strong>不反向</strong>。</li>
-<li><strong>参数四 <code>ExtTRGFilter</code>（外部触发滤波器）</strong>：值<strong>必须是 <code>0x00</code>～<code>0x0F</code> 之间的一个值</strong>。滤波器就是「以一个采样频率 f 采样 N 个点、N 个点都一样才有效输出」，<strong>这个值就是用来决定 f 和 N 的</strong>——手册里 ETF[3:0] 那几位给了对应表（例：<code>0000</code> 无滤波器、按 f_DTS 采样；其余编码分别对应不同的采样频率与采样点数 N=2/4/6/8），旁边的 ETPS[1:0] 则决定 ETRP 的外部触发预分频。这里<strong>暂时不用滤波器，写 <code>0x00</code> 就行</strong>。</li>
+<li>参数一：TIM2。</li>
+<li>参数二 <code>TIM_ExtTRGPrescaler</code>：<code>TIM_ExtTRGPSC_OFF</code> 关闭预分频，另有 <code>DIV2</code>、<code>DIV4</code>、<code>DIV8</code>，即对 ETR 时钟再提前分频；这里不需要分频，选 <code>TIM_ExtTRGPSC_OFF</code>。</li>
+<li>参数三 <code>TIM_ExtTRGPolarity</code>：<code>TIM_ExtTRGPolarity_Inverted</code> 反向（低电平或下降沿有效），<code>TIM_ExtTRGPolarity_NonInverted</code> 不反向（高电平或上升沿有效），这里选不反向。</li>
+<li>参数四 <code>ExtTRGFilter</code>：必须是 <code>0x00</code>～<code>0x0F</code> 之间的值，决定滤波器采样频率 f 和采样点数 N——手册里 ETF[3:0] 给了对应表（<code>0000</code> 无滤波器、按 f_DTS 采样），ETPS[1:0] 决定 ETRP 预分频；这里不用滤波器，写 <code>0x00</code>。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/15-etr-gpio-config.jpg" alt="图 15：程序二的 Timer_Init——先 RCC 开 TIM2 与 GPIOA 时钟、把 PA0 配成上拉输入（IPU）、再用 TIM_ETRClockMode2Config(TIM2, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted, 0x00) 选外部时钟模式 2（图中 TIM_Period 仍是 6-1 的 10000-1，稍后改小）"></p>
-<p><em>图 15：程序二的 <code>Timer_Init</code>——先 RCC 开 TIM2 与 GPIOA 时钟、把 PA0 配成上拉输入（IPU）、再用 <code>TIM_ETRClockMode2Config(TIM2, TIM_ExtTRGPSC_OFF, TIM_ExtTRGPolarity_NonInverted, 0x00)</code> 选外部时钟模式 2（图中 <code>TIM_Period</code> 仍是 6-1 的 10000-1，稍后改小）</em></p>
+<p><em>图 15：程序二的 <code>Timer_Init</code>，选外部时钟模式 2</em></p>
 <h3 id="6-3-别忘了配-gpio-pa0-上拉输入">6.3 别忘了配 GPIO：PA0 上拉输入</h3>
 <ul>
-<li><strong>引脚要用到 GPIO，所以在这之前还要先配置 GPIO</strong>：</li>
+<li>引脚要用到 GPIO，所以还要先配置 GPIO：</li>
 </ul>
 <pre><code class="language-c">RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);   // 开启 GPIOA 时钟（GPIO 挂 APB2）
 
@@ -580,16 +557,16 @@ GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
 GPIO_Init(GPIOA, &amp;GPIO_InitStructure);
 </code></pre>
 <ul>
-<li><code>GPIO_Mode</code> 查手册的配置表：这一栏（TIMx 的 ETR 输入）<strong>推荐配置是浮空输入</strong>。视频这里<strong>给了上拉输入</strong>，也是可以的。</li>
-<li><strong>什么时候要用浮空输入</strong>：如果<strong>外部输入信号功率很小</strong>，内部的<strong>上拉电阻可能会影响这个输入信号</strong>，这时就可以用<strong>浮空输入</strong>，防止影响外部输入的电平。</li>
+<li><code>GPIO_Mode</code> 查配置表：TIMx 的 ETR 输入推荐浮空输入，这里给上拉输入也是可以的。</li>
+<li>什么时候用浮空输入：外部输入信号功率很小时，内部上拉电阻可能影响输入信号，这时用浮空输入防止影响电平。</li>
 </ul>
 <h3 id="6-4-改小-psc-arr-封装读-cnt-的函数">6.4 改小 PSC/ARR，封装读 CNT 的函数</h3>
 <pre><code class="language-c">TIM_TimeBaseInitStructure.TIM_Period = 10 - 1;     // ARR = 9：从 0 计到 9
 TIM_TimeBaseInitStructure.TIM_Prescaler = 1 - 1;   // PSC = 0：不分频
 </code></pre>
 <ul>
-<li>预分频和自动重装值也要<strong>改小一点</strong>，因为<strong>手动模拟的外部时钟没那么快</strong>：<strong>预分频给 <code>1 - 1</code>（即 0，不分频）</strong>，<strong>自动重装值给 <code>10 - 1</code>（即 9，从 0 计到 9）</strong>。</li>
-<li>想实时看 CNT 的值，把读计数器的函数也封装一下（规范一些），并在 <code>Timer.h</code> 里声明：</li>
+<li>手动模拟的外部时钟没那么快，所以预分频给 <code>1 - 1</code>（即 <code>PSC=1-1</code>、也就是 0，不分频），自动重装给 <code>10 - 1</code>（即 <code>ARR=10-1</code>、也就是 9，从 0 计到 9）。</li>
+<li>想实时看 CNT，把读计数器封装成函数，并在 <code>Timer.h</code> 里声明：</li>
 </ul>
 <pre><code class="language-c">uint16_t Timer_GetCounter(void)
 {
@@ -614,35 +591,32 @@ int main(void)
 	}
 }
 </code></pre>
-<ul>
-<li>编译下载，<strong>上面是 Num、下面是 CNT 计数器的值</strong>。</li>
-</ul>
 <h3 id="6-6-现象2-挡光一次-cnt-1-到-9-清零并-num">6.6 现象②：挡光一次 CNT+1，到 9 清零并 Num++</h3>
 <ul>
-<li>用挡光片挡一下：<strong>CNT 加 1</strong>——因为<strong>现在时基单元没有预分频</strong>，所以<strong>每次遮挡（产生一个方波边沿）CNT 都会加 1</strong>；<strong>如果有预分频，就要遮挡几次才加一次</strong>。</li>
-<li><strong>CNT 加到 9 之后自动清零，同时申请中断，<code>Num++</code></strong>。</li>
+<li>挡一下光，CNT 加 1：现在时基单元没有预分频，每次遮挡（产生一个方波边沿）CNT 就加 1；有预分频就要遮挡几次才加一次。</li>
+<li>CNT 加到 9 之后自动清零，同时申请中断执行 <code>Num++</code>。</li>
 </ul>
 <p><img src="../assets/images/stm32-14/16-phenomenon-2.jpg" alt="图 16：现象②——OLED 上排 Num:00000、下排 CNT:00003；挡光一次 CNT 加 1，加到 9 自动清零并进入更新中断让 Num++"></p>
-<p><em>图 16：现象②——OLED 上排 <code>Num:00000</code>、下排 <code>CNT:00003</code>；挡光一次 CNT 加 1，加到 9 自动清零并进入更新中断让 Num++</em></p>
+<p><em>图 16：现象②，挡光一次 CNT 加 1，到 9 清零并 Num++</em></p>
 <ul>
-<li><strong>预分频器、极性这些参数都可以自己换一换看现象</strong>；<code>stm32f10x_tim.h</code> 里其他一些时钟输入（ITRx 级联、TIx 捕获通道等）也都可以自己试一试，视频不再一一演示。</li>
+<li>预分频器、极性这些参数都可以自己换一换看现象；<code>stm32f10x_tim.h</code> 里其它时钟输入（ITRx 级联、TIx 捕获通道等）也可以自己试。</li>
 </ul>
-<h2 id="7-坑与易错点">7. 坑与易错点</h2>
+<h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>TIM2 用 <code>RCC_APB1PeriphClockCmd</code> 开时钟</strong>：因为 TIM2 是 <strong>APB1</strong> 总线上的外设；写成 APB2 是开不了 TIM2 时钟的（只有 TIM1/TIM8 在 APB2）。</li>
-<li><strong>PSC/ARR 都要「减 1」</strong>：寄存器值 = 分频系数 − 1、周期数 − 1；写 <code>7200</code> 是 7201 分频。范围 <strong>0～65535</strong>，别超。</li>
-<li><strong><code>TIM_InternalClockConfig</code> 可以省</strong>：定时器上电默认就是内部时钟；但为了步骤完整写上也没问题。</li>
-<li><strong><code>TIM_RepetitionCounter</code> 是高级定时器才用的</strong>，基本/通用定时器给 0 就行。</li>
-<li><strong><code>TIM_ClockDivision</code> 跟定时时间无关</strong>：它只决定输入滤波器的采样频率，随便配（本集 DIV1）。</li>
-<li><strong>上电 Num 从 1 开始 = <code>TIM_TimeBaseInit</code> 里的 EGR 手动更新事件副作用</strong>：在 TimeBaseInit 后、ITConfig 前加 <strong><code>TIM_ClearFlag(TIM2, TIM_FLAG_Update)</code></strong> 就好了。</li>
-<li><strong>跨文件用变量要 <code>extern</code></strong>：<code>extern uint16_t Num;</code> 写在用它的 .c 开头；或者干脆把中断函数复制到 main.c（本集最终采用，Timer.c 那份注释留作模板）。注意<strong>头文件的函数声明本来就带隐藏的 <code>extern</code></strong>，所以不用写。</li>
-<li><strong>中断函数名必须和启动文件里的向量名一致</strong>：定时器 2 是 <strong><code>TIM2_IRQHandler</code></strong>，写错（拼错/大小写）不会报错但中断永远不进。</li>
-<li><strong>中断里必须清标志位</strong>：<code>TIM_ClearITPendingBit(TIM2, TIM_IT_Update)</code>，否则会反复进中断。</li>
-<li><strong>程序二：删了 <code>TIM_InternalClockConfig</code> 之后一定要补外部时钟模式 2 的配置</strong>，同时<strong>别忘了先开 GPIOA 时钟、把 PA0 配成输入</strong>——只配定时器不配 GPIO，外部时钟根本进不来。</li>
-<li><strong><code>TIM_ETRClockMode2Config</code> 的第四个参数（滤波器）只能是 <code>0x00</code>～<code>0x0F</code></strong>，超出范围是无效的。</li>
-<li><strong>外部时钟下 <code>PSC=0</code> 就是「每个边沿计一次」</strong>：挡一次光 CNT+1；开了预分频就变成「挡 N 次才加一次」。</li>
-<li><strong><code>TIM_ETRClockMode1Config</code> 与 <code>TIM_ETRClockMode2Config</code> 对 ETR 时钟是等效的</strong>：不需要触发输入功能时可以互换。</li>
-<li><strong>实验完记得把修改过的 PSC/ARR 改回来</strong>，否则下一个程序的现象会「莫名其妙变快/变慢」。</li>
+<li>TIM2 要用 <code>RCC_APB1PeriphClockCmd</code> 开时钟，写成 APB2 开不了（只有 TIM1/TIM8 在 APB2）。</li>
+<li>PSC/ARR 都要减 1：寄存器值 = 分频系数 − 1、周期数 − 1，写 <code>7200</code> 是 7201 分频，范围 0～65535。</li>
+<li><code>TIM_InternalClockConfig</code> 可以省，上电默认就是内部时钟；写上也没问题。</li>
+<li><code>TIM_RepetitionCounter</code> 是高级定时器才用的，基本/通用定时器给 0。</li>
+<li><code>TIM_ClockDivision</code> 跟定时时间无关，只决定输入滤波器的采样频率。</li>
+<li>上电 Num 从 1 开始是 EGR 更新事件的副作用，在 TimeBaseInit 后、ITConfig 前清一次标志。</li>
+<li>跨文件用变量要 <code>extern</code>，或干脆把中断函数复制到 main.c（本集最终采用）。</li>
+<li>中断函数名必须和启动文件里的向量名一致，定时器 2 是 <code>TIM2_IRQHandler</code>，写错不报错但不进中断。</li>
+<li>中断里必须 <code>TIM_ClearITPendingBit(TIM2, TIM_IT_Update)</code> 清标志，否则反复进中断。</li>
+<li>程序二删了内部时钟后必须补外部时钟模式 2 的配置，还要先开 GPIOA 时钟、把 PA0 配成输入。</li>
+<li><code>TIM_ETRClockMode2Config</code> 的第四个参数（滤波器）只能是 <code>0x00</code>～<code>0x0F</code>。</li>
+<li>外部时钟下 <code>PSC=0</code> 就是每个边沿计一次，开了预分频就变成挡 N 次才加一次。</li>
+<li><code>TIM_ETRClockMode1Config</code> 与 <code>TIM_ETRClockMode2Config</code> 对 ETR 时钟等效，不用触发输入时可互换。</li>
+<li>实验完记得把改过的 PSC/ARR 改回来，否则下一个程序的现象会莫名变快变慢。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -654,14 +628,14 @@ int main(void)
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E7%90%86%E8%AE%BA%E8%A7%81-6-1">0. 本集定位：代码课，理论见 [6-1]</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E7%A8%8B%E5%BA%8F%E4%B8%80-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 程序一：接线与工程准备</a>
         <a class="level-3" href="#1-1-%E6%8E%A5%E7%BA%BF%E5%9B%BE-%E5%8F%AA%E8%A6%81%E4%B8%80%E4%B8%AA-oled">1.1 接线图：只要一个 OLED</a>
         <a class="level-3" href="#1-2-%E5%A4%8D%E5%88%B6%E5%B7%A5%E7%A8%8B%E5%B9%B6%E6%94%B9%E5%90%8D">1.2 复制工程并改名</a>
         <a class="level-3" href="#1-3-%E6%96%B0%E5%BB%BA-timer-c-timer-h-%E6%A8%A1%E5%9D%97">1.3 新建 Timer.c / Timer.h 模块</a>
         <a class="level-2" href="#2-%E5%86%99%E4%BB%A3%E7%A0%81%E5%89%8D%E5%85%88%E8%AE%A4%E5%87%BD%E6%95%B0-%E5%AE%9A%E6%97%B6%E5%99%A8%E5%BA%93%E5%87%BD%E6%95%B0%E5%9C%B0%E5%9B%BE">2. 写代码前先认函数：定时器库函数地图</a>
         <a class="level-3" href="#2-1-%E5%88%9D%E5%A7%8B%E5%8C%96%E7%9B%B8%E5%85%B3">2.1 初始化相关</a>
-        <a class="level-3" href="#2-2-%E6%97%B6%E9%92%9F%E6%BA%90%E9%80%89%E6%8B%A9%E7%9A%84-6-%E4%B8%AA%E5%87%BD%E6%95%B0-%E5%AF%B9%E5%BA%94-%E6%97%B6%E5%9F%BA%E5%8D%95%E5%85%83%E7%9A%84%E6%97%B6%E9%92%9F%E9%80%89%E6%8B%A9">2.2 时钟源选择的 6 个函数（对应「时基单元的时钟选择」）</a>
+        <a class="level-3" href="#2-2-%E6%97%B6%E9%92%9F%E6%BA%90%E9%80%89%E6%8B%A9%E7%9A%84-6-%E4%B8%AA%E5%87%BD%E6%95%B0">2.2 时钟源选择的 6 个函数</a>
         <a class="level-3" href="#2-3-%E5%8D%95%E7%8B%AC%E6%94%B9%E5%85%B3%E9%94%AE%E5%8F%82%E6%95%B0-%E8%AF%BB%E5%86%99%E8%AE%A1%E6%95%B0%E5%99%A8">2.3 单独改关键参数、读写计数器</a>
         <a class="level-3" href="#2-4-%E6%A0%87%E5%BF%97%E4%BD%8D-%E4%B8%AD%E6%96%AD%E6%A0%87%E5%BF%97%E4%BD%8D">2.4 标志位 / 中断标志位</a>
         <a class="level-2" href="#3-timer-init-%E4%B8%83%E6%AD%A5">3. Timer_Init() 七步</a>
@@ -691,7 +665,7 @@ int main(void)
         <a class="level-3" href="#6-4-%E6%94%B9%E5%B0%8F-psc-arr-%E5%B0%81%E8%A3%85%E8%AF%BB-cnt-%E7%9A%84%E5%87%BD%E6%95%B0">6.4 改小 PSC/ARR，封装读 CNT 的函数</a>
         <a class="level-3" href="#6-5-%E4%B8%BB%E7%A8%8B%E5%BA%8F%E6%98%BE%E7%A4%BA-num-%E4%B8%8E-cnt">6.5 主程序显示 Num 与 CNT</a>
         <a class="level-3" href="#6-6-%E7%8E%B0%E8%B1%A12-%E6%8C%A1%E5%85%89%E4%B8%80%E6%AC%A1-cnt-1-%E5%88%B0-9-%E6%B8%85%E9%9B%B6%E5%B9%B6-num">6.6 现象②：挡光一次 CNT+1，到 9 清零并 Num++</a>
-        <a class="level-2" href="#7-%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">7. 坑与易错点</a>
+        <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>
   </aside>
 </div>

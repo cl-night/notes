@@ -177,165 +177,152 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>33 分钟</span>
+      <span>17 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">ADC</span><span class="tag">模数转换</span>
     </div>
     <article class="prose"><h1>[7-1] ADC模数转换器 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 7（ADC）的理论课</strong>——00:12–03:22 只演示<strong>两个已经写好的成品工程</strong>的现象（<code>7-1 AD单通道</code>、<code>7-2 AD多通道</code>），03:24「接下来我们就来看一下 PPT」之后到 48:46 <strong>全是 PPT + 参考手册翻页，没有一行代码</strong>；片尾 48:42「我们下一小节来开始写代码」——<strong>代码在 P22 [7-2]</strong>。本集<strong>不写任何配置步骤与库函数</strong>（相关内容统一注明「在 P22」）。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>ADC（<strong>Analog-Digital Converter，模数转换器</strong>）就是<strong>把引脚上连续变化的模拟电压，转换成内存里存储的数字变量</strong>——它是<strong>模拟电路到数字电路的桥梁</strong>：STM32 主要是数字电路，<strong>GPIO 只能读高/低两个电平</strong>，想知道引脚上到底「几 V」，就必须借助 ADC；转换一次得到一个数字量，<strong>读进变量后就能显示、判断、记录</strong>，所以 <strong>ADC 本质上就是一个「电压表」</strong>。本集要记的核心参数：<strong>12 位逐次逼近型、1us 转换时间（对应转换频率 1MHz）、输入 0～3.3V 对应结果 0～4095（线性）</strong>；<strong>18 个输入通道 = 16 个外部（GPIO 直接测）+ 2 个内部（温度传感器、内部参考电压 VREFINT≈1.2V）</strong>；两个转换单元——<strong>规则组最多 16 通道、注入组最多 4 通道</strong>，规则组只有 <strong>1 个</strong>数据寄存器（多通道会覆盖，所以要配 DMA 或及时读走）、注入组有 <strong>4 个</strong>；还有<strong>模拟看门狗</strong>自动监测电压范围（超阈值直接申请中断，省掉「不断读值再 if 判断」）。原理部分用外挂芯片 <strong>ADC0809</strong> 讲清<strong>逐次逼近</strong>：输入经<strong>多路开关</strong>选一路 → <strong>比较器</strong>把待测电压和 <strong>DAC</strong> 输出比较 → <strong>SAR</strong> 从<strong>最高位</strong>开始试（8 位先试 128，比大了就减半试 64、32……这些数正好是<strong>二进制各位权</strong>），<strong>12 位就判断 12 次</strong>，最终得到的 DAC 输入数据就是待测电压的编码。在本芯片（C8T6）上还要注意三点：<strong>只有 ADC1、ADC2 两个 ADC</strong>，<strong>外部通道只有 10 个（ADC12_IN0～IN9 = PA0～PB1）</strong>，<strong>ADCCLK 由 ADC 预分频器分频、最大 14MHz</strong>（72MHz 主频下 2/4 分频都超限，只能 <strong>6 分频 12MHz 或 8 分频 9MHz</strong>）。规则组有<strong>单次/连续 × 非扫描/扫描 4 种转换模式</strong>，转换时间 <strong>TCONV = 采样时间 + 12.5 个 ADC 周期</strong>。<strong>代码在下一集 P22 [7-2]。</strong></p>
-<h2 id="0-本集定位-理论课-代码在-7-2-p22">0. 本集定位：理论课，代码在 [7-2] P22</h2>
+<p>ADC 把引脚上连续的模拟电压转成数字量，本质是个电压表：12 位逐次逼近、1us（1MHz）、0～3.3V 对应 0～4095、18 通道（16 外部 + 2 内部）；规则组最多 16 通道却只有 1 个数据寄存器。代码在 P22。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯理论课</strong>：片头 3 分钟只演示两个成品工程的现象，03:24 起回 PPT；全程没有打开 Keil 写代码、没有编译下载。</li>
-<li><strong>片头两个成品工程</strong>：① <code>7-1 AD单通道</code>——<strong>电位器</strong>产生 0～3.3V 可调电压接 <strong>PA0</strong>，OLED 第一行显示 <strong>AD 原始值</strong>、第二行显示<strong>换算后的电压</strong>；② <code>7-2 AD多通道</code>——再装<strong>光敏电阻、热敏电阻、反射红外模块</strong>，AO 分别接 <strong>PA1、PA2、PA3</strong>，加上电位器共 4 路，屏幕显示 <code>AD0</code>～<code>AD3</code>。</li>
-<li><strong>片尾明确预告代码在下一集</strong>：48:42「我们下一小节来开始写代码」——<strong>代码在 P22 [7-2]</strong>（这两个工程正是下一集要写的）。</li>
-<li><strong>本集不写配置代码</strong>：本集<strong>没有出现任何初始化结构体、库函数、寄存器写入演示</strong>，只翻了手册的寄存器章节做导读；所以本笔记<strong>不写配置步骤和库函数名</strong>，一律注明「在 P22」。视频里唯一顺口提到的「开关控制（给 ADC 上电）」也只作原理，不写函数。</li>
+<li>模块 7（ADC）的<strong>理论课</strong>：00:12–03:22 只演示两个成品工程，03:24 起全是 PPT + 参考手册翻页，48:46 前没有一行代码。</li>
+<li>片头两个工程：<code>7-1 AD单通道</code>（电位器 → PA0）、<code>7-2 AD多通道</code>（再加光敏、热敏、反射红外 → PA1、PA2、PA3）。</li>
+<li>片尾 48:42「我们下一小节来开始写代码」——配置与库函数全在 P22 [7-2]。</li>
+<li>本集不出现初始化结构体、库函数、寄存器写入演示，只做寄存器章节导读；涉及写法一律注明「在 P22」。</li>
 </ul>
 <h2 id="1-片头现象-ad-单通道与-ad-多通道">1. 片头现象：AD 单通道与 AD 多通道</h2>
 <h3 id="1-1-ad-单通道-电位器-pa0">1.1 AD 单通道：电位器 → PA0</h3>
 <ul>
-<li>面包板上接了一个<strong>电位器（滑动变阻器）</strong>，用它产生一个 <strong>0～3.3V 连续变化的模拟电压信号</strong>，接到 STM32 的 <strong>PA0</strong> 口上；</li>
-<li>用 STM32 内部的 ADC 读取电压数据，显示在屏幕上：<strong>第一行是 AD 转换后的原始数据</strong>，<strong>第二行是经过处理后的实际电压值</strong>；</li>
-<li>拧电位器：<strong>往左拧，AD 值减小、电压值也减小</strong>——<strong>AD 值最小是 0，对应电压 0V</strong>；<strong>往右拧，AD 值变大、电压值也变大</strong>；</li>
-<li><strong>STM32 的 ADC 是 12 位的</strong>，所以 <strong>AD 结果最大值是 4095（2^12-1）</strong>，对应的电压是 <strong>3.3V</strong>。</li>
+<li>电位器产生 0～3.3V 连续可调的模拟电压，接到 PA0；OLED 第一行显示 AD 原始值 <code>ADValue:00000</code>，第二行显示换算后的电压 <code>Voltage:0.00V</code>。</li>
+<li>往左拧：AD 值减小、电压减小，最小 0 对应 0V；往右拧：两者一起变大。</li>
+<li>STM32 的 ADC 是 12 位，结果最大 <code>4095</code>（2^12-1），对应 3.3V。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/01-ad-single-channel.jpg" alt="图 1：AD 单通道现象——工程标题栏 7-1 AD单通道，面包板上是电位器与 STM32 最小系统板，OLED 显示 ADValue:00000 与 Voltage:0.00V；字幕「AD值最小是0，对应的电压就是0V」"></p>
-<p><em>图 1：AD 单通道现象——工程标题栏 <code>7-1 AD单通道</code>，面包板上是电位器与 STM32 最小系统板，OLED 显示 <code>ADValue:00000</code> 与 <code>Voltage:0.00V</code>；字幕「AD值最小是0，对应的电压就是0V」</em></p>
+<p><img src="../assets/images/stm32-21/01-ad-single-channel.jpg" alt="图 1：AD 单通道现象"></p>
+<p><em>图 1：AD 单通道——电位器接 PA0，OLED 显示 <code>ADValue:00000</code> 与 <code>Voltage:0.00V</code></em></p>
 <h3 id="1-2-ad-多通道-4-路传感器">1.2 AD 多通道：4 路传感器</h3>
 <ul>
-<li>第二个工程又接了 <strong>3 个传感器模块</strong>：<strong>光敏电阻、热敏电阻、反射红外模块</strong>，把它们的 <strong>AO（模拟电压输出端）分别接在 PA1、PA2、PA3</strong> 引脚；<strong>加上刚才的电位器，总共 4 个模拟通道</strong>，测出的 4 个 AD 数据分别显示在屏幕上（<code>AD0</code>～<code>AD3</code>）；</li>
-<li>演示现象：<strong>电位器</strong>看第一行 <code>AD0</code>，往左拧减小、往右拧增大（和单通道一样）；</li>
-<li><strong>光敏电阻</strong>看 <code>AD1</code>：<strong>遮挡光敏电阻 → 光线减小 → AD 值增大</strong>；移开 → 光线增大 → AD 值减小；</li>
-<li><strong>热敏电阻</strong>看 <code>AD2</code>：<strong>用手热一下 → 温度升高 → AD 值减小</strong>；移开 → 温度降低 → AD 值增大；</li>
-<li><strong>反射红外</strong>看 <code>AD3</code>：<strong>手靠近 → 有反光 → AD 值减小</strong>；移开 → 没有反光 → AD 值增大。</li>
+<li>光敏电阻、热敏电阻、反射红外模块的 AO 分别接 PA1、PA2、PA3，加上电位器共 4 路，屏幕显示 <code>AD0</code>～<code>AD3</code>。</li>
+<li>电位器看 <code>AD0</code>：左拧减小、右拧增大，与单通道一致。</li>
+<li>光敏电阻看 <code>AD1</code>：遮挡 → 光线减弱 → AD 增大；移开 → 光线增强 → AD 减小。</li>
+<li>热敏电阻看 <code>AD2</code>：手焐一下 → 温度升高 → AD 减小；移开 → 温度降低 → AD 增大。</li>
+<li>反射红外看 <code>AD3</code>：手靠近 → 有反光 → AD 减小；移开 → 无反光 → AD 增大。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/02-ad-multi-channel.jpg" alt="图 2：AD 多通道现象——工程 7-2 AD多通道，OLED 显示 AD0:4095、AD1:1487、AD2:1968、AD3:0993（4 路传感器同时显示）；字幕「把它们的AO、模拟电压输出端，分别接在了A1、A2、A3引脚」"></p>
-<p><em>图 2：AD 多通道现象——工程 <code>7-2 AD多通道</code>，OLED 显示 <code>AD0:4095</code>、<code>AD1:1487</code>、<code>AD2:1968</code>、<code>AD3:0993</code>（4 路传感器同时显示）；字幕「把它们的AO、模拟电压输出端，分别接在了A1、A2、A3引脚」</em></p>
+<p><img src="../assets/images/stm32-21/02-ad-multi-channel.jpg" alt="图 2：AD 多通道现象"></p>
+<p><em>图 2：AD 多通道——OLED 同时显示 <code>AD0:4095</code>、<code>AD1:1487</code>、<code>AD2:1968</code>、<code>AD3:0993</code></em></p>
 <h3 id="1-3-adc-的意义-gpio-只能读高低电平">1.3 ADC 的意义：GPIO 只能读高低电平</h3>
 <ul>
-<li>对于 <strong>GPIO</strong>，它<strong>只能读取引脚的高低电平</strong>——要么是高电平、要么是低电平，<strong>只有两个值</strong>；</li>
-<li>而使用了 <strong>ADC</strong> 之后，就可以<strong>对这个高电平和低电平之间的任意电压进行量化</strong>，最终<strong>用一个变量来表示</strong>；读取这个变量，就能知道引脚的具体电压到底是多少；</li>
-<li>所以 <strong>ADC 其实就是一个电压表</strong>：把引脚的电压值测出来、放在一个变量里——<strong>这就是 ADC 的作用</strong>。</li>
+<li>GPIO 只有高、低两个值；用了 ADC 就能对两者之间的任意电压量化，用一个变量表示。</li>
+<li>读这个变量即知引脚实际电压，所以说 ADC 就是一个电压表。</li>
 </ul>
 <h2 id="2-adc-简介">2. ADC 简介</h2>
 <h3 id="2-1-定义与桥梁作用">2.1 定义与桥梁作用</h3>
 <ul>
-<li><strong>ADC（Analog-Digital Converter）模拟-数字转换器</strong>，简称<strong>模数转换器</strong>，或者叫 <strong>AD 转换器</strong>；</li>
-<li><strong>「ADC 可以将引脚上连续变化的模拟电压转换为内存中存储的数字变量，建立模拟电路到数字电路的桥梁。」</strong></li>
-<li>为什么需要它：<strong>STM32 主要是数字电路，数字电路只有高低电平、没有「几 V 电压」的概念</strong>，所以如果想读取电压值，就需要借助 ADC；<strong>ADC 读取引脚上的模拟电压、转换为一个数据存在寄存器里</strong>，我们再把数据读到变量里，就可以进行<strong>显示、判断、记录</strong>等操作。</li>
+<li><strong>ADC（Analog-Digital Converter）模拟-数字转换器</strong>，简称模数转换器，也叫 AD 转换器。</li>
+<li>「ADC 可以将引脚上连续变化的模拟电压转换为内存中存储的数字变量，建立模拟电路到数字电路的桥梁。」</li>
+<li>原因：STM32 主要是数字电路，没有「几 V」的概念；ADC 测出电压存进寄存器，读到变量里就能显示、判断、记录。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/03-adc-intro-slide.jpg" alt="图 3：PPT「ADC简介」——ADC（Analog-Digital Converter）模拟-数字转换器；可将引脚上连续变化的模拟电压转换为内存中存储的数字变量，建立模拟电路到数字电路的桥梁；12 位逐次逼近型 ADC、1us 转换时间；输入电压范围 0～3.3V、转换结果范围 0～4095；18 个输入通道（16 外部 + 2 内部）；规则组和注入组两个转换单元；模拟看门狗自动监测输入电压范围；STM32F103C8T6 ADC 资源：ADC1、ADC2，10 个外部输入通道；字幕「ADC，它的英文全称是Analog to Digital Converter」"></p>
-<p><em>图 3：PPT「ADC简介」——ADC（Analog-Digital Converter）模拟-数字转换器；可将引脚上连续变化的模拟电压转换为内存中存储的数字变量，建立模拟电路到数字电路的桥梁；12 位逐次逼近型 ADC、1us 转换时间；输入电压范围 0～3.3V、转换结果范围 0～4095；18 个输入通道（16 外部 + 2 内部）；规则组和注入组两个转换单元；模拟看门狗自动监测输入电压范围；STM32F103C8T6 ADC 资源：ADC1、ADC2，10 个外部输入通道；字幕「ADC，它的英文全称是Analog to Digital Converter」</em></p>
-<h3 id="2-2-与-dac-pwm-的对比-顺带了解">2.2 与 DAC / PWM 的对比（顺带了解）</h3>
+<p><img src="../assets/images/stm32-21/03-adc-intro-slide.jpg" alt="图 3：PPT「ADC简介」"></p>
+<p><em>图 3：PPT「ADC简介」——12 位逐次逼近型、1us、0～3.3V↔0～4095、18 通道、规则组/注入组、模拟看门狗；C8T6 只有 ADC1、ADC2 与 10 个外部通道</em></p>
+<h3 id="2-2-与-dac-pwm-的对比">2.2 与 DAC / PWM 的对比</h3>
 <ul>
-<li>有「模拟到数字」的桥梁，就有「数字到模拟」的桥梁——那就是 <strong>DAC（数字模拟转换器）</strong>，用 DAC 可以把<strong>数字变量</strong>转化为<strong>模拟电压</strong>；</li>
-<li>但在上一节（P16 PWM）我们已经学过一个数字到模拟的桥梁：<strong>用 PWM 控制 LED 亮度、电机速度</strong>——在这两种状态（全开/全关）上<strong>都没有功率损耗</strong>，所以在<strong>直流电机调速这种大功率应用场景，用 PWM 等效模拟量比 DAC 更好</strong>，而且 <strong>PWM 电路更简单、更常用</strong>；</li>
-<li>所以 <strong>PWM 挤占了 DAC 的很多应用空间</strong>，目前 <strong>DAC 主要用于波形生成领域</strong>（信号发生器、音频解码芯片等），这些领域 PWM 不好替代。</li>
+<li>DAC 是反方向的桥梁：把数字变量转成模拟电压。</li>
+<li>PWM 用占空比等效模拟量，全开/全关都没有功率损耗，<strong>大功率调速场合比 DAC 更好</strong>，电路也更简单常用。</li>
+<li>所以 PWM 挤占了 DAC 的应用空间，DAC 现在主要做波形生成（信号发生器、音频解码芯片）。</li>
 </ul>
 <h3 id="2-3-关键参数逐条看">2.3 关键参数逐条看</h3>
 <ul>
-<li><strong>12 位、逐次逼近型、1us 转换时间</strong>：<ul>
-<li><strong>12 位</strong>表示量化结果的范围是 <strong>0～4095</strong>（2^12-1）——<strong>位数越高，量化结果越精细，对应分辨率就越高</strong>；</li>
-<li><strong>转换时间</strong>：从开始到产生结果需要 <strong>1us</strong>，对应 <strong>AD 转换频率 1MHz</strong>——这是 <strong>STM32 ADC 的最快转换频率</strong>。要转换频率非常高的信号就要考虑够不够用；信号频率比较低时 1MHz 完全够用。</li>
-</ul>
-</li>
-<li><strong>输入电压范围 0～3.3V，转换结果 0～4095</strong>：ADC 的输入电压一般要求<strong>在芯片供电的负极和正极之间</strong>变化——最低 0V（负极）、最高 3.3V（正极）；转换后<strong>最小值 0、最大值 4095</strong>，<strong>0V 对应 0、3.3V 对应 4095，中间是一一对应的线性关系</strong>——换算就是乘除一个系数。</li>
-<li><strong>18 个输入通道 = 16 个外部 + 2 个内部信号源</strong>：<ul>
-<li><strong>外部信号源就是 16 个 GPIO</strong>，引脚上直接接模拟信号就行，<strong>不需要任何额外的电路</strong>，引脚直接能测电压（很方便）；</li>
-<li><strong>2 个内部信号源</strong>：<strong>内部温度传感器</strong>（可以测量 CPU 的温度，比如电脑显示 CPU 温度就是这个思路）和<strong>内部参考电压 VREFINT</strong>（一个 <strong>1.2V 左右的基准电压</strong>，<strong>不随外部供电电压变化</strong>——所以如果芯片供电不是标准 3.3V、测外部引脚电压可能不准，就可以用这个基准来校正）。</li>
-</ul>
-</li>
-<li><strong>规则组和注入组两个转换单元</strong>（STM32 ADC 的增强功能）：普通 AD 转换是「启动一次转换、读一次值，再启动、再读值」；STM32 的 ADC 可以<strong>列一个组、一次性启动一个组、连续转换多个值</strong>——<strong>规则组用于常规使用、注入组用于突发事件</strong>（下一章框图细讲）。</li>
-<li><strong>模拟看门狗自动监测输入电压范围</strong>：ADC 常用来测光线强度、温度这些量，常要判断「高于某阈值/低于某阈值就执行操作」；<strong>模拟看门狗可以监测指定的某些通道，当 AD 值高于设定的上阈值或低于下阈值时申请中断</strong>，你就能在中断里执行操作——<strong>不用不断手动读值再用 if 判断</strong>（可以了解一下）。</li>
-<li><strong>C8T6 的资源</strong>：<strong>ADC1、ADC2 两个 ADC 外设</strong>；前面说的 16 个外部信号源是这个系列最多的数量，<strong>本芯片引脚少，很多引脚没引出来，所以只有 10 个外部信号源</strong>——想要更多通道就选引脚更多的型号，具体看数据手册。</li>
+<li><strong>12 位、逐次逼近、1us</strong>：量化范围 0～4095，位数越高分辨率越高；转换时间 1us 对应转换频率 1MHz，是 STM32 ADC 的最快速度，信号频率低时完全够用。</li>
+<li><strong>输入 0～3.3V ↔ 结果 0～4095</strong>：输入只能在芯片供电负极到正极之间，0V→0、3.3V→4095，中间线性对应，换算只是乘除一个系数。</li>
+<li><strong>18 通道 = 16 外部 + 2 内部</strong>：外部就是 16 个 GPIO，直接接信号、不需额外电路；内部是<strong>温度传感器</strong>（测 CPU 温度）和<strong>内部参考电压 VREFINT</strong>（约 1.2V，不随外部供电变化，可用来校正）。</li>
+<li><strong>规则组 / 注入组</strong>：不必「启动一次读一次」，可以列一组、一次启动、连续转换多个值——规则组日常用，注入组应对突发事件。</li>
+<li><strong>模拟看门狗</strong>：监测指定通道，AD 值高于上阈值或低于下阈值就申请中断，省掉主循环里不断读值 + <code>if</code> 判断。</li>
+<li><strong>C8T6 资源</strong>：只有 ADC1、ADC2 两个 ADC；16 个外部通道是系列上限，本芯片引脚少，只有 10 个，要更多就选引脚更多的型号。</li>
 </ul>
 <h2 id="3-逐次逼近型-adc-的原理-adc0809">3. 逐次逼近型 ADC 的原理（ADC0809）</h2>
-<p>STM32 的手册里<strong>只画了一个框表示 ADC、没有描述内部结构</strong>，所以先看一个独立的、结构完整的芯片 <strong>ADC0809</strong>（经典 <strong>8 位逐次逼近型 ADC</strong>）来理解原理——<strong>STM32 的 ADC 原理和它一样</strong>。</p>
+<p>STM32 手册只画一个框表示 ADC，不讲内部结构，所以借结构完整的 <strong>ADC0809</strong>（经典 8 位逐次逼近型）讲原理——STM32 的 ADC 原理与它一致。</p>
 <h3 id="3-1-结构-多路开关-比较器-dac-sar">3.1 结构：多路开关 + 比较器 + DAC + SAR</h3>
 <ul>
-<li>以前单片机性能不强，需要<strong>外挂一个 ADC 芯片</strong>才能做 AD 转换（ADC0809 就是一款比较经典的芯片）；现在很多单片机内部已经集成了 ADC 外设，不用外挂、引脚直接测电压。</li>
-<li>左边 <strong>IN0～IN7 是 8 路输入通道</strong>，通过<strong>通道选择开关</strong>选中一路、输入到后面进行转换；</li>
-<li>下面<strong>地址锁存和译码</strong>：想选中哪个通道，就把<strong>通道号放在 ADDA/ADDB/ADDC 三个脚上</strong>，再用 <strong>ALE</strong> 锁存——这部分<strong>相当于一个可以通过模拟信号的数据选择器</strong>；因为 ADC 转换是一个很快的过程（给个开始信号、过几个 us 就完成），所以<strong>只需要一个 AD 转换器 + 一个多路选择开关</strong>就够了。</li>
-<li><strong>ADC0809 只有 8 个输入通道，STM32 内部 ADC 有 18 个输入通道</strong>——对应过来就是<strong>一个 18 路输入的多路开关</strong>。</li>
+<li>早年单片机性能弱，要外挂 ADC 芯片；现在多数单片机已内置，引脚直接测电压。</li>
+<li>左侧 IN0～IN7 是 8 路输入，经<strong>通道选择开关</strong>选一路送入转换电路。</li>
+<li><strong>地址锁存和译码</strong>：通道号放 ADDA/ADDB/ADDC，再用 <strong>ALE</strong> 锁存，相当于一个可通过模拟信号的数据选择器；转换只要几个 us，所以一个 AD 转换器 + 一个多路开关就够。</li>
+<li>ADC0809 只有 8 通道，STM32 内部是 18 通道，对应过来就是一个 18 路输入的多路开关。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/04-adc0809-structure.jpg" alt="图 4：PPT「逐次逼近型ADC」——ADC0809 内部结构：左侧 IN0～IN7 八路输入 → 通道选择开关；下方 ADDA/ADDB/ADDC + ALE 地址锁存和译码；中间电压比较器、逐次逼近寄存器 SAR、DAC；右侧 8 位三态锁存缓冲器输出 D0～D7、OE；上方 CLOCK/START，右侧 EOC；下方 Vcc/GND/VREF+/VREF-，红圈标出 ADC0809；字幕「在以前的时候，单片机的性能还不是很强」"></p>
-<p><em>图 4：PPT「逐次逼近型ADC」——ADC0809 内部结构：左侧 IN0～IN7 八路输入 → 通道选择开关；下方 ADDA/ADDB/ADDC + ALE 地址锁存和译码；中间电压比较器、逐次逼近寄存器 SAR、DAC；右侧 8 位三态锁存缓冲器输出 D0～D7、OE；上方 CLOCK/START，右侧 EOC；下方 Vcc/GND/VREF+/VREF-，红圈标出 ADC0809；字幕「在以前的时候，单片机的性能还不是很强」</em></p>
+<p><img src="../assets/images/stm32-21/04-adc0809-structure.jpg" alt="图 4：ADC0809 内部结构"></p>
+<p><em>图 4：ADC0809 结构——IN0～IN7 → 通道选择开关；ADDA/ADDB/ADDC + ALE 译码；比较器、SAR、DAC；8 位三态锁存缓冲器 D0～D7；CLOCK/START、EOC、VREF+/VREF-</em></p>
 <h3 id="3-2-逐次逼近的过程-从最高位开始试">3.2 逐次逼近的过程：从最高位开始试</h3>
 <ul>
-<li>输入信号选好之后，怎么知道这个电压对应的编码数据是多少？<strong>用逐次逼近的方法一一比较</strong>：<strong>电压比较器</strong>可以判断两个输入信号电压的大小关系（输出高低电平指示谁大谁小），它的两个输入端——一个是<strong>待测电压</strong>，另一个是 <strong>DAC 的电压输出端</strong>；</li>
-<li><strong>DAC 是数模转换器</strong>：给它一个数据，它就输出该数据对应的电压（内部用<strong>加权电阻网络</strong>实现，这里不细说）；</li>
-<li>于是我们有了一个<strong>外部通道输入的、未知编码的电压</strong>，和一个 <strong>DAC 输出的、已知编码的电压</strong>，两者同时进比较器判断大小：<strong>如果 DAC 输出电压比较小，就增大 DAC 数据</strong>；<strong>直到 DAC 输出的电压和外部通道输入的电压近似相等</strong>——<strong>这时 DAC 输入的数据就是外部电压的编码数据</strong>；</li>
-<li><strong>这个电压调节过程由逐次逼近寄存器 SAR 完成</strong>：比如 8 位 ADC 编码是 0～255，<strong>第一次比较给 DAC 输入 255 的一半，即 128</strong>，看谁大谁小；如果 DAC 电压大了就减半试 64，再大就试 32……<strong>依次进行下去，就能最快地找到未知电压的编码</strong>；</li>
-<li>用二进制看：<strong>128、64、32 这些数据正好是二进制每一位的位权</strong>——这个判断过程就相当于<strong>对二进制从高位到低位依次判断是 1 还是 0</strong>，这就是「<strong>逐次逼近型</strong>」名字的来源；<strong>12 位 ADC 就需要依次判断 12 次</strong>。</li>
+<li><strong>电压比较器</strong>判断两个输入谁大（输出高低电平），一端是待测电压，另一端是 <strong>DAC 输出</strong>。</li>
+<li><strong>DAC 是数模转换器</strong>：给一个数据就输出对应电压（内部是加权电阻网络）。</li>
+<li>于是「未知编码的待测电压」和「已知编码的 DAC 电压」进比较器：DAC 输出偏小就增大数据，直到两者近似相等，<strong>此时 DAC 的输入数据就是待测电压的编码</strong>。</li>
+<li>调节由<strong>逐次逼近寄存器 SAR</strong> 完成：8 位编码 0～255，<strong>第一次试一半即 128</strong>，DAC 大了就减半试 64，再大试 32……最快逼近未知电压。</li>
+<li>128、64、32 正是二进制各位的位权，过程等于<strong>从高位到低位逐位判断 1 还是 0</strong>，这就是「逐次逼近」；<strong>12 位 ADC 判断 12 次</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/05-adc0809-sar-compare.jpg" alt="图 5：同一张 ADC0809 结构图上，红圈标出「比较器」和「DAC」及二者之间的连线；字幕「直到DAC输出的电压和外部通道输入的电压近似相等」"></p>
-<p><em>图 5：同一张 ADC0809 结构图上，红圈标出「比较器」和「DAC」及二者之间的连线；字幕「直到DAC输出的电压和外部通道输入的电压近似相等」</em></p>
+<p><img src="../assets/images/stm32-21/05-adc0809-sar-compare.jpg" alt="图 5：比较器与 DAC 的红圈标注"></p>
+<p><em>图 5：同一张结构图上红圈标出比较器与 DAC，字幕「直到DAC输出的电压和外部通道输入的电压近似相等」</em></p>
 <h3 id="3-3-外围信号-eoc-start-clock-vref">3.3 外围信号：EOC / START / CLOCK / VREF</h3>
 <ul>
-<li><strong>输出</strong>：通过右侧输出，<strong>8 位就有 8 根线、12 位就有 12 根线</strong>（三态锁存缓冲器 + OE 控制）；</li>
-<li><strong>EOC</strong> = End Of Convert，<strong>转换结束信号</strong>；<strong>START</strong> 是开始转换，给一个输入脉冲就开始；<strong>CLOCK</strong> 是 ADC 时钟——因为 ADC 内部是一步一步进行判断的，<strong>需要时钟来推动这个过程</strong>；</li>
-<li><strong>VREF+ 和 VREF-</strong> 是 <strong>DAC 的参考电压</strong>：比如给一个数据 255，对应 5V 还是 3.3V 就由参考电压决定——<strong>这个参考电压也决定了 ADC 的输入范围，所以它也是 ADC 的参考电压</strong>；</li>
-<li>最后左侧的<strong>VCC 和 GND 是整个芯片电路的供电</strong>；<strong>通常参考电压的正极和 VCC 是一样的、接在一起，参考电压的负极和 GND 也一样接在一起</strong>。</li>
+<li><strong>输出</strong>：8 位就 8 根线、12 位就 12 根线，配三态锁存缓冲器与 OE 控制。</li>
+<li><strong>EOC</strong>（End Of Convert）是转换结束信号；<strong>START</strong> 给一个脉冲即开始；<strong>CLOCK</strong> 是 ADC 时钟，逐次判断要靠它推动。</li>
+<li><strong>VREF+/VREF-</strong> 是 DAC 的参考电压，同一数据对应 5V 还是 3.3V 由它决定，它也就决定了 ADC 的输入范围。</li>
+<li><strong>VCC/GND</strong> 是整芯片供电；通常 VREF+ 与 VCC、VREF- 与 GND 接在一起。</li>
 </ul>
 <h2 id="4-stm32-的-adc-框图">4. STM32 的 ADC 框图</h2>
-<p>手册里每个外设最前面都有一个整体结构图，<strong>这个结构图非常重要，需要多花点时间看</strong>。</p>
-<p><img src="../assets/images/stm32-21/06-stm32-adc-block-diagram.jpg" alt="图 6：PPT「ADC框图」——手册「图24 单个ADC框图」全貌：左侧 ADCx_IN0～IN15 与 GPIO 端口、温度传感器、VREFINT 进模拟多路开关；右侧模数转换器（规则通道/注入通道）→ 规则/注入数据寄存器；另有触发控制 EXTSEL/JEXTSEL、来自 ADC 预分频器的 ADCCLK、DMA 请求、模拟看门狗（阈值高限/低限）、EOC/JEOC 到 NVIC、开关控制；字幕「这个结构图还是非常重要的，需要多花点时间看看」"></p>
-<p><em>图 6：PPT「ADC框图」——手册「图24 单个ADC框图」全貌：左侧 ADCx_IN0～IN15 与 GPIO 端口、温度传感器、VREFINT 进模拟多路开关；右侧模数转换器（规则通道/注入通道）→ 规则/注入数据寄存器；另有触发控制 EXTSEL/JEXTSEL、来自 ADC 预分频器的 ADCCLK、DMA 请求、模拟看门狗（阈值高限/低限）、EOC/JEOC 到 NVIC、开关控制；字幕「这个结构图还是非常重要的，需要多花点时间看看」</em></p>
+<p>手册每个外设最前面都有整体结构图，<strong>这张图非常重要，要多花时间看</strong>。</p>
+<p><img src="../assets/images/stm32-21/06-stm32-adc-block-diagram.jpg" alt="图 6：手册「图24 单个ADC框图」"></p>
+<p><em>图 6：ADC 框图全貌——IN0～IN15 + 温度传感器 + VREFINT → 模拟多路开关 → 模数转换器（规则/注入）→ 数据寄存器；EXTSEL/JEXTSEL 触发、ADCCLK、DMA 请求、模拟看门狗、EOC/JEOC 到 NVIC、开关控制</em></p>
 <h3 id="4-1-输入与转换部分">4.1 输入与转换部分</h3>
 <ul>
-<li>左侧是<strong>输入通道</strong>：<strong>ADCx_IN0～IN15</strong>（16 个外部通道，经 GPIO 端口进来）加两个内部通道——<strong>内部温度传感器</strong>和 <strong>VREFINT（内部参考电压）</strong>；它们都进<strong>模拟多路开关</strong>，选择一路送到<strong>模数转换器</strong>；</li>
-<li><strong>模数转换器</strong>执行的就是前面讲过的<strong>逐次比较</strong>过程；转换结果<strong>放在数据寄存器里</strong>，读寄存器就能知道结果；</li>
-<li>STM32 更高级的地方：它可以<strong>同时选中多个通道</strong>——<strong>规则组可以一次性最多选中 16 个通道</strong>、<strong>注入组最多可以选中 4 个通道</strong>（像去餐厅点菜：普通 ADC 是指定一个菜、老板做好送给你；这里是递一个菜单，<strong>菜单最多填 16 个菜</strong>，效率大大提高；菜单只写一个菜时就退化成普通模式）。</li>
+<li><strong>ADCx_IN0～IN15</strong> 共 16 个外部通道，加<strong>内部温度传感器</strong>和 <strong>VREFINT</strong> 两个内部通道，都进<strong>模拟多路开关</strong>，选一路送<strong>模数转换器</strong>。</li>
+<li>模数转换器做的正是前面的逐次比较，结果存入数据寄存器。</li>
 </ul>
 <h3 id="4-2-规则组与注入组的数据寄存器">4.2 规则组与注入组的数据寄存器</h3>
 <ul>
-<li><strong>规则组</strong>可以同时转换 16 个通道，但<strong>只有一个数据寄存器</strong>——「桌子比较小、最多只能放一个菜」：<strong>如果上 16 个菜，前 15 个都会被挤掉，你只能得到第 16 个菜</strong>；</li>
-<li>解决：用 <strong>DMA 数据转运</strong>——「DMA 是一个数据转运小帮手，它可以在每上一个菜之后把这个菜挪到其他地方去，防止被覆盖」（DMA 下一节讲，这里先了解一下）。所以<strong>规则组要配 DMA 转运，才不用担心数据覆盖</strong>；</li>
-<li><strong>注入组</strong>比较高级（相当于餐厅的 VIP 座位）：<strong>一次最多点 4 个菜</strong>，而且<strong>数据寄存器有 4 个</strong>，可以同时放下，<strong>不用担心数据覆盖</strong>；</li>
-<li><strong>一般情况下用规则组就够了</strong>，要用规则组的菜单就配合 DMA 转运数据；<strong>注入组涉及的不多</strong>，老师后面只讲规则组的操作。</li>
+<li><strong>规则组</strong>可一次选中最多 16 个通道，却<strong>只有 1 个数据寄存器</strong>：连上 16 个菜，前 15 个都被挤掉，只剩最后一个。</li>
+<li>解决靠 <strong>DMA 数据转运</strong>：每转换完一个就挪走一个，避免覆盖（DMA 下一节讲）。</li>
+<li><strong>注入组</strong>最多 4 个通道、<strong>有 4 个数据寄存器</strong>，不用担心覆盖；一般用规则组 + DMA 就够，注入组涉及不多。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/07-reg-injected-zoom.jpg" alt="图 7：框图局部放大 + 红圈——「注入通道数据寄存器（4×16 位）」「规则通道数据寄存器（16 位）」、「最多 4 通道」标注在注入通道、「最多 16 通道」标注在规则通道，还有 JEXTSEL 和 EXTSEL 的 2:0 位 触发控制、DMA 请求、来自 ADC 预分频器的 ADCCLK；字幕「这就是规则组和注入组的介绍」"></p>
-<p><em>图 7：框图局部放大 + 红圈——「注入通道数据寄存器（4×16 位）」「规则通道数据寄存器（16 位）」、「最多 4 通道」标注在注入通道、「最多 16 通道」标注在规则通道，还有 JEXTSEL 和 EXTSEL 的 2:0 位 触发控制、DMA 请求、来自 ADC 预分频器的 ADCCLK；字幕「这就是规则组和注入组的介绍」</em></p>
+<p><img src="../assets/images/stm32-21/07-reg-injected-zoom.jpg" alt="图 7：规则组与注入组寄存器放大"></p>
+<p><em>图 7：红圈标出「注入通道数据寄存器（4×16 位）」「规则通道数据寄存器（16 位）」与「最多 4 通道」「最多 16 通道」，另有 JEXTSEL/EXTSEL 2:0 位、DMA 请求</em></p>
 <h3 id="4-3-触发转换-软件触发与硬件触发">4.3 触发转换：软件触发与硬件触发</h3>
 <ul>
-<li>框图左下角是<strong>触发转换部分</strong>（就是 START 信号）：<strong>触发 ADC 开始转换的信号有两种</strong>——<strong>软件触发</strong>（软件控制位）和<strong>硬件触发</strong>（框图里那些触发源）；</li>
-<li><strong>触发源主要来自定时器</strong>，上面那些是<strong>注入组</strong>的触发源、下面那些是<strong>规则组</strong>的触发源（定时器可以通向 ADC、DAC 这些外设用于触发转换，前面讲定时器时介绍过）；</li>
-<li>为什么要用定时器触发：ADC 经常需要<strong>每隔一个固定时间段转换一次</strong>（比如每隔 1ms）。正常思路是用定时器每隔 1ms 申请一次中断、在中断里手动开始转换——<strong>但频繁进中断会影响主程序执行</strong>（不同中断优先级不同还可能导致某些中断不能及时响应，ADC 转换频率就受影响）；所以<strong>一般都有硬件支持</strong>：<strong>给 TIM3 定个 1ms 的时间，并把 TIM3 的更新事件选择为 TRGO 输出</strong>去触发 ADC，<strong>整个过程不需要进中断，节省了中断资源</strong>；</li>
-<li>另外也可以选择<strong>外部中断引脚</strong>来触发转换，都可以在程序里配置。</li>
+<li>框图左下角的触发部分就是 START 信号，分<strong>软件触发</strong>（控制位）和<strong>硬件触发</strong>（框图里的触发源）。</li>
+<li>触发源主要是定时器：上面一组给注入组，下面一组给规则组。</li>
+<li>为什么用定时器触发：若要每隔 1ms 转换一次，用定时中断手动启动会频繁打断主程序，还可能因优先级导致响应不及时；给 TIM3 定 1ms 并把更新事件选为 <strong>TRGO</strong> 输出触发 ADC，<strong>全程不进中断</strong>。</li>
+<li>也可以选外部中断引脚触发，都在程序里配置。</li>
 </ul>
 <h3 id="4-4-参考电压与供电">4.4 参考电压与供电</h3>
 <ul>
-<li>左下角还有 <strong>VREF+、VREF-、VDDA、VSSA</strong>：<strong>上面两个是 ADC 的参考电压，决定了 ADC 输入电压的范围</strong>；<strong>下面两个是 ADC 的供电引脚</strong>；</li>
-<li>一般情况下 <strong>VREF+ 要接 VDDA、VREF- 要接 VSSA</strong>；<strong>在我们这个芯片上，没有 VREF+/VREF- 引脚，内部已经和 VDDA/VSSA 接在一起了</strong>；</li>
-<li><strong>VDDA 和 VSSA 是内部模拟部分的电源</strong>（比如 ADC、RC 振荡器、锁相环等）；这里 <strong>VDDA 接 3.3V、VSSA 接 GND，所以 ADC 的输入电压范围就是 0～3.3V</strong>。</li>
+<li><strong>VREF+/VREF-</strong> 是参考电压，决定输入范围；<strong>VDDA/VSSA</strong> 是 ADC 供电引脚。</li>
+<li>一般 VREF+ 接 VDDA、VREF- 接 VSSA；本芯片没有这两个引脚，<strong>内部已与 VDDA/VSSA 相连</strong>。</li>
+<li>VDDA/VSSA 供的是内部模拟部分（ADC、RC 振荡器、锁相环等），本板 VDDA 接 3.3V、VSSA 接 GND，所以输入范围就是 0～3.3V。</li>
 </ul>
 <h3 id="4-5-adcclk-adc-时钟">4.5 ADCCLK：ADC 时钟</h3>
 <ul>
-<li>框图右侧的 <strong>ADCCLK</strong> 就是 ADC 的时钟（ADC0809 里的 CLOCK），<strong>用于驱动内部逐次比较</strong>；</li>
-<li><strong>ADCCLK 来自 ADC 预分频器</strong>，而<strong>这个 ADC 预分频器来源于 RCC</strong>：<strong>APB2 时钟 72MHz → ADC 预分频器 → ADCCLK</strong>；</li>
-<li><strong>ADCCLK 最大是 14MHz</strong>，所以这个预分频器有点尴尬：<strong>它可以选择 2、4、6、8 分频</strong>——<strong>如果选 2 分频，72M/2=36M，超出允许范围</strong>；<strong>4 分频是 18M，也超了</strong>；所以 <strong>对 ADC 预分频器只能选择 6 分频（结果 12M）和 8 分频（结果 9M）这两个值</strong>，程序里要注意。</li>
+<li><strong>ADCCLK</strong> 驱动内部逐次比较（相当于 ADC0809 的 CLOCK），<strong>来自 ADC 预分频器，源头是 RCC</strong>：APB2 72MHz → ADC 预分频器 → ADCCLK。</li>
+<li><strong>ADCCLK 最大 14MHz</strong>，可选 2、4、6、8 分频：<strong>2 分频 36M、4 分频 18M 都超限</strong>，实际只能选 <strong>6 分频（12M）或 8 分频（9M）</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/08-adcclk-clock-tree.jpg" alt="图 8：时钟树上的红圈——RCC 的「ADC 预分频器 /2、/4、/6、/8」→「ADCCLK 最大 14MHz」，上方是 APB2 预分频器与 72MHz 的 PCLK2；字幕「和8分频，结果是9M，这两个值」"></p>
-<p><em>图 8：时钟树上的红圈——RCC 的「ADC 预分频器 /2、/4、/6、/8」→「ADCCLK 最大 14MHz」，上方是 APB2 预分频器与 72MHz 的 PCLK2；字幕「和8分频，结果是9M，这两个值」</em></p>
+<p><img src="../assets/images/stm32-21/08-adcclk-clock-tree.jpg" alt="图 8：时钟树上的 ADC 预分频器"></p>
+<p><em>图 8：红圈「ADC 预分频器 /2、/4、/6、/8」→「ADCCLK 最大 14MHz」，上方是 APB2 预分频器与 72MHz 的 PCLK2</em></p>
 <h3 id="4-6-数据寄存器-看门狗-中断与开关">4.6 数据寄存器、看门狗、中断与开关</h3>
 <ul>
-<li>上方有<strong>两个数据寄存器</strong>用于存放转换结果；<strong>还有模拟看门狗</strong>：里面可以存一个<strong>阈值高限和一个阈值低限</strong>——如果启动了模拟看门狗并指定了看门的通道，<strong>一旦超过这个阈值范围，就会申请一个模拟看门狗的中断</strong>（通向 NVIC）；</li>
-<li>还有 <strong>EOC（规则组转换完成）</strong> 和 <strong>JEOC（注入组转换完成）</strong> 两个信号：<strong>会在状态寄存器里置标志位</strong>，<strong>这两个标志位也可以通向 NVIC 申请中断</strong>（开启 NVIC 对应通道就会触发中断）；</li>
-<li>右下角是<strong>开关控制</strong>：给 ADC 上电的开关（在库函数里对应的写法<strong>在 P22</strong>，本集不展开）。</li>
+<li>两个数据寄存器存结果；<strong>模拟看门狗</strong>可设阈值高限与低限，超范围就申请中断（通向 NVIC）。</li>
+<li><strong>EOC</strong>（规则组完成）与 <strong>JEOC</strong>（注入组完成）会在状态寄存器置标志，也能通向 NVIC 申请中断。</li>
+<li>右下角是<strong>开关控制</strong>（给 ADC 上电），库函数写法在 P22。</li>
 </ul>
-<h3 id="4-7-作者总结的-adc-基本结构图">4.7 作者总结的「ADC 基本结构图」</h3>
-<p>把框图简化后的结构：<strong>左边是输入通道</strong>（16 个 GPIO 口 + 两个内部通道）→ 进入 <strong>AD 转换器</strong>（里面分<strong>规则组</strong>和<strong>注入组</strong>：规则组最多选 16 个通道、注入组最多选 4 个）→ <strong>转换结果存放在 AD 数据寄存器</strong>（规则组 1 个、注入组 4 个）；<strong>下面有触发控制</strong>提供 START 信号（可选软件触发/硬件触发，硬件主要来自定时器，也可以选外部中断引脚）；<strong>右边是来自 RCC 的 ADC 时钟</strong>（逐次比较由它推动）；<strong>上面可以布置模拟看门狗</strong>监测转换结果范围，超范围就经中断输出控制向 NVIC 申请中断；<strong>规则组和注入组转换完成后有 EOC 信号</strong>置标志位、也可以通向 NVIC；<strong>右下角还有开关控制</strong>（给 ADC 上电）。</p>
-<p><img src="../assets/images/stm32-21/09-adc-basic-structure.jpg" alt="图 9：PPT「ADC基本结构」——作者总结的结构图：左侧 GPIO（16）、温度传感器、VREFINT 汇入多路开关；中间「AD转换器」含规则组（最多 16）与注入组（最多 4）；右侧 AD 数据寄存器「规则组结果×1」「注入组结果×4」；下方触发控制提供 START、RCC 提供 CLOCK；上方模拟看门狗 → 中断输出控制 → NVIC；右下角开关控制；字幕「那这16个通道对应的都是哪些GPIO口呢」"></p>
-<p><em>图 9：PPT「ADC基本结构」——作者总结的结构图：左侧 GPIO（16）、温度传感器、VREFINT 汇入多路开关；中间「AD转换器」含规则组（最多 16）与注入组（最多 4）；右侧 AD 数据寄存器「规则组结果×1」「注入组结果×4」；下方触发控制提供 START、RCC 提供 CLOCK；上方模拟看门狗 → 中断输出控制 → NVIC；右下角开关控制；字幕「那这16个通道对应的都是哪些GPIO口呢」</em></p>
+<h3 id="4-7-简化结构图">4.7 简化结构图</h3>
+<ul>
+<li>输入通道（16 个 GPIO + 2 个内部）→ AD 转换器（规则组最多 16、注入组最多 4）→ 数据寄存器（规则组 1 个、注入组 4 个）。</li>
+<li>下方触发控制给 START（软件/硬件，硬件主要来自定时器或外部中断引脚）；右侧 RCC 提供 CLOCK。</li>
+<li>上方模拟看门狗测结果范围，经中断输出控制向 NVIC 申请中断；EOC 同样可申请中断；右下角开关控制上电。</li>
+</ul>
+<p><img src="../assets/images/stm32-21/09-adc-basic-structure.jpg" alt="图 9：ADC基本结构"></p>
+<p><em>图 9：作者总结的「ADC基本结构」——GPIO（16）、温度传感器、VREFINT 汇入多路开关；AD 转换器含规则组（最多 16）与注入组（最多 4）；寄存器「规则组结果×1」「注入组结果×4」</em></p>
 <h2 id="5-输入通道与引脚映射">5. 输入通道与引脚映射</h2>
 <ul>
-<li>16 个外部通道分别对应哪些 GPIO？看手册的通道表（也可以对照引脚定义表看）：<strong>ADC12_IN0 对应 PA0</strong>、<strong>IN1 对应 PA1</strong>，依次 <strong>IN2、IN3、IN4、IN5、IN6、IN7 对应 PA2～PA7</strong>、<strong>IN8 对应 PB0</strong>、<strong>IN9 对应 PB1</strong>；</li>
-<li><strong>本芯片只有 IN0～IN9 共 10 个通道</strong>，其他地方就没有了，所以<strong>这个芯片只能有 10 个外部输入通道</strong>；</li>
-<li>命名 <strong>ADC12_IN0</strong> 的意思是：<strong>ADC1 和 ADC2 的 IN0 都在 PA0 上</strong>——<strong>ADC1 和 ADC2 的引脚完全相同</strong>（表格里全是 ADC12）；<strong>ADC3 的引脚中间会有些变化，但我们这个芯片没有 ADC3，不用管</strong>；</li>
-<li><strong>通道 0～17 共 18 个通道</strong>：<strong>通道 16 对应 ADC1 的温度传感器、通道 17 对应 ADC1 的内部参考电压</strong>——<strong>只有 ADC1 有通道 16 和 17，ADC2、ADC3 没有</strong>；</li>
-<li>由于 C8T6 <strong>没有 PC0～PC5</strong>，通道表里对应的那些通道也就没有了。</li>
+<li>16 个外部通道的分配：<strong>ADC12_IN0 = PA0</strong>，IN1～IN7 依次对应 PA1～PA7，<strong>IN8 = PB0</strong>、<strong>IN9 = PB1</strong>。</li>
+<li>命名 <strong>ADC12_IN0</strong> 表示 ADC1 与 ADC2 的 IN0 都在 PA0 上——两者引脚完全相同（表里全是 ADC12）；ADC3 引脚有变化，但本芯片没有 ADC3。</li>
+<li>通道 0～17 共 18 个：<strong>通道 16 = ADC1 温度传感器、通道 17 = ADC1 内部参考电压</strong>，只有 ADC1 有。</li>
+<li>本芯片只有 <code>ADC12_IN0</code>～<code>ADC12_IN9</code> 共 10 个外部通道，PC0～PC5 等没引出来，所以通道表里对应的通道也没有。</li>
 </ul>
 <table>
 <thead>
@@ -384,44 +371,41 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>双 ADC 模式</strong>（了解即可）：既然 ADC1 和 ADC2 引脚都相同，ADC2 还有什么用？——<strong>双 ADC 模式就是 ADC1 和 ADC2 一起工作</strong>，可以配合组成<strong>同步模式、交叉模式</strong>等；比如<strong>交叉模式</strong>下 ADC1 和 ADC2 交叉地对同一个通道采样，<strong>可以进一步提高采样率</strong>（「就像打拳，左手打一拳、右手打一拳，打击频率肯定比一个拳头快」）；当然 <strong>ADC1 和 ADC2 也可以分开使用</strong>，分别对不同引脚采样。这个模式比较复杂，<strong>只简单介绍、不需要掌握</strong>。</li>
+<li><strong>双 ADC 模式</strong>（了解即可）：ADC1 与 ADC2 可配合成同步、交叉等模式；交叉模式下两者交替采样同一通道，<strong>进一步提高采样率</strong>，也可以分开各测各的引脚。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/10-pin-map-adc-channels.jpg" alt="图 10：引脚定义表（STM32F103C8T6引脚定义）——红圈标出第 10～19 行的 ADC12_IN0～ADC12_IN9，对应引脚名 PA0、PA1……PA7、PB0、PB1；字幕「这个就要再说一个ADC的高级功能了」"></p>
-<p><em>图 10：引脚定义表（<code>STM32F103C8T6引脚定义</code>）——红圈标出第 10～19 行的 <code>ADC12_IN0</code>～<code>ADC12_IN9</code>，对应引脚名 PA0、PA1……PA7、PB0、PB1；字幕「这个就要再说一个ADC的高级功能了」</em></p>
+<p><img src="../assets/images/stm32-21/10-pin-map-adc-channels.jpg" alt="图 10：引脚定义表"></p>
+<p><em>图 10：<code>STM32F103C8T6引脚定义</code> 表——红圈标出 <code>ADC12_IN0</code>～<code>ADC12_IN9</code>，对应 PA0～PA7、PB0、PB1</em></p>
 <h2 id="6-规则组的-4-种转换模式">6. 规则组的 4 种转换模式</h2>
-<p>ADC 初始化的结构体里<strong>有两个参数</strong>：一个<strong>选择单次转换还是连续转换</strong>，另一个<strong>选择扫描模式还是非扫描模式</strong>——组合起来就是 4 种转换方式。</p>
-<h3 id="6-1-单次转换-非扫描模式-最简单">6.1 单次转换、非扫描模式（最简单）</h3>
+<p>初始化结构体里两个参数——<strong>单次/连续</strong>、<strong>扫描/非扫描</strong>，组合出 4 种模式。</p>
+<h3 id="6-1-单次转换-非扫描模式">6.1 单次转换、非扫描模式</h3>
 <ul>
-<li>规则组里有<strong>一个菜单列表</strong>：<strong>16 个空位，分别是序列 1 到序列 16</strong>，可以在这里「点菜」——填入要转换的通道；</li>
-<li><strong>非扫描</strong>时，「菜单同时选中一组」就<strong>退化为「只选中一个」</strong>：在<strong>序列 1</strong> 的位置指定想转换的通道（比如通道 2）；</li>
-<li><strong>触发转换</strong>后，ADC 对这个通道做模数转换，过一小段时间<strong>转换完成</strong>——<strong>结果放在数据寄存器里，同时给 EOC 标志位置 1</strong>，整个过程结束；判断 EOC 标志位，转换完了就可以去数据寄存器读结果；</li>
-<li><strong>想再启动一次转换，就再触发一次</strong>（转换结束、置 EOC、读结果）；<strong>想换通道，就在转换前把序列 1 的通道号改掉</strong>再启动。这个模式没用到菜单列表，比较简单。</li>
+<li>规则组有菜单列表：序列 1～序列 16 共 16 个空位，填要转换的通道。</li>
+<li><strong>非扫描</strong>时「同时选一组」退化为「只选一个」：只在<strong>序列 1</strong> 填通道（比如通道 2）。</li>
+<li>触发后完成转换，结果进数据寄存器并置 <strong>EOC</strong>，判断标志位即可读结果；想再转就再触发，想换通道就在触发前改序列 1。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/11-mode-single-nonscan.jpg" alt="图 11：PPT「转换模式·单次转换，非扫描模式」——左右两张相同的序列列表（序列 1～序列 16），序列 1 填「通道 2」，触发箭头指向通道 2、再指向 EOC；字幕「这里我画了一个列表，这个表就是规则组里的菜单」"></p>
-<p><em>图 11：PPT「转换模式·单次转换，非扫描模式」——左右两张相同的序列列表（序列 1～序列 16），序列 1 填「通道 2」，触发箭头指向通道 2、再指向 EOC；字幕「这里我画了一个列表，这个表就是规则组里的菜单」</em></p>
+<p><img src="../assets/images/stm32-21/11-mode-single-nonscan.jpg" alt="图 11：单次转换，非扫描模式"></p>
+<p><em>图 11：左右两张序列列表（序列 1～序列 16），序列 1 填「通道 2」，触发箭头指向通道 2 再到 EOC</em></p>
 <h3 id="6-2-连续转换-非扫描模式">6.2 连续转换、非扫描模式</h3>
 <ul>
-<li>与上面不同的是：<strong>一次转换结束后不会停止</strong>，而是自动开始下一次——所以<strong>只需要最开始触发一次，之后就可以一直转换</strong>；</li>
-<li>好处：开始之后<strong>不需要等待一段时间的启动、也不需要判断是否结束</strong>，<strong>想读 AD 值时直接从数据寄存器取就是了</strong>（得到的总是最新值）。</li>
+<li>一次转换结束不停止，自动开始下一次，<strong>只需最开始触发一次</strong>。</li>
+<li>好处：不用等启动、不用判断结束，想读值直接从数据寄存器取，拿到的总是最新值。</li>
 </ul>
 <h3 id="6-3-单次转换-扫描模式">6.3 单次转换、扫描模式</h3>
 <ul>
-<li>单次转换：<strong>每触发一次，转换结束后就会停下来</strong>，下次转换得再触发；</li>
-<li>扫描模式：<strong>会用到菜单列表</strong>——比如第一个菜是通道 2、第二个是通道 5……<strong>每个位置是通道几可以任意指定，也可以重复</strong>；</li>
-<li>因为 16 个位置可以不用完，所以要再给一个**「通道数目」参数**告诉它有几个通道：<strong>比如通道数目指定为 7，它就只看前 7 个位置</strong>（序列 1～7 = 通道 2、5、4、1、0、3、6），<strong>每次触发之后依次对这 7 个位置做 AD 转换</strong>；</li>
-<li><strong>转换结果都放在同一个数据寄存器里</strong>，<strong>为了防止数据被覆盖，需要 DMA 及时把数据挪走</strong>；7 个通道转换完成后<strong>产生 EOC 信号，转换结束</strong>，再触发下一次就开始新一轮。</li>
+<li>单次：每触发一次，转换完就停，下次再触发。</li>
+<li>扫描：<strong>用满菜单列表</strong>，序列 1、2……分别填通道 2、5……<strong>可任意指定、也可重复</strong>。</li>
+<li>位置可能用不完，所以还要给**「通道数目」**参数：指定 7 就只看前 7 个位置（序列 1～7 = 通道 2、5、4、1、0、3、6），每次触发依次转换这 7 个。</li>
+<li><strong>结果都进同一个数据寄存器</strong>，必须靠 DMA 及时挪走防覆盖；7 个都转完产生 <strong>EOC</strong>，再触发就是新一轮。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/12-mode-single-scan.jpg" alt="图 12：PPT「转换模式·单次转换，扫描模式」——左侧蓝色括号标出「通道数目：7」，序列 1～7 依次填通道 2、5、4、1、0、3、6，转换完指向 EOC；字幕「然后继续看，单次转换，扫描模式」"></p>
-<p><em>图 12：PPT「转换模式·单次转换，扫描模式」——左侧蓝色括号标出「通道数目：7」，序列 1～7 依次填通道 2、5、4、1、0、3、6，转换完指向 EOC；字幕「然后继续看，单次转换，扫描模式」</em></p>
-<h3 id="6-4-连续转换-扫描模式-以及间断模式">6.4 连续转换、扫描模式；以及间断模式</h3>
+<p><img src="../assets/images/stm32-21/12-mode-single-scan.jpg" alt="图 12：单次转换，扫描模式"></p>
+<p><em>图 12：蓝色括号标出「通道数目：7」，序列 1～7 依次填通道 2、5、4、1、0、3、6，转换完指向 EOC</em></p>
+<h3 id="6-4-连续转换-扫描模式-间断模式">6.4 连续转换、扫描模式；间断模式</h3>
 <ul>
-<li><strong>连续转换、扫描模式</strong>：在 6.3 的基础上改一点——<strong>一次转换完成后立刻开始下一次转换</strong>（和非扫描模式里「单次 vs 连续」是一个套路）；</li>
-<li><strong>间断模式</strong>（了解即可，不要求掌握）：在扫描模式下还可以用<strong>间断模式</strong>——每转换几个通道就<strong>暂停、需再次触发才能继续</strong>（这样模式太多了，PPT 没画出来）。</li>
+<li><strong>连续 + 扫描</strong>：在 6.3 基础上，一次转换完成后立刻开始下一次，仍是「单次 vs 连续」那一套。</li>
+<li><strong>间断模式</strong>（了解）：扫描模式下每转换几个通道就暂停，需再次触发才继续。</li>
 </ul>
 <h2 id="7-触发控制-规则组的外部触发源">7. 触发控制：规则组的外部触发源</h2>
-<ul>
-<li>表64「ADC1 和 ADC2 用于规则通道的外部触发」列出规则组的触发源，可通过 <code>EXTSEL[2:0]</code> 选择：</li>
-</ul>
+<p>表64 列出规则组可用的触发源，由 <code>EXTSEL[2:0]</code> 选择：</p>
 <table>
 <thead>
 <tr>
@@ -472,71 +456,67 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>具体是引脚还是定时器，需要用 AFIO 重映射来确定</strong>；最后一个是<strong>软件控制位（软件触发）</strong>；</li>
-<li>这些触发信号怎么选，<strong>通过设置右边这个寄存器来完成</strong>（<strong>用库函数的话直接给一个参数就行，写法在 P22</strong>）。</li>
+<li>具体接引脚还是定时器，要用 <strong>AFIO 重映射</strong>确定；最后一项 <strong>SWSTART</strong> 是软件触发。</li>
+<li>触发源通过寄存器选择，用库函数就是给一个参数，写法在 P22。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/13-trigger-table64.jpg" alt="图 13：PPT「触发控制」——表64「ADC1和ADC2用于规则通道的外部触发」：TIM1_CC1(000)、TIM1_CC2(001)、TIM1_CC3(010)、TIM2_CC2(011)、TIM3_TRGO(100)、TIM4_CC4(101)、EXTI线11/TIM8_TRGO(110)、SWSTART(111)，中间一列是触发源类型；字幕「这个表就是规则组的触发源」"></p>
-<p><em>图 13：PPT「触发控制」——表64「ADC1和ADC2用于规则通道的外部触发」：TIM1_CC1(000)、TIM1_CC2(001)、TIM1_CC3(010)、TIM2_CC2(011)、TIM3_TRGO(100)、TIM4_CC4(101)、EXTI线11/TIM8_TRGO(110)、SWSTART(111)，中间一列是触发源类型；字幕「这个表就是规则组的触发源」</em></p>
+<p><img src="../assets/images/stm32-21/13-trigger-table64.jpg" alt="图 13：表64 规则通道外部触发"></p>
+<p><em>图 13：表64「ADC1和ADC2用于规则通道的外部触发」——TIM1_CC1(000)、TIM1_CC2(001)、TIM1_CC3(010)、TIM2_CC2(011)、TIM3_TRGO(100)、TIM4_CC4(101)、EXTI线11/TIM8_TRGO(110)、SWSTART(111)</em></p>
 <h2 id="8-数据对齐">8. 数据对齐</h2>
 <ul>
-<li>转换结果是 <strong>12 位</strong>，而<strong>数据寄存器是 16 位的</strong>，所以就存在<strong>数据对齐</strong>问题：<ul>
-<li><strong>数据右对齐</strong>：12 位数据向右靠、<strong>高位多出来的几位补 0</strong>（<code>0 0 0 0 D11…D0</code>）——<strong>直接读出来就是结果</strong>；</li>
-<li><strong>数据左对齐</strong>：12 位数据向左靠（<code>D11…D0 0 0 0 0</code>）——相当于<strong>把结果左移 4 位（×16）</strong>，直接读会比真实值大 16 倍；<strong>取高 8 位可以退化成 8 位 ADC</strong> 来用；</li>
+<li>结果是 12 位、寄存器是 16 位，于是有对齐问题。</li>
+<li><strong>右对齐</strong>：12 位靠右、高位补 0（<code>0 0 0 0 D11…D0</code>），读出来就是结果。</li>
+<li><strong>左对齐</strong>：12 位靠左（<code>D11…D0 0 0 0 0</code>），等于左移 4 位（×16），直接读会大 16 倍；取高 8 位可当 8 位 ADC 用。</li>
+<li>一般用<strong>右对齐</strong>。</li>
 </ul>
-</li>
-<li><strong>一般用右对齐</strong>。</li>
-</ul>
-<p><img src="../assets/images/stm32-21/14-data-alignment.jpg" alt="图 14：PPT「数据对齐」——规则组的 16 位数据寄存器示意：右对齐为 0 0 0 0 D11 D10 … D1 D0，左对齐为 D11 D10 … D1 D0 0 0 0 0；字幕「这就是数据左对齐和右对齐」"></p>
-<p><em>图 14：PPT「数据对齐」——规则组的 16 位数据寄存器示意：右对齐为 <code>0 0 0 0 D11 D10 … D1 D0</code>，左对齐为 <code>D11 D10 … D1 D0 0 0 0 0</code>；字幕「这就是数据左对齐和右对齐」</em></p>
+<p><img src="../assets/images/stm32-21/14-data-alignment.jpg" alt="图 14：数据对齐"></p>
+<p><em>图 14：16 位数据寄存器示意——右对齐 <code>0 0 0 0 D11 D10 … D1 D0</code>，左对齐 <code>D11 D10 … D1 D0 0 0 0 0</code></em></p>
 <h2 id="9-转换时间与采样时间">9. 转换时间与采样时间</h2>
 <ul>
-<li><strong>AD 转换的步骤：采样、保持、量化、编码</strong>；</li>
-<li><strong>STM32 ADC 的总转换时间：TCONV = 采样时间 + 12.5 个 ADC 周期</strong>——其中 12 位量化占 12 个周期，另外 <strong>0.5 个周期</strong>老师说是「<strong>可能是做其他一些东西花的时间</strong>」（本集没有给权威解释）；</li>
-<li><strong>例如</strong>：当 <strong>ADCCLK = 14MHz、采样时间为 1.5 个 ADC 周期</strong>时，<strong>TCONV = 1.5 + 12.5 = 14 个 ADC 周期 = 1us</strong>——这就是前面「1us 转换时间」的来历；</li>
-<li><strong>采样时间越长越抗毛刺，但转换更慢</strong>；如果不需要非常高速的转换频率，转换时间就可以忽略；</li>
-<li><strong>ADCCLK 超过 14MHz 属于超频</strong>：转换更快，但<strong>不保证稳定</strong>；</li>
-<li>另外讲了<strong>采样保持电路</strong>：<strong>采样开关 + 电容</strong>——采样阶段把电压存到电容上，<strong>量化期间电压保持不变</strong>。</li>
+<li>步骤：<strong>采样、保持、量化、编码</strong>。</li>
+<li><strong><code>TCONV = 采样时间 + 12.5 个 ADC 周期</code></strong>：12 位量化占 12 个周期，另 0.5 个周期本集未给权威解释。</li>
+<li>例：ADCCLK = 14MHz、采样 1.5 个周期时，<strong><code>TCONV = 1.5 + 12.5 = 14 个 ADC 周期 = 1us</code></strong>，这就是 1us 的来历。</li>
+<li>采样时间越长越抗毛刺、但更慢；不需要高速时转换时间可忽略；ADCCLK 超 14MHz 属超频，更快但不保证稳定。</li>
+<li><strong>采样保持电路</strong> = 采样开关 + 电容：采样阶段把电压存到电容上，量化期间保持不变。</li>
 </ul>
-<p><img src="../assets/images/stm32-21/15-conversion-time.jpg" alt="图 15：PPT「转换时间」——AD 转换的步骤：采样、保持、量化、编码；STM32 ADC 总转换时间 TCONV = 采样时间 + 12.5 个 ADC 周期；例如 ADCCLK=14MHz、采样时间 1.5 个 ADC 周期 → TCONV = 1.5 + 12.5 = 14 个 ADC 周期 = 1us；字幕「如果不需要非常高速的转换频率，那转换时间就可以忽略了」"></p>
-<p><em>图 15：PPT「转换时间」——AD 转换的步骤：采样、保持、量化、编码；STM32 ADC 总转换时间 <code>TCONV = 采样时间 + 12.5 个 ADC 周期</code>；例如 ADCCLK=14MHz、采样时间 1.5 个 ADC 周期 → <code>TCONV = 1.5 + 12.5 = 14 个 ADC 周期 = 1us</code>；字幕「如果不需要非常高速的转换频率，那转换时间就可以忽略了」</em></p>
+<p><img src="../assets/images/stm32-21/15-conversion-time.jpg" alt="图 15：转换时间"></p>
+<p><em>图 15：AD 转换步骤与总时间公式；例 ADCCLK=14MHz、采样 1.5 周期 → 14 个 ADC 周期 = 1us</em></p>
 <h2 id="10-校准与硬件电路">10. 校准与硬件电路</h2>
 <h3 id="10-1-校准">10.1 校准</h3>
 <ul>
-<li>STM32 ADC <strong>内置自校准</strong>功能，用来<strong>减小内部电容组带来的误差</strong>；<strong>建议每次上电后执行一次校准</strong>；</li>
-<li><strong>启动校准前，ADC 必须关电超过至少两个 ADC 时钟周期</strong>（这是手册的要求，具体写法在 P22）。</li>
+<li>ADC 内置<strong>自校准</strong>，用于减小内部电容组误差，<strong>建议每次上电后校准一次</strong>。</li>
+<li>启动校准前，ADC 必须<strong>关电至少两个 ADC 时钟周期</strong>（手册要求，写法在 P22）。</li>
 </ul>
 <h3 id="10-2-三种常见硬件电路">10.2 三种常见硬件电路</h3>
-<p>ADC 的外围电路怎么设计？PPT 给了三个典型电路：</p>
 <ol>
-<li><strong>电位器分压</strong>：电位器 <strong>RP1 = 10K</strong>，<strong>两端接 3V3 和 GND</strong>，<strong>滑动端输出 → PA0</strong>，输出 <strong>0～3.3V</strong> 可调；<strong>电位器阻值别太小，至少 KΩ 级（例 10K）</strong>——太小会耗电大、发热；</li>
-<li><strong>传感器 + 固定电阻分压</strong>：传感器的<strong>等效可变电阻 N1</strong> 与固定电阻 <strong>R1 = 10K</strong> 串联分压，中点 → <strong>PA1</strong>；<strong>传感器阻值小 → 输出低、阻值大 → 输出高</strong>；<strong>固定电阻取与传感器相近的阻值</strong>（保证分压落在合适范围）；<strong>两者位置互换则输出极性相反</strong>；</li>
-<li><strong>电压分压（测更高电压）</strong>：<strong>VIN 0～5V 经 R1 = 17k、R2 = 33k 分压</strong>，中点 → <strong>PA2 得到 0～3.3V</strong>（分压比约 <strong>33/50</strong>）；<strong>电压再高就要用隔离</strong>（不能只靠电阻分压直接进 ADC）。</li>
+<li><strong>电位器分压</strong>：RP1 = 10K 两端接 3V3 与 GND，滑动端输出 0～3.3V 到 PA0；阻值别太小，至少 KΩ 级，否则耗电大、发热。</li>
+<li><strong>传感器 + 固定电阻分压</strong>：等效可变电阻 N1 与 R1 = 10K 串联，中点接 PA1；传感器阻值小则输出低、大则输出高；固定电阻取与传感器相近的阻值，两者互换则输出极性相反。</li>
+<li><strong>电阻分压测更高电压</strong>：VIN 0～5V 经 R1 = 17k、R2 = 33k 分压，中点得 0～3.3V 送 PA2（分压比约 33/50）；再高就必须加隔离。</li>
 </ol>
-<p><img src="../assets/images/stm32-21/16-hardware-circuits.jpg" alt="图 16：PPT「硬件电路」——三个电路：①3V3—RP1 10K—GND，滑动端输出 PA0；②3V3—R1 10K—N1（传感器）—GND，中点输出 PA1；③VIN 0～5V—R1 17k—节点（0～3.3V）→PA2—R2 33k—GND；字幕「对于ADC的外围电路，我们应该怎么设计呢」"></p>
-<p><em>图 16：PPT「硬件电路」——三个电路：①3V3—RP1 10K—GND，滑动端输出 PA0；②3V3—R1 10K—N1（传感器）—GND，中点输出 PA1；③VIN 0～5V—R1 17k—节点（0～3.3V）→PA2—R2 33k—GND；字幕「对于ADC的外围电路，我们应该怎么设计呢」</em></p>
+<p><img src="../assets/images/stm32-21/16-hardware-circuits.jpg" alt="图 16：三种硬件电路"></p>
+<p><em>图 16：①3V3—RP1 10K—GND，滑动端出 PA0；②3V3—R1 10K—N1（传感器）—GND，中点出 PA1；③VIN 0～5V—R1 17k—节点 0～3.3V→PA2—R2 33k—GND</em></p>
 <h2 id="11-手册导读与下一集">11. 手册导读与下一集</h2>
 <ul>
-<li>本集内容对应手册的 <strong>11.3 ADC 功能描述</strong> 和 <strong>11.12 ADC 寄存器</strong> 等章节；</li>
-<li>手册里有 <strong>ADC 中断表</strong>（表68）：规则组 <strong>EOC / EOCIE</strong>、注入组 <strong>JEOC / JEOCIE</strong>、模拟看门狗 <strong>AWD / AWDIE</strong>；</li>
-<li>手册还列了<strong>所有 ADC 寄存器的地址与复位值</strong>——<strong>复位值对应的就是各个外设的默认配置</strong>（一般上电默认全为 0，也有不是全 0 的，可以自己找找看）；想了解上电后的默认配置，就参考这里的寄存器默认值、再对照寄存器描述；</li>
-<li>片尾（48:42）：「<strong>我们下一小节来开始写代码</strong>」——代码在 <strong>P22 [7-2]</strong>（就是片头演示的 <code>7-1 AD单通道</code> 和 <code>7-2 AD多通道</code>）。</li>
+<li>本集对应手册 <strong>11.3 ADC 功能描述</strong> 与 <strong>11.12 ADC 寄存器</strong>。</li>
+<li>中断表见表68：规则组 EOC/EOCIE、注入组 JEOC/JEOCIE、模拟看门狗 AWD/AWDIE。</li>
+<li>手册还列了全部 ADC 寄存器的地址与复位值——复位值就是上电默认配置（多数为全 0，也有非 0 的），对照寄存器描述即可查默认值。</li>
+<li>片尾 48:42 预告写代码：代码在 <strong>P22 [7-2]</strong>，即片头演示的两个工程。</li>
 </ul>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>ADC 输入不能超出 VSSA～VDDA</strong>：范围是 <strong>0～3.3V</strong>，超了不仅测不准还可能损坏引脚——更高电压要先用电阻分压/隔离。</li>
-<li><strong>12 位结果最大是 4095 不是 4096</strong>：12 位即 2^12 = 4096 个刻度，<strong>最大值 2^12-1 = 4095</strong>，对应 3.3V。</li>
-<li><strong>换算关系是线性的</strong>：<code>电压 = AD 值 / 4095 × 3.3V</code>；反过来 <code>AD 值 = 电压 / 3.3 × 4095</code>。</li>
-<li><strong>本芯片只有 10 个外部通道</strong>：16 个外部通道是「这个系列最多」，C8T6 只有 <strong>ADC12_IN0～IN9（PA0～PB1）</strong>，PC0～PC5 等没引出来。</li>
-<li><strong>通道 16/17 只有 ADC1 有</strong>：16 = 内部温度传感器、17 = 内部参考电压（约 1.2V），ADC2 没有。</li>
-<li><strong>规则组只有 1 个数据寄存器</strong>：多通道扫描会<strong>互相覆盖</strong>（只留最后一个），要么<strong>配 DMA 转运</strong>、要么<strong>及时读走</strong>；注入组有 4 个寄存器才不用担这个。</li>
-<li><strong>ADCCLK 最大 14MHz</strong>：72MHz 下 <strong>2 分频 36M、4 分频 18M 都超限</strong>，只能 <strong>6 分频（12M）或 8 分频（9M）</strong>——超频能跑但不保证稳定。</li>
-<li><strong>转换时间要算采样时间</strong>：<code>TCONV = 采样时间 + 12.5 个 ADC 周期</code>，不是固定 1us——1us 是「ADCCLK=14MHz、采样 1.5 周期」那个特定组合。</li>
-<li><strong>数据左对齐会让读数变大 16 倍</strong>：左对齐等于左移 4 位，直接读要除以 16；一般用<strong>右对齐</strong>直接读。</li>
-<li><strong>扫描模式必须给「通道数目」</strong>：不指定的话它会按 16 个位置全转，实际只用了前几个就会读到无效通道。</li>
-<li><strong>单次 vs 连续、扫描 vs 非扫描是两组独立参数</strong>：4 种组合对应 4 种模式，别混成一个「连续扫描模式」。</li>
-<li><strong>模拟看门狗是硬件窗口比较</strong>：超上下限自动申请中断，不等于「转换结果一定准确」；用它是为了省掉主循环里不断读值判断。</li>
-<li><strong>硬件电路分压电阻要选对量级</strong>：电位器/分压电阻太小耗电大、太大又容易被 ADC 输入阻抗影响；固定电阻尽量与传感器阻值相近。</li>
-<li><strong>本集没有代码</strong>：所有配置（<code>ADC_Cmd</code> 上电、校准、规则组序列、触发源选择、数据对齐、ADCCLK 分频）的写法<strong>都在 P22</strong>，本集只讲原理与参数。</li>
+<li><strong>输入不能超出 VSSA～VDDA</strong>：即 0～3.3V，超了测不准还可能损坏引脚，更高电压先分压或隔离。</li>
+<li><strong>12 位最大值是 4095 不是 4096</strong>：2^12 = 4096 个刻度，最大 2^12-1 = 4095，对应 3.3V。</li>
+<li><strong>换算关系是线性的</strong>：<code>电压 = AD 值 / 4095 × 3.3V</code>，反向 <code>AD 值 = 电压 / 3.3 × 4095</code>。</li>
+<li><strong>本芯片只有 10 个外部通道</strong>：16 个是系列上限，C8T6 只有 <code>ADC12_IN0</code>～<code>ADC12_IN9</code>（PA0～PB1）。</li>
+<li><strong>通道 16/17 只有 ADC1 有</strong>：16 = 温度传感器、17 = 内部参考电压（约 1.2V），ADC2 没有。</li>
+<li><strong>规则组只有 1 个数据寄存器</strong>：多通道扫描会互相覆盖，只剩最后一个，要么配 DMA、要么及时读走。</li>
+<li><strong>ADCCLK 最大 14MHz</strong>：72MHz 下 2 分频 36M、4 分频 18M 都超限，只能 6 分频（12M）或 8 分频（9M）。</li>
+<li><strong>转换时间要算采样时间</strong>：<code>TCONV = 采样时间 + 12.5 个 ADC 周期</code>，1us 只是 ADCCLK=14MHz、采样 1.5 周期那个特例。</li>
+<li><strong>左对齐会让读数大 16 倍</strong>：左对齐等于左移 4 位，读出来要除以 16；一般用右对齐。</li>
+<li><strong>扫描模式必须给「通道数目」</strong>：不指定会按 16 个位置全转，多出来的通道读到无效值。</li>
+<li><strong>单次/连续、扫描/非扫描是两组独立参数</strong>：4 种组合对应 4 种模式，不存在单独的「连续扫描模式」开关。</li>
+<li><strong>模拟看门狗是硬件窗口比较</strong>：只负责超限报警、不等于结果准确，目的是省掉主循环不断判断。</li>
+<li><strong>分压电阻要选对量级</strong>：太小耗电发热，太大又受 ADC 输入阻抗影响；固定电阻尽量与传感器阻值相近。</li>
+<li><strong>本集没有代码</strong>：<code>ADC_Cmd</code> 上电、校准、序列、触发源、对齐、ADCCLK 分频的写法全在 P22。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -548,14 +528,14 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E4%BB%A3%E7%A0%81%E5%9C%A8-7-2-p22">0. 本集定位：理论课，代码在 [7-2] P22</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E7%8E%B0%E8%B1%A1-ad-%E5%8D%95%E9%80%9A%E9%81%93%E4%B8%8E-ad-%E5%A4%9A%E9%80%9A%E9%81%93">1. 片头现象：AD 单通道与 AD 多通道</a>
         <a class="level-3" href="#1-1-ad-%E5%8D%95%E9%80%9A%E9%81%93-%E7%94%B5%E4%BD%8D%E5%99%A8-pa0">1.1 AD 单通道：电位器 → PA0</a>
         <a class="level-3" href="#1-2-ad-%E5%A4%9A%E9%80%9A%E9%81%93-4-%E8%B7%AF%E4%BC%A0%E6%84%9F%E5%99%A8">1.2 AD 多通道：4 路传感器</a>
         <a class="level-3" href="#1-3-adc-%E7%9A%84%E6%84%8F%E4%B9%89-gpio-%E5%8F%AA%E8%83%BD%E8%AF%BB%E9%AB%98%E4%BD%8E%E7%94%B5%E5%B9%B3">1.3 ADC 的意义：GPIO 只能读高低电平</a>
         <a class="level-2" href="#2-adc-%E7%AE%80%E4%BB%8B">2. ADC 简介</a>
         <a class="level-3" href="#2-1-%E5%AE%9A%E4%B9%89%E4%B8%8E%E6%A1%A5%E6%A2%81%E4%BD%9C%E7%94%A8">2.1 定义与桥梁作用</a>
-        <a class="level-3" href="#2-2-%E4%B8%8E-dac-pwm-%E7%9A%84%E5%AF%B9%E6%AF%94-%E9%A1%BA%E5%B8%A6%E4%BA%86%E8%A7%A3">2.2 与 DAC / PWM 的对比（顺带了解）</a>
+        <a class="level-3" href="#2-2-%E4%B8%8E-dac-pwm-%E7%9A%84%E5%AF%B9%E6%AF%94">2.2 与 DAC / PWM 的对比</a>
         <a class="level-3" href="#2-3-%E5%85%B3%E9%94%AE%E5%8F%82%E6%95%B0%E9%80%90%E6%9D%A1%E7%9C%8B">2.3 关键参数逐条看</a>
         <a class="level-2" href="#3-%E9%80%90%E6%AC%A1%E9%80%BC%E8%BF%91%E5%9E%8B-adc-%E7%9A%84%E5%8E%9F%E7%90%86-adc0809">3. 逐次逼近型 ADC 的原理（ADC0809）</a>
         <a class="level-3" href="#3-1-%E7%BB%93%E6%9E%84-%E5%A4%9A%E8%B7%AF%E5%BC%80%E5%85%B3-%E6%AF%94%E8%BE%83%E5%99%A8-dac-sar">3.1 结构：多路开关 + 比较器 + DAC + SAR</a>
@@ -568,13 +548,13 @@
         <a class="level-3" href="#4-4-%E5%8F%82%E8%80%83%E7%94%B5%E5%8E%8B%E4%B8%8E%E4%BE%9B%E7%94%B5">4.4 参考电压与供电</a>
         <a class="level-3" href="#4-5-adcclk-adc-%E6%97%B6%E9%92%9F">4.5 ADCCLK：ADC 时钟</a>
         <a class="level-3" href="#4-6-%E6%95%B0%E6%8D%AE%E5%AF%84%E5%AD%98%E5%99%A8-%E7%9C%8B%E9%97%A8%E7%8B%97-%E4%B8%AD%E6%96%AD%E4%B8%8E%E5%BC%80%E5%85%B3">4.6 数据寄存器、看门狗、中断与开关</a>
-        <a class="level-3" href="#4-7-%E4%BD%9C%E8%80%85%E6%80%BB%E7%BB%93%E7%9A%84-adc-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84%E5%9B%BE">4.7 作者总结的「ADC 基本结构图」</a>
+        <a class="level-3" href="#4-7-%E7%AE%80%E5%8C%96%E7%BB%93%E6%9E%84%E5%9B%BE">4.7 简化结构图</a>
         <a class="level-2" href="#5-%E8%BE%93%E5%85%A5%E9%80%9A%E9%81%93%E4%B8%8E%E5%BC%95%E8%84%9A%E6%98%A0%E5%B0%84">5. 输入通道与引脚映射</a>
         <a class="level-2" href="#6-%E8%A7%84%E5%88%99%E7%BB%84%E7%9A%84-4-%E7%A7%8D%E8%BD%AC%E6%8D%A2%E6%A8%A1%E5%BC%8F">6. 规则组的 4 种转换模式</a>
-        <a class="level-3" href="#6-1-%E5%8D%95%E6%AC%A1%E8%BD%AC%E6%8D%A2-%E9%9D%9E%E6%89%AB%E6%8F%8F%E6%A8%A1%E5%BC%8F-%E6%9C%80%E7%AE%80%E5%8D%95">6.1 单次转换、非扫描模式（最简单）</a>
+        <a class="level-3" href="#6-1-%E5%8D%95%E6%AC%A1%E8%BD%AC%E6%8D%A2-%E9%9D%9E%E6%89%AB%E6%8F%8F%E6%A8%A1%E5%BC%8F">6.1 单次转换、非扫描模式</a>
         <a class="level-3" href="#6-2-%E8%BF%9E%E7%BB%AD%E8%BD%AC%E6%8D%A2-%E9%9D%9E%E6%89%AB%E6%8F%8F%E6%A8%A1%E5%BC%8F">6.2 连续转换、非扫描模式</a>
         <a class="level-3" href="#6-3-%E5%8D%95%E6%AC%A1%E8%BD%AC%E6%8D%A2-%E6%89%AB%E6%8F%8F%E6%A8%A1%E5%BC%8F">6.3 单次转换、扫描模式</a>
-        <a class="level-3" href="#6-4-%E8%BF%9E%E7%BB%AD%E8%BD%AC%E6%8D%A2-%E6%89%AB%E6%8F%8F%E6%A8%A1%E5%BC%8F-%E4%BB%A5%E5%8F%8A%E9%97%B4%E6%96%AD%E6%A8%A1%E5%BC%8F">6.4 连续转换、扫描模式；以及间断模式</a>
+        <a class="level-3" href="#6-4-%E8%BF%9E%E7%BB%AD%E8%BD%AC%E6%8D%A2-%E6%89%AB%E6%8F%8F%E6%A8%A1%E5%BC%8F-%E9%97%B4%E6%96%AD%E6%A8%A1%E5%BC%8F">6.4 连续转换、扫描模式；间断模式</a>
         <a class="level-2" href="#7-%E8%A7%A6%E5%8F%91%E6%8E%A7%E5%88%B6-%E8%A7%84%E5%88%99%E7%BB%84%E7%9A%84%E5%A4%96%E9%83%A8%E8%A7%A6%E5%8F%91%E6%BA%90">7. 触发控制：规则组的外部触发源</a>
         <a class="level-2" href="#8-%E6%95%B0%E6%8D%AE%E5%AF%B9%E9%BD%90">8. 数据对齐</a>
         <a class="level-2" href="#9-%E8%BD%AC%E6%8D%A2%E6%97%B6%E9%97%B4%E4%B8%8E%E9%87%87%E6%A0%B7%E6%97%B6%E9%97%B4">9. 转换时间与采样时间</a>

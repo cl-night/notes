@@ -177,37 +177,34 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>30 分钟</span>
+      <span>19 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">I2C</span><span class="tag">通信协议</span><span class="tag">MPU6050</span>
     </div>
     <article class="prose"><h1>[10-1] I2C通信协议 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 10（I2C）的理论课（上）</strong>——片头 3 分钟<strong>只演示两个成品工程的现象</strong>（①<code>10-1 软件I2C读写MPU6050</code> ②硬件 I2C 读写 MPU6050，效果相同），之后 48 分钟全是 PPT：设计背景（大公司四点要求）→ I2C 简介 → 硬件电路 → <strong>6 个时序基本单元</strong> → <strong>3 种完整时序（含示波器实测波形）</strong> → 多字节进阶。<strong>本集没有写一行代码</strong>；片尾 50:54「下一小节我们来了解 MPU6050 这个芯片」——<strong>软件 I2C 代码在 [10-2]、硬件 I2C 在 [10-3]</strong>。本集<strong>未讲时钟频率 100k/400k、未讲校验/CRC</strong>（I2C 靠 ACK 保证），笔记不补。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>I2C 的故事要从「<strong>单片机怎么用少量线读写外部模块的寄存器</strong>」讲起：串口（TX/RX 两线、<strong>异步全双工</strong>、无应答、点对点）能做，但大公司提了<strong>四点要求</strong>——<strong>① 全双工改半双工</strong>（删一根线、同一根线收发）<strong>② 增加应答机制</strong>（每发/收一个字节都要对方应答）<strong>③ 一根线挂多个模块</strong>（主机能点名与任一个通信、其余不干扰）<strong>④ 异步改同步</strong>（加一根时钟线，对时间要求不严、可暂停、易用软件模拟）。这就是 <strong>I2C（Inter IC BUS，Philips 开发的通用数据总线）</strong>：<strong>两根线 SCL（Serial Clock，串行时钟）+ SDA（Serial Data，串行数据）</strong>，<strong>同步、半双工、带数据应答</strong>，支持<strong>一主多从</strong>（本课程用的模型）与<strong>多主多从</strong>（需总线仲裁+时钟同步，不作要求）；常见器件有 <strong>MPU6050（姿态）、OLED、AT24C02（存储）、DS3231（RTC）</strong>。<strong>硬件电路</strong>三条规定：<strong>① 所有设备的 SCL 连在一起、SDA 连在一起 ② 设备的 SCL 和 SDA 均配置成开漏输出 ③ 各加一个上拉电阻，约 4.7KΩ</strong>（SCL 主机可推挽、从机浮空/上拉输入，但实际都用开漏）。<strong>为什么必须开漏</strong>：SDA 是半双工、主机和从机都要在输入输出间切换，若切换时机不当出现「一个输出高、一个输出低」就会<strong>电源短路</strong>——所以<strong>禁止所有设备输出强上拉高电平</strong>，统一用<strong>开漏输出</strong>（<strong>输出低=强下拉、输出高=引脚浮空</strong>）<strong>+ 外置弱上拉电阻</strong>（弹簧与杆子模型：<strong>只许往下拉或放手，不许向上推</strong>，外置弹簧负责回弹高电平）。<strong>三大好处</strong>：<strong>① 杜绝电源短路 ② 开漏兼具输入输出、避免引脚模式频繁切换 ③ 线与</strong>——<strong>任一设备拉低则总线为低，全部放手才高</strong>，这正是多主机时钟同步与仲裁需要的（所以 SCL 也用开漏）。<strong>六个时序基本单元</strong>：<strong>起始条件</strong>（<strong>SCL 高电平期间 SDA 由高→低</strong>，之后主机拉低 SCL 占用总线；除起始/终止外每个单元都「低进低出」便于拼接）、<strong>终止条件</strong>（<strong>SCL 高电平期间 SDA 由低→高</strong>，之后回到全高空闲态）、<strong>发送一个字节</strong>（<strong>SCL 低电平期间主机把数据位依次放上 SDA，高位先行 B7→B0</strong>；释放 SCL 后从机在高电平期间读取；<strong>高电平期间 SDA 不许变化</strong>；循环 8 次；与串口相反——串口低位先行）、<strong>接收一个字节</strong>（SCL 低电平期间<strong>从机</strong>放数据、主机高电平读取；<strong>主机接收前必须先释放 SDA</strong>，否则线与一直被拽低、别人发不出去）、<strong>发送应答</strong>、<strong>接收应答</strong>（都是「发一位/收一位」，<strong>0 = 应答 ACK、1 = 非应答 NACK</strong>）。<strong>从机地址</strong>：7 位地址（另有 10 位，本节只讲 7 位）+ 1 位读写位 = 1 字节；同型号芯片可用引脚改低位——<strong>MPU6050 的 AD0</strong>（接低则 7 位地址 <strong>1101000</strong>，即写 <strong>0xD0</strong>/读 <strong>0xD1</strong>）、<strong>AT24C02 的 A0/A1/A2</strong>。<strong>三种完整时序</strong>：<strong>① 指定地址写</strong>：<code>S + 0xD0（从机地址+W） + RA(0) + 0x19（寄存器地址） + RA(0) + 0xAA（数据） + RA(0) + P</code>；<strong>② 当前地址读</strong>：<code>S + 0xD1（地址+R） + RA(0) + 接收 1 字节（如 0x0F） + SA(1) NACK + P</code>——因为<strong>读写位给 1 后下一字节必须立即转读、来不及指定读哪个寄存器</strong>，只能读「<strong>当前地址指针</strong>」指向的寄存器（<strong>上电默认指 0，每读写一个字节自动 +1</strong>），所以用得不多；<strong>③ 指定地址读（复合格式）</strong>：先在「写」模式下只发<strong>寄存器地址</strong>（不写数据）→ <strong>Sr 重复起始</strong>（切换读写方向必须重新起始）→ 再发「地址+R」→ 接收数据 → 主机发 <strong>NACK</strong> → P，也可「写地址→P→再起始读→P」两条时序但官方规定是整帧 <code>S…Sr…P</code>。<strong>进阶</strong>：多字节写/读就是把「发一字节+收应答 / 收一字节+发应答」重复多次，<strong>地址指针自增</strong>；<strong>读多字节时最后一个字节必须给 NACK</strong>，否则从机继续发、SDA 被拽住无法产生停止条件——「<strong>从机控制 SDA 发送数据的权利，开始于读写位为 1，结束于主机给非应答（SA=1）</strong>」。<strong>代码下一集开始写。</strong></p>
-<h2 id="0-本集定位-理论课-i2c-协议全解-代码在-10-2-10-3">0. 本集定位：理论课（I2C 协议全解），代码在 10-2/10-3</h2>
+<p>I2C 是 Philips 的两线同步半双工总线：SCL 时钟 + SDA 数据，开漏配 4.7KΩ 上拉、支持线与。一主多从靠 7 位地址点名，每字节带应答，数据高位先行。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯理论课</strong>：片头 3 分钟只演示两个<strong>已经写好的成品工程</strong>（软件 I2C / 硬件 I2C 读写 MPU6050，现象相同），03:00 起全程 PPT（设计背景 → 简介 → 硬件电路 → 6 个时序基本单元 → 3 种完整时序 → 多字节进阶），<strong>没有打开 Keil 写代码</strong>。</li>
-<li><strong>本集没有库函数/寄存器配置</strong>：STM32 的 I2C 外设（硬件 I2C）留到 <strong>[10-3]</strong> 讲。</li>
-<li><strong>本集未讲</strong>：<strong>时钟频率（100kHz/400kHz、标准/快速模式）</strong>、<strong>校验和/CRC</strong>（I2C 靠 ACK 位保证完整性）——本笔记不编造这两部分内容。</li>
-<li>片尾 50:54：「下一小节我们来了解 <strong>MPU6050</strong> 这个芯片」——<strong>软件 I2C 读写的代码在 [10-2]</strong>。</li>
+<li>模块 10（I2C）的理论课（上），<strong>本集没写一行代码</strong>；软件 I2C 在 [10-2]、硬件 I2C 在 [10-3]。</li>
+<li>片头 3 分钟只演示两个成品工程（<code>10-1 软件I2C读写MPU6050</code> 与硬件 I2C 读写，现象相同），03:00 起 48 分钟全是 PPT。</li>
+<li>顺序：设计背景（四点要求）→ I2C 简介 → 硬件电路 → 6 个时序基本单元 → 3 种完整时序（含示波器实测波形）→ 多字节进阶。</li>
+<li>未讲时钟频率（100kHz/400kHz）与校验/CRC（I2C 靠 ACK 保证完整性），本笔记不补。</li>
+<li>片尾 50:54：「下一小节我们来了解 MPU6050 这个芯片」。</li>
 </ul>
 <h2 id="1-设计背景-从串口到大公司的四点要求">1. 设计背景：从串口到大公司的四点要求</h2>
 <h3 id="1-1-回顾串口">1.1 回顾串口</h3>
 <ul>
-<li>串口通信是<strong>一根发送线 TX、一根接收线 RX</strong>，<strong>异步、全双工</strong>，<strong>没有时钟线</strong>；数据流以<strong>字节</strong>为单位，可以组合多个字节变成多字节数据包。</li>
+<li>串口是 TX 发送、RX 接收两根线，<strong>异步、全双工、没有时钟线</strong>；数据以字节为单位，可组多字节数据包。</li>
 </ul>
 <h3 id="1-2-任务-用少量线读写外部模块的寄存器">1.2 任务：用少量线读写外部模块的寄存器</h3>
 <ul>
-<li>假设大公司出资一千万请你设计一个通信协议：公司做了一款芯片（可以 AD 转换、测温湿度、测姿态……），<strong>芯片内部众多设备都是通过读写寄存器来控制的</strong>，寄存器被分配到一个<strong>线性存储空间</strong>；</li>
-<li>你的任务：<strong>在单片机和外部模块之间连接少量几根线，实现单片机读写外部模块寄存器的功能</strong>——至少要实现「<strong>在指定位置写寄存器</strong>」和「<strong>在指定位置读寄存器</strong>」，能读写寄存器就能完全控制这个模块。</li>
+<li>芯片内部众多设备都靠读写寄存器控制，寄存器被分配到一个线性存储空间。</li>
+<li>任务：在单片机和外部模块之间连少量几根线，实现读写寄存器——至少要有「指定位置写寄存器」和「指定位置读寄存器」。</li>
 </ul>
 <h3 id="1-3-第一版方案-串口-hex-数据包">1.3 第一版方案：串口 HEX 数据包</h3>
 <ul>
-<li>用串口的 HEX 数据包，定义 <strong>3 个字节</strong>的数据包：<strong>第 1 字节 = 读写标志（0 写 / 1 读）</strong>、<strong>第 2 字节 = 读写的寄存器地址</strong>、<strong>第 3 字节 = 写入的数据</strong>；</li>
-<li>例如发 <code>0x00, 0x06, 0xAA</code> = <strong>在 0x06 地址写入 0xAA</strong>；发 <code>0x01, 0x06, 0x00</code> = <strong>读取 0x06 地址的数据</strong>（第 3 字节无效），模块收到后再回一个字节；</li>
-<li>「是不是完美完成任务啊」——但大公司对协议的要求非常多。</li>
+<li>定义 3 个字节：第 1 字节读写标志（0 写 / 1 读）、第 2 字节寄存器地址、第 3 字节写入的数据。</li>
+<li>例：发 <code>0x00, 0x06, 0xAA</code> = 在 0x06 地址写入 0xAA；发 <code>0x01, 0x06, 0x00</code> = 读取 0x06 地址的数据（第 3 字节无效），模块收到后回一个字节。</li>
 </ul>
 <h3 id="1-4-大公司的四点要求">1.4 大公司的四点要求</h3>
 <table>
@@ -220,189 +217,179 @@
 </thead>
 <tbody><tr>
 <td><strong>1</strong></td>
-<td><strong>删掉一根通信线，只能在同一根线上发送和接收（全双工 → 半双工）</strong></td>
-<td>我们整个操作是「对话」形式，<strong>并不需要同时收发</strong>，全双工是<strong>资源浪费</strong></td>
+<td>删掉一根通信线，同一根线上收和发（全双工 → 半双工）</td>
+<td>对话式操作并不需要同时收发，全双工是资源浪费</td>
 </tr>
 <tr>
 <td><strong>2</strong></td>
-<td><strong>增加应答机制</strong>：每发送一个字节对方都要应答、每接收一个字节我也要给对方应答</td>
-<td>原协议没有应答，<strong>单片机完全不知道对方收没收到</strong>，不安全</td>
+<td>增加应答机制：每发一个字节对方要应答，每收一个字节我也要应答</td>
+<td>原协议无应答，单片机不知道对方收没收到</td>
 </tr>
 <tr>
 <td><strong>3</strong></td>
-<td><strong>一根线上能同时接多个模块</strong>：主机可指定与任意一个通信，通信时其它模块不能干扰</td>
-<td>一根线只接一个模块「不给力」</td>
+<td>一根线上能接多个模块，主机可指定与任意一个通信，其余不能干扰</td>
+<td>一根线只接一个模块不给力</td>
 </tr>
 <tr>
 <td><strong>4</strong></td>
-<td><strong>把异步时序改成同步时序</strong>（加一根时钟线）</td>
-<td>异步对传输速率要求严格、不能暂停、<strong>非常依赖硬件外设</strong>（必须有 USART 电路），难以软件模拟</td>
+<td>异步时序改同步时序（加一根时钟线）</td>
+<td>异步对速率要求严格、不能暂停、依赖硬件外设，难软件模拟</td>
 </tr>
 </tbody></table>
 <ul>
-<li><strong>同步时序的好处</strong>：多了时钟线后<strong>对时间要求不高</strong>——<strong>暂停传输时时钟线也暂停</strong>，双方都定格在暂停时刻，过一会再继续不会影响；所以<strong>没有硬件外设的低端单片机也能用软件模拟</strong>（51 单片机就没有 I2C 硬件外设）；</li>
-<li><strong>异步 vs 同步</strong>：异步<strong>省一根时钟线</strong>、但依赖硬件；同步<strong>对时间不严格、不依赖硬件</strong>、但要<strong>多一根时钟线</strong>；</li>
-<li><strong>通信协议的设计很灵活</strong>：只要实现项目要求、符合电路原理、性能和稳定性好就是好设计；推广开了就成了行业标准。</li>
+<li>同步的好处：多了时钟线后对时间要求不高，<strong>暂停传输时时钟线也暂停</strong>，双方定格，过一会继续也不影响——没有硬件外设的低端单片机也能软件模拟（51 就没有 I2C 硬件外设）。</li>
+<li>异步省一根时钟线但依赖硬件；同步对时间不严格、不依赖硬件，代价是多一根时钟线。</li>
 </ul>
-<p><img src="../assets/images/stm32-31/01-i2c-intro.jpg" alt="图 1：PPT「I2C通信」——I2C 总线（Inter IC BUS）是由 Philips 公司开发的一种通用数据总线；两根通信线 SCL（Serial Clock）、SDA（Serial Data）；同步、半双工；带数据应答；支持总线挂载多设备（一主多从、多主多从）；下方是 MPU6050、OLED、AT24C02、DS3231 四张器件图；字幕「因为I2C是同步时序，软件模拟协议也非常方便」"></p>
-<p><em>图 1：PPT「I2C通信」——I2C 总线（Inter IC BUS）是由 Philips 公司开发的一种通用数据总线；两根通信线 SCL（Serial Clock）、SDA（Serial Data）；同步、半双工；带数据应答；支持总线挂载多设备（一主多从、多主多从）；下方是 MPU6050、OLED、AT24C02、DS3231 四张器件图；字幕「因为I2C是同步时序，软件模拟协议也非常方便」</em></p>
-<p><img src="../assets/images/stm32-31/02-mpu6050-demo.jpg" alt="图 2：片头现象（工程 10-1 软件I2C读写MPU6050）——面包板上 MPU6050 模块与 STM32 通过 SCL/SDA 相连，OLED 显示 ID:68，下方是加速度 XYZ（左：+00176 / -00029 / +0192B）与角速度 XYZ（右：-00020 / -00003 / -00006）；字幕「对MPU6050芯片内部的寄存器进行读写」"></p>
-<p><em>图 2：片头现象（工程 <code>10-1 软件I2C读写MPU6050</code>）——面包板上 MPU6050 模块与 STM32 通过 SCL/SDA 相连，OLED 显示 <code>ID:68</code>，下方是加速度 XYZ（左：+00176 / -00029 / +0192B）与角速度 XYZ（右：-00020 / -00003 / -00006）；字幕「对MPU6050芯片内部的寄存器进行读写」</em></p>
-<p><img src="../assets/images/stm32-31/03-hex-packet-plan.jpg" alt="图 3：设计背景里「用 HEX 数据包也能完成任务」——PPT 复用串口章节的 HEX 数据包页（固定包长含包头包尾 / 可变包长含包头包尾）；字幕「比如，我们就用HEX数据包」"></p>
-<p><em>图 3：设计背景里「用 HEX 数据包也能完成任务」——PPT 复用串口章节的 HEX 数据包页（固定包长含包头包尾 / 可变包长含包头包尾）；字幕「比如，我们就用HEX数据包」</em></p>
+<p><img src="../assets/images/stm32-31/01-i2c-intro.jpg" alt="图 1：PPT「I2C通信」——I2C 总线（Inter IC BUS）是 Philips 开发的通用数据总线；两根通信线 SCL（Serial Clock）、SDA（Serial Data）；同步、半双工；带数据应答；支持总线挂载多设备（一主多从、多主多从）；下方是 MPU6050、OLED、AT24C02、DS3231 四张器件图"></p>
+<p><em>图 1：PPT「I2C通信」——I2C 总线（Inter IC BUS）是 Philips 开发的通用数据总线；两根通信线 SCL（Serial Clock）、SDA（Serial Data）；同步、半双工；带数据应答；支持总线挂载多设备（一主多从、多主多从）；下方是 MPU6050、OLED、AT24C02、DS3231 四张器件图</em></p>
+<p><img src="../assets/images/stm32-31/02-mpu6050-demo.jpg" alt="图 2：片头现象（工程 10-1 软件I2C读写MPU6050）——面包板上 MPU6050 模块与 STM32 通过 SCL/SDA 相连，OLED 显示 ID:68，下方是加速度 XYZ（+00176 / -00029 / +0192B）与角速度 XYZ（-00020 / -00003 / -00006）"></p>
+<p><em>图 2：片头现象（工程 <code>10-1 软件I2C读写MPU6050</code>）——面包板上 MPU6050 模块与 STM32 通过 SCL/SDA 相连，OLED 显示 <code>ID:68</code>，下方是加速度 XYZ（+00176 / -00029 / +0192B）与角速度 XYZ（-00020 / -00003 / -00006）</em></p>
+<p><img src="../assets/images/stm32-31/03-hex-packet-plan.jpg" alt="图 3：设计背景里「用 HEX 数据包也能完成任务」——PPT 复用串口章节的 HEX 数据包页（固定包长含包头包尾 / 可变包长含包头包尾）"></p>
+<p><em>图 3：设计背景里「用 HEX 数据包也能完成任务」——PPT 复用串口章节的 HEX 数据包页（固定包长含包头包尾 / 可变包长含包头包尾）</em></p>
 <h2 id="2-i2c-简介">2. I2C 简介</h2>
 <ul>
-<li><strong>I2C（Inter IC BUS）</strong>：<strong>Philips 公司开发的一种通用数据总线</strong>，应用非常广泛；</li>
-<li><strong>两根通信线</strong>：<strong>SCL（Serial Clock，串行时钟线）</strong>、<strong>SDA（Serial Data，串行数据线）</strong>——使用 I2C 的器件都有这两个引脚；</li>
-<li><strong>特性</strong>：<strong>同步</strong>（SCL 满足要求 4）、<strong>半双工</strong>（一根 SDA 兼收发，满足要求 1）、<strong>带数据应答</strong>（满足要求 2）、<strong>支持总线挂载多设备</strong>（满足要求 3）；</li>
-<li><strong>常见 I2C 器件</strong>：<strong>MPU6050</strong>（姿态测量，本课程用它学 I2C）、<strong>OLED 模块</strong>（显示）、<strong>AT24C02</strong>（存储器，51 单片机教程用的就是它）、<strong>DS3231</strong>（实时时钟）；</li>
-<li><strong>同一协议在不同硬件上操作方法极为相似</strong>——学会一个，再学其它就很容易。</li>
+<li><strong>I2C（Inter IC BUS）</strong>：Philips 公司开发的通用数据总线，应用非常广泛。</li>
+<li>两根通信线：<strong>SCL（Serial Clock，串行时钟）</strong>、<strong>SDA（Serial Data，串行数据）</strong>，用 I2C 的器件都有这两个引脚。</li>
+<li>特性：<strong>同步</strong>（满足要求 4）、<strong>半双工</strong>（一根 SDA 兼收发，满足要求 1）、<strong>带数据应答</strong>（满足要求 2）、<strong>支持总线挂载多设备</strong>（满足要求 3）。</li>
+<li>常见器件：MPU6050（姿态，本课程用它学 I2C）、OLED 模块（显示）、AT24C02（存储器，51 教程用的就是它）、DS3231（实时时钟）。</li>
 </ul>
 <h3 id="2-1-一主多从模型-本课程使用">2.1 一主多从模型（本课程使用）</h3>
 <ul>
-<li><strong>主机（单片机）</strong>：<strong>① 对 SCL 线有完全控制权</strong>（任何时刻都是主机掌控 SCL）；<strong>② 空闲状态下主动发起对 SDA 的控制</strong>；<strong>只有在从机发送数据和从机应答时，主机才把 SDA 控制权转交给从机</strong>；</li>
-<li><strong>从机（被控 IC）</strong>：<strong>① 对 SCL 只能被动读取，不允许控制 SCL</strong>；<strong>② 不允许主动发起对 SDA 的控制</strong>，只有在<strong>主机发送读取命令后</strong>或<strong>从机应答</strong>时，才能短暂取得 SDA 控制权；</li>
-<li>比喻：<strong>老师（主机）主导课堂，学生（从机）可以同时被动听，但只有被点名后才能说话</strong>；</li>
-<li><strong>多主多从</strong>：总线上任何模块都可以主动「跳出来」当主机，<strong>同一时间只能一个说话</strong>（总线冲突）——I2C 会<strong>仲裁</strong>，胜者取得控制权、败者自动变回从机；<strong>多主机还要做时钟同步</strong>，协议复杂，<strong>本课程不作要求</strong>，只讲一主多从。</li>
+<li>主机（单片机）：对 SCL 有完全控制权，空闲时主动发起对 SDA 的控制；只有从机发数据和从机应答时，才把 SDA 控制权交给从机。</li>
+<li>从机（被控 IC）：对 SCL 只能被动读取；不能主动发起 SDA，只有主机发读取命令或从机应答时才能短暂取得 SDA。</li>
+<li>比喻：老师（主机）主导课堂，学生（从机）只能被动听，被点名后才能说话。</li>
+<li>多主多从：任何模块都能跳出来当主机，同一时间只能一个说话（总线冲突）——I2C 会仲裁，胜者取得控制权、败者变回从机；多主机还要做时钟同步，<strong>本课程不作要求</strong>。</li>
 </ul>
 <h2 id="3-硬件电路">3. 硬件电路</h2>
 <h3 id="3-1-接线与引脚模式">3.1 接线与引脚模式</h3>
 <ul>
-<li><strong>接线</strong>：<strong>所有 I2C 设备的 SCL 连在一起、SDA 连在一起</strong>（主机 SCL 一根线拽出来、所有从机 SCL 都接上；SDA 同理）；</li>
-<li><strong>SCL 好办</strong>：一主多从下主机拥有 SCL 绝对控制权——<strong>主机 SCL 配推挽输出</strong>、<strong>从机 SCL 配浮空输入或上拉输入</strong>（数据流向：主机发、所有从机收）；</li>
-<li><strong>SDA 麻烦</strong>：半双工，<strong>主机和从机的 SDA 都要在输入/输出之间切换</strong>；如果切换时机协调不好，<strong>可能出现两个引脚同时输出、一个出高一个出低 → 电源短路</strong>，必须极力避免。</li>
+<li>接线：所有 I2C 设备的 SCL 连在一起、SDA 连在一起。</li>
+<li>SCL 好办：一主多从下主机有绝对控制权——<strong>主机 SCL 配推挽输出</strong>，从机配浮空输入或上拉输入（数据流向：主机发、所有从机收）。</li>
+<li>SDA 麻烦：半双工，主机和从机的 SDA 都要在输入/输出间切换；切换时机不协调就可能两个引脚同时输出、一个出高一个出低 → 电源短路。</li>
 </ul>
 <h3 id="3-2-规定-开漏输出-外置上拉电阻">3.2 规定：开漏输出 + 外置上拉电阻</h3>
 <ul>
-<li><strong>禁止所有设备输出强上拉的高电平</strong>，统一采用<strong>开漏输出 + 外置弱上拉电阻</strong>；</li>
-<li><strong>三条规定</strong>：<strong>① 所有 I2C 设备的 SCL 连在一起、SDA 连在一起 ② 设备的 SCL 和 SDA 均要配置成开漏输出模式 ③ SCL 和 SDA 各添加一个上拉电阻，阻值一般 4.7KΩ 左右</strong>；</li>
-<li><strong>开漏输出原理</strong>：普通<strong>推挽</strong>是「上面一个开关管接正极、下面一个接负极」——上管导通输出高（<strong>强上拉</strong>）、下管导通输出低（<strong>强下拉</strong>）；<strong>开漏就是去掉上面那个强上拉开关管</strong>——<strong>输出低时下管导通，强下拉；输出高时下管断开、引脚浮空</strong>（什么都不接）；</li>
-<li>所以开漏<strong>只能输出低电平、不能输出高电平</strong>——高电平由<strong>外置上拉电阻</strong>把总线拉高（<strong>弱上拉</strong>）；</li>
-<li><strong>弹簧与杆子模型</strong>：SCL/SDA 是一根杆子；<strong>规定所有人不许向上推杆子，只能往下拉或者放手</strong>，外面再挂一根弹簧往上拉——<strong>要输出低就往下拽</strong>（弹簧拽不赢，杆子为低）、<strong>要输出高就放手</strong>（弹簧把杆子拉回高电平）；「这就是一个弱上拉的高电平，但完全不影响数据传输」。</li>
+<li>三条规定：① SCL 连一起、SDA 连一起 ② 设备的 SCL 和 SDA 均配开漏输出 ③ 各加上拉电阻，约 4.7KΩ。</li>
+<li>推挽是上管接正极、下管接负极：上管导通输出高（强上拉）、下管导通输出低（强下拉）；开漏就是去掉上面那个强上拉管。</li>
+<li>所以开漏<strong>只能输出低电平</strong>，高电平由外置上拉电阻提供（弱上拉）。</li>
+<li>弹簧与杆子模型：不许向上推杆，只能往下拉或放手，外面挂弹簧负责回弹——输出低就往下拽，输出高就放手。</li>
 </ul>
 <h3 id="3-3-开漏-弱上拉的三大好处">3.3 开漏 + 弱上拉的三大好处</h3>
 <ol>
-<li><strong>完全杜绝电源短路，保证电路安全</strong>：所有人无论怎么拉/放手，<strong>杆子不会同时被强拉和强推</strong>，即使多个人同时往下拉也没问题；</li>
-<li><strong>避免引脚模式频繁切换</strong>：<strong>开漏 + 弱上拉同时兼具输入和输出功能</strong>——想输出就去拉杆子/放手；想输入就<strong>直接放手、观察杆子高低</strong>；<strong>开漏输出高电平相当于断开引脚，所以输入之前可以直接输出高电平</strong>，不需要再切换成输入模式；</li>
-<li><strong>线与</strong>：<strong>只要有任意一个或多个设备输出低电平，总线就是低电平；只有所有设备都输出高电平，总线才是高电平</strong>——I2C 利用这个特性做<strong>多主机模式下的时钟同步和总线仲裁</strong>；<strong>所以 SCL 虽然在一主多从下可以用推挽，仍然采用开漏+上拉</strong>（多主机模式要用到这个特征）。</li>
+<li><strong>杜绝电源短路</strong>：所有人无论怎么拉或放手，杆子不会同时被强拉和强推。</li>
+<li><strong>避免引脚模式频繁切换</strong>：开漏兼具输入输出，想输入就放手观察杆子高低；输出高电平相当于断开引脚，输入前可直接输出高，不必切换模式。</li>
+<li><strong>线与</strong>：任一设备拉低则总线为低，全部放手才为高——多主机模式下正用它做时钟同步与仲裁，所以 SCL 虽可用推挽，实际仍用开漏 + 上拉。</li>
 </ol>
-<p><img src="../assets/images/stm32-31/04-hardware-circuit.jpg" alt="图 4：PPT「硬件电路」——三条规定（SCL 连一起 SDA 连一起；均配开漏输出；各加上拉电阻约 4.7KΩ）；下方左图是典型接线（CPU 的 SDA/SCL 引出 I²C 总线，挂 4 个被控 IC，总线经两个电阻接 +VDD），右图是引脚内部结构（SCLKN1 OUT / SCLK IN / DATAN1 OUT / DATA IN）；字幕「所有从机的SCL都配置成浮空输入或者上拉输入」"></p>
-<p><em>图 4：PPT「硬件电路」——三条规定（SCL 连一起 SDA 连一起；均配开漏输出；各加上拉电阻约 4.7KΩ）；下方左图是典型接线（CPU 的 SDA/SCL 引出 I²C 总线，挂 4 个被控 IC，总线经两个电阻接 +VDD），右图是引脚内部结构（SCLKN1 OUT / SCLK IN / DATAN1 OUT / DATA IN）；字幕「所有从机的SCL都配置成浮空输入或者上拉输入」</em></p>
-<p><img src="../assets/images/stm32-31/05-open-drain.jpg" alt="图 5：同一页上的红笔标注（讲开漏输出时）——把引脚内部结构里的强上拉开关管划掉、标出上拉电阻与 4.7K、圈住「开漏输出模式」；字幕「这就是一个弱上拉的高电平，但是完全不影响数据传输」"></p>
-<p><em>图 5：同一页上的红笔标注（讲开漏输出时）——把引脚内部结构里的强上拉开关管划掉、标出上拉电阻与 4.7K、圈住「开漏输出模式」；字幕「这就是一个弱上拉的高电平，但是完全不影响数据传输」</em></p>
-<p><img src="../assets/images/stm32-31/06-wired-and.jpg" alt="图 6：同一页上的红笔标注（讲线与）——从引脚内部结构指向上拉电阻，并标出「线与」；字幕「I2C可以利用这个电路特性」"></p>
-<p><em>图 6：同一页上的红笔标注（讲线与）——从引脚内部结构指向上拉电阻，并标出「线与」；字幕「I2C可以利用这个电路特性」</em></p>
+<p><img src="../assets/images/stm32-31/04-hardware-circuit.jpg" alt="图 4：PPT「硬件电路」——三条规定（SCL 连一起 SDA 连一起；均配开漏输出；各加上拉电阻约 4.7KΩ）；下方左图是典型接线（CPU 的 SDA/SCL 引出 I²C 总线，挂 4 个被控 IC，总线经两个电阻接 +VDD），右图是引脚内部结构（SCLKN1 OUT / SCLK IN / DATAN1 OUT / DATA IN）"></p>
+<p><em>图 4：PPT「硬件电路」——三条规定（SCL 连一起 SDA 连一起；均配开漏输出；各加上拉电阻约 4.7KΩ）；下方左图是典型接线（CPU 的 SDA/SCL 引出 I²C 总线，挂 4 个被控 IC，总线经两个电阻接 +VDD），右图是引脚内部结构（SCLKN1 OUT / SCLK IN / DATAN1 OUT / DATA IN）</em></p>
+<p><img src="../assets/images/stm32-31/05-open-drain.jpg" alt="图 5：同一页上的红笔标注（讲开漏输出时）——把引脚内部结构里的强上拉开关管划掉、标出上拉电阻与 4.7K、圈住「开漏输出模式」"></p>
+<p><em>图 5：同一页上的红笔标注（讲开漏输出时）——把引脚内部结构里的强上拉开关管划掉、标出上拉电阻与 4.7K、圈住「开漏输出模式」</em></p>
+<p><img src="../assets/images/stm32-31/06-wired-and.jpg" alt="图 6：同一页上的红笔标注（讲线与）——从引脚内部结构指向上拉电阻，并标出「线与」"></p>
+<p><em>图 6：同一页上的红笔标注（讲线与）——从引脚内部结构指向上拉电阻，并标出「线与」</em></p>
 <h2 id="4-六个时序基本单元">4. 六个时序基本单元</h2>
 <blockquote>
-<p>I2C 在<strong>硬件</strong>（电路连接、引脚模式）和<strong>软件</strong>（时序定义、字节如何传输与拼接）两方面都做了规定；先学 6 个基本单元，再拼成完整数据帧。</p>
+<p>I2C 在硬件（电路连接、引脚模式）和软件（时序定义、字节如何传输拼接）两方面都做了规定；先学 6 个基本单元，再拼成完整数据帧。</p>
 </blockquote>
 <h3 id="4-1-起始条件与终止条件">4.1 起始条件与终止条件</h3>
 <ul>
-<li><strong>起始条件</strong>：<strong>SCL 高电平期间，SDA 从高电平切换到低电平</strong>（产生下降沿）；<ul>
-<li>总线<strong>空闲</strong>时 <strong>SCL 和 SDA 都是高电平</strong>（没有任何设备碰总线，被上拉电阻拉高）；</li>
-<li>主机要收发数据时，先「打破总线的宁静」：<strong>SCL 保持高、把 SDA 拽下来</strong>；</li>
-<li>从机捕获到「SCL 高、SDA 下降沿」就<strong>自身复位、等待主机召唤</strong>；</li>
-<li><strong>之后主机再把 SCL 拽下来</strong>——<strong>一方面是占用总线，另一方面是为了拼接</strong>：<strong>除了起始和终止，每个时序单元都是「SCL 低电平开始、低电平结束」</strong>，这样拼起来 SCL 才续得上；</li>
-</ul>
-</li>
-<li><strong>终止条件</strong>：<strong>SCL 高电平期间，SDA 从低电平切换到高电平</strong>（产生上升沿）——先放 SCL（回弹高）、再放 SDA（回弹高）；终止之后 SCL/SDA 都回到高电平的平静状态；</li>
-<li><strong>起始和终止都只能由主机产生</strong>，<strong>从机在总线空闲时必须「双手放开」</strong>，不能主动碰总线（否则就成多主机模型了，不在本节讨论范围）。</li>
+<li>起始条件：<strong>SCL 高电平期间，SDA 从高切换到低</strong>（下降沿）。</li>
+<li>总线空闲时 SCL 和 SDA 都是高电平；主机先打破宁静——SCL 保持高、把 SDA 拽下来，从机捕获到就自身复位等待召唤。</li>
+<li>之后主机再把 SCL 拽下来：一方面占用总线，另一方面便于拼接——除起始和终止，每个单元都是「SCL 低电平开始、低电平结束」。</li>
+<li>终止条件：<strong>SCL 高电平期间，SDA 从低切换到高</strong>（上升沿），之后回到全高空闲态。</li>
+<li>起始和终止只能由主机产生；从机在总线空闲时必须放开总线，不能主动碰（否则就是多主机模型）。</li>
 </ul>
 <h3 id="4-2-发送一个字节">4.2 发送一个字节</h3>
 <ul>
-<li><strong>SCL 低电平期间，主机把数据位依次放到 SDA 上（高位先行 B7→B6→…→B0）</strong>；然后<strong>释放 SCL</strong>，<strong>从机在 SCL 高电平期间读取</strong>数据位；</li>
-<li>所以 <strong>SCL 高电平期间 SDA 不允许有数据变化</strong>——<strong>低电平放数据、高电平读数据</strong>；</li>
-<li>循环 8 次即发送一个字节：<strong>想发 0 就把 SDA 拉低，想发 1 就放手</strong>（回弹高）；</li>
-<li><strong>高位先行，与串口相反</strong>（串口是低位先行），注意区分；</li>
-<li><strong>同步时序的好处</strong>：如果主机发一半突然进中断、不操作 SCL/SDA，<strong>时序会在中断处不断拉长、电平暂停变化</strong>，等中断回来继续操作<strong>不会出错</strong>；</li>
-<li>这个单元里 <strong>SCL 和 SDA 全程由主机掌控</strong>，从机只能被动读取。</li>
+<li>SCL 低电平期间，主机把数据位依次放到 SDA（<strong>高位先行 B7→B0</strong>）；释放 SCL 后，从机在高电平期间读取。</li>
+<li>所以 <strong>SCL 高电平期间 SDA 不允许变化</strong>：低电平放数据、高电平读数据。</li>
+<li>循环 8 次即发送一个字节：想发 0 就拉低 SDA，想发 1 就放手。</li>
+<li><strong>高位先行，与串口相反</strong>（串口低位先行）。</li>
+<li>同步的好处：主机发一半进中断也不会出错，时序在中断处拉长、电平暂停变化，回来继续即可。</li>
 </ul>
 <h3 id="4-3-接收一个字节">4.3 接收一个字节</h3>
 <ul>
-<li><strong>SCL 低电平期间，从机把数据位依次放到 SDA 上（高位先行）</strong>；释放 SCL 后，<strong>主机在 SCL 高电平期间读取</strong>；同样<strong>高电平期间 SDA 不允许变化</strong>；循环 8 次即接收一个字节；</li>
-<li><strong>注意：主机在接收之前，必须先释放 SDA</strong>——释放 SDA 相当于「切换成输入」，也可以理解为<strong>所有设备始终处于输入模式，要发送时才主动拉低 SDA</strong>；</li>
-<li><strong>为什么必须释放</strong>：总线是<strong>线与</strong>特性，<strong>任何一个设备拉低总线就是低</strong>；接收时若还拽着 SDA 不放，<strong>别人无论发什么，总线都始终是低电平</strong>；</li>
-<li>与发送字节的区别只有一句：<strong>发送是「低电平主机放、高电平从机读」，接收是「低电平从机放、高电平主机读」</strong>；</li>
-<li>图上<strong>实线表示主机控制的电平、虚线表示从机控制的电平</strong>；SCL 全程由主机控制；因为时钟由主机控制，<strong>从机的数据变换基本都贴着 SCL 下降沿</strong>，而主机可在高电平任意时刻读取。</li>
+<li>SCL 低电平期间，<strong>从机</strong>把数据位依次放到 SDA（高位先行）；释放 SCL 后主机在高电平读取；同样高电平期间 SDA 不许变化；循环 8 次。</li>
+<li><strong>主机接收前必须先释放 SDA</strong>——相当于切换成输入，也可理解为所有设备始终是输入模式，要发时才主动拉低。</li>
+<li>为什么必须释放：总线是线与，任一设备拉低就是低；接收时还拽着 SDA，别人发什么都读不到。</li>
+<li>与发送的区别只有一句：发送是「低电平主机放、高电平从机读」，接收是「低电平从机放、高电平主机读」。</li>
+<li>图上实线是主机控制的电平、虚线是从机控制的电平；SCL 全程主机控制，所以从机换数据基本贴着 SCL 下降沿。</li>
 </ul>
 <h3 id="4-4-应答-发送应答与接收应答">4.4 应答：发送应答与接收应答</h3>
 <ul>
-<li><strong>发送应答</strong>：<strong>主机接收完一个字节之后，在下一个时钟发送一位数据</strong>——<strong>0 表示应答（ACK）、1 表示非应答（NACK）</strong>；</li>
-<li><strong>接收应答</strong>：<strong>主机发送完一个字节之后，在下一个时钟接收一位数据</strong>，判断从机是否应答——同样 <strong>0 应答、1 非应答</strong>；<strong>主机接收之前需要释放 SDA</strong>；</li>
-<li>用法：**每调用「发送一个字节」，就要紧跟「接收应答」**判断从机收到没有——主机释放 SDA 后，<strong>从机若收到就会立刻把 SDA 拉下来</strong>，主机在高电平读：<strong>读到 0 = 有人应答、传输没问题</strong>；<strong>读到 1 = 没人拽住、没收到应答</strong>（可直接发终止条件并提示）；</li>
-<li><strong>每调用「接收一个字节」之后，也要给从机发应答位</strong>，目的是<strong>告诉从机还要不要继续发</strong>——从机得到应答就继续发；没得到应答（读到 1）就认为主机不要了，<strong>乖乖释放 SDA、交出控制权</strong>；</li>
-<li><strong>应答结束时的上升沿</strong>：从机要尽快在低电平期间变换数据，所以<strong>这个上升沿和 SCL 的下降沿几乎同时发生</strong>。</li>
+<li>发送应答：主机接收完一个字节后，在下一个时钟发送一位——<strong>0 表示应答 ACK、1 表示非应答 NACK</strong>。</li>
+<li>接收应答：主机发送完一个字节后，在下一个时钟接收一位，判断从机是否应答；同样 0 应答、1 非应答，且接收前要释放 SDA。</li>
+<li>用法：每发完一个字节就紧跟「接收应答」——主机释放 SDA 后，从机若收到会立刻拉低；主机在高电平读到 0 就是有人应答，读到 1 说明没人应答（可直接发终止条件）。</li>
+<li>每接收一个字节后也要发应答位，告诉从机还要不要继续发；从机读到 1 就释放 SDA、交出控制权。</li>
+<li>应答结束的上升沿几乎与 SCL 下降沿同时发生（从机要尽快在低电平期间换数据）。</li>
 </ul>
-<p><img src="../assets/images/stm32-31/07-start-stop.jpg" alt="图 7：PPT「I2C时序基本单元」——起始条件：SCL 高电平期间 SDA 从高切换到低；终止条件：SCL 高电平期间 SDA 从低切换到高；下方两张波形（SCL 为长线、SDA 有跳变，红虚线框标出有效区间）；字幕「首先就要打破总线的宁静」"></p>
-<p><em>图 7：PPT「I2C时序基本单元」——起始条件：SCL 高电平期间 SDA 从高切换到低；终止条件：SCL 高电平期间 SDA 从低切换到高；下方两张波形（SCL 为长线、SDA 有跳变，红虚线框标出有效区间）；字幕「首先就要打破总线的宁静」</em></p>
-<p><img src="../assets/images/stm32-31/08-send-byte.jpg" alt="图 8：PPT「I2C时序基本单元」——发送一个字节：SCL 低电平期间主机把数据位依次放到 SDA（高位先行），然后释放 SCL，从机在高电平期间读取；所以 SCL 高电平期间 SDA 不允许有数据变化；循环 8 次即发送一个字节；下方波形依次标注 B7、B6 …… B0"></p>
-<p><em>图 8：PPT「I2C时序基本单元」——发送一个字节：SCL 低电平期间主机把数据位依次放到 SDA（高位先行），然后释放 SCL，从机在高电平期间读取；所以 SCL 高电平期间 SDA 不允许有数据变化；循环 8 次即发送一个字节；下方波形依次标注 B7、B6 …… B0</em></p>
-<p><img src="../assets/images/stm32-31/09-receive-byte.jpg" alt="图 9：PPT「I2C时序基本单元」——接收一个字节：SCL 低电平期间从机把数据位依次放到 SDA（高位先行），主机在高电平期间读取；高电平期间 SDA 不允许变化；循环 8 次即接收一个字节（主机在接收之前，需要释放 SDA）；波形里 SDA 画成虚线（从机控制）；字幕「不要去动它，以免影响别人发送」"></p>
-<p><em>图 9：PPT「I2C时序基本单元」——接收一个字节：SCL 低电平期间从机把数据位依次放到 SDA（高位先行），主机在高电平期间读取；高电平期间 SDA 不允许变化；循环 8 次即接收一个字节（主机在接收之前，需要释放 SDA）；波形里 SDA 画成虚线（从机控制）；字幕「不要去动它，以免影响别人发送」</em></p>
-<p><img src="../assets/images/stm32-31/10-ack-mechanism.jpg" alt="图 10：PPT「I2C时序基本单元」——发送应答：主机在接收完一个字节后、在下一个时钟发送一位数据，数据 0 表示应答、数据 1 表示非应答；接收应答：主机在发送完一个字节后、在下一个时钟接收一位数据，判断从机是否应答，0 应答/1 非应答（主机在接收之前需要释放 SDA）；下方是发送应答与接收应答两张 ACK 波形；字幕「数据0表示应答，数据1表示非应答」"></p>
-<p><em>图 10：PPT「I2C时序基本单元」——发送应答：主机在接收完一个字节后、在下一个时钟发送一位数据，数据 0 表示应答、数据 1 表示非应答；接收应答：主机在发送完一个字节后、在下一个时钟接收一位数据，判断从机是否应答，0 应答/1 非应答（主机在接收之前需要释放 SDA）；下方是发送应答与接收应答两张 ACK 波形；字幕「数据0表示应答，数据1表示非应答」</em></p>
+<p><img src="../assets/images/stm32-31/07-start-stop.jpg" alt="图 7：PPT「I2C时序基本单元」——起始条件：SCL 高电平期间 SDA 从高切换到低；终止条件：SCL 高电平期间 SDA 从低切换到高；下方两张波形，红虚线框标出有效区间"></p>
+<p><em>图 7：PPT「I2C时序基本单元」——起始条件：SCL 高电平期间 SDA 从高切换到低；终止条件：SCL 高电平期间 SDA 从低切换到高；下方两张波形，红虚线框标出有效区间</em></p>
+<p><img src="../assets/images/stm32-31/08-send-byte.jpg" alt="图 8：发送一个字节——SCL 低电平期间主机把数据位依次放到 SDA（高位先行），然后释放 SCL，从机在高电平期间读取；SCL 高电平期间 SDA 不允许变化；循环 8 次；波形依次标注 B7、B6 …… B0"></p>
+<p><em>图 8：发送一个字节——SCL 低电平期间主机把数据位依次放到 SDA（高位先行），然后释放 SCL，从机在高电平期间读取；SCL 高电平期间 SDA 不允许变化；循环 8 次；波形依次标注 B7、B6 …… B0</em></p>
+<p><img src="../assets/images/stm32-31/09-receive-byte.jpg" alt="图 9：接收一个字节——SCL 低电平期间从机把数据位依次放到 SDA（高位先行），主机在高电平期间读取；主机接收前需释放 SDA；波形里 SDA 画成虚线（从机控制）"></p>
+<p><em>图 9：接收一个字节——SCL 低电平期间从机把数据位依次放到 SDA（高位先行），主机在高电平期间读取；主机接收前需释放 SDA；波形里 SDA 画成虚线（从机控制）</em></p>
+<p><img src="../assets/images/stm32-31/10-ack-mechanism.jpg" alt="图 10：发送应答：主机接收完一个字节后、在下一个时钟发送一位数据，0 应答、1 非应答；接收应答：主机发送完一个字节后、在下一个时钟接收一位，判断从机是否应答；下方是发送应答与接收应答两张 ACK 波形"></p>
+<p><em>图 10：发送应答：主机接收完一个字节后、在下一个时钟发送一位数据，0 应答、1 非应答；接收应答：主机发送完一个字节后、在下一个时钟接收一位，判断从机是否应答；下方是发送应答与接收应答两张 ACK 波形</em></p>
 <h2 id="5-从机地址-7-位">5. 从机地址（7 位）</h2>
 <ul>
-<li><strong>一主多从</strong>下主机要指定与谁通信，就要给<strong>每个从设备一个唯一的设备地址</strong>（相当于「名字」）；<strong>主机在起始条件之后，先发送一个字节叫一下从机的名字</strong>——<strong>所有从机都会收到并与自己的名字比较</strong>，不一样就不管，一样就响应后续读写；</li>
-<li><strong>同一条总线上设备地址必须不同</strong>，否则主机叫一个地址、多个设备响应就乱套了；</li>
-<li><strong>地址分 7 位和 10 位两种</strong>，本节<strong>只讲 7 位</strong>（简单、应用最广）；</li>
-<li>厂商出厂时给每个 I2C 设备分配 <strong>7 位地址</strong>（具体值查芯片手册）；<strong>不同型号芯片地址一般不同，相同型号地址一样</strong>；</li>
-<li><strong>同型号芯片挂同一条总线怎么办</strong>：用<strong>地址里的可变部分</strong>——<strong>一般器件地址的最后几位可以在电路中改变</strong>；</li>
-<li><strong>MPU6050</strong>：7 位地址 <strong>1101000</strong>，其中<strong>最后一位由板上的 AD0 引脚决定</strong>（AD0 接低电平 → 地址 1101000）；<strong>AT24C02</strong>：<strong>最后三位分别由 A0/A1/A2 引脚决定</strong>（接低=0、接高=1）；</li>
-<li><strong>一般 I2C 从机地址高位由厂商确定、低位可由引脚灵活切换</strong>——所以同型号芯片挂同一总线也能保证地址不重复；</li>
-<li>配合读写位：<strong>写 = 地址左移后最低位补 0 → 0xD0</strong>；<strong>读 = 最低位补 1 → 0xD1</strong>。</li>
+<li>一主多从下主机要指定与谁通信，每个从设备要有唯一的设备地址；主机在起始条件后先发一个字节叫名字，所有从机都收到并与自己的比较，一样才响应后续读写。</li>
+<li>同一条总线上地址必须不同，否则叫一个地址多个设备响应就乱套。</li>
+<li>地址分 7 位和 10 位两种，本节只讲 7 位（简单、应用最广）。</li>
+<li>地址由厂商出厂分配（查手册）：不同型号一般不同，相同型号地址一样。</li>
+<li>同型号挂同一条总线：用地址里的可变部分，一般器件地址最后几位可在电路里改。</li>
+<li><strong>MPU6050</strong>：7 位地址 1101000，最后一位由 AD0 决定（AD0 接低 → 1101000）；<strong>AT24C02</strong>：最后三位由 A0/A1/A2 决定（接低=0、接高=1）。</li>
+<li>配合读写位：写 = 地址左移后最低位补 0 → <strong>0xD0</strong>；读 = 最低位补 1 → <strong>0xD1</strong>。</li>
 </ul>
 <h2 id="6-三种完整时序">6. 三种完整时序</h2>
 <h3 id="6-1-指定地址写">6.1 指定地址写</h3>
 <ul>
-<li><strong>任务</strong>：对<strong>指定设备</strong>（Slave Address），在<strong>指定地址</strong>（内部寄存器地址 Reg Address）下，<strong>写入指定数据</strong>（Data）；</li>
-<li><strong>时序</strong>：<code>S</code>（起始）→ <strong>发送 1 字节 = 从机地址 + 读写位 0 = 0xD0</strong> → <strong>接收应答 RA = 0</strong> → <strong>发送 1 字节 = 寄存器地址 0x19</strong> → <strong>RA = 0</strong> → <strong>发送 1 字节 = 数据 0xAA</strong> → <strong>RA = 0</strong> → <code>P</code>（终止）；</li>
-<li><strong>逐位解读（示波器实测波形）</strong>：上面线是 SCL、下面线是 SDA；空闲时都是高电平；<strong>SCL 高电平期间拉低 SDA 产生起始条件 S</strong>；起始后必须紧跟「发送一个字节」，<strong>内容必须是「从机地址+读写位」</strong>（7 位地址 + 1 位读写位 = 8 位）——<strong>低位期间 SDA 换数据、高位期间从机读 SDA</strong>（图中绿线标出从机读到的数据）；<strong>高 7 位是地址（1101000 = MPU6050）</strong>，<strong>最低位 0 表示接下来要写</strong>，<strong>高位先行拼成 16 进制就是 0xD0</strong>；</li>
-<li><strong>应答位</strong>：主机发送完必须紧跟「接收应答 RA」——<strong>主机释放 SDA（单看主机波形应回弹高）</strong>，但<strong>从机在该位把 SDA 拉低</strong>，<strong>线与后 SDA 保持低电平</strong>，主机在高电平读到 0，就知道<strong>寻址有人应答、传输没问题</strong>；若读到 1 说明没人应答（可直接发停止条件）；</li>
-<li><strong>第二个字节</strong>：应答结束后继续发——<strong>第二个字节由从机自己定义用途</strong>（MPU6050 是<strong>寄存器地址</strong>、AD 转换器可能是指令控制字、存储器可能是存储器地址）；波形判读为 <code>00011001</code> = <strong>0x19</strong>；</li>
-<li><strong>第三个字节</strong>：再发一个字节 = 要写入的内容，波形为 <strong>0xAA</strong>；最后接收应答；如果不需要继续传，就<strong>产生终止条件 P</strong>（<strong>先拉低 SDA 为上升沿做准备，再放 SCL、再放 SDA</strong>）；</li>
-<li><strong>整帧含义</strong>：对地址 1101000 的设备，在其内部 <strong>0x19 地址的寄存器中写入 0xAA</strong>。</li>
+<li>任务：对指定设备（Slave Address），在指定地址（Reg Address）下写入指定数据（Data）。</li>
+<li>时序：<code>S + 0xD0（从机地址+W） + RA(0) + 0x19（寄存器地址） + RA(0) + 0xAA（数据） + RA(0) + P</code>。</li>
+<li>波形解读：上面线 SCL、下面线 SDA，空闲都是高；SCL 高电平期间拉低 SDA 产生起始 S。</li>
+<li>起始后紧跟「发送一个字节」，内容必须是「从机地址+读写位」（7 位地址 + 1 位读写位 = 8 位）：低电平换数据、高电平从机读；高 7 位 1101000 是地址，最低位 0 表示写，拼起来就是 0xD0。</li>
+<li>应答位 <code>RA</code>：主机释放 SDA（单看主机波形应回弹高），但从机在该位把 SDA 拉低，线与后保持低，主机读到 0 就知道寻址有人应答；读到 1 说明没人应答（可直接发停止条件）。</li>
+<li>第二个字节由从机定义用途（MPU6050 是寄存器地址，AD 转换器可能是指令控制字，存储器可能是存储器地址），波形 <code>00011001</code> = 0x19；第三个字节是数据 0xAA，最后产生终止条件 P（先拉低 SDA 为上升沿做准备，再放 SCL、再放 SDA）。</li>
+<li>整帧含义：对地址 1101000 的设备，在内部 0x19 地址的寄存器写入 0xAA。</li>
 </ul>
-<p><img src="../assets/images/stm32-31/11-write-waveform.jpg" alt="图 11：指定地址写的示波器实测波形（PPT 内嵌截图，SCL 黄线、SDA 青线，绿色竖线为逐位采样标注，红色竖线分隔各段）——标注 S、Send Byte: 0xD0 (Slave Address + R/W)、RA 0、Send Byte: 0x19 (Reg Address)、RA…；位值 1 1 0 1 0 0 0 对应 0xD0；字幕「然后主机需要给从机写入数据的时候」"></p>
-<p><em>图 11：指定地址写的示波器实测波形（PPT 内嵌截图，SCL 黄线、SDA 青线，绿色竖线为逐位采样标注，红色竖线分隔各段）——标注 <code>S</code>、<code>Send Byte: 0xD0 (Slave Address + R/W)</code>、<code>RA 0</code>、<code>Send Byte: 0x19 (Reg Address)</code>、<code>RA</code>…；位值 1 1 0 1 0 0 0 对应 0xD0；字幕「然后主机需要给从机写入数据的时候」</em></p>
-<p><img src="../assets/images/stm32-31/12-ack-edge.jpg" alt="图 12：同一波形的应答位细节——红笔竖直箭头指向「应答位结束」处的 SDA 上升沿（从机释放 SDA、交出控制权，与 SCL 下降沿几乎同时）；字幕「然后这个上升沿，就是应答位结束后」"></p>
-<p><em>图 12：同一波形的应答位细节——红笔竖直箭头指向「应答位结束」处的 SDA 上升沿（从机释放 SDA、交出控制权，与 SCL 下降沿几乎同时）；字幕「然后这个上升沿，就是应答位结束后」</em></p>
-<h3 id="6-2-当前地址读-靠-当前地址指针">6.2 当前地址读（靠「当前地址指针」）</h3>
+<p><img src="../assets/images/stm32-31/11-write-waveform.jpg" alt="图 11：指定地址写的示波器实测波形——SCL 黄线、SDA 青线，绿色竖线为逐位采样标注，红色竖线分隔各段；标注 S、Send Byte: 0xD0 (Slave Address + R/W)、RA 0、Send Byte: 0x19 (Reg Address)；位值 1 1 0 1 0 0 0 对应 0xD0"></p>
+<p><em>图 11：指定地址写的示波器实测波形——SCL 黄线、SDA 青线，绿色竖线为逐位采样标注，红色竖线分隔各段；标注 <code>S</code>、<code>Send Byte: 0xD0 (Slave Address + R/W)</code>、<code>RA 0</code>、<code>Send Byte: 0x19 (Reg Address)</code>；位值 1 1 0 1 0 0 0 对应 0xD0</em></p>
+<p><img src="../assets/images/stm32-31/12-ack-edge.jpg" alt="图 12：同一波形的应答位细节——红笔竖直箭头指向「应答位结束」处的 SDA 上升沿（从机释放 SDA，与 SCL 下降沿几乎同时）"></p>
+<p><em>图 12：同一波形的应答位细节——红笔竖直箭头指向「应答位结束」处的 SDA 上升沿（从机释放 SDA，与 SCL 下降沿几乎同时）</em></p>
+<h3 id="6-2-当前地址读-靠当前地址指针">6.2 当前地址读（靠当前地址指针）</h3>
 <ul>
-<li><strong>任务</strong>：对指定设备，在<strong>当前地址指针指示的地址</strong>下读取从机数据；</li>
-<li><strong>时序</strong>：<code>S</code> → <strong>发送 1 字节 = 从机地址 + 读写位 1 = 0xD1</strong> → <strong>RA = 0</strong> → <strong>接收 1 字节数据（如 0x0F）</strong> → <strong>主机发非应答 SA = 1</strong> → <code>P</code>；</li>
-<li><strong>为什么没有「指定地址」环节</strong>：I2C 协议规定，<strong>主机寻址时一旦读写位给了 1，下一个字节就必须立刻转为读</strong>——主机<strong>来不及</strong>指定要读哪个寄存器，就得开始接收了；</li>
-<li><strong>那从机发哪个寄存器的数据？</strong> 靠<strong>当前地址指针</strong>：从机内部有一个<strong>单独的指针变量</strong>，指向其中一个寄存器，<strong>上电默认一般指向 0 地址</strong>，<strong>每写入/读出一个字节，指针自动 +1</strong> 移到下一个位置；</li>
-<li>所以调用「当前地址读」时，<strong>从机返回当前指针指向的寄存器值</strong>——例如刚在 0x19 写了 0xAA（指针 +1 到 0x1A），再调当前地址读，返回的就是 <strong>0x1A</strong> 的值；再调一次返回 <strong>0x1B</strong> 的值；</li>
-<li><strong>因为不能指定读的地址，这个时序用得不多</strong>。</li>
+<li>任务：对指定设备，在当前地址指针指示的地址下读取数据。</li>
+<li>时序：<code>S + 0xD1（地址+R） + RA(0) + 接收 1 字节（如 0x0F） + SA(1) NACK + P</code>。</li>
+<li>为什么没有指定地址环节：一旦读写位给了 1，下一个字节必须立刻转为读，主机来不及指定读哪个寄存器。</li>
+<li>读哪个寄存器靠当前地址指针：从机内部一个指针变量，上电默认指向 0，每读写一个字节自动 +1。</li>
+<li>所以在 0x19 写了 0xAA（指针到 0x1A）后再调当前地址读，返回的就是 0x1A 的值，再调一次返回 0x1B。</li>
+<li>不能指定地址，所以这个时序用得不多。</li>
 </ul>
-<p><img src="../assets/images/stm32-31/13-current-address-read.jpg" alt="图 13：当前地址读的示波器波形——标题「当前地址读：对于指定设备（Slave Address），在当前地址指针指示的地址下，读取从机数据（Data）」；波形标注 S、Send Byte: 0xD1 (Slave Address + R/W)、RA 0、Receive Byte: 0x0F (Data)、SA 1、P；字幕「来进行从机的寻址和指定读写标志位」"></p>
-<p><em>图 13：当前地址读的示波器波形——标题「当前地址读：对于指定设备（Slave Address），在当前地址指针指示的地址下，读取从机数据（Data）」；波形标注 <code>S</code>、<code>Send Byte: 0xD1 (Slave Address + R/W)</code>、<code>RA 0</code>、<code>Receive Byte: 0x0F (Data)</code>、<code>SA 1</code>、<code>P</code>；字幕「来进行从机的寻址和指定读写标志位」</em></p>
+<p><img src="../assets/images/stm32-31/13-current-address-read.jpg" alt="图 13：当前地址读的示波器波形——标题「对于指定设备（Slave Address），在当前地址指针指示的地址下读取从机数据（Data）」；波形标注 S、Send Byte: 0xD1 (Slave Address + R/W)、RA 0、Receive Byte: 0x0F (Data)、SA 1、P"></p>
+<p><em>图 13：当前地址读的示波器波形——标题「对于指定设备（Slave Address），在当前地址指针指示的地址下读取从机数据（Data）」；波形标注 <code>S</code>、<code>Send Byte: 0xD1 (Slave Address + R/W)</code>、<code>RA 0</code>、<code>Receive Byte: 0x0F (Data)</code>、<code>SA 1</code>、<code>P</code></em></p>
 <h3 id="6-3-指定地址读-复合格式-含重复起始-sr">6.3 指定地址读（复合格式，含重复起始 Sr）</h3>
 <ul>
-<li><strong>任务</strong>：对指定设备，<strong>在指定地址下读取</strong>从机数据；</li>
-<li><strong>怎么来的</strong>：把<strong>指定地址写「最后的写数据部分去掉」</strong>，再把剩下的「<strong>只指定地址、还没写数据</strong>」的这一段，<strong>追加到当前地址读的前面</strong>——因为刚指定了地址（写进了从机的地址指针），所以再调用当前地址读，就是<strong>从指定地址读数据</strong>了；这种拼接叫<strong>复合格式</strong>；</li>
-<li><strong>时序</strong>：<code>S</code> → <strong>0xD0（地址+W=0）</strong> → <strong>RA 0</strong> → <strong>寄存器地址 0x19（写进从机地址指针）</strong> → <strong>RA 0</strong> → <strong><code>Sr</code>（重复起始条件 Start Repeat）</strong> → <strong>0xD1（地址+R=1）</strong> → <strong>RA 0</strong> → <strong>接收 1 字节（0x19 地址下的数据，如 0xAA）</strong> → <strong>SA = 1（NACK）</strong> → <code>P</code>；</li>
-<li><strong>为什么必须重复起始</strong>：<strong>「指定读写标志位」只能是紧跟起始条件的第一个字节</strong>——所以想切换读写方向，<strong>只能再来一个起始条件 Sr</strong>，重新寻址并给读写位；</li>
-<li><strong>也可以分成两条时序</strong>：<code>写地址 → P</code>，再 <code>起始 → 读当前位置 → P</code>——<strong>因为写入的地址存在地址指针里，不会因为停止条件而消失</strong>；但 <strong>I2C 官方规定的复合格式是一整帧</strong>（<code>S…Sr…P</code>）；</li>
-<li><strong>用的最多的是「指定地址写」和「指定地址读」</strong>，也是本节后续代码要用的时序。</li>
+<li>任务：对指定设备，在指定地址下读取数据。</li>
+<li>怎么来的：把「指定地址写」最后的写数据部分去掉，再把「只指定地址、还没写数据」这段追加到当前地址读前面——地址已写进从机指针，再读就是指定地址读，这种拼接叫复合格式。</li>
+<li>时序：<code>S</code> → <code>0xD0</code> → RA 0 → 寄存器地址 <code>0x19</code> → RA 0 → <strong><code>Sr</code>（重复起始）</strong> → <code>0xD1</code> → RA 0 → 接收 1 字节（如 <code>0xAA</code>）→ SA 1（NACK）→ <code>P</code>。</li>
+<li>为什么必须重复起始：读写位只能紧跟起始条件，想切换读写方向只能再来一个 Sr 重新寻址。</li>
+<li>也可以分成两条时序（<code>写地址 → P</code>，再 <code>起始 → 读当前位置 → P</code>），因为地址存在指针里不会因停止而消失；但官方规定的复合格式是一整帧 <code>S…Sr…P</code>。</li>
+<li>用得最多的是「指定地址写」和「指定地址读」，后续代码就用这两个。</li>
 </ul>
-<p><img src="../assets/images/stm32-31/14-address-read-ppt.jpg" alt="图 14：PPT「I2C时序」——指定地址读：对于指定设备（Slave Address），在指定地址（Reg Address）下，读取从机数据（Data）；下方是整帧实测波形，红笔在中间画竖线分隔，前段只指定地址、后段读数据；字幕「但是只指定了地址，还没来得及写」"></p>
-<p><em>图 14：PPT「I2C时序」——指定地址读：对于指定设备（Slave Address），在指定地址（Reg Address）下，读取从机数据（Data）；下方是整帧实测波形，<strong>红笔在中间画竖线分隔</strong>，前段只指定地址、后段读数据；字幕「但是只指定了地址，还没来得及写」</em></p>
-<p><img src="../assets/images/stm32-31/15-address-read-waveform.jpg" alt="图 15：指定地址读波形放大——标注 RA 0、`Sr`（红笔）、Send Byte: 0xD0 (Slave Address + R/W)、RA 0、Receive Byte: 0xAA (Data)、SA 1、P；字幕「所以这个地址并不会因为时序的停止而消失」"></p>
-<p><em>图 15：指定地址读波形放大——标注 <code>RA 0</code>、<strong><code>Sr</code>（红笔）</strong>、<code>Send Byte: 0xD0 (Slave Address + R/W)</code>、<code>RA 0</code>、<code>Receive Byte: 0xAA (Data)</code>、<code>SA 1</code>、<code>P</code>；字幕「所以这个地址并不会因为时序的停止而消失」</em></p>
-<h2 id="7-进阶-多字节读写与-最后一字节-nack">7. 进阶：多字节读写与「最后一字节 NACK」</h2>
+<p><img src="../assets/images/stm32-31/14-address-read-ppt.jpg" alt="图 14：PPT「I2C时序」——指定地址读：对于指定设备（Slave Address），在指定地址（Reg Address）下读取从机数据（Data）；下方是整帧实测波形，红笔在中间画竖线分隔，前段只指定地址、后段读数据"></p>
+<p><em>图 14：PPT「I2C时序」——指定地址读：对于指定设备（Slave Address），在指定地址（Reg Address）下读取从机数据（Data）；下方是整帧实测波形，红笔在中间画竖线分隔，前段只指定地址、后段读数据</em></p>
+<p><img src="../assets/images/stm32-31/15-address-read-waveform.jpg" alt="图 15：指定地址读波形放大——标注 RA 0、Sr（红笔）、Send Byte: 0xD0 (Slave Address + R/W)、RA 0、Receive Byte: 0xAA (Data)、SA 1、P"></p>
+<p><em>图 15：指定地址读波形放大——标注 <code>RA 0</code>、<code>Sr</code>（红笔）、<code>Send Byte: 0xD0 (Slave Address + R/W)</code>、<code>RA 0</code>、<code>Receive Byte: 0xAA (Data)</code>、<code>SA 1</code>、<code>P</code></em></p>
+<h2 id="7-进阶-多字节读写与最后一字节-nack">7. 进阶：多字节读写与最后一字节 NACK</h2>
 <ul>
-<li><strong>这三种时序都只写/读 1 个字节</strong>，进阶版本是<strong>写多个字节、读多个字节</strong>，时序非常相似，只需加小细节；</li>
-<li><strong>多字节写</strong>：在「指定地址、然后写入一个字节」之后<strong>不停止</strong>，把最后那部分「<strong>发送一个字节 + 接收应答</strong>」<strong>重复多次</strong>——因为<strong>地址指针每写一个字节自动 +1</strong>，所以第 1 个数据写到 0x19、第 2 个写到 0x1A、第 3 个写到 0x1B……<strong>在一条数据帧里连续写入多个寄存器，效率更高</strong>；</li>
-<li><strong>多字节读</strong>：同理，把「<strong>接收一个字节 + 发送应答</strong>」重复多次，指针自增，就能<strong>连续读出一片区域的寄存器</strong>；</li>
-<li><strong>关键注意：如果只想读一个字节就停止，读完一个字节后一定要给从机发「非应答」（SA = 1）</strong>——<strong>非应答就是「该主机应答的时候，主机不把 SDA 拉低」</strong>，从机读到 SDA 为 1 就知道主机不要了，<strong>会释放总线、把 SDA 控制权交还主机</strong>；</li>
-<li>如果主机读完还给了应答，<strong>从机就会认为主机还要数据、继续发</strong>——这时主机想产生停止条件，<strong>SDA 可能被从机拽住、无法正常回弹高电平</strong>；</li>
-<li>所以<strong>读多字节</strong>时：<strong>之前所有字节都给应答，最后一个字节给非应答</strong>；</li>
-<li><strong>总结一句</strong>：<strong>从机控制 SDA 发送数据的权利，开始于读写位为 1，结束于主机给应答为 1（非应答）</strong>——主机给应答就继续发，给非应答就交出控制权。</li>
+<li>多字节写：在「指定地址 + 写一个字节」之后不停止，把「发送一个字节 + 接收应答」重复多次；指针每写一个字节自动 +1，所以第 1 个数据写 0x19、第 2 个写 0x1A……</li>
+<li>多字节读：把「接收一个字节 + 发送应答」重复多次，指针自增，就能连续读出一片区域。</li>
+<li>关键：只想读一个字节就停止时，读完必须给从机发非应答（SA = 1）——非应答就是主机不把 SDA 拉低，从机读到 1 就释放总线、交出控制权。</li>
+<li>若主机读完还给应答，从机认为还要数据、继续发，主机想产生停止条件时 SDA 被拽住、无法正常回弹。</li>
+<li>所以读多字节时：之前所有字节给应答，最后一个字节给非应答。</li>
+<li>一句话：<strong>从机控制 SDA 发送数据的权利，开始于读写位为 1，结束于主机给的应答为 1（非应答）</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-31/16-multi-byte.jpg" alt="图 16：PPT「I2C时序」——同一页的小尺寸整帧波形（讲多字节进阶时），可见 Sr、Send Byte: 0xD0、RA 0、Receive Byte、SA 1、P 等分段；字幕「然后同理，当前位置读和指定位置读」"></p>
-<p><em>图 16：PPT「I2C时序」——同一页的小尺寸整帧波形（讲多字节进阶时），可见 <code>Sr</code>、<code>Send Byte: 0xD0</code>、<code>RA 0</code>、<code>Receive Byte</code>、<code>SA 1</code>、<code>P</code> 等分段；字幕「然后同理，当前位置读和指定位置读」</em></p>
+<p><img src="../assets/images/stm32-31/16-multi-byte.jpg" alt="图 16：PPT「I2C时序」——同一页的小尺寸整帧波形，可见 Sr、Send Byte: 0xD0、RA 0、Receive Byte、SA 1、P 等分段"></p>
+<p><em>图 16：PPT「I2C时序」——同一页的小尺寸整帧波形，可见 <code>Sr</code>、<code>Send Byte: 0xD0</code>、<code>RA 0</code>、<code>Receive Byte</code>、<code>SA 1</code>、<code>P</code> 等分段</em></p>
 <h2 id="8-i2c-与-usart-对比">8. I2C 与 USART 对比</h2>
 <table>
 <thead>
@@ -414,8 +401,8 @@
 </thead>
 <tbody><tr>
 <td>线数</td>
-<td>TX、RX <strong>两根通信线</strong>（+ GND）</td>
-<td><strong>SCL、SDA 两根线</strong></td>
+<td>TX、RX 两根通信线（+ GND）</td>
+<td>SCL、SDA 两根线</td>
 </tr>
 <tr>
 <td>同步方式</td>
@@ -429,8 +416,8 @@
 </tr>
 <tr>
 <td>应答</td>
-<td><strong>无</strong>（靠协议/校验，本课程协议无应答）</td>
-<td><strong>每字节带应答位</strong></td>
+<td>无（靠协议/校验）</td>
+<td>每字节带应答位</td>
 </tr>
 <tr>
 <td>位数顺序</td>
@@ -439,8 +426,8 @@
 </tr>
 <tr>
 <td>拓扑</td>
-<td><strong>点对点</strong></td>
-<td><strong>一主多从 / 多主多从</strong>（需设备地址寻址）</td>
+<td>点对点</td>
+<td>一主多从 / 多主多从（需设备地址寻址）</td>
 </tr>
 <tr>
 <td>电气</td>
@@ -450,25 +437,25 @@
 <tr>
 <td>软件模拟</td>
 <td>困难（异步对时间要求严）</td>
-<td><strong>容易</strong>（同步、可暂停）</td>
+<td>容易（同步、可暂停）</td>
 </tr>
 </tbody></table>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>I2C 是高位先行（B7→B0）</strong>，串口是低位先行——写代码/看波形时别搞反。</li>
-<li><strong>SCL 高电平期间 SDA 不许变化</strong>：数据只能在 SCL 低电平期间改变，否则会被当成起始/终止条件。</li>
-<li><strong>起始/终止条件只能在 SCL 高电平期间由 SDA 跳变产生</strong>：SCL 高时 SDA 下降 = 起始，SCL 高时 SDA 上升 = 终止。</li>
-<li><strong>每个基本单元「低进低出」</strong>：除起始/终止外，单元开始和结束时 SCL 都是低电平，这样才能无缝拼接。</li>
-<li><strong>主机接收（或接收应答）之前必须释放 SDA</strong>：否则线与把总线拉死，从机发什么都读不到。</li>
-<li><strong>开漏只能输出低、不能输出高</strong>：高电平靠上拉电阻；<strong>别把 SCL/SDA 配成推挽输出</strong>（会有电源短路风险）。</li>
-<li><strong>应答位 0 = ACK、1 = NACK</strong>（反直觉，0 才是应答）。</li>
-<li><strong>读多字节时最后一个字节必须 NACK</strong>：否则从机继续发、SDA 被拽住，<strong>停止条件无法正常产生</strong>。</li>
-<li><strong>读写位切换必须重新起始（Sr）</strong>：读写位只能紧跟起始条件，不能中途改。</li>
-<li><strong>「当前地址读」不能指定地址</strong>：它读的是<strong>当前地址指针</strong>（上电默认 0、每读写一个字节 +1）指向的寄存器，所以用得少。</li>
-<li><strong>7 位地址 + 读写位 = 1 字节</strong>：MPU6050 = 1101000，<strong>写 0xD0 / 读 0xD1</strong>（最低位是读写位，不是地址的一部分）。</li>
-<li><strong>同型号芯片要改地址低位</strong>：MPU6050 改 <strong>AD0</strong>、AT24C02 改 <strong>A0/A1/A2</strong>，否则同一总线地址冲突。</li>
-<li><strong>应答位的上升沿和 SCL 下降沿几乎同时</strong>：从机要尽快在低电平期间换数据，抓波形时别以为这是异常。</li>
-<li><strong>同步总线可以「暂停」</strong>：中途进中断拉长时序不会出错——这是同步相对异步的关键优势。</li>
+<li>I2C 是高位先行（B7→B0），串口低位先行，写代码/看波形别搞反。</li>
+<li>SCL 高电平期间 SDA 不许变化，数据只能在低电平期间改，否则会被当成起始/终止条件。</li>
+<li>起始/终止只能在 SCL 高电平期间由 SDA 跳变产生：高时下降 = 起始，高时上升 = 终止。</li>
+<li>每个基本单元「低进低出」：除起始/终止外，开始和结束时 SCL 都是低，才能无缝拼接。</li>
+<li>主机接收（或接收应答）前必须释放 SDA，否则线与把总线拉死，从机发什么都读不到。</li>
+<li>开漏只能输出低、不能输出高；别把 SCL/SDA 配成推挽输出（有电源短路风险）。</li>
+<li>应答位 0 = ACK、1 = NACK（反直觉，0 才是应答）。</li>
+<li>读多字节时最后一个字节必须 NACK，否则从机继续发、SDA 被拽住，停止条件无法产生。</li>
+<li>读写位切换必须重新起始（Sr）：读写位只能紧跟起始条件，不能中途改。</li>
+<li>「当前地址读」不能指定地址，读的是当前地址指针（上电默认 0、每字节 +1）指向的寄存器。</li>
+<li>7 位地址 + 读写位 = 1 字节：MPU6050 = 1101000，写 0xD0 / 读 0xD1（最低位不是地址的一部分）。</li>
+<li>同型号芯片要改地址低位：MPU6050 改 AD0、AT24C02 改 A0/A1/A2，否则同总线地址冲突。</li>
+<li>应答位的上升沿和 SCL 下降沿几乎同时，这是从机尽快换数据造成的，不是异常。</li>
+<li>同步总线可以「暂停」：中途进中断拉长时序不会出错，这是同步相对异步的关键优势。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -480,7 +467,7 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-i2c-%E5%8D%8F%E8%AE%AE%E5%85%A8%E8%A7%A3-%E4%BB%A3%E7%A0%81%E5%9C%A8-10-2-10-3">0. 本集定位：理论课（I2C 协议全解），代码在 10-2/10-3</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E8%AE%BE%E8%AE%A1%E8%83%8C%E6%99%AF-%E4%BB%8E%E4%B8%B2%E5%8F%A3%E5%88%B0%E5%A4%A7%E5%85%AC%E5%8F%B8%E7%9A%84%E5%9B%9B%E7%82%B9%E8%A6%81%E6%B1%82">1. 设计背景：从串口到大公司的四点要求</a>
         <a class="level-3" href="#1-1-%E5%9B%9E%E9%A1%BE%E4%B8%B2%E5%8F%A3">1.1 回顾串口</a>
         <a class="level-3" href="#1-2-%E4%BB%BB%E5%8A%A1-%E7%94%A8%E5%B0%91%E9%87%8F%E7%BA%BF%E8%AF%BB%E5%86%99%E5%A4%96%E9%83%A8%E6%A8%A1%E5%9D%97%E7%9A%84%E5%AF%84%E5%AD%98%E5%99%A8">1.2 任务：用少量线读写外部模块的寄存器</a>
@@ -500,9 +487,9 @@
         <a class="level-2" href="#5-%E4%BB%8E%E6%9C%BA%E5%9C%B0%E5%9D%80-7-%E4%BD%8D">5. 从机地址（7 位）</a>
         <a class="level-2" href="#6-%E4%B8%89%E7%A7%8D%E5%AE%8C%E6%95%B4%E6%97%B6%E5%BA%8F">6. 三种完整时序</a>
         <a class="level-3" href="#6-1-%E6%8C%87%E5%AE%9A%E5%9C%B0%E5%9D%80%E5%86%99">6.1 指定地址写</a>
-        <a class="level-3" href="#6-2-%E5%BD%93%E5%89%8D%E5%9C%B0%E5%9D%80%E8%AF%BB-%E9%9D%A0-%E5%BD%93%E5%89%8D%E5%9C%B0%E5%9D%80%E6%8C%87%E9%92%88">6.2 当前地址读（靠「当前地址指针」）</a>
+        <a class="level-3" href="#6-2-%E5%BD%93%E5%89%8D%E5%9C%B0%E5%9D%80%E8%AF%BB-%E9%9D%A0%E5%BD%93%E5%89%8D%E5%9C%B0%E5%9D%80%E6%8C%87%E9%92%88">6.2 当前地址读（靠当前地址指针）</a>
         <a class="level-3" href="#6-3-%E6%8C%87%E5%AE%9A%E5%9C%B0%E5%9D%80%E8%AF%BB-%E5%A4%8D%E5%90%88%E6%A0%BC%E5%BC%8F-%E5%90%AB%E9%87%8D%E5%A4%8D%E8%B5%B7%E5%A7%8B-sr">6.3 指定地址读（复合格式，含重复起始 Sr）</a>
-        <a class="level-2" href="#7-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%AD%97%E8%8A%82%E8%AF%BB%E5%86%99%E4%B8%8E-%E6%9C%80%E5%90%8E%E4%B8%80%E5%AD%97%E8%8A%82-nack">7. 进阶：多字节读写与「最后一字节 NACK」</a>
+        <a class="level-2" href="#7-%E8%BF%9B%E9%98%B6-%E5%A4%9A%E5%AD%97%E8%8A%82%E8%AF%BB%E5%86%99%E4%B8%8E%E6%9C%80%E5%90%8E%E4%B8%80%E5%AD%97%E8%8A%82-nack">7. 进阶：多字节读写与最后一字节 NACK</a>
         <a class="level-2" href="#8-i2c-%E4%B8%8E-usart-%E5%AF%B9%E6%AF%94">8. I2C 与 USART 对比</a>
         <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>

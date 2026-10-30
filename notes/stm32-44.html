@@ -177,146 +177,128 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>29 分钟</span>
+      <span>17 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">PWR</span><span class="tag">低功耗</span><span class="tag">睡眠模式</span><span class="tag">停机模式</span><span class="tag">待机模式</span>
     </div>
     <article class="prose"><h1>[13-1] PWR电源控制 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 13 的理论课</strong>——<strong>PWR（Power Control）电源控制</strong>，重点是<strong>三种低功耗模式</strong>（睡眠/停机/待机）与 <strong>PVD</strong>。00:00–07:23 依次演示 <strong>4 个已写好的工程的现象</strong>（<code>13-1 修改主频</code>、<code>13-2 睡眠模式+串口发送+接收</code>、<code>13-3 停止模式+对射式红外传感器计次</code>、<code>13-4 待机模式+实时时钟</code>），代码只展示关键几行、<strong>没有逐行写码</strong>；07:23–45:00 全部是 PPT；45:00–45:52 查数据手册与参考手册。<strong>本集没有写一行代码</strong>；结尾 45:49「<strong>我们下小节来学习低功耗模式的相关代码</strong>」→ <strong>代码讲解在 [13-2]</strong>。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p><strong>PWR（Power Control）电源控制</strong>：负责管理 STM32 内部的电源供电部分，可实现<strong>可编程电压监测器（PVD）<strong>与</strong>低功耗模式</strong>。<strong>PVD</strong> 监控 VDD 电源电压，当 VDD <strong>下降到 PVD 阈值以下或上升到阈值之上</strong>时会<strong>触发中断</strong>，用于<strong>执行紧急关闭任务</strong>（电池供电或安全要求高的设备）。<strong>低功耗模式包括睡眠（Sleep）、停机（Stop）、待机（Standby）</strong>，目的就是「省电」——对电池供电、需长期待机的设备最重要：电池设备一生中绝大部分时间空闲，但<strong>程序跑起来就不会停</strong>（空循环也耗电），所以要「<strong>关闭不必要的硬件（断 CPU 电/关时钟）+ 保留必要的唤醒电路</strong>（串口接收中断、外部中断、RTC 闹钟）」，并且**「关得越多越省电，唤醒越麻烦」**——这正是三种模式的区别。<strong>表8 低功耗模式一览（核心）</strong>：</p>
+<p>PWR 管电源：PVD 监控 VDD，越限时走 EXTI 申请中断。三种低功耗模式按睡眠→停机→待机排列，关得越来越多、越来越省电、也越来越难唤醒；待机只剩 4 个唤醒源，唤醒后程序从头运行。</p>
+<h2 id="1-本集定位">1. 本集定位</h2>
+<ul>
+<li>模块 13 的理论课，重点是<strong>三种低功耗模式</strong>与 <strong>PVD</strong>。</li>
+<li><code>13-1 修改主频</code>、<code>13-2 睡眠模式+串口发送+接收</code>、<code>13-3 停止模式+对射式红外传感器计次</code>、<code>13-4 待机模式+实时时钟</code> 是 4 个已写好的工程，本集只演示现象。</li>
+<li>00:00–07:23 看现象，07:23–45:00 全是 PPT，45:00–45:52 查数据手册与参考手册。</li>
+<li>本集没有写一行代码；45:49「我们下小节来学习低功耗模式的相关代码」→ 代码在 [13-2]。</li>
+</ul>
 <table>
 <thead>
 <tr>
-<th>模式</th>
-<th>进入</th>
-<th>唤醒</th>
-<th>对 1.8V 区域时钟的影响</th>
-<th>对 VDD 区域时钟的影响</th>
-<th>电压调节器</th>
+<th>程序</th>
+<th>现象</th>
 </tr>
 </thead>
 <tbody><tr>
-<td><strong>睡眠</strong>（SLEEP-NOW 或 SLEEP-ON-EXIT）</td>
-<td><strong>WFI</strong> / <strong>WFE</strong></td>
-<td><strong>任一中断</strong> / <strong>唤醒事件</strong></td>
-<td><strong>CPU 时钟关</strong>，对其他时钟和 ADC 时钟无影响</td>
-<td><strong>无</strong></td>
-<td><strong>开</strong></td>
+<td><code>13-1 修改主频</code></td>
+<td>主频 36MHz，<code>Running</code> 周期变 2s</td>
 </tr>
 <tr>
-<td><strong>停机</strong></td>
-<td><strong>PDDS 和 LPDS 位 + SLEEPDEEP 位 + WFI 或 WFE</strong></td>
-<td><strong>任一外部中断</strong>（在外部中断寄存器中设置）</td>
-<td><strong>关闭所有 1.8V 区域的时钟</strong></td>
-<td><strong>HSI 和 HSE 的振荡器关闭</strong></td>
-<td><strong>开启或处于低功耗模式</strong>（依 PWR_CR 的 LPDS）</td>
+<td><code>13-2 睡眠模式+串口发送+接收</code></td>
+<td>只在发送数据时闪一次 <code>Running</code></td>
 </tr>
 <tr>
-<td><strong>待机</strong></td>
-<td><strong>PDDS 位 + SLEEPDEEP 位 + WFI 或 WFE</strong></td>
-<td><strong>WKUP 引脚上升沿、RTC 闹钟事件、NRST 外部复位、IWDG 复位</strong></td>
-<td>关闭所有 1.8V 区域时钟</td>
-<td>HSI/HSE 关闭</td>
-<td><strong>关</strong></td>
+<td><code>13-3 停止模式+对射式红外传感器计次</code></td>
+<td>遮挡一次红外计一次</td>
+</tr>
+<tr>
+<td><code>13-4 待机模式+实时时钟</code></td>
+<td>RTC 闹钟每 10 秒唤醒一次</td>
 </tr>
 </tbody></table>
-<p><strong>图4 电源框图</strong>：<strong>VDDA 供电区域</strong>（<strong>A/D 转换器、温度传感器、复位模块、PLL</strong>，多引脚型号单独引出 VREF+/VREF−，<strong>C8T6 内部已短接到 VDDA/VSSA</strong>）；<strong>VDD 供电区域</strong>（<strong>IO 电路、待机电路（含唤醒逻辑、IWDG）</strong>）；<strong>1.8V 供电区域</strong>（<strong>CPU 核心、存储器、内置数字外设</strong>，由<strong>电压调节器</strong>从 VDD 降压得到）；<strong>后备供电区域 VBAT</strong>（<strong>LSE 32K 晶体振荡器、后备寄存器、RCC_BDCR 备份域控制寄存器、RTC</strong>）；中间有<strong>低电压检测器</strong>控制供电切换（VDD 有电用 VDD、没电用 VBAT）——所以「从外部看好像 STM32 内部全是 3.3V」，实际<strong>内核是 1.8V</strong>。<strong>上电/掉电复位（图5）</strong>：VDD/VDDA 过低时内部直接复位；<strong>POR（上电复位阈值上限）与 PDR（掉电复位阈值下限）之间有 40mV 迟滞</strong>（典型 <strong>1.92V / 1.88V</strong>），用滞回比较器<strong>防止阈值附近抖动</strong>；复位信号<strong>低有效</strong>；还有 <strong>tRSTTEMPO 滞后（复位持续）时间</strong>。<strong>PVD（图6）</strong>：同样监测 VDD/VDDA，但<strong>阈值可用程序指定</strong>——用 <strong><code>PLS</code> 寄存器 3 位</strong>选阈值，范围约 <strong>2.2V～2.9V</strong>，<strong>迟滞 100mV</strong>；<strong>PVD 输出为正逻辑</strong>（电压过低为 1、正常为 0），可<strong>申请中断</strong>（上升沿/下降沿触发）。<strong>PVD 中断是「借道外部中断 EXTI」实现的</strong>——同理 <strong>RTC 闹钟、USB 唤醒、ETH 唤醒</strong>也都借道 EXTI，因为<strong>只有外部中断能唤醒停止模式</strong>。<strong>睡眠模式（浅睡眠/打盹）</strong>：执行 WFI/WFE 后进入，<strong>程序暂停运行、唤醒后从暂停的地方继续</strong>；<strong><code>SLEEPONEXIT</code> 位</strong>决定是<strong>立刻睡眠</strong>还是<strong>等最低优先级中断处理程序退出后再睡</strong>；<strong>所有 I/O 引脚保持运行模式时的状态</strong>（点亮的 LED 仍然亮）；<strong>WFI 可被任意一个 NVIC 响应的中断唤醒</strong>、<strong>WFE 可被唤醒事件唤醒</strong>；对 1.8V 区域<strong>只关 CPU 时钟</strong>（其他时钟与 ADC 时钟无影响），<strong>电压调节器保持开</strong>——<strong>只关时钟不关电源，寄存器和存储器数据全部保留</strong>。<strong>WFE 唤醒事件</strong>的产生方式：① <strong>外设使能中断但不在 NVIC 里使能 + 内核 <code>SEVONPEND</code> 位置 1</strong>（唤醒后要清挂起位）② <strong>EXTI 配置为事件模式</strong>——都比较麻烦，<strong>建议直接用中断唤醒</strong>。<strong>停机模式（整人罢工）</strong>：<code>SLEEPDEEP=1</code> + <strong><code>PDDS=0</code></strong> + <code>LPDS</code>（<strong>0＝电压调节器开启、1＝低功耗</strong>）+ WFI/WFE；<strong>只能被外部中断（EXTI）唤醒</strong>（所以 PVD/RTC 闹钟/USB/ETH 都借道 EXTI；WFI 用中断模式、WFE 用事件模式）；<strong>关闭所有 1.8V 区域时钟</strong>（CPU 与外设全停：定时器暂停、串口暂停），但<strong>没关电源 → SRAM/寄存器内容保留</strong>；<strong>HSI/HSE 关闭</strong>（<strong>LSI/LSE 不会被动关闭</strong>）；电压调节器<strong>开或低功耗</strong>——<strong>两者都能保住 1.8V 区域数据和存储器内容</strong>，区别是<strong>低功耗更省电、但唤醒有额外启动延时</strong>。<strong>待机模式（下班回家）</strong>：<code>SLEEPDEEP=1</code> + <strong><code>PDDS=1</code></strong> + WFI/WFE；<strong>唤醒源只有 4 个</strong>：<strong>WKUP 引脚（PA0）上升沿、RTC 闹钟事件上升沿、NRST 外部复位、IWDG 独立看门狗复位</strong>——<strong>唤醒条件最苛刻</strong>；对电路「能关的全关」：<strong>关 1.8V 区域时钟、关两个高速时钟、关电压调节器（＝1.8V 区域断电）</strong> → <strong>内部存储器和寄存器数据全部丢失</strong>；<strong>LSI/LSE 不关</strong>（要维持 RTC 和独立看门狗）；<strong>所有 I/O 变为高阻态</strong>（＝浮空输入，输出既不输出高也不输出低，<strong>点亮的 LED 会熄灭、也不流电流</strong>）；<strong>唤醒后程序从头开始运行</strong>。<strong>模式选择流程图</strong>：执行 WFI/WFE 后——<strong><code>SLEEPDEEP=0</code> → 睡眠模式</strong>（再由 <strong><code>SLEEPONEXIT</code></strong> 分「立刻睡眠」/「等中断退出后睡眠」）；<strong><code>SLEEPDEEP=1</code> → 深度睡眠</strong>（<strong>停机与待机统称深度睡眠</strong>）→ <strong><code>PDDS=0</code> → 停机模式</strong>（再由 <strong><code>LPDS</code></strong> 分「电压调节器开启」/「低功耗」）；<strong><code>PDDS=1</code> → 待机模式</strong>——这些寄存器库函数都已封装，但了解原理有助于理解程序。<strong>电流实测（数据手册）</strong>：表13/14 <strong>运行模式最大电流</strong>——<strong>72MHz 使能所有外设 50mA（85℃）/50.3mA（105℃）</strong>、关闭所有外设 32.8/32.9mA（<strong>24MHz 19.9mA</strong> 等，<strong>这些是最大值，典型值查表17</strong>）；表16 <strong>停机典型 23.5µA（2.4V）/24µA（3.3V）</strong>（调节器运行）、<strong>13.5/14µA</strong>（调节器低功耗）、<strong>待机典型 1.7µA（2.4V）/2µA（3.3V）</strong>（低速振荡器和 RTC 关闭时）、<strong>IDD_VBAT 备份区域 1.1/1.4µA</strong>。作者口述<strong>近似</strong>为：<strong>运行 30mA、停机 30µA、待机 3µA</strong>——<strong>对一个 300mAh 的电池来说</strong>，运行只能用约 <strong>10 小时</strong>，而待机能撑约 <strong>10 万小时</strong>（这些是<strong>估算</strong>，不是实测值）。<strong>参考手册第 4 章</strong>：<strong>PWR 只有两个寄存器</strong>——<strong><code>PWR_CR</code></strong>（<strong>DBP 取消后备区域写保护、PLS 选择 PVD 电平、PDDS 选择停机/待机、LPDS 选择停止模式电压调节器开/低功耗、CWUF 清除唤醒标志</strong>）与 <strong><code>PWR_CSR</code></strong>（<strong>WUF 唤醒标志、SBF 待机标志、EWUP 使能 WKUP 引脚、PVDO PVD 输出</strong>）。</p>
-<h2 id="0-本集定位-理论课-4-个成品程序现象-ppt-手册-代码在-13-2">0. 本集定位：理论课（4 个成品程序现象 + PPT + 手册），代码在 13-2</h2>
-<ul>
-<li><strong>本集前面 7 分钟只演示 4 个已写好的程序的现象</strong>：<code>13-1 修改主频</code>、<code>13-2 睡眠模式+串口发送+接收</code>、<code>13-3 停止模式+对射式红外传感器计次</code>、<code>13-4 待机模式+实时时钟</code>；</li>
-<li>代码只<strong>展示关键几行</strong>（如 <code>__WFI()</code>、<code>PWR_EnterSTANDBYMode()</code>），<strong>没有逐行写码</strong>；</li>
-<li>主体（07:23–45:52）是 <strong>PPT + 数据手册 + 参考手册</strong>；</li>
-<li>结尾 45:49「我们下小节来学习低功耗模式的相关代码」→ <strong>代码在 [13-2]</strong>。</li>
-</ul>
+<p><img src="../assets/images/stm32-44/01-pwr-intro.jpg" alt="图 1：PPT「PWR简介」——负责管理 STM32 内部电源供电；可实现可编程电压监测器（PVD）与低功耗模式；PVD 监控 VDD，越限触发中断执行紧急关闭任务；低功耗模式含睡眠、停机、待机"></p>
+<p><em>图 1：PPT「PWR简介」——负责管理 STM32 内部电源供电；可实现可编程电压监测器（PVD）与低功耗模式；PVD 监控 VDD，越限触发中断执行紧急关闭任务；低功耗模式含睡眠、停机、待机</em></p>
 <h2 id="1-四个成品程序的现象">1. 四个成品程序的现象</h2>
-<h3 id="1-1-程序1-修改主频-13-1-修改主频">1.1 程序①：修改主频（<code>13-1 修改主频</code>）</h3>
+<h3 id="1-1-修改主频-13-1-修改主频">1.1 修改主频（<code>13-1 修改主频</code>）</h3>
 <ul>
-<li><strong>程序内容</strong>：初始化显示 <strong><code>SystemCoreClock</code></strong>（该变量指示<strong>当前主频频率</strong>）；主循环以 <strong>1s 为周期</strong>显示 <code>Running</code> 再清除；</li>
-<li><strong>现象</strong>：挡下来时 OLED 显示 <strong><code>SYSCLK:36000000</code></strong>，而 <code>Running</code> <strong>闪烁周期变成 2s</strong>——因为<strong>系统主频从正常的 72MHz 降到了 36MHz</strong>，所以同样的 <code>Delay</code> 跑得慢一倍；</li>
-<li><strong>改主频的方法</strong>：在 <strong><code>system_stm32f10x.c</code></strong> 文件里（这个文件就是用来配置时钟的），<strong>约 110 行</strong>处作者<strong>预留好了配置时钟的宏定义</strong>，<strong>解除哪个频率的宏注释，主频就是多少</strong>——把 36M 的宏解除注释就得到 36MHz；把 72M 解除注释、36M 注释掉，就恢复 72MHz（<code>Running</code> 周期恢复 1s）；</li>
-<li><strong>作者说</strong>：<code>system</code> 文件的详细解释和配置主频的更多玩法，<strong>写程序时再介绍</strong>。</li>
+<li>初始化显示 <code>SystemCoreClock</code>（指示当前主频），主循环以 1s 为周期显示 <code>Running</code> 再清除。</li>
+<li>现象：OLED 显示 <code>SYSCLK:36000000</code>，<code>Running</code> 闪烁周期变成 2s——主频从 72MHz 降到了 36MHz，同样的 <code>Delay</code> 跑得慢一倍。</li>
+<li>改法：<code>system_stm32f10x.c</code> 约 110 行处预留了配置时钟的宏，解除哪个频率的宏注释，主频就是多少。</li>
+<li>把 36M 的宏注释、72M 解除注释就恢复 72MHz（<code>Running</code> 周期恢复 1s）。</li>
+<li><code>system</code> 文件的详细解释与更多改主频玩法，写程序时再介绍。</li>
 </ul>
-<h3 id="1-2-程序2-睡眠模式-串口收发-13-2">1.2 程序②：睡眠模式 + 串口收发（<code>13-2</code>）</h3>
+<p><img src="../assets/images/stm32-44/02-sysclk-36m.jpg" alt="图 2：程序①现象——OLED 显示 SYSCLK:36000000（主频 36MHz）与 Running，闪烁周期变成 2s，因为降频后同样的延时慢一倍"></p>
+<p><em>图 2：程序①现象——OLED 显示 <code>SYSCLK:36000000</code>（主频 36MHz）与 <code>Running</code>，闪烁周期变成 2s，因为降频后同样的延时慢一倍</em></p>
+<h3 id="1-2-睡眠模式-串口收发-13-2">1.2 睡眠模式 + 串口收发（<code>13-2</code>）</h3>
 <ul>
-<li><strong>代码</strong>：直接复制串口那一节的工程；功能是收到一个字节触发中断，主循环查到标志位后读数据并用串口发回去；</li>
-<li><strong>新增的关键代码只有一句</strong>：主循环末尾的 <strong><code>__WFI();</code></strong>——执行这句<strong>芯片就进入睡眠模式</strong>；</li>
-<li><strong>为什么要睡</strong>：如果一直没收到数据，主循环就会<strong>一直查询标志位</strong>，这是<strong>无意义的耗电操作</strong>——不如睡眠，<strong>收到数据后自动退出睡眠</strong>、执行一遍任务后继续睡，这样<strong>空闲时芯片一直在睡眠</strong>，降低功耗；</li>
-<li><strong>现象</strong>：串口收发功能与之前完全一样，但<strong>细节在于 <code>Running</code> 只在发送数据时刻才闪一次</strong>——<strong>不在收发时芯片一直在睡</strong>；</li>
-<li><strong>注意</strong>：<code>__WFI()</code> 是 <strong>CMSIS 提供的内核指令</strong>（Wait For Interrupt），<strong>不是 PWR 库函数</strong>。</li>
+<li>直接复制串口那一节的工程：收到一个字节触发中断，主循环查到标志位后读数据再用串口发回去。</li>
+<li>新增的关键代码只有主循环末尾的 <code>__WFI();</code>，执行这句芯片就进入睡眠模式。</li>
+<li>为什么要睡：没数据时主循环一直查标志位是无意义耗电，睡眠后收到数据自动退出、执行一遍任务再睡。</li>
+<li>现象：串口收发功能与之前一样，但 <code>Running</code> 只在发送数据时刻才闪一次——不在收发时芯片一直在睡。</li>
+<li><code>__WFI()</code> 是 CMSIS 提供的内核指令（Wait For Interrupt），不是 PWR 库函数。</li>
+<li>开头是 <code>OLED_ShowString(1, 1, &quot;RxData:&quot;);</code>、<code>Serial_Init();</code>。</li>
+<li>主循环原文：<code>while (1) { if (Serial_GetRxFlag() == 1) { RxData = Serial_GetRxData(); Serial_SendByte(RxData); OLED_ShowHexNum(1, 8, RxData, 2); } OLED_ShowString(2, 1, &quot;Running&quot;); Delay_ms(100); OLED_ShowString(2, 1, &quot;    &quot;); Delay_ms(100); **</code>__WFI();<code>** }</code></li>
 </ul>
-<h3 id="1-3-程序3-停止模式-对射式红外传感器计次-13-3">1.3 程序③：停止模式 + 对射式红外传感器计次（<code>13-3</code>）</h3>
+<p><img src="../assets/images/stm32-44/03-sleep-wfi.jpg" alt="图 3：程序②的 main.c——OLED_ShowString(1, 1, &quot;RxData:&quot;);、Serial_Init();、主循环里查 Serial_GetRxFlag()、末尾 __WFI();"></p>
+<p><em>图 3：程序②的 main.c——<code>OLED_ShowString(1, 1, &quot;RxData:&quot;);</code>、<code>Serial_Init();</code>、主循环里查 <code>Serial_GetRxFlag()</code>、末尾 <code>__WFI();</code></em></p>
+<h3 id="1-3-停止模式-对射式红外传感器计次-13-3">1.3 停止模式 + 对射式红外传感器计次（<code>13-3</code>）</h3>
 <ul>
-<li>在<strong>外部中断那一节的代码</strong>基础上修改，<strong>加了 <code>Running</code> 指示和最后进入停止模式的代码</strong>；</li>
-<li><strong>现象</strong>：每遮挡一次红外对射管就计次一次，同时显示 <code>Running</code>；不遮挡时芯片处于<strong>停止模式</strong>（功耗更低、但唤醒条件更苛刻）。</li>
+<li>在外部中断那一节的代码基础上修改，加了 <code>Running</code> 指示和最后进入停止模式的代码。</li>
+<li>现象：每遮挡一次红外对射管就计次一次并显示 <code>Running</code>；不遮挡时芯片处于停止模式。</li>
 </ul>
-<h3 id="1-4-程序4-待机模式-实时时钟-13-4">1.4 程序④：待机模式 + 实时时钟（<code>13-4</code>）</h3>
+<h3 id="1-4-待机模式-实时时钟-13-4">1.4 待机模式 + 实时时钟（<code>13-4</code>）</h3>
 <ul>
-<li>用 <strong>RTC</strong>（时钟源 <strong>LSE</strong>，没晶振可用 <strong>LSI</strong>——<strong>LSI 在待机下仍可工作</strong>）；</li>
-<li><strong>在进入待机模式之前</strong>：先把 OLED 等外部模块关掉/清屏以省电（示例用 <code>OLED_Clear()</code> 模拟「关闭外部模块」）；</li>
-<li><strong>进入待机</strong>：<strong><code>PWR_EnterSTANDBYMode();</code></strong>——<strong>本集唯一出现的 PWR 库函数</strong>；</li>
-<li><strong>唤醒方式</strong>：<strong>用 RTC 闹钟每 10 秒自动唤醒一次</strong>，唤醒后执行任务再继续待机——<code>while (1)</code> 里显示 <code>Running</code>、显示 <code>STANDBY</code>、清屏，然后进待机；</li>
-<li><strong>现象</strong>：OLED 先显示 <code>Running</code>，然后显示 <code>STANDBY</code> 并清屏——<strong>每 10 秒重复一次</strong>（RTC 闹钟唤醒后<strong>程序从头开始运行</strong>）。</li>
+<li>用 RTC，时钟源 LSE，没晶振可用 LSI——<strong>LSI 在待机下仍可工作</strong>。</li>
+<li>进待机前先把 OLED 等外部模块关掉/清屏省电，示例用 <code>OLED_Clear()</code> 模拟。</li>
+<li>进入待机：<code>PWR_EnterSTANDBYMode();</code>，<strong>这是本集唯一出现的 PWR 库函数</strong>。</li>
+<li>唤醒用 RTC 闹钟每 10 秒自动唤醒一次：<code>while (1)</code> 里显示 <code>Running</code>、显示 <code>STANDBY</code>、清屏，然后进待机。</li>
+<li>现象：先 <code>Running</code> 再 <code>STANDBY</code> 并清屏，每 10 秒重复一次（唤醒后程序从头开始运行）。</li>
+<li>主循环原文（截图里带加粗标记）：<code>while (1) { OLED_ShowNum(1, 6, RTC_GetCounter(), 10); OLED_ShowNum(3, 6, RTC_GetFlagStatus(RTC_FLAG_ALR), 1); OLED_ShowString(4, 1, &quot;Running&quot;); Delay_ms(100); OLED_ShowString(4, 1, &quot;    &quot;); Delay_ms(100); OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); OLED_ShowString(4, 9, &quot;        &quot;); Delay_ms(100); OLED_Clear(); **</code>PWR_EnterSTANDBYMode();<code>** }</code></li>
+<li>同一段代码去掉加粗标记后：<code>while (1) { OLED_ShowNum(1, 6, RTC_GetCounter(), 10); OLED_ShowNum(3, 6, RTC_GetFlagStatus(RTC_FLAG_ALR), 1); OLED_ShowString(4, 1, &quot;Running&quot;); Delay_ms(100); OLED_ShowString(4, 1, &quot;    &quot;); Delay_ms(100); OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); OLED_ShowString(4, 9, &quot;        &quot;); Delay_ms(100); OLED_Clear(); PWR_EnterSTANDBYMode(); }</code></li>
 </ul>
-<p><img src="../assets/images/stm32-44/01-pwr-intro.jpg" alt="图 1：PPT「PWR简介」——PWR（Power Control）电源控制；负责管理 STM32 内部的电源供电部分，可实现可编程电压监测器和低功耗模式的功能；可编程电压监测器（PVD）可以监控 VDD 电源电压，当 VDD 下降到 PVD 阈值以下或上升到 PVD 阈值之上时，PVD 会触发中断，用于执行紧急关闭任务；低功耗模式包括睡眠模式（Sleep）、停机模式（Stop）和待机模式（Standby），可在系统空闲时降低 STM32 的功耗、延长设备使用时间；字幕「哈喽，大家好」"></p>
-<p>*图 1：PPT「PWR简介」——PWR（Power Control）电源控制；负责管理 STM32 内部的电源供电部分，可实现<strong>可编程电压监测器</strong>和<strong>低功耗模式</strong>的功能；<strong>可编程电压监测器（PVD）可以监控 VDD 电源电压</strong>，当 VDD 下降到 PVD 阈值以下或上升到 PVD 阈值之上时，<strong>PVD 会触发中断，用于执行紧急关闭任务</strong>；<strong>低功耗模式包括睡眠模式（Sleep）、停机模式（Stop）和待机模式（Standby）</strong>，可在系统空闲时降低 STM32 的功耗、延长设备使用时间；字幕「哈喽，大家好」*</p>
-<p><img src="../assets/images/stm32-44/02-sysclk-36m.jpg" alt="图 2：程序①现象——OLED 显示 SYSCLK:36000000（当前主频 36MHz）与 Running（闪烁周期变成 2s，因为降频到 36MHz 后同样的延时慢一倍）；字幕「现在我们降频到36MHz了」"></p>
-<p><em>图 2：程序①现象——OLED 显示 <code>SYSCLK:36000000</code>（当前主频 36MHz）与 <code>Running</code>（闪烁周期变成 2s，因为降频到 36MHz 后同样的延时慢一倍）；字幕「现在我们降频到36MHz了」</em></p>
-<p><img src="../assets/images/stm32-44/03-sleep-wfi.jpg" alt="图 3：程序②的 main.c（睡眠模式）——OLED_ShowString(1, 1, &quot;RxData:&quot;);、Serial_Init();、while (1) { if (Serial_GetRxFlag() == 1) { RxData = Serial_GetRxData(); Serial_SendByte(RxData); OLED_ShowHexNum(1, 8, RxData, 2); } OLED_ShowString(2, 1, &quot;Running&quot;); Delay_ms(100); OLED_ShowString(2, 1, &quot;    &quot;); Delay_ms(100); **__WFI();** }；字幕「如果STM32一直没收到数据」"></p>
-<p><em>图 3：程序②的 main.c（睡眠模式）——<code>OLED_ShowString(1, 1, &quot;RxData:&quot;);</code>、<code>Serial_Init();</code>、<code>while (1) { if (Serial_GetRxFlag() == 1) { RxData = Serial_GetRxData(); Serial_SendByte(RxData); OLED_ShowHexNum(1, 8, RxData, 2); } OLED_ShowString(2, 1, &quot;Running&quot;); Delay_ms(100); OLED_ShowString(2, 1, &quot;    &quot;); Delay_ms(100); **</code>__WFI();<code>** }</code>；字幕「如果STM32一直没收到数据」</em></p>
-<p><img src="../assets/images/stm32-44/04-standby-code.jpg" alt="图 4：程序④的 main.c（待机模式 + RTC）——while (1) { OLED_ShowNum(1, 6, RTC_GetCounter(), 10); OLED_ShowNum(3, 6, RTC_GetFlagStatus(RTC_FLAG_ALR), 1); OLED_ShowString(4, 1, &quot;Running&quot;); Delay_ms(100); OLED_ShowString(4, 1, &quot;    &quot;); Delay_ms(100); OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); OLED_ShowString(4, 9, &quot;        &quot;); Delay_ms(100); OLED_Clear(); **PWR_EnterSTANDBYMode();** }；字幕「在进入待机模式之前」"></p>
-<p><em>图 4：程序④的 main.c（待机模式 + RTC）——<code>while (1) { OLED_ShowNum(1, 6, RTC_GetCounter(), 10); OLED_ShowNum(3, 6, RTC_GetFlagStatus(RTC_FLAG_ALR), 1); OLED_ShowString(4, 1, &quot;Running&quot;); Delay_ms(100); OLED_ShowString(4, 1, &quot;    &quot;); Delay_ms(100); OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); OLED_ShowString(4, 9, &quot;        &quot;); Delay_ms(100); OLED_Clear(); PWR_EnterSTANDBYMode(); }</code>；字幕「在进入待机模式之前」</em></p>
-<h3 id="1-5-重要提醒-低功耗模式下无法直接下载程序">1.5 重要提醒：低功耗模式下无法直接下载程序</h3>
+<p><img src="../assets/images/stm32-44/04-standby-code.jpg" alt="图 4：程序④的 main.c——主循环显示 RTC_GetCounter() 与 RTC_GetFlagStatus(RTC_FLAG_ALR)、Running/STANDBY 闪烁后 OLED_Clear()，最后 PWR_EnterSTANDBYMode();"></p>
+<p><em>图 4：程序④的 main.c——主循环显示 <code>RTC_GetCounter()</code> 与 <code>RTC_GetFlagStatus(RTC_FLAG_ALR)</code>、<code>Running</code>/<code>STANDBY</code> 闪烁后 <code>OLED_Clear()</code>，最后 <code>PWR_EnterSTANDBYMode();</code></em></p>
+<h3 id="1-5-低功耗模式下无法直接下载程序">1.5 低功耗模式下无法直接下载程序</h3>
 <ul>
-<li><strong>芯片在 3 种低功耗模式下不响应调试端口</strong>（「不会理你调试端口了」），所以<strong>直接点下载会失败</strong>；</li>
-<li><strong>解决办法（三步）</strong>：<strong>① 按住复位键不放 ② 点下载按钮 ③ 及时松开复位键</strong>——这样就能成功下载；</li>
-<li><strong>三种低功耗模式下都需要这样下载</strong>；</li>
-<li>另外如果<strong>不小心禁用了调试端口</strong>，作者也给出了对应解决办法（详见视频）。</li>
+<li>芯片在 3 种低功耗模式下不响应调试端口，直接点下载会失败。</li>
+<li>解决三步：① 按住复位键 ② 点下载按钮 ③ 及时松开复位键；三种模式都要这样。</li>
 </ul>
-<h3 id="1-6-另一个必写的坑-停止模式唤醒后要重配主频">1.6 另一个必写的坑：停止模式唤醒后要重配主频</h3>
+<h3 id="1-6-停止模式唤醒后要重配主频">1.6 停止模式唤醒后要重配主频</h3>
 <ul>
-<li><strong>从停止模式唤醒后，HSI（8MHz 内部高速时钟）会被选为系统时钟</strong>——<strong>HSE 和 PLL 不会自动恢复</strong>，所以主频会掉到 8MHz；</li>
-<li><strong>必须在唤醒后第一时间调用 <code>SystemInit()</code></strong>（system_stm32f10x.c 里的时钟初始化函数）<strong>重新把时钟配置回 72MHz</strong>（或你配置的主频）；</li>
-<li>否则会出现「唤醒后串口波特率不对、定时器变慢 8 倍」这类诡异现象；</li>
-<li>待机模式唤醒相当于复位，<code>SystemInit()</code> 会被启动文件自动调用，所以<strong>只有停止/睡眠模式</strong>需要手动处理（睡眠模式时钟没停，通常不用）。</li>
+<li>从停止模式唤醒后 <strong>HSI（8MHz）被选为系统时钟</strong>，<strong>HSE 和 PLL 不会自动恢复</strong>，主频掉到 8MHz。</li>
+<li>必须在唤醒后第一时间调用 <code>SystemInit()</code> 把时钟配回 72MHz，否则串口波特率不对、定时器变慢。</li>
+<li>待机唤醒相当于复位，启动文件会自动调用 <code>SystemInit()</code>；睡眠模式时钟没停，通常不用处理。</li>
 </ul>
 <h2 id="2-电源框图-复位与-pvd">2. 电源框图、复位与 PVD</h2>
 <h3 id="2-1-图4-电源框图">2.1 图4 电源框图</h3>
 <ul>
-<li><strong>VDDA 供电区域</strong>：<strong>A/D 转换器、温度传感器、复位模块、PLL</strong>——<strong>正极接 VDDA、负极接 VSSA</strong>；多引脚型号会<strong>单独引出 VREF+ / VREF−</strong>（<strong>C8T6 内部已短接到 VDDA/VSSA</strong>）；</li>
-<li><strong>VDD 供电区域</strong>：<strong>IO 电路</strong>、<strong>待机电路（含唤醒逻辑、IWDG）</strong>；</li>
-<li><strong>1.8V 供电区域</strong>：<strong>CPU 核心、存储器、内置数字外设</strong>——<strong>由电压调节器从 VDD 降压到 1.8V 供电</strong>；</li>
-<li><strong>后备供电区域（VBAT）</strong>：<strong>LSE 32K 晶体振荡器、后备寄存器、RCC_BDCR（备份域控制寄存器）、RTC</strong>；</li>
-<li><strong>低电压检测器</strong>：控制供电切换——<strong>VDD 有电用 VDD、VDD 没电用 VBAT</strong>；</li>
-<li><strong>所以「从外部看好像 STM32 内部全是 3.3V」，其实内核只吃 1.8V</strong>——这就是<strong>电压调节器</strong>的存在意义。</li>
+<li>VDDA 供电区域：A/D 转换器、温度传感器、复位模块、PLL；多引脚型号单独引出 VREF+/VREF−（C8T6 内部已短接到 VDDA/VSSA）。</li>
+<li>VDD 供电区域：IO 电路、待机电路（含唤醒逻辑、IWDG）。</li>
+<li>1.8V 供电区域：CPU 核心、存储器、内置数字外设，由<strong>电压调节器</strong>从 VDD 降压得到。</li>
+<li>后备供电区域（VBAT）：LSE 32K 晶体振荡器、后备寄存器、RCC_BDCR、RTC。</li>
+<li>低电压检测器控制供电切换：VDD 有电用 VDD、没电用 VBAT；所以<strong>内核其实只吃 1.8V</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-44/06-power-block-diagram.jpg" alt="图 5：PPT「电源框图」图4——VDDA 供电区域（A/D 转换器、温度传感器、复位模块、PLL；VREF-/VREF+、VDDA/VSSA）；VDD 供电区域（IO 电路、待机电路（唤醒逻辑、IWDG）、电压调节器）；1.8V 供电区域（CPU 核心、存储器、内置数字外设）；后备供电区域（LSE 32K 晶体振荡器、后备寄存器、RCC BDCR 寄存器、RTC）；中间「低电压检测器」控制 VDD/VBAT 切换；红圈标出各区域；字幕「所以我们从外部看好像STM32内部全是3.3V」"></p>
-<p><em>图 5：PPT「电源框图」图4——<strong>VDDA 供电区域</strong>（A/D 转换器、温度传感器、复位模块、PLL；VREF-/VREF+、VDDA/VSSA）；<strong>VDD 供电区域</strong>（IO 电路、待机电路（唤醒逻辑、IWDG）、电压调节器）；<strong>1.8V 供电区域</strong>（CPU 核心、存储器、内置数字外设）；<strong>后备供电区域</strong>（LSE 32K 晶体振荡器、后备寄存器、RCC BDCR 寄存器、RTC）；中间「低电压检测器」控制 VDD/VBAT 切换；红圈标出各区域；字幕「所以我们从外部看好像STM32内部全是3.3V」</em></p>
-<h3 id="2-2-上电复位与掉电复位-图5">2.2 上电复位与掉电复位（图5）</h3>
+<p><img src="../assets/images/stm32-44/06-power-block-diagram.jpg" alt="图 5：PPT「电源框图」图4——VDDA 区域（A/D 转换器、温度传感器、复位模块、PLL）、VDD 区域（IO 电路、待机电路/唤醒逻辑/IWDG）、1.8V 区域（CPU 核心、存储器、数字外设）、后备区域（LSE、后备寄存器、RCC BDCR、RTC）"></p>
+<p><em>图 5：PPT「电源框图」图4——VDDA 区域（A/D 转换器、温度传感器、复位模块、PLL）、VDD 区域（IO 电路、待机电路/唤醒逻辑/IWDG）、1.8V 区域（CPU 核心、存储器、数字外设）、后备区域（LSE、后备寄存器、RCC BDCR、RTC）</em></p>
+<h3 id="2-2-上电复位与掉电复位">2.2 上电复位与掉电复位</h3>
 <ul>
-<li><strong>VDD/VDDA 过低时，内部会直接复位</strong>；</li>
-<li><strong>POR（Power On Reset，上电复位阈值上限）</strong>：电压升到 POR 以上才<strong>解除复位</strong>；</li>
-<li><strong>PDR（Power Down Reset，掉电复位阈值下限）</strong>：电压掉到 PDR 以下就<strong>触发复位</strong>；</li>
-<li><strong>POR 与 PDR 之间有 40mV 迟滞</strong>（典型 <strong>1.92V / 1.88V</strong>）——用<strong>滞回比较器</strong>防止电压在阈值附近抖动导致反复复位；</li>
-<li><strong>复位信号低有效</strong>；还有一个 <strong>tRSTTEMPO（滞后/复位持续时间）</strong>；</li>
-<li>口述简化说法：「<strong>大于上限 POR 时解除复位，低于下限 PDR 时复位</strong>」；「<strong>大概 1.9V 左右</strong>」的阈值。</li>
+<li>VDD/VDDA 过低时，内部会直接复位。</li>
+<li>POR（上电复位，阈值上限）：电压升到 POR 以上才解除复位；PDR（掉电复位，下限）：掉到 PDR 以下触发复位。</li>
+<li>POR 与 PDR 之间有 <strong>40mV 迟滞</strong>（典型 <strong>1.92V / 1.88V</strong>），用滞回比较器防止阈值附近抖动。</li>
+<li>复位信号低有效，还有 <strong>tRSTTEMPO</strong>（复位持续时间）。</li>
 </ul>
-<p><img src="../assets/images/stm32-44/07-por-pdr.jpg" alt="图 6：PPT「上电复位和掉电复位」图5——VDD/VDDA 电压曲线（上升与下降）、POR（上限，解除复位）、PDR（下限，触发复位）、40mV 迟滞（红笔圈出）、滞后时间 tRSTTEMPO、复位信号 Reset（低有效）；字幕「大于上限POR（Power On Reset）时解除复位」"></p>
-<p>*图 6：PPT「上电复位和掉电复位」图5——VDD/VDDA 电压曲线（上升与下降）、<strong>POR</strong>（上限，解除复位）、<strong>PDR</strong>（下限，触发复位）、<strong>40mV 迟滞</strong>（红笔圈出）、<strong>滞后时间 tRSTTEMPO</strong>、<strong>复位信号 Reset（低有效）</strong>；字幕「大于上限POR（Power On Reset）时解除复位」*</p>
-<h3 id="2-3-可编程电压监测器-pvd-图6">2.3 可编程电压监测器 PVD（图6）</h3>
+<p><img src="../assets/images/stm32-44/07-por-pdr.jpg" alt="图 6：PPT「上电复位和掉电复位」图5——VDD/VDDA 曲线、POR（上限，解除复位）、PDR（下限，触发复位）、40mV 迟滞、滞后时间 tRSTTEMPO、复位信号低有效"></p>
+<p><em>图 6：PPT「上电复位和掉电复位」图5——VDD/VDDA 曲线、POR（上限，解除复位）、PDR（下限，触发复位）、40mV 迟滞、滞后时间 tRSTTEMPO、复位信号低有效</em></p>
+<h3 id="2-3-可编程电压监测器-pvd">2.3 可编程电压监测器 PVD</h3>
 <ul>
-<li><strong>PVD 也监测 VDD/VDDA</strong>，但<strong>阈值可以用程序指定</strong>：配置 **<code>PLS</code>（3 位）**选阈值，范围约 <strong>2.2V～2.9V</strong>，<strong>迟滞 100mV</strong>；</li>
-<li><strong>PVD 输出是正逻辑</strong>：<strong>电压过低时输出 1、电压正常时输出 0</strong>（与复位信号相反）；</li>
-<li><strong>可申请中断</strong>（可上升沿/下降沿触发）；</li>
-<li><strong>用途</strong>：<strong>电压掉到 PVD 阈值（如 2.9V）时，说明供电开始不稳，可以借此机会紧急保存数据、关闭外设</strong>——这就是「紧急关闭任务」；</li>
-<li><strong>PVD 中断「借道外部中断 EXTI」</strong>：<strong>PVD 信号实际上接到了外部中断线上</strong>，所以<strong>用 PVD 必须配置外部中断</strong>；</li>
-<li><strong>同理 RTC 闹钟、USB 唤醒、ETH 唤醒也都借道 EXTI</strong>——原因是<strong>只有外部中断能唤醒停止模式</strong>。</li>
+<li>PVD 也监测 VDD/VDDA，但<strong>阈值可以用程序指定</strong>：<code>PLS</code> 3 位选阈值，范围约 <strong>2.2V～2.9V</strong>，<strong>迟滞 100mV</strong>。</li>
+<li>PVD 输出是<strong>正逻辑</strong>：电压过低输出 1、正常输出 0（与复位信号相反），可申请中断。</li>
+<li>用途：掉到阈值（如 2.9V）说明供电开始不稳，可紧急保存数据、关闭外设。</li>
+<li>PVD 中断<strong>借道外部中断 EXTI</strong>，所以用 PVD 必须配置外部中断。</li>
+<li>同理 RTC 闹钟、USB 唤醒、ETH 唤醒也都借道 EXTI——<strong>只有外部中断能唤醒停止模式</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-44/08-pvd.jpg" alt="图 7：PPT「可编程电压监测器」图6 PVD 的门限——VDD/VDDA 曲线、PVD 阈值（可编程，2.2～2.9V）、100mV 迟滞、PVD 输出（正逻辑：电压过低为 1、正常为 0）；字幕「这个是正逻辑，电压过低时为1，电压正常时为0」"></p>
-<p><em>图 7：PPT「可编程电压监测器」图6 PVD 的门限——VDD/VDDA 曲线、<strong>PVD 阈值</strong>（可编程，2.2～2.9V）、<strong>100mV 迟滞</strong>、<strong>PVD 输出</strong>（正逻辑：电压过低为 1、正常为 0）；字幕「这个是正逻辑，电压过低时为1，电压正常时为0」</em></p>
-<h2 id="3-表8-三种低功耗模式-核心">3. 表8：三种低功耗模式（核心）</h2>
-<h3 id="3-1-全表">3.1 全表</h3>
+<p><img src="../assets/images/stm32-44/08-pvd.jpg" alt="图 7：PPT「可编程电压监测器」图6——PVD 阈值可用 PLS 编程（2.2～2.9V）、100mV 迟滞、PVD 输出为正逻辑（过低为 1、正常为 0）"></p>
+<p><em>图 7：PPT「可编程电压监测器」图6——PVD 阈值可用 <code>PLS</code> 编程（2.2～2.9V）、100mV 迟滞、PVD 输出为正逻辑（过低为 1、正常为 0）</em></p>
+<h2 id="3-表8-三种低功耗模式">3. 表8：三种低功耗模式</h2>
+<h3 id="3-1-全表与规律">3.1 全表与规律</h3>
 <table>
 <thead>
 <tr>
@@ -350,7 +332,7 @@
 <td><strong>任一外部中断</strong>（在外部中断寄存器中设置）</td>
 <td><strong>关闭所有 1.8V 区域的时钟</strong></td>
 <td><strong>HSI 和 HSE 的振荡器关闭</strong></td>
-<td><strong>开启或处于低功耗模式</strong>（依据 PWR_CR 的 LPDS）</td>
+<td><strong>开启或处于低功耗模式</strong>（依据 <code>PWR_CR</code> 的 <code>LPDS</code>）</td>
 </tr>
 <tr>
 <td><strong>待机</strong></td>
@@ -362,65 +344,64 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>规律</strong>：从上到下<strong>关的电路越来越多 → 越来越省电 → 越来越难唤醒</strong>——「<strong>睡得越深，关得越多，越省电，越难叫醒</strong>」；</li>
-<li><strong>WFI/WFE 是最终触发低功耗的指令</strong>：<strong>配置寄存器都要写在这两个指令之前</strong>。</li>
+<li>规律：从上到下<strong>关的电路越来越多 → 越来越省电 → 越来越难唤醒</strong>。</li>
+<li><code>WFI</code>/<code>WFE</code> 是最终触发低功耗的指令，<strong>配置寄存器都要写在这两个指令之前</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-44/09-table8-marked.jpg" alt="图 8：PPT「低功耗模式」表8（红圈标注版）——红圈圈出 WFI/WFE、任一中断/唤醒事件、&quot;CPU 时钟关，对其他时钟和 ADC 时钟无影响&quot; 等列；睡眠/停机/待机三行完整对比；字幕「CPU时钟关，对其他时钟和ADC时钟无影响」"></p>
-<p><em>图 8：PPT「低功耗模式」表8（红圈标注版）——红圈圈出 WFI/WFE、任一中断/唤醒事件、&quot;CPU 时钟关，对其他时钟和 ADC 时钟无影响&quot; 等列；睡眠/停机/待机三行完整对比；字幕「CPU时钟关，对其他时钟和ADC时钟无影响」</em></p>
-<p><img src="../assets/images/stm32-44/10-table8-enter-marked.jpg" alt="图 9：表8 + 红笔标注「进入」列——睡眠的 WFI/WFE、停机的「PDDS 和 LPDS 位 + SLEEPDEEP 位 + WFI 或 WFE」、待机的「PDDS 位 + SLEEPDEEP 位 + WFI 或 WFE」；字幕「所以要想进入停机模式，PDDS要事先设置为0」"></p>
-<p><em>图 9：表8 + 红笔标注「进入」列——睡眠的 WFI/WFE、停机的「PDDS 和 LPDS 位 + SLEEPDEEP 位 + WFI 或 WFE」、待机的「PDDS 位 + SLEEPDEEP 位 + WFI 或 WFE」；字幕「所以要想进入停机模式，PDDS要事先设置为0」</em></p>
-<p><img src="../assets/images/stm32-44/11-table8-full.jpg" alt="图 10：表8 完整清晰版（无标注）——三行六列全表：模式/进入/唤醒/对 1.8V 区域时钟的影响/对 VDD 区域时钟的影响/电压调节器；字幕「比如睡眠模式有SLEEP-NOW和SLEEP-ON-EXIT的区别」"></p>
-<p><em>图 10：表8 完整清晰版（无标注）——三行六列全表：模式/进入/唤醒/对 1.8V 区域时钟的影响/对 VDD 区域时钟的影响/电压调节器；字幕「比如睡眠模式有SLEEP-NOW和SLEEP-ON-EXIT的区别」</em></p>
+<p><img src="../assets/images/stm32-44/09-table8-marked.jpg" alt="图 8：PPT「低功耗模式」表8（红圈版）——圈出 WFI/WFE、任一中断/唤醒事件、「CPU 时钟关，对其他时钟和 ADC 时钟无影响」等列，睡眠/停机/待机三行完整对比"></p>
+<p><em>图 8：PPT「低功耗模式」表8（红圈版）——圈出 WFI/WFE、任一中断/唤醒事件、「CPU 时钟关，对其他时钟和 ADC 时钟无影响」等列，睡眠/停机/待机三行完整对比</em></p>
+<p><img src="../assets/images/stm32-44/10-table8-enter-marked.jpg" alt="图 9：表8 的「进入」列标注——睡眠的 WFI/WFE、停机的 PDDS 和 LPDS 位 + SLEEPDEEP 位 + WFI 或 WFE、待机的 PDDS 位 + SLEEPDEEP 位 + WFI 或 WFE"></p>
+<p><em>图 9：表8 的「进入」列标注——睡眠的 WFI/WFE、停机的 <code>PDDS</code> 和 <code>LPDS</code> 位 + <code>SLEEPDEEP</code> 位 + WFI 或 WFE、待机的 <code>PDDS</code> 位 + <code>SLEEPDEEP</code> 位 + WFI 或 WFE</em></p>
+<p><img src="../assets/images/stm32-44/11-table8-full.jpg" alt="图 10：表8 完整清晰版（无标注）——三行六列：模式/进入/唤醒/对 1.8V 区域时钟的影响/对 VDD 区域时钟的影响/电压调节器"></p>
+<p><em>图 10：表8 完整清晰版（无标注）——三行六列：模式/进入/唤醒/对 1.8V 区域时钟的影响/对 VDD 区域时钟的影响/电压调节器</em></p>
 <h3 id="3-2-睡眠模式-浅睡眠-打盹">3.2 睡眠模式（＝浅睡眠/打盹）</h3>
 <ul>
-<li>执行完 <strong>WFI/WFE</strong> 后进入，<strong>程序暂停运行，唤醒后从暂停的地方继续</strong>；</li>
-<li><strong><code>SLEEPONEXIT</code> 位</strong>决定：执行完 WFI/WFE 后<strong>立刻进入睡眠</strong>，还是<strong>等从最低优先级的中断处理程序中退出时</strong>再进入睡眠；</li>
-<li><strong>所有 I/O 引脚保持运行模式时的状态</strong>（点亮的 LED 仍亮、GPIO 高低电平维持原样）；</li>
-<li><strong><code>WFI</code> 可被任意一个 NVIC 响应的中断唤醒</strong>；<strong><code>WFE</code> 可被唤醒事件唤醒</strong>；</li>
-<li><strong>对 1.8V 区域只关 CPU 时钟</strong>（其他时钟与 ADC 时钟无影响），<strong>电压调节器开</strong>——<strong>只关时钟不关电源，寄存器与存储器数据全部保留</strong>；</li>
-<li><strong>WFE 唤醒事件的产生方式（了解）</strong>：① <strong>外设使能中断但不在 NVIC 里使能，同时把内核 <code>SEVONPEND</code> 位置 1</strong>（唤醒后要清挂起位）② <strong>把 EXTI 配置为事件模式</strong>——都比较麻烦，<strong>建议直接用中断唤醒</strong>。</li>
+<li>执行 <code>WFI</code>/<code>WFE</code> 后进入，<strong>程序暂停运行、唤醒后从暂停的地方继续</strong>。</li>
+<li><code>SLEEPONEXIT</code> 位决定：立刻睡眠，还是等最低优先级中断处理程序退出后再睡。</li>
+<li>所有 I/O 引脚保持运行模式时的状态（点亮的 LED 仍然亮）。</li>
+<li><code>WFI</code> 可被任一 NVIC 响应的中断唤醒，<code>WFE</code> 可被唤醒事件唤醒。</li>
+<li>对 1.8V 区域<strong>只关 CPU 时钟</strong>，<strong>电压调节器保持开</strong>——寄存器和存储器数据全部保留。</li>
+<li>WFE 唤醒事件：① 外设使能中断但不在 NVIC 使能 + 内核 <code>SEVONPEND</code> 置 1 ② EXTI 配置为事件模式；<strong>建议直接用中断唤醒</strong>。</li>
 </ul>
+<p><img src="../assets/images/stm32-44/13-sleep-ppt.jpg" alt="图 11：PPT「睡眠模式」——执行完 WFI/WFE 进入睡眠、程序暂停、唤醒后从暂停处继续；SLEEPONEXIT 位选立刻睡眠或等最低优先级中断退出；所有 I/O 保持运行模式状态；WFI 被任意 NVIC 中断唤醒、WFE 被唤醒事件唤醒"></p>
+<p><em>图 11：PPT「睡眠模式」——执行完 WFI/WFE 进入睡眠、程序暂停、唤醒后从暂停处继续；<code>SLEEPONEXIT</code> 位选立刻睡眠或等最低优先级中断退出；所有 I/O 保持运行模式状态；WFI 被任意 NVIC 中断唤醒、WFE 被唤醒事件唤醒</em></p>
 <h3 id="3-3-停机模式-整人罢工">3.3 停机模式（＝整人罢工）</h3>
 <ul>
-<li><strong>进入条件</strong>：<code>SLEEPDEEP=1</code> + <strong><code>PDDS=0</code></strong> + WFI/WFE（<code>LPDS</code> 决定电压调节器开还是低功耗）；</li>
-<li><strong>唤醒</strong>：<strong>只能被外部中断（EXTI）唤醒</strong>——<strong>WFI 用外部中断的中断模式、WFE 用外部中断的事件模式</strong>；<ul>
-<li>因为 PVD、RTC 闹钟、USB 唤醒、ETH 唤醒<strong>都借道了外部中断</strong>，所以这 4 个信号<strong>也能唤醒停止模式</strong>；</li>
+<li>进入条件：<code>SLEEPDEEP=1</code> + <code>PDDS=0</code> + WFI/WFE，<code>LPDS</code> 决定电压调节器开（0）还是低功耗（1）。</li>
+<li>唤醒：<strong>只能被外部中断（EXTI）唤醒</strong>——WFI 用中断模式、WFE 用事件模式。</li>
+<li>PVD、RTC 闹钟、USB 唤醒、ETH 唤醒都借道 EXTI，所以这 4 个信号也能唤醒停止模式。</li>
+<li><strong>关闭所有 1.8V 区域时钟</strong>（定时器暂停、串口暂停），但没关电源，SRAM/寄存器内容保留。</li>
+<li><strong>HSI/HSE 关闭</strong>，<strong>LSI/LSE 不会被动关闭</strong>；电压调节器开或低功耗，两者都能保住数据。</li>
+<li>低功耗更省电但唤醒有额外启动延时，开启更耗电但唤醒更快。</li>
 </ul>
-</li>
-<li><strong>对电路的操作</strong>：<strong>关闭所有 1.8V 区域的时钟</strong>（CPU 不能运行、<strong>外设也不能运行</strong>：定时器暂停、串口收发暂停）；<strong>但因没关电源，CPU 和外设的寄存器数据都维持原状</strong>；<strong>HSI/HSE 关闭</strong>（CPU 与外设时钟都停了，高速时钟没用）；<strong>LSI/LSE 不主动关闭</strong>（如果开了还能继续运行）；<strong>电压调节器开或低功耗</strong>；</li>
-<li><strong>电压调节器「开」与「低功耗」的区别</strong>：<strong>两者都能维持 1.8V 区域寄存器与存储器内容</strong>；<strong>低功耗更省电、但唤醒时花更多时间</strong>；<strong>开启更耗电、但唤醒更快</strong>；</li>
-<li><strong>一句话</strong>：「整个人都罢工了，脑子不工作、身体也不工作，只有人用外部中断来敲我，才醒过来干活」，省电评级「<strong>非常省电</strong>」。</li>
-</ul>
+<p><img src="../assets/images/stm32-44/14-stop-ppt.jpg" alt="图 12：PPT「停止模式」——1.8V 区域所有时钟停止，PLL、HSI、HSE 被禁止，SRAM 和寄存器内容保留；所有 I/O 保持运行状态；退出停止模式时 HSI 被选为系统时钟；电压调节器低功耗时退出有额外启动延时"></p>
+<p><em>图 12：PPT「停止模式」——1.8V 区域所有时钟停止，PLL、HSI、HSE 被禁止，SRAM 和寄存器内容保留；所有 I/O 保持运行状态；退出停止模式时 HSI 被选为系统时钟；电压调节器低功耗时退出有额外启动延时</em></p>
 <h3 id="3-4-待机模式-下班回家">3.4 待机模式（＝下班回家）</h3>
 <ul>
-<li><strong>进入条件</strong>：<code>SLEEPDEEP=1</code> + <strong><code>PDDS=1</code></strong> + WFI/WFE；</li>
-<li><strong>唤醒源只有 4 个</strong>：<ol>
-<li><strong>WKUP 引脚（即 PA0，引脚定义里写作 <code>PA0-WKUP</code>）的上升沿</strong>；</li>
-<li><strong>RTC 闹钟事件</strong>（应用场景：让芯片每隔一段时间自动工作一次，也就是程序④）；</li>
-<li><strong>NRST 引脚上的外部复位</strong>（按一下复位键也能唤醒）；</li>
-<li><strong>IWDG 独立看门狗复位</strong>（了解，看门狗后面讲）；</li>
-</ol>
-</li>
-<li><strong>对电路的操作「能关的全关」</strong>：<strong>关 1.8V 区域时钟、关两个高速时钟、关电压调节器</strong>——<strong>关电压调节器意味着 1.8V 区域的电源也关了</strong>，所以<strong>内部存储器和寄存器的数据全部丢失</strong>；<strong>LSI/LSE 不主动关闭</strong>（要维持 RTC 与独立看门狗运行）——所以配合 RTC 和 IWDG 的低速时钟仍可正常工作；</li>
-<li><strong>所有 I/O 变为高阻态</strong>（相当于浮空输入）：<strong>输出既不输出高也不输出低，所以点亮的 LED 会熄灭，也不流过电流</strong>；</li>
-<li><strong>唤醒后程序从头开始运行</strong>（相当于复位重启，但<strong>备份区域的数据还在</strong>）；</li>
-<li><strong>一句话</strong>：「这个人直接下班回家睡觉了，没有指定的那几件事，不会轻易回来工作」，省电评级「<strong>极为省电</strong>」。</li>
+<li>进入条件：<code>SLEEPDEEP=1</code> + <code>PDDS=1</code> + WFI/WFE。</li>
+<li>唤醒源只有 4 个：<code>PA0-WKUP</code> 引脚（即 PA0）上升沿、RTC 闹钟事件、NRST 外部复位、IWDG 独立看门狗复位。</li>
+<li>关 1.8V 区域时钟、关两个高速时钟、<strong>关电压调节器（＝1.8V 区域断电）</strong>，存储器与寄存器数据全部丢失。</li>
+<li>LSI/LSE 不主动关闭，要维持 RTC 与独立看门狗运行。</li>
+<li>所有 I/O 变为高阻态（浮空输入）：点亮的 LED 会熄灭、也不流电流。</li>
+<li>唤醒后程序从头开始运行，但备份区域的数据还在。</li>
 </ul>
-<p><img src="../assets/images/stm32-44/12-mode-select-flow.jpg" alt="图 11：PPT「模式选择」——执行 WFI（Wait For Interrupt）或 WFE（Wait For Event） 指令后，STM32 进入低功耗模式；流程图：WFI/WFE → SLEEPDEEP=0 → 睡眠模式 →（SLEEPONEXIT=0）睡眠模式（立刻睡眠）/（SLEEPONEXIT=1）睡眠模式（等待中断退出）；SLEEPDEEP=1 → 深度睡眠模式（停机/待机）→（PDDS=0）停机模式 →（LPDS=0）停机模式（电压调节器开启）/（LPDS=1）停机模式（电压调节器低功耗）；（PDDS=1）待机模式；字幕「我们WFI/WFE可以放在主程序里」"></p>
-<p>*图 11：PPT「模式选择」——执行 <strong>WFI（Wait For Interrupt）或 WFE（Wait For Event）</strong> 指令后，STM32 进入低功耗模式；流程图：<strong>WFI/WFE → SLEEPDEEP=0 → 睡眠模式 →（SLEEPONEXIT=0）睡眠模式（立刻睡眠）/（SLEEPONEXIT=1）睡眠模式（等待中断退出）</strong>；<strong>SLEEPDEEP=1 → 深度睡眠模式（停机/待机）→（PDDS=0）停机模式 →（LPDS=0）停机模式（电压调节器开启）/（LPDS=1）停机模式（电压调节器低功耗）</strong>；<strong>（PDDS=1）待机模式</strong>；字幕「我们WFI/WFE可以放在主程序里」*</p>
-<p><img src="../assets/images/stm32-44/13-sleep-ppt.jpg" alt="图 12：PPT「睡眠模式」（5 条）——执行完 WFI/WFE 后进入睡眠、程序暂停、唤醒后从暂停处继续；SLEEPONEXIT 位决定立刻睡眠还是等最低优先级中断退出后睡眠；所有 I/O 引脚都保持在运行模式时的状态；WFI 可被任意一个 NVIC 响应的中断唤醒；WFE 可被唤醒事件唤醒；字幕「GPIO引脚的高低电平在睡眠时是维持原样的」"></p>
-<p>*图 12：PPT「睡眠模式」（5 条）——执行完 WFI/WFE 后进入睡眠、程序暂停、唤醒后从暂停处继续；<strong>SLEEPONEXIT 位</strong>决定立刻睡眠还是等最低优先级中断退出后睡眠；<strong>所有 I/O 引脚都保持在运行模式时的状态</strong>；<strong>WFI 可被任意一个 NVIC 响应的中断唤醒</strong>；<strong>WFE 可被唤醒事件唤醒</strong>；字幕「GPIO引脚的高低电平在睡眠时是维持原样的」*</p>
-<p><img src="../assets/images/stm32-44/14-stop-ppt.jpg" alt="图 13：PPT「停止模式」——执行完 WFI/WFE 进入停止模式、唤醒后从暂停处继续；1.8V 供电区域的所有时钟都被停止，PLL、HSI 和 HSE 被禁止，SRAM 和寄存器内容被保留下来；所有 I/O 引脚保持运行模式时的状态；当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟；电压调节器处于低功耗模式时退出停止模式会有一段额外启动延时；WFI 可被任意一个 EXTI 中断唤醒、WFE 可被任意一个 EXTI 事件唤醒（高亮）；字幕「WFE指令进入停止模式，可被任意一个EXTI事件唤醒」"></p>
-<p><em>图 13：PPT「停止模式」——执行完 WFI/WFE 进入停止模式、唤醒后从暂停处继续；<strong>1.8V 供电区域的所有时钟都被停止，PLL、HSI 和 HSE 被禁止，SRAM 和寄存器内容被保留下来</strong>；所有 I/O 引脚保持运行模式时的状态；<strong>当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟</strong>；<strong>电压调节器处于低功耗模式时退出停止模式会有一段额外启动延时</strong>；<strong>WFI 可被任意一个 EXTI 中断唤醒</strong>、<strong>WFE 可被任意一个 EXTI 事件唤醒</strong>（高亮）；字幕「WFE指令进入停止模式，可被任意一个EXTI事件唤醒」</em></p>
+<h3 id="3-5-模式选择流程图">3.5 模式选择流程图</h3>
+<ul>
+<li>执行 <code>WFI</code>/<code>WFE</code> 后：<code>SLEEPDEEP=0</code> → 睡眠模式，再由 <code>SLEEPONEXIT</code> 分立刻睡眠/等中断退出后睡眠。</li>
+<li><code>SLEEPDEEP=1</code> → 深度睡眠（停机与待机统称深度睡眠）。</li>
+<li><code>PDDS=0</code> → 停机模式，再由 <code>LPDS</code> 分电压调节器开启/低功耗；<code>PDDS=1</code> → 待机模式。</li>
+</ul>
+<p><img src="../assets/images/stm32-44/12-mode-select-flow.jpg" alt="图 13：PPT「模式选择」流程图——WFI/WFE → SLEEPDEEP=0 睡眠（SLEEPONEXIT 分立刻睡/等中断退出）→ SLEEPDEEP=1 深度睡眠 → PDDS=0 停机（LPDS=0 调节器开启、LPDS=1 低功耗）/ PDDS=1 待机"></p>
+<p><em>图 13：PPT「模式选择」流程图——WFI/WFE → <code>SLEEPDEEP=0</code> 睡眠（<code>SLEEPONEXIT</code> 分立刻睡/等中断退出）→ <code>SLEEPDEEP=1</code> 深度睡眠 → <code>PDDS=0</code> 停机（<code>LPDS=0</code> 调节器开启、<code>LPDS=1</code> 低功耗）/ <code>PDDS=1</code> 待机</em></p>
 <h2 id="4-电流实测-数据手册">4. 电流实测（数据手册）</h2>
 <h3 id="4-1-运行模式-表13-14">4.1 运行模式（表13/14）</h3>
 <ul>
-<li><strong>表13（数据处理代码从内部 Flash 运行）/ 表14（从内部 RAM 运行）</strong>：<strong>这些是「最大值」</strong>；</li>
-<li><strong>72MHz、使能所有外设</strong>：<strong>50mA（85℃）/ 50.3mA（105℃）</strong>；关闭所有外设 32.8 / 32.9mA；</li>
-<li>其他档位：48MHz 36.1mA、36MHz 28.6mA、24MHz 19.9mA、16MHz 14.7mA、8MHz 8.6mA……</li>
-<li><strong>典型值要查表17</strong>（作者在图上手写了提示：「表13 是运行模式下供电电流的最大值，典型值请参考手册后面的表17」）；</li>
-<li><strong>口述印象</strong>：<strong>运行模式电流区间是「几到几十 mA」</strong>。</li>
+<li>表13（代码从内部 Flash 运行）/ 表14（从内部 RAM 运行）给的都是<strong>最大值</strong>。</li>
+<li>72MHz、使能所有外设：<strong>50mA（85℃）/ 50.3mA（105℃）</strong>；关闭所有外设 32.8 / 32.9mA。</li>
+<li>其他档位：48MHz 36.1mA、36MHz 28.6mA、24MHz 19.9mA、16MHz 14.7mA、8MHz 8.6mA。</li>
+<li>典型值要查<strong>表17</strong>；运行模式电流区间是「几到几十 mA」。</li>
 </ul>
+<p><img src="../assets/images/stm32-44/15-idle-current-run.jpg" alt="图 14：数据手册表13/14「运行模式下的最大电流消耗」——72MHz 使能所有外设 50mA（85℃）/50.3mA（105℃）、关闭所有外设 32.8/32.9mA；48MHz 36.1mA、36MHz 28.6mA、24MHz 19.9mA；红字注典型值查表17"></p>
+<p><em>图 14：数据手册表13/14「运行模式下的最大电流消耗」——72MHz 使能所有外设 50mA（85℃）/50.3mA（105℃）、关闭所有外设 32.8/32.9mA；48MHz 36.1mA、36MHz 28.6mA、24MHz 19.9mA；红字注典型值查表17</em></p>
 <h3 id="4-2-停机-待机模式-表16">4.2 停机/待机模式（表16）</h3>
 <table>
 <thead>
@@ -469,37 +450,35 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>口述近似</strong>：<strong>运行 30mA、停机 30µA、待机 3µA</strong>（这是<strong>估算</strong>，实际查表）；</li>
-<li><strong>作者的电池寿命估算</strong>：<strong>300mAh 的电池</strong>——运行大约 <strong>10 小时</strong>，待机大约 <strong>10 万小时</strong>——<strong>低功耗模式的价值一目了然</strong>。</li>
+<li>口述近似：运行 30mA、停机 30µA、待机 3µA（估算，实际查表）。</li>
+<li>300mAh 电池：运行约 <strong>10 小时</strong>，待机约 <strong>10 万小时</strong>——低功耗模式的价值一目了然。</li>
 </ul>
-<p><img src="../assets/images/stm32-44/15-idle-current-run.jpg" alt="图 14：数据手册表13/14「运行模式下的最大电流消耗」——72MHz 使能所有外设 50mA（85℃）/50.3mA（105℃）、关闭所有外设 32.8/32.9mA；48MHz 36.1mA、36MHz 28.6mA、24MHz 19.9mA 等；红字注「表13 是运行模式下供电电流的最大值，典型值请参考手册后面的表17」；字幕「可以看到，耗电电流区间是几到几十，单位是 mA」"></p>
-<p>*图 14：数据手册表13/14「运行模式下的最大电流消耗」——72MHz 使能所有外设 <strong>50mA（85℃）/50.3mA（105℃）</strong>、关闭所有外设 32.8/32.9mA；48MHz 36.1mA、36MHz 28.6mA、24MHz 19.9mA 等；红字注「表13 是运行模式下供电电流的最大值，典型值请参考手册后面的表17」；字幕「可以看到，耗电电流区间是几到几十，单位是 mA」*</p>
-<p><img src="../assets/images/stm32-44/16-idle-current-stop-standby.jpg" alt="图 15：数据手册表16「停机和待机模式下的典型和最大电流消耗」——红笔写「30mA」「300mAh」；停机（调节器运行）23.5µA（2.4V）/24µA（3.3V）、最大 200/370µA；停机（调节器低功耗）13.5/14µA；待机（低速内部 RC 与 IWDG 开启）2.6/3.4µA；待机（都关）1.7/2µA；IDD_VBAT 备份区域 1.1/1.4µA；字幕「那么对应一个300mAh的电池来说」"></p>
-<p>*图 15：数据手册表16「停机和待机模式下的典型和最大电流消耗」——红笔写「30mA」「300mAh」；停机（调节器运行）<strong>23.5µA（2.4V）/24µA（3.3V）</strong>、最大 200/370µA；停机（调节器低功耗）<strong>13.5/14µA</strong>；待机（低速内部 RC 与 IWDG 开启）2.6/3.4µA；待机（都关）<strong>1.7/2µA</strong>；<strong>IDD_VBAT 备份区域 1.1/1.4µA</strong>；字幕「那么对应一个300mAh的电池来说」*</p>
+<p><img src="../assets/images/stm32-44/16-idle-current-stop-standby.jpg" alt="图 15：数据手册表16「停机和待机模式下的典型和最大电流消耗」——红笔写 30mA、300mAh；停机调节器运行 23.5µA（2.4V）/24µA（3.3V）、最大 200/370µA；待机都关 1.7/2µA；IDD_VBAT 1.1/1.4µA"></p>
+<p><em>图 15：数据手册表16「停机和待机模式下的典型和最大电流消耗」——红笔写 30mA、300mAh；停机调节器运行 23.5µA（2.4V）/24µA（3.3V）、最大 200/370µA；待机都关 1.7/2µA；IDD_VBAT 1.1/1.4µA</em></p>
 <h2 id="5-参考手册第-4-章-pwr-寄存器">5. 参考手册第 4 章：PWR 寄存器</h2>
 <ul>
-<li><strong>PWR 只有两个寄存器</strong>；</li>
-<li><strong><code>PWR_CR</code>（控制寄存器）</strong>：<strong><code>DBP</code></strong>（取消后备区域写保护）、<strong><code>PLS</code></strong>（选择 PVD 电平，3 位）、<strong><code>PDDS</code></strong>（选择进入停机还是待机模式）、<strong><code>LPDS</code></strong>（选择停止模式下电压调节器是开启还是低功耗）、<strong><code>CWUF</code></strong>（清除唤醒标志）；</li>
-<li><strong><code>PWR_CSR</code>（控制状态寄存器）</strong>：<strong><code>WUF</code></strong>（唤醒标志）、<strong><code>SBF</code></strong>（待机标志）、<strong><code>EWUP</code></strong>（使能 WKUP 引脚）、<strong><code>PVDO</code></strong>（PVD 输出状态）；</li>
-<li><strong>注意</strong>：<code>PWR_CSR</code> 的某些位在<strong>待机模式唤醒后或复位后</strong>、直到设置 <code>PVDE</code> 位之前，会保持特定状态（作者照念手册描述）；</li>
-<li><strong>手册第 4 章还有</strong>：电源框图、上电/掉电复位、PVD、低功耗模式、<strong>低功耗模式下的自动唤醒（RTC 可在停止/待机模式定期唤醒，即程序④的现象）</strong>、寄存器描述——都可以再看看。</li>
+<li>PWR 只有两个寄存器。</li>
+<li><code>PWR_CR</code>：<code>DBP</code>（取消后备区域写保护）、<code>PLS</code>（选 PVD 电平，3 位）、<code>PDDS</code>（选停机还是待机）、<code>LPDS</code>（电压调节器开/低功耗）、<code>CWUF</code>（清除唤醒标志）。</li>
+<li><code>PWR_CSR</code>：<code>WUF</code>（唤醒标志）、<code>SBF</code>（待机标志）、<code>EWUP</code>（使能 WKUP 引脚）、<code>PVDO</code>（PVD 输出状态）。</li>
+<li><code>PWR_CSR</code> 的某些位在待机唤醒后或复位后、直到设置 <code>PVDE</code> 位之前会保持特定状态。</li>
+<li>手册第 4 章还有电源框图、上电/掉电复位、PVD、低功耗模式、低功耗模式下的自动唤醒（RTC 定期唤醒，即程序④现象）、寄存器描述。</li>
 </ul>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>三种低功耗模式下无法直接下载程序</strong>：要「<strong>按住复位键 → 点下载 → 松开</strong>」；三种模式都要这样。</li>
-<li><strong><code>__WFI()</code> 是 CMSIS 内核指令</strong>，不是 PWR 库函数；本集只出现 <code>PWR_EnterSTANDBYMode()</code> 一个 PWR 库函数。</li>
-<li><strong>睡眠只关 CPU 时钟</strong>（数据全保留、任一中断/事件可唤醒）；<strong>停机关所有 1.8V 时钟 + HSI/HSE</strong>（不断电、数据保留、只能外部中断唤醒）；<strong>待机连 1.8V 电源都关</strong>（数据丢失、唤醒后程序从头跑、I/O 高阻）。</li>
-<li><strong><code>PDDS</code> 决定停机/待机</strong>：<strong>PDDS=0 → 停机、PDDS=1 → 待机</strong>（进停机前要确保 PDDS=0）。</li>
-<li><strong><code>LPDS</code> 决定停机时电压调节器</strong>：0＝开启（更快唤醒、更耗电）、1＝低功耗（更省电、唤醒慢一点）；<strong>两者都能保数据</strong>。</li>
-<li><strong>待机唤醒源只有 4 个</strong>：WKUP(PA0) 上升沿、RTC 闹钟、NRST 外部复位、IWDG 复位——<strong>其他信号都叫不醒</strong>。</li>
-<li><strong>待机唤醒后程序从头运行</strong>（等同复位），<strong>SRAM/寄存器数据丢失</strong>，只有<strong>备份区域</strong>数据还在。</li>
+<li><strong>三种低功耗模式下无法直接下载</strong>：按住复位键 → 点下载 → 松开。</li>
+<li><strong><code>__WFI()</code> 是 CMSIS 内核指令</strong>，不是 PWR 库函数；本集只有 <code>PWR_EnterSTANDBYMode()</code>。</li>
+<li><strong>睡眠只关 CPU 时钟</strong>；<strong>停机关所有 1.8V 时钟 + HSI/HSE</strong>；<strong>待机连 1.8V 电源都关</strong>。</li>
+<li><strong><code>PDDS</code> 决定停机/待机</strong>：<code>PDDS=0</code> 停机、<code>PDDS=1</code> 待机，进停机前要确保 <code>PDDS=0</code>。</li>
+<li><strong><code>LPDS</code> 决定电压调节器</strong>：0 开启（唤醒快、更耗电）、1 低功耗（省电、唤醒慢），两者都保数据。</li>
+<li><strong>待机唤醒源只有 4 个</strong>：<code>PA0-WKUP</code> 上升沿、RTC 闹钟、NRST、IWDG 复位。</li>
+<li><strong>待机唤醒后程序从头运行</strong>，SRAM/寄存器数据丢失，只有备份区域数据还在。</li>
 <li><strong>待机时 I/O 变高阻态</strong>：点亮的 LED 会熄灭、不流电流。</li>
-<li><strong>LSI/LSE 在停机和待机下不会主动关闭</strong>：否则 RTC 与 IWDG 就没法工作。</li>
-<li><strong>PVD 借道 EXTI</strong>：用 PVD 必须配置外部中断；<strong>RTC 闹钟/USB/ETH 唤醒也借道 EXTI</strong>。</li>
-<li><strong>PVD 阈值比复位阈值高</strong>：PVD 2.2～2.9V（可编程、100mV 迟滞）、POR/PDR 约 1.92/1.88V（40mV 迟滞）——<strong>PVD 是「警告线」，PDR 以下才直接复位</strong>。</li>
-<li><strong>PVD 输出是正逻辑</strong>（电压低＝1），与复位信号（低有效）相反。</li>
-<li><strong>表13/14 是最大值</strong>，典型值查表17；口述的 30mA/30µA/3µA 是估算。</li>
-<li><strong>PC13～PC15 不能驱动 LED</strong>：手册明令（输出速度 ≤2MHz、负载 ≤30pF、<strong>不能当电流源</strong>）；作者自评板子上 PC13 的测试灯违背了这条（好在电流小）。</li>
+<li><strong>LSI/LSE 在停机和待机下不会主动关闭</strong>，否则 RTC 与 IWDG 没法工作。</li>
+<li><strong>PVD 借道 EXTI</strong>：用 PVD 必须配置外部中断；RTC 闹钟/USB/ETH 唤醒也借道 EXTI。</li>
+<li><strong>PVD 阈值比复位阈值高</strong>：2.2～2.9V（100mV 迟滞）对 POR/PDR 约 1.92/1.88V（40mV）。</li>
+<li><strong>PVD 输出是正逻辑</strong>（电压低＝1），与低有效的复位信号相反。</li>
+<li><strong>表13/14 是最大值</strong>，典型值查表17；30mA/30µA/3µA 是估算。</li>
+<li><strong>PC13～PC15 不能驱动 LED</strong>：输出速度 ≤2MHz、负载 ≤30pF、不能当电流源。</li>
 <li><strong>进低功耗前要关掉不必要的外设</strong>（如 OLED），否则它们还在耗电。</li>
 </ol>
 </article>
@@ -512,23 +491,24 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-4-%E4%B8%AA%E6%88%90%E5%93%81%E7%A8%8B%E5%BA%8F%E7%8E%B0%E8%B1%A1-ppt-%E6%89%8B%E5%86%8C-%E4%BB%A3%E7%A0%81%E5%9C%A8-13-2">0. 本集定位：理论课（4 个成品程序现象 + PPT + 手册），代码在 13-2</a>
+        <a class="level-2" href="#1-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">1. 本集定位</a>
         <a class="level-2" href="#1-%E5%9B%9B%E4%B8%AA%E6%88%90%E5%93%81%E7%A8%8B%E5%BA%8F%E7%9A%84%E7%8E%B0%E8%B1%A1">1. 四个成品程序的现象</a>
-        <a class="level-3" href="#1-1-%E7%A8%8B%E5%BA%8F1-%E4%BF%AE%E6%94%B9%E4%B8%BB%E9%A2%91-13-1-%E4%BF%AE%E6%94%B9%E4%B8%BB%E9%A2%91">1.1 程序①：修改主频（13-1 修改主频）</a>
-        <a class="level-3" href="#1-2-%E7%A8%8B%E5%BA%8F2-%E7%9D%A1%E7%9C%A0%E6%A8%A1%E5%BC%8F-%E4%B8%B2%E5%8F%A3%E6%94%B6%E5%8F%91-13-2">1.2 程序②：睡眠模式 + 串口收发（13-2）</a>
-        <a class="level-3" href="#1-3-%E7%A8%8B%E5%BA%8F3-%E5%81%9C%E6%AD%A2%E6%A8%A1%E5%BC%8F-%E5%AF%B9%E5%B0%84%E5%BC%8F%E7%BA%A2%E5%A4%96%E4%BC%A0%E6%84%9F%E5%99%A8%E8%AE%A1%E6%AC%A1-13-3">1.3 程序③：停止模式 + 对射式红外传感器计次（13-3）</a>
-        <a class="level-3" href="#1-4-%E7%A8%8B%E5%BA%8F4-%E5%BE%85%E6%9C%BA%E6%A8%A1%E5%BC%8F-%E5%AE%9E%E6%97%B6%E6%97%B6%E9%92%9F-13-4">1.4 程序④：待机模式 + 实时时钟（13-4）</a>
-        <a class="level-3" href="#1-5-%E9%87%8D%E8%A6%81%E6%8F%90%E9%86%92-%E4%BD%8E%E5%8A%9F%E8%80%97%E6%A8%A1%E5%BC%8F%E4%B8%8B%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E4%B8%8B%E8%BD%BD%E7%A8%8B%E5%BA%8F">1.5 重要提醒：低功耗模式下无法直接下载程序</a>
-        <a class="level-3" href="#1-6-%E5%8F%A6%E4%B8%80%E4%B8%AA%E5%BF%85%E5%86%99%E7%9A%84%E5%9D%91-%E5%81%9C%E6%AD%A2%E6%A8%A1%E5%BC%8F%E5%94%A4%E9%86%92%E5%90%8E%E8%A6%81%E9%87%8D%E9%85%8D%E4%B8%BB%E9%A2%91">1.6 另一个必写的坑：停止模式唤醒后要重配主频</a>
+        <a class="level-3" href="#1-1-%E4%BF%AE%E6%94%B9%E4%B8%BB%E9%A2%91-13-1-%E4%BF%AE%E6%94%B9%E4%B8%BB%E9%A2%91">1.1 修改主频（13-1 修改主频）</a>
+        <a class="level-3" href="#1-2-%E7%9D%A1%E7%9C%A0%E6%A8%A1%E5%BC%8F-%E4%B8%B2%E5%8F%A3%E6%94%B6%E5%8F%91-13-2">1.2 睡眠模式 + 串口收发（13-2）</a>
+        <a class="level-3" href="#1-3-%E5%81%9C%E6%AD%A2%E6%A8%A1%E5%BC%8F-%E5%AF%B9%E5%B0%84%E5%BC%8F%E7%BA%A2%E5%A4%96%E4%BC%A0%E6%84%9F%E5%99%A8%E8%AE%A1%E6%AC%A1-13-3">1.3 停止模式 + 对射式红外传感器计次（13-3）</a>
+        <a class="level-3" href="#1-4-%E5%BE%85%E6%9C%BA%E6%A8%A1%E5%BC%8F-%E5%AE%9E%E6%97%B6%E6%97%B6%E9%92%9F-13-4">1.4 待机模式 + 实时时钟（13-4）</a>
+        <a class="level-3" href="#1-5-%E4%BD%8E%E5%8A%9F%E8%80%97%E6%A8%A1%E5%BC%8F%E4%B8%8B%E6%97%A0%E6%B3%95%E7%9B%B4%E6%8E%A5%E4%B8%8B%E8%BD%BD%E7%A8%8B%E5%BA%8F">1.5 低功耗模式下无法直接下载程序</a>
+        <a class="level-3" href="#1-6-%E5%81%9C%E6%AD%A2%E6%A8%A1%E5%BC%8F%E5%94%A4%E9%86%92%E5%90%8E%E8%A6%81%E9%87%8D%E9%85%8D%E4%B8%BB%E9%A2%91">1.6 停止模式唤醒后要重配主频</a>
         <a class="level-2" href="#2-%E7%94%B5%E6%BA%90%E6%A1%86%E5%9B%BE-%E5%A4%8D%E4%BD%8D%E4%B8%8E-pvd">2. 电源框图、复位与 PVD</a>
         <a class="level-3" href="#2-1-%E5%9B%BE4-%E7%94%B5%E6%BA%90%E6%A1%86%E5%9B%BE">2.1 图4 电源框图</a>
-        <a class="level-3" href="#2-2-%E4%B8%8A%E7%94%B5%E5%A4%8D%E4%BD%8D%E4%B8%8E%E6%8E%89%E7%94%B5%E5%A4%8D%E4%BD%8D-%E5%9B%BE5">2.2 上电复位与掉电复位（图5）</a>
-        <a class="level-3" href="#2-3-%E5%8F%AF%E7%BC%96%E7%A8%8B%E7%94%B5%E5%8E%8B%E7%9B%91%E6%B5%8B%E5%99%A8-pvd-%E5%9B%BE6">2.3 可编程电压监测器 PVD（图6）</a>
-        <a class="level-2" href="#3-%E8%A1%A88-%E4%B8%89%E7%A7%8D%E4%BD%8E%E5%8A%9F%E8%80%97%E6%A8%A1%E5%BC%8F-%E6%A0%B8%E5%BF%83">3. 表8：三种低功耗模式（核心）</a>
-        <a class="level-3" href="#3-1-%E5%85%A8%E8%A1%A8">3.1 全表</a>
+        <a class="level-3" href="#2-2-%E4%B8%8A%E7%94%B5%E5%A4%8D%E4%BD%8D%E4%B8%8E%E6%8E%89%E7%94%B5%E5%A4%8D%E4%BD%8D">2.2 上电复位与掉电复位</a>
+        <a class="level-3" href="#2-3-%E5%8F%AF%E7%BC%96%E7%A8%8B%E7%94%B5%E5%8E%8B%E7%9B%91%E6%B5%8B%E5%99%A8-pvd">2.3 可编程电压监测器 PVD</a>
+        <a class="level-2" href="#3-%E8%A1%A88-%E4%B8%89%E7%A7%8D%E4%BD%8E%E5%8A%9F%E8%80%97%E6%A8%A1%E5%BC%8F">3. 表8：三种低功耗模式</a>
+        <a class="level-3" href="#3-1-%E5%85%A8%E8%A1%A8%E4%B8%8E%E8%A7%84%E5%BE%8B">3.1 全表与规律</a>
         <a class="level-3" href="#3-2-%E7%9D%A1%E7%9C%A0%E6%A8%A1%E5%BC%8F-%E6%B5%85%E7%9D%A1%E7%9C%A0-%E6%89%93%E7%9B%B9">3.2 睡眠模式（＝浅睡眠/打盹）</a>
         <a class="level-3" href="#3-3-%E5%81%9C%E6%9C%BA%E6%A8%A1%E5%BC%8F-%E6%95%B4%E4%BA%BA%E7%BD%A2%E5%B7%A5">3.3 停机模式（＝整人罢工）</a>
         <a class="level-3" href="#3-4-%E5%BE%85%E6%9C%BA%E6%A8%A1%E5%BC%8F-%E4%B8%8B%E7%8F%AD%E5%9B%9E%E5%AE%B6">3.4 待机模式（＝下班回家）</a>
+        <a class="level-3" href="#3-5-%E6%A8%A1%E5%BC%8F%E9%80%89%E6%8B%A9%E6%B5%81%E7%A8%8B%E5%9B%BE">3.5 模式选择流程图</a>
         <a class="level-2" href="#4-%E7%94%B5%E6%B5%81%E5%AE%9E%E6%B5%8B-%E6%95%B0%E6%8D%AE%E6%89%8B%E5%86%8C">4. 电流实测（数据手册）</a>
         <a class="level-3" href="#4-1-%E8%BF%90%E8%A1%8C%E6%A8%A1%E5%BC%8F-%E8%A1%A813-14">4.1 运行模式（表13/14）</a>
         <a class="level-3" href="#4-2-%E5%81%9C%E6%9C%BA-%E5%BE%85%E6%9C%BA%E6%A8%A1%E5%BC%8F-%E8%A1%A816">4.2 停机/待机模式（表16）</a>

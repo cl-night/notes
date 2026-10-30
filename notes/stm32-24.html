@@ -177,84 +177,79 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>32 分钟</span>
+      <span>21 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">DMA</span><span class="tag">ADC</span><span class="tag">数据转运</span>
     </div>
     <article class="prose"><h1>[8-2] DMA数据转运与DMA+AD多通道 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 8（DMA）的代码课</strong>，写<strong>两个程序</strong>——① <code>8-1 DMA数据转运</code>（存储器→存储器，DataA→DataB）② <code>8-2 DMA+AD多通道</code>（ADC 扫描 + DMA，四路自动进数组）。结构是 <strong>开头 1:00–9:30 一段「存储器映像小实验」（作者扩展内容）+ 程序一 + 程序二</strong>。理论（DMA 定义/框图/基本结构/请求映像/宽度对齐）全在 <strong>P23 [8-1]</strong>，本集只套用结论、不重复推导；片尾 53:00「本节课就到这里，我们下节再见」，<strong>没有下集名</strong>。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>本集把 [8-1] 的 DMA 理论落成两个工程。<strong>开头小实验</strong>用实验验证了 P23 的存储器映像：<strong>普通变量 <code>&amp;aa</code> = <code>0x20000000</code>（SRAM 区）</strong>；<strong>加 <code>const</code> 后地址变 <code>0x08000DF8</code>（Flash 区）</strong>——所以<strong>大批不需要改的数据（字库、查找表）加 <code>const</code> 可以省 SRAM</strong>；<strong>外设寄存器地址是固定的</strong>，<code>(uint32_t)&amp;ADC1-&gt;DR</code> = <strong><code>0x4001244C</code></strong>（ADC1 起始 <code>0x40012400</code> + DR 偏移 <code>0x4C</code>），而 <code>ADC1</code> 本质是 <code>((ADC_TypeDef *)ADC1_BASE)</code>，<strong>基地址链</strong> <code>PERIPH_BASE(0x40000000) + 0x10000 = APB2 基地址 → +0x2400 = ADC1 基地址</code>，<strong>结构体成员顺序与寄存器偏移一一对应</strong>——所以「结构体指针 + <code>-&gt;</code>」就等价于「基地址 + 偏移」。<strong>程序一 <code>8-1 DMA数据转运</code></strong> 由 OLED 工程复制、新建 <code>MyDMA.c/MyDMA.h</code>（放 System 组，名字避免与库函数重名）：<code>MyDMA_Init(uint32_t AddrA, uint32_t AddrB, uint16_t Size)</code> 里<strong>先 <code>RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1)</code>（DMA 挂 AHB）</strong>，再配 <strong><code>DMA_Init</code> 结构体 11 个成员</strong>——<code>PeripheralBaseAddr = AddrA</code>、<code>PeripheralDataSize/MemoryDataSize = Byte</code>、<code>PeripheralInc/MemoryInc = Enable</code>（数组要自增）、<code>DIR = PeripheralSRC</code>（外设站点作源）、<code>BufferSize = Size</code>（就是传输计数器）、<code>Mode = Normal</code>（单次、不重装）、<code>M2M = Enable</code>（软件触发）、<code>Priority = Medium</code>——最后 <strong><code>DMA_Cmd(DMA1_Channel1, DISABLE)</code> 先不使能</strong>；<code>MyDMA_Transfer</code> 里 <strong>先失能 → <code>DMA_SetCurrDataCounter</code> 重写计数器 → 使能 → <code>while</code> 等 <code>DMA1_FLAG_TC1</code> → 手动 <code>DMA_ClearFlag</code></strong>（<strong>标志位必须手动清</strong>）。现象：<code>DataA</code> 地址 <code>0x20000002</code>、<code>DataB</code> 地址 <code>0x20000006</code>（<strong>前面的 2 字节被全局变量 <code>MyDMA_Size</code> 占了</strong>，不是 DMA 造成的），转运后 DataB 变成和 DataA 一样、<strong>源端 DataA 不变</strong>；<strong>给 DataA 加 <code>const</code> 就能把 Flash 的数据搬到 SRAM</strong>（此时 <code>DataA++</code> 必须删掉）。<strong>程序二 <code>8-2 DMA+AD多通道</code></strong> 由上一集 AD 多通道工程复制：ADC 侧把序列 1～4 填成通道 0～3、<strong><code>ADC_ScanConvMode = ENABLE</code>、<code>ADC_NbrOfChannel = 4</code></strong>；DMA 侧参数是 <strong><code>PeripheralBaseAddr = (uint32_t)&amp;ADC1-&gt;DR</code>、<code>PeripheralDataSize = HalfWord</code>、<code>PeripheralInc = Disable</code>（始终读同一个 DR）、<code>MemoryBaseAddr = (uint32_t)AD_Value</code>、<code>MemoryDataSize = HalfWord</code>、<code>MemoryInc = Enable</code>、<code>BufferSize = 4</code>、<code>Mode = Normal</code>（先）、<code>M2M = Disable</code>（用硬件触发）</strong>，而且<strong>通道必须用 <code>DMA1_Channel1</code></strong>——<strong>ADC1 的硬件触发只接在 DMA1 通道 1 上</strong>；还要 <strong><code>ADC_DMACmd(ADC1, ENABLE)</code></strong> 打开 ADC 的 DMA 请求输出。本集给了<strong>两套最终代码</strong>：<strong>① 单次扫描 + 单次转运</strong>（<code>void AD_GetValue(void)</code>：失能 DMA → 重写计数器 4 → 使能 → 软件触发 ADC → 等 TC1 → 清标志，然后直接读 <code>AD_Value[0～3]</code>）；<strong>② 连续扫描 + 循环转运</strong>（<code>ADC_ContinuousConvMode = ENABLE</code>、<code>DMA_Mode_Circular</code>、ADC 触发放到初始化末尾、<strong>删掉 <code>AD_GetValue</code></strong>，主循环直接读数组）——<strong>两个版本别混用</strong>。最后作者点题：<strong>硬件外设互相配合形成网状结构</strong>（定时器 → ADC → DMA），软件什么都不用做也不进中断；<strong>存储器 → 外设（如串口发送）本集没做，留给大家自己研究</strong>。</p>
-<h2 id="0-本集定位-代码课-理论全在-8-1-p23">0. 本集定位：代码课，理论全在 [8-1] P23</h2>
+<p>DMA 转运配好 <code>DMA_Init</code> 的 11 个成员，每次「失能 → 写计数器 → 使能 → 等 <code>DMA1_FLAG_TC1</code> → 清标志」。ADC 多通道加扫描和 <code>ADC_DMACmd</code>，通道固定 <code>DMA1_Channel1</code>。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯代码课</strong>：全程 Keil —— 接线 → 复制工程 → 小实验 → 写 MyDMA 模块 → 写程序一 → 复制改程序二 → 编译下载看现象；<strong>只有两处闪过 PPT</strong>（P23 的存储器映像表、DMA1 请求映像），<strong>没有新的理论推导</strong>。</li>
-<li><strong>结构</strong>：<strong>开场小实验（1:00–9:30，作者扩展）</strong> → <strong>程序一 <code>8-1 DMA数据转运</code>（9:30–40:30）</strong> → <strong>程序二 <code>8-2 DMA+AD多通道</code>（40:30–53:09）</strong>。</li>
-<li><strong>理论引用 P23 即可</strong>：DMA 基本结构（两站点 3 参数、方向、计数器、重装、M2M、开关、三条件）、DMA1 请求映像、表57 数据宽度与对齐，本笔记<strong>不再推导</strong>，详细看 <code>notes/stm32-23-DMA直接存储器存取.md</code>。</li>
-<li>片尾说明：本集覆盖了<strong>存储器到存储器</strong>、<strong>外设到存储器</strong>两种情况；<strong>存储器到外设（串口发送）本集没讲</strong>，留给自学；片尾只有「我们下节再见」，无下集名。</li>
+<li><strong>模块 8（DMA）的代码课</strong>，写两个工程：<code>8-1 DMA数据转运</code>（存储器→存储器，DataA→DataB）、<code>8-2 DMA+AD多通道</code>（ADC 扫描 + DMA，四路自动进数组）。</li>
+<li>结构：开场小实验（1:00–9:30，扩展内容）→ 程序一（9:30–40:30）→ 程序二（40:30–53:09）。</li>
+<li>理论（DMA 定义、框图、基本结构、请求映像、数据宽度与对齐表57）全在 P23 [8-1]，本集只套用结论，详见 <code>notes/stm32-23-DMA直接存储器存取.md</code>。</li>
+<li>覆盖存储器→存储器、外设→存储器两种情况；存储器→外设（串口发送）本集没讲，留作自学；片尾无下集名。</li>
 </ul>
 <h2 id="1-片头与工程准备">1. 片头与工程准备</h2>
 <ul>
-<li>接线图 <code>8-1 DMA数据转运</code>：<strong>这个电路和 OLED 显示屏的电路是一样的</strong>——因为<strong>数据转运都是在 STM32 内部进行的</strong>，所以<strong>外围电路只加一个 OLED 显示一下就行了</strong>，其他模块都不需要；面包板上也就是一个 OLED 显示屏的电路。</li>
-<li>回到工程文件夹，<strong>复制 OLED 显示屏的工程</strong>，改名 <strong><code>8-1 DMA数据转运</code></strong>；把原来的代码先删掉，编译一下。</li>
+<li>接线与 OLED 显示屏工程相同：数据转运全在 STM32 内部进行，外围只加一个 OLED 显示就够了。</li>
+<li>复制 OLED 工程 → 改名 <code>8-1 DMA数据转运</code>，删掉原有代码，编译。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/01-wiring.jpg" alt="图 1：接线图 8-1 DMA数据转运——面包板上只有 STM32 最小系统板与 OLED 显示屏（加 ST-Link），没有任何其他外设；字幕「所以外围电路就加一个OLED显示一下就行了」"></p>
-<p><em>图 1：接线图 <code>8-1 DMA数据转运</code>——面包板上只有 STM32 最小系统板与 OLED 显示屏（加 ST-Link），没有任何其他外设；字幕「所以外围电路就加一个OLED显示一下就行了」</em></p>
+<p><img src="../assets/images/stm32-24/01-wiring.jpg" alt="图 1：接线图 8-1 DMA数据转运——面包板上只有 STM32 最小系统板与 OLED 显示屏（加 ST-Link），没有其他外设"></p>
+<p><em>图 1：接线图 <code>8-1 DMA数据转运</code>——面包板上只有 STM32 最小系统板与 OLED 显示屏（加 ST-Link），没有其他外设</em></p>
 <h2 id="2-扩展小实验-存储器映像的真实验证-1-00-9-30">2. 扩展小实验：存储器映像的真实验证（1:00–9:30）</h2>
-<blockquote>
-<p>正式写 DMA 代码之前，作者先花几分钟做个小实验，验证 P23 讲的存储器映像——「看一下我们定义的数据，到底是不是真的存储在了相应的地址空间里」。</p>
-</blockquote>
+<ul>
+<li>目的：验证 P23 讲的存储器映像——定义的数据到底存在哪个地址空间。</li>
+</ul>
 <h3 id="2-1-变量-地址在-sram-区">2.1 变量：地址在 SRAM 区</h3>
 <ul>
-<li>在上面随便定义一个变量 <strong><code>uint8_t aa = 0x66;</code></strong>，主函数里 <code>OLED_ShowHexNum(1, 1, aa, 2)</code> 显示内容，再显示它的地址；</li>
-<li><strong>取地址用 <code>&amp;</code></strong>：<code>&amp;aa</code> 取到的是地址，<strong>地址一般都习惯用十六进制表示</strong>；取地址之后本来应该存在指针变量里，如果想直接当数字显示，<strong>要在前面加强制类型转换 <code>(uint32_t)</code></strong>——不加强转就是指针跨级赋值，编译会报警告；<strong>显示长度给 8</strong>（8 个十六进制数就是 32 位，32 位系统的地址都是 32 位）；</li>
-<li><strong>现象</strong>：第一行显示内容 <code>66</code>；第二行显示 <code>aa</code> 被存储的地址 <strong><code>2000 0000</code></strong>——<strong>20 开头就说明它在 SRAM 区</strong>；</li>
-<li><strong>具体地址由编译器决定</strong>：因为 SRAM 区目前还没什么东西，所以编译器就把这个变量放在了 SRAM 区的第一个位置（<code>0x20000000</code>）。</li>
+<li>定义 <code>uint8_t aa = 0x66;</code>，主函数里用 <code>OLED_ShowHexNum(1, 1, aa, 2)</code> 显示内容，再显示地址。</li>
+<li>取地址用 <code>&amp;</code>：<code>&amp;aa</code> 取到的就是地址（不是 <code>aa</code> 的内容）；地址习惯用十六进制表示，要当数字显示得加 <code>(uint32_t)</code> 强转，否则是指针跨级赋值、编译报警告；显示长度给 8（32 位系统的地址都是 32 位）。</li>
+<li>现象：第一行 <code>66</code>，第二行地址 <code>2000 0000</code>——20 开头就说明在 SRAM 区。</li>
+<li>具体地址由编译器决定：SRAM 区还空着，变量就落在第一个位置 <code>0x20000000</code>。</li>
 </ul>
 <h3 id="2-2-常量-加-const-就到-flash-区">2.2 常量：加 <code>const</code> 就到 Flash 区</h3>
 <ul>
-<li>在变量前面加 <strong><code>const</code></strong>（C 语言关键字，表示<strong>常量</strong>）：<strong>被 const 修饰的只能读、不能写</strong>——而 <strong>Flash 里的数据也是只能读不能写</strong>，所以 <strong>const 和 Flash 就联系起来了</strong>：<strong>在 STM32 中，用 const 定义的变量存放在 Flash 里</strong>（严格说应该叫「常量」）；</li>
-<li>常量<strong>只能在定义的时候给值</strong>，程序里再给它赋值会编译报错（「不能给 const 常量赋值」）；</li>
-<li><strong>现象</strong>：地址变成 <strong><code>0800 0DF8</code></strong>（08 开头）——对照 PPT 表就知道它被存到了 <strong>Flash</strong>；<strong>地址尾部有些偏移</strong>，不像 SRAM 那样直接安排在第一个位置，因为 <strong>Flash 前面还有程序代码</strong>，编译器只能把常量安排得靠后一些；</li>
-<li><strong>什么时候用常量</strong>：程序中出现<strong>一大批数据、并且不需要更改</strong>时（<strong>查找表、字库数据</strong>等），定义成常量<strong>能节省 SRAM 空间</strong>；比如 <code>OLED_Font.h</code> 里 OLED 显示英文的<strong>字库数组非常长且不需要修改</strong>，加一个 <code>const</code> 就能放到 Flash 里——<strong>如果把 const 去掉，程序功能不受影响，但 SRAM 里会浪费和这个数组一样大的空间</strong>（数组很大时就要考虑 SRAM 够不够）。</li>
+<li><code>const</code> 修饰的只能读、不能写，Flash 也是只能读不能写，所以在 STM32 中用 <code>const</code> 定义的变量存放在 Flash 里。</li>
+<li>常量只能在定义时给值，程序里再赋值会编译报错。</li>
+<li>现象：地址从 <code>0x20000000</code> 变成 <code>0x08000DF8</code>（屏幕显示 <code>0800 0DF8</code>，08 开头即 Flash）；尾部有偏移，因为 Flash 前面还有程序代码，常量只能安排得靠后。</li>
+<li>用途：一大批不需要改的数据（查找表、字库）定义成常量能省 SRAM——<code>OLED_Font.h</code> 的字库数组加 <code>const</code> 就进 Flash；去掉 <code>const</code> 功能不变，但 SRAM 会浪费同样大的空间。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/02-const-flash-address.jpg" alt="图 2：小实验画面——MyCamera 里 OLED 显示 66（内容）与 08000DF8（地址，08 开头即 Flash 区），右侧是 PPT 存储器映像表的「用途」列（存程序代码/BootLoader/配置参数/临时变量/外设配置参数/内核外设配置参数）；字幕「那这里的地址尾部有一些偏移」"></p>
-<p><em>图 2：小实验画面——MyCamera 里 OLED 显示 <code>66</code>（内容）与 <code>08000DF8</code>（地址，08 开头即 Flash 区），右侧是 PPT 存储器映像表的「用途」列（存程序代码/BootLoader/配置参数/临时变量/外设配置参数/内核外设配置参数）；字幕「那这里的地址尾部有一些偏移」</em></p>
+<p><img src="../assets/images/stm32-24/02-const-flash-address.jpg" alt="图 2：小实验画面——OLED 显示 66（内容）与 08000DF8（地址，08 开头即 Flash 区），右侧是 PPT 存储器映像表的「用途」列"></p>
+<p><em>图 2：小实验画面——OLED 显示 <code>66</code>（内容）与 <code>08000DF8</code>（地址，08 开头即 Flash 区），右侧是 PPT 存储器映像表的「用途」列</em></p>
 <h3 id="2-3-外设寄存器地址-adc1-dr-0x4001244c">2.3 外设寄存器地址：<code>&amp;ADC1-&gt;DR</code> = 0x4001244C</h3>
 <ul>
-<li><strong>变量/常量的地址由编译器确定、不固定</strong>；但<strong>外设寄存器的地址是固定的</strong>，在手册里都能查到；</li>
-<li>程序里可以用<strong>结构体</strong>很方便地访问寄存器，比如要访问 <strong>ADC1 的 DR 寄存器</strong>就写 <strong><code>ADC1-&gt;DR</code></strong>；把这个寄存器取地址显示出来，得到 <strong><code>4001 244C</code></strong>——<strong>40 开头，对照 PPT 表就是外设寄存器区域</strong>；</li>
-<li><strong>这个地址怎么来的</strong>：打开手册第 2 章「存储器映像」，<strong>ADC1 的起始地址是 <code>0x40012400</code></strong>；再打开 ADC 章节的<strong>寄存器总表</strong>，查到 <strong>ADC_DR 的偏移是 <code>0x4C</code></strong>——<strong>起始地址 + 偏移 = 寄存器实际地址</strong>，即 <code>0x40012400 + 0x4C = 0x4001244C</code>，和 OLED 显示的一样。所以<strong>想算某个寄存器的地址：先查它所在外设的起始地址，再查寄存器总表里的偏移，加起来</strong>。</li>
+<li>变量、常量的地址由编译器定、不固定；外设寄存器地址固定，手册里都能查到。</li>
+<li>程序里用结构体访问寄存器，要取 ADC1 的 DR 就写 <code>ADC1-&gt;DR</code>；把它取地址显示出来得到 <code>4001 244C</code>——40 开头即外设寄存器区。</li>
+<li>地址来源：手册第 2 章「存储器映像」查到 ADC1 起始地址 <code>0x40012400</code>，ADC 章节寄存器总表查到 ADC_DR 偏移 <code>0x4C</code>，两者相加 <code>0x40012400 + 0x4C = 0x4001244C</code>。</li>
+<li>通用算法：先查外设起始地址，再查寄存器偏移，相加。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/03-manual-adc1-address.jpg" alt="图 3：参考手册 2.3 存储器映像表——0x4001 2400～0x4001 27FF 是 ADC1（属 APB2），同表还有 ADC2/ADC3、TIM8、SPI1、USART1 与 GPIOA～G 等外设；字幕「可以看到ADC1的起始地址是4001 2400」"></p>
-<p><em>图 3：参考手册 2.3 存储器映像表——<code>0x4001 2400～0x4001 27FF</code> 是 <strong>ADC1</strong>（属 APB2），同表还有 ADC2/ADC3、TIM8、SPI1、USART1 与 GPIOA～G 等外设；字幕「可以看到ADC1的起始地址是4001 2400」</em></p>
-<p><img src="../assets/images/stm32-24/04-register-address-check.jpg" alt="图 4：main.c 里验证寄存器地址——OLED_ShowHexNum(2, 1, (uint32_t)&amp;ADC1-&gt;DR, 8);（第 12 行）——显示 ADC1 的 DR 寄存器地址；字幕「比如定义一下」"></p>
-<p><em>图 4：main.c 里验证寄存器地址——<code>OLED_ShowHexNum(2, 1, (uint32_t)&amp;ADC1-&gt;DR, 8);</code>（第 12 行）——显示 ADC1 的 DR 寄存器地址；字幕「比如定义一下」</em></p>
+<p><img src="../assets/images/stm32-24/03-manual-adc1-address.jpg" alt="图 3：参考手册 2.3 存储器映像表——0x4001 2400～0x4001 27FF 是 ADC1（属 APB2），同表还有 ADC2/ADC3、TIM8、SPI1、USART1 与 GPIOA～G"></p>
+<p><em>图 3：参考手册 2.3 存储器映像表——<code>0x4001 2400～0x4001 27FF</code> 是 ADC1（属 APB2），同表还有 ADC2/ADC3、TIM8、SPI1、USART1 与 GPIOA～G</em></p>
+<p><img src="../assets/images/stm32-24/04-register-address-check.jpg" alt="图 4：main.c 里验证寄存器地址——OLED_ShowHexNum(2, 1, (uint32_t)&amp;ADC1-&gt;DR, 8);（第 12 行）"></p>
+<p><em>图 4：main.c 里验证寄存器地址——<code>OLED_ShowHexNum(2, 1, (uint32_t)&amp;ADC1-&gt;DR, 8);</code>（第 12 行）</em></p>
 <h3 id="2-4-结构体为什么能访问寄存器">2.4 结构体为什么能访问寄存器</h3>
 <ul>
-<li>在 <code>ADC1</code> 处右键跳转到定义：<strong><code>ADC1</code> 就是 <code>((ADC_TypeDef *) ADC1_BASE)</code></strong>——左边是强制类型转换（把 <code>ADC1_BASE</code> 转为 <code>ADC_TypeDef</code> 类型的指针），右边 <strong><code>ADC1_BASE</code> 就是 ADC1 的基地址（起始地址）</strong>；</li>
-<li><strong>基地址链</strong>（一层层转定义）：<strong><code>ADC1_BASE = APB2PERIPH_BASE + 0x2400</code></strong>；<strong><code>APB2PERIPH_BASE = PERIPH_BASE + 0x10000</code></strong>；<strong><code>PERIPH_BASE = 0x40000000</code></strong>——所以 <code>0x40000000 + 0x10000 + 0x2400 = 0x40012400</code>，正是手册表里 ADC1 的基地址（顺便也能看到 SRAM 基地址 <code>0x2000</code>、Flash 基地址 <code>0x0800</code>，和前面讲的都一致）；</li>
-<li><strong>偏移怎么实现的</strong>：把结构体定义跳出来看，里面是<strong>依次定义的各个寄存器（SR、CR1、CR2……）</strong>，<strong>这个结构体成员的顺序和手册里寄存器实际存放的顺序是一一对应的</strong>——所以<strong>定义一个结构体指针、让指针指向这个外设的起始地址</strong>，结构体的每个成员就<strong>正好映射到实际的每个寄存器</strong>：内存 <code>0x40012400</code> 开始放的是 ADC1 的寄存器（顺序 SR、CR1、CR2…），结构体在内存里的布局也是一样，两者<strong>完美重合</strong>——再访问某个成员就相当于访问那个寄存器；</li>
-<li>所以 <strong><code>ADC1-&gt;DR</code></strong> 的意思就是：<code>ADC1</code> 是结构体指针、指向 ADC1 外设起始地址，访问成员相当于<strong>加地址偏移</strong>，<strong>起始地址 + 偏移 = 指定的寄存器</strong>；因为是结构体指针所以用 <strong><code>-&gt;</code></strong> 取成员；</li>
-<li><strong>也可以更直接</strong>：<code>#define ADC1_DR 0x4001244C</code>，把地址强转为 <code>uint32_t</code> 指针，再用 <code>*</code> 取内容——效果和结构体访问<strong>一模一样</strong>（作者吐槽库函数把访问寄存器做得挺麻烦）。</li>
+<li><code>ADC1</code> 跳转定义就是 <code>((ADC_TypeDef *)ADC1_BASE)</code>，也写作 <code>((ADC_TypeDef *) ADC1_BASE)</code>：左边把 <code>ADC1_BASE</code> 强转成 <code>ADC_TypeDef</code> 类型指针，右边就是 ADC1 的基地址。</li>
+<li>基地址链：<code>ADC1_BASE = APB2PERIPH_BASE + 0x2400</code>、<code>APB2PERIPH_BASE = PERIPH_BASE + 0x10000</code>、<code>PERIPH_BASE = 0x40000000</code>，即 <code>0x40000000 + 0x10000 + 0x2400 = 0x40012400</code>，与手册一致；顺带还能看到 SRAM 基地址 <code>0x2000</code>、Flash 基地址 <code>0x0800</code>。</li>
+<li>换个写法更直观：<code>PERIPH_BASE(0x40000000) + 0x10000 = APB2 基地址 → +0x2400 = ADC1 基地址</code>。</li>
+<li>偏移的实现：结构体成员按 SR、CR1、CR2……依次定义，顺序与手册里寄存器的排列一一对应；结构体指针指向起始地址后，每个成员正好映射到一个寄存器。</li>
+<li><code>ADC1-&gt;DR</code> 就是「起始地址 + 偏移」；因为是结构体指针，取成员用 <code>-&gt;</code>。</li>
+<li>也可以 <code>#define ADC1_DR 0x4001244C</code>，把地址强转成 <code>uint32_t</code> 指针再用 <code>*</code> 取内容，效果完全一样。</li>
 </ul>
 <h2 id="3-程序一-8-1-dma数据转运">3. 程序一：<code>8-1 DMA数据转运</code></h2>
 <h3 id="3-1-定义数组与新建-mydma-模块">3.1 定义数组与新建 MyDMA 模块</h3>
 <ul>
-<li>定义 <strong><code>uint8_t DataA[] = {0x01, 0x02, 0x03, 0x04};</code></strong>（源端数组，4 个数据）和 <strong><code>uint8_t DataB[] = {0, 0, 0, 0};</code></strong>（目的数组，「如果不写 0，全局变量默认也是 0」）；</li>
-<li>任务就是<strong>初始化 DMA，让 DMA 把 DataA 的数据转运到 DataB 里</strong>；</li>
-<li>给 DMA 建模块：<strong>DMA 不涉及外围硬件电路，所以可以在 <code>System</code> 分组里添加</strong>，模块名叫 <strong><code>MyDMA</code></strong>——「为了防止与库函数里面的 DMA 重复，我就起了个 MyDMA」；</li>
-<li>在 <code>MyDMA.c</code> 里写初始化函数 <strong><code>void MyDMA_Init(void)</code></strong>（后面改成带参数的版本）。</li>
+<li>定义 <code>uint8_t DataA[] = {0x01, 0x02, 0x03, 0x04};</code>（源端）与 <code>uint8_t DataB[] = {0, 0, 0, 0};</code>（目的端，不写 0 全局变量默认也是 0）。</li>
+<li>任务：初始化 DMA，让它把 DataA 转运到 DataB。</li>
+<li>DMA 不涉及外围电路，模块可以放在 <code>System</code> 分组，命名 <code>MyDMA</code>（避免与库函数重名）；先写 <code>void MyDMA_Init(void)</code>，后面改成带参数的版本，文件是 <code>MyDMA.c/MyDMA.h</code>。</li>
 </ul>
 <h3 id="3-2-编程思路与库函数">3.2 编程思路与库函数</h3>
-<p>初始化步骤对照 P23 的基本结构图：</p>
-<ol>
-<li><strong>RCC 开启 DMA 的时钟</strong>；</li>
-<li><strong>调用 <code>DMA_Init</code></strong>，用结构体配置各个参数——<strong>外设/存储器站点的起始地址、数据宽度、地址是否自增、方向、传输计数器、是否自动重装、选择触发源</strong>，另外还有<strong>通道优先级</strong>（图里没画）；如果选择<strong>硬件触发</strong>，<strong>不要忘了在对应外设里调用 <code>XXX_DMACmd</code> 开启触发信号输出</strong>；</li>
-<li><strong>开关控制 <code>DMA_Cmd</code></strong>：给指定通道使能；</li>
-<li>运行过程中<strong>转运完成、传输计数器清 0</strong> 后，想再赋值就<strong>先 DMA 失能 → 写传输计数器 → 再使能</strong>。</li>
-</ol>
-<p><code>dma.h</code> 里的库函数不多：<code>DMA_DeInit</code>、<code>DMA_Init</code>、<code>DMA_StructInit</code>、<code>DMA_ITConfig</code>（中断输出使能）这些老朋友，加上两个重点——<strong><code>DMA_SetCurrDataCounter</code>（给传输计数器写数据）</strong>、<strong><code>DMA_GetCurrDataCounter</code>（返回计数器当前值，可以看还剩多少没转运）</strong>，最后是<strong>获取标志位状态、清除标志位、获取中断状态、清除中断挂起位</strong>。</p>
+<ul>
+<li>步骤照 P23 基本结构图：① RCC 开 DMA 时钟；② <code>DMA_Init</code> 配参数；③ <code>DMA_Cmd</code> 给通道使能；④ 转运完成、计数器清 0 后想再转，先失能 → 写计数器 → 使能。</li>
+<li><code>DMA_Init</code> 要配：两个站点的起始地址、数据宽度、地址是否自增、方向、传输计数器、是否自动重装、触发源，另外还有通道优先级；选硬件触发时，别忘了在对应外设里调 <code>XXX_DMACmd</code> 开触发信号输出。</li>
+<li><code>dma.h</code> 里重点两个：<code>DMA_SetCurrDataCounter</code>（给传输计数器写数据）、<code>DMA_GetCurrDataCounter</code>（返回计数器当前值，看还剩多少没转运）；其余是老朋友 <code>DMA_DeInit</code>、<code>DMA_Init</code>、<code>DMA_StructInit</code>、<code>DMA_ITConfig</code>，以及获取标志位状态、清除标志位、获取中断状态、清除中断挂起位。</li>
+</ul>
 <h3 id="3-3-mydma-init-完整代码与-11-个成员">3.3 <code>MyDMA_Init</code> 完整代码与 11 个成员</h3>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
 
@@ -285,16 +280,19 @@ void MyDMA_Init(uint32_t AddrA, uint32_t AddrB, uint16_t Size)
 }
 </code></pre>
 <ul>
-<li><strong>时钟</strong>：<code>RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);</code>——<strong>DMA 是 AHB 总线的设备，所以要用 AHB 开时钟的函数</strong>；该参数分「互联型设备（F105/107）」和「其他设备」两张表，<strong>F103 用下面那张，选 <code>RCC_AHBPeriph_DMA1</code></strong>。</li>
-<li><strong><code>DMA_Init</code> 第一个参数是 <code>DMAy_Channelx</code></strong>：<code>y</code> 选 DMA1/DMA2，<code>x</code> 选通道（DMA1 是 1～7、DMA2 是 1～5）——<strong>这一个参数既选了哪个 DMA，也选了哪个通道</strong>；因为这里是<strong>存储器到存储器、用软件触发</strong>，<strong>通道可以任意选</strong>，给通道 1。</li>
-<li><strong>11 个成员逐个对应基本结构图</strong>：前 6 个是<strong>两个站点的起始地址、数据宽度、是否自增</strong>；<code>DIR</code> 是<strong>传输方向</strong>（<code>PeripheralDST</code> = 外设作目的地/存储器→外设；<code>PeripheralSRC</code> = 外设作源/外设→存储器，本程序把 DataA 放外设站点、DataB 放存储器站点，所以选 <code>PeripheralSRC</code>）；<code>BufferSize</code> 就是<strong>传输计数器</strong>（取值 <strong>0～65535</strong>，源码里直接赋给计数器寄存器）；<code>Mode</code> 就是<strong>是否自动重装</strong>（<code>Circular</code> 循环/<code>Normal</code> 正常——<strong>注释里明确写「循环模式不能应用在存储器到存储器的情况」，即自动重装与软件触发不能同时用</strong>）；<code>M2M</code> 就是<strong>硬件触发/软件触发</strong>（<code>Enable</code> = 软件触发，<code>Disable</code> = 硬件触发）；<code>Priority</code> 是<strong>通道软件优先级</strong>（VeryHigh/High/Medium/Low，只有一个通道时随便给）。</li>
-<li><strong>参数提取成形参</strong>：因为<strong>数组地址由编译器分配、不固定</strong>，一般不写绝对地址，而是<strong>通过数组名获取地址</strong>；把地址和长度提取成 <code>uint32_t AddrA, uint32_t AddrB, uint16_t Size</code> 三个形参，初始化时想转运哪个数组就传哪个。</li>
-<li><strong>最后 <code>DMA_Cmd(DMA1_Channel1, DISABLE)</code></strong>：DMA 转运要同时满足三个条件（<strong>计数器&gt;0、有触发信号、DMA 使能</strong>）；此时前两个条件其实已满足（Size&gt;0、软件触发一直有信号），<strong>只差使能</strong>——所以初始化后先不工作，等 <code>Transfer</code> 调用再启动。</li>
+<li>函数原型 <code>MyDMA_Init(uint32_t AddrA, uint32_t AddrB, uint16_t Size)</code>：数组地址由编译器分配、不固定，所以把地址和长度提取成 <code>uint32_t AddrA, uint32_t AddrB, uint16_t Size</code> 三个形参，想转哪个数组就传哪个。</li>
+<li>时钟：<code>RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1)</code>——DMA 是 AHB 设备，完整写法 <code>RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);</code>，该参数分「互联型（F105/107）」和「其他设备」两张表，F103 用下面那张选 <code>RCC_AHBPeriph_DMA1</code>。</li>
+<li><code>DMA_Init</code> 第一个参数是 <code>DMAy_Channelx</code>：y 选 DMA1/DMA2，x 选通道（DMA1 是 1～7、DMA2 是 1～5），一个参数同时选了 DMA 和通道；这里是存储器到存储器、软件触发，通道任选，给通道 1。</li>
+<li>11 个成员：前 6 个是两个站点的起始地址、数据宽度、是否自增；<code>DIR</code> 是方向（<code>PeripheralDST</code> 外设作目的地、<code>PeripheralSRC</code> 外设作源）；<code>BufferSize</code> 是传输计数器（0～65535）；<code>Mode</code> 是是否自动重装（<code>Circular</code> 循环、<code>Normal</code> 正常，注释写明「循环模式不能应用在存储器到存储器」，即自动重装与软件触发不能同时用）；<code>M2M</code> 是触发方式（<code>Enable</code> 软件触发、<code>Disable</code> 硬件触发）；<code>Priority</code> 是通道优先级（VeryHigh/High/Medium/Low）。</li>
+<li>程序一的取值：<code>PeripheralBaseAddr = AddrA</code>、<code>PeripheralDataSize/MemoryDataSize = Byte</code>、<code>PeripheralInc/MemoryInc = Enable</code>、<code>DIR = PeripheralSRC</code>、<code>BufferSize = Size</code>、<code>Mode = Normal</code>、<code>M2M = Enable</code>、<code>Priority = Medium</code>。</li>
+<li>最后 <code>DMA_Cmd(DMA1_Channel1, DISABLE)</code> 先不使能：转运要同时满足计数器&gt;0、有触发信号、DMA 使能三个条件，此时只差使能，等 <code>Transfer</code> 调用再启动。</li>
+<li>地址自增的两个宏（图 5）：<code>#define DMA_PeripheralInc_Enable ((uint32_t)0x00000040)</code>、<code>#define DMA_PeripheralInc_Disable ((uint32_t)0x00000000)</code>，下面还有 <code>IS_DMA_PERIPHERAL_INC_STATE</code> 判断宏与 <code>DMA_memory_incremented_mode</code> 分组。</li>
+<li>代码里这些成员的宏名形态（图 6）：<code>DMA_MemoryBaseAddr = AddrB</code>、<code>MemoryDataSize_Byte</code>、<code>MemoryInc_Enable</code>、<code>DMA_DIR_PeripheralSRC</code>、<code>Mode_Normal</code>、<code>M2M_Enable</code>、<code>Priority_Medium</code>，以及此刻还是 <code>DMA_Cmd(DMA1_Channel1, ENABLE);</code> 的使能句。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/05-dma-inc-macros.jpg" alt="图 5：stm32f10x_dma.h 里地址自增相关的宏——#define DMA_PeripheralInc_Enable ((uint32_t)0x00000040)、#define DMA_PeripheralInc_Disable ((uint32_t)0x00000000)（下面还有 IS_DMA_PERIPHERAL_INC_STATE 判断宏与 DMA_memory_incremented_mode 分组）；字幕「根据上一小节的分析，我们这种数组之间的转运」"></p>
-<p><em>图 5：<code>stm32f10x_dma.h</code> 里地址自增相关的宏——<code>#define DMA_PeripheralInc_Enable ((uint32_t)0x00000040)</code>、<code>#define DMA_PeripheralInc_Disable ((uint32_t)0x00000000)</code>（下面还有 <code>IS_DMA_PERIPHERAL_INC_STATE</code> 判断宏与 <code>DMA_memory_incremented_mode</code> 分组）；字幕「根据上一小节的分析，我们这种数组之间的转运」</em></p>
-<p><img src="../assets/images/stm32-24/06-mydma-init-tail.jpg" alt="图 6：MyDMA.c 初始化尾部——DMA_MemoryBaseAddr = AddrB、MemoryDataSize_Byte、MemoryInc_Enable、DMA_DIR_PeripheralSRC、BufferSize = Size、Mode_Normal、M2M_Enable、Priority_Medium、DMA_Init(DMA1_Channel1, …)，以及 DMA_Cmd(DMA1_Channel1, ENABLE);（此刻还是 ENABLE，下面要改成 DISABLE），再往下是空的 MyDMA_Transfer；字幕「传输计数器赋值，必须要先给DMA失能」"></p>
-<p><em>图 6：<code>MyDMA.c</code> 初始化尾部——<code>DMA_MemoryBaseAddr = AddrB</code>、<code>MemoryDataSize_Byte</code>、<code>MemoryInc_Enable</code>、<code>DMA_DIR_PeripheralSRC</code>、<code>BufferSize = Size</code>、<code>Mode_Normal</code>、<code>M2M_Enable</code>、<code>Priority_Medium</code>、<code>DMA_Init(DMA1_Channel1, …)</code>，以及 <code>DMA_Cmd(DMA1_Channel1, ENABLE);</code>（此刻还是 ENABLE，下面要改成 DISABLE），再往下是空的 <code>MyDMA_Transfer</code>；字幕「传输计数器赋值，必须要先给DMA失能」</em></p>
+<p><img src="../assets/images/stm32-24/05-dma-inc-macros.jpg" alt="图 5：stm32f10x_dma.h 里地址自增相关的宏定义"></p>
+<p><em>图 5：<code>stm32f10x_dma.h</code> 里地址自增相关的宏定义</em></p>
+<p><img src="../assets/images/stm32-24/06-mydma-init-tail.jpg" alt="图 6：MyDMA.c 初始化尾部（此刻还是 ENABLE，下面要改成 DISABLE）"></p>
+<p><em>图 6：<code>MyDMA.c</code> 初始化尾部（此刻还是 ENABLE，下面要改成 DISABLE）</em></p>
 <h3 id="3-4-mydma-transfer-重复转运">3.4 <code>MyDMA_Transfer</code>：重复转运</h3>
 <pre><code class="language-c">void MyDMA_Transfer(void)
 {
@@ -306,14 +304,14 @@ void MyDMA_Init(uint32_t AddrA, uint32_t AddrB, uint16_t Size)
 }
 </code></pre>
 <ul>
-<li><strong>为什么要这个函数</strong>：初始化之后若立刻使能，就是「初始化即转运一次、然后 DMA 停止」；如果 DataA 又变了、想再转运一次，就<strong>必须重新给传输计数器赋值</strong>——所以封装一个 <code>MyDMA_Transfer</code>，<strong>调用一次就再次启动一次转运</strong>；</li>
-<li><strong>必须「先失能再写计数器」</strong>：<code>DMA_SetCurrDataCounter</code> 就是给传输计数器写数据，<strong>写之前必须 <code>DMA_Cmd(...DISABLE)</code></strong>（手册规定）；</li>
-<li><strong><code>MyDMA_Size</code> 全局变量</strong>：<code>Transfer</code> 里要用 <code>Size</code>，但<strong>它和 <code>MyDMA_Init</code> 不在一个函数里、不能直接传参</strong>，所以在上面定义全局 <strong><code>uint16_t MyDMA_Size;</code></strong>，初始化时<strong>把 Size 往全局变量也存一份</strong>；</li>
-<li><strong>等待转运完成</strong>：用 <strong><code>DMA_GetFlagStatus</code></strong> 查标志位——可选标志位有 4 类：<strong>全局标志、转运完成（TC）、转运过半（HT）、转运错误（TE）</strong>，每个通道都有这 4 种；这里查 <strong>DMA1 通道 1 的转运完成标志 <code>DMA1_FLAG_TC1</code></strong>，加 <code>while (... == RESET)</code> 等待，<strong>没完成就一直循环</strong>；</li>
-<li><strong>标志位必须手动清除</strong>：转运完成后调 <code>DMA_ClearFlag(DMA1_FLAG_TC1);</code>。</li>
+<li>为什么要这个函数：初始化后立刻使能就是「初始化即转运一次、然后停」；想再转一次必须重写传输计数器，所以封装 <code>MyDMA_Transfer</code>，调用一次就再启动一次转运。</li>
+<li>先失能再写计数器：<code>DMA_SetCurrDataCounter</code> 写之前必须 <code>DMA_Cmd(...DISABLE)</code>（手册规定）。</li>
+<li><code>MyDMA_Size</code>：<code>Transfer</code> 里要用 <code>Size</code>，但它和初始化不在一个函数里、不能直接传参，所以定义全局 <code>uint16_t MyDMA_Size;</code>，初始化时存一份。</li>
+<li>一句话流程：<code>DMA_Cmd(DMA1_Channel1, DISABLE);</code> → <code>DMA_SetCurrDataCounter(DMA1_Channel1, MyDMA_Size);</code> → <code>DMA_Cmd(DMA1_Channel1, ENABLE);</code> → <code>while (DMA_GetFlagStatus(DMA1_FLAG_TC1) == RESET);</code> → <code>DMA_ClearFlag(DMA1_FLAG_TC1);</code>。</li>
+<li>等完成用 <code>DMA_GetFlagStatus</code>：每个通道都有全局、转运完成（TC）、转运过半（HT）、转运错误（TE）4 类标志；这里等 <code>DMA1_FLAG_TC1</code>，用 <code>while</code> 死等，完成后必须用 <code>DMA_ClearFlag</code> 手动清标志。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/07-mydma-transfer.jpg" alt="图 7：MyDMA.c 的 MyDMA_Transfer 完整实现——DMA_Cmd(DMA1_Channel1, DISABLE); → DMA_SetCurrDataCounter(DMA1_Channel1, MyDMA_Size); → DMA_Cmd(DMA1_Channel1, ENABLE); → while (DMA_GetFlagStatus(DMA1_FLAG_TC1) == RESET); → DMA_ClearFlag(DMA1_FLAG_TC1);（最后一行高亮），上方是初始化块末尾 DMA_Cmd(DMA1_Channel1, DISABLE);；字幕「这样就行了」"></p>
-<p><em>图 7：<code>MyDMA.c</code> 的 <code>MyDMA_Transfer</code> 完整实现——<code>DMA_Cmd(DMA1_Channel1, DISABLE);</code> → <code>DMA_SetCurrDataCounter(DMA1_Channel1, MyDMA_Size);</code> → <code>DMA_Cmd(DMA1_Channel1, ENABLE);</code> → <code>while (DMA_GetFlagStatus(DMA1_FLAG_TC1) == RESET);</code> → <code>DMA_ClearFlag(DMA1_FLAG_TC1);</code>（最后一行高亮），上方是初始化块末尾 <code>DMA_Cmd(DMA1_Channel1, DISABLE);</code>；字幕「这样就行了」</em></p>
+<p><img src="../assets/images/stm32-24/07-mydma-transfer.jpg" alt="图 7：MyDMA_Transfer 完整实现（最后一行清标志高亮）"></p>
+<p><em>图 7：<code>MyDMA_Transfer</code> 完整实现（最后一行清标志高亮）</em></p>
 <h3 id="3-5-主函数-现象与-const-版">3.5 主函数、现象与 const 版</h3>
 <pre><code class="language-c">#include &quot;stm32f10x.h&quot;
 #include &quot;Delay.h&quot;
@@ -356,36 +354,34 @@ int main(void)
 }
 </code></pre>
 <ul>
-<li>传参时 <strong><code>DataA</code> 直接写数组名</strong>（<strong>数组名就是地址</strong>，不用加取地址符），<strong>强转成 <code>uint32_t</code></strong>；第三个参数给 4（有 4 个数据，转运 4 次）。</li>
-<li><strong>现象</strong>：OLED 显示 <code>DataA</code> 地址 <strong><code>2000 0002</code></strong>、数据 <code>01 02 03 04</code>；<code>DataB</code> 地址 <strong><code>2000 0006</code></strong>、数据 <code>00 00 00 00</code>；<strong>转运后 DataB 变成 <code>01 02 03 04</code>（与 DataA 一致），源端 DataA 不变</strong>。</li>
-<li><strong>地址为什么是 <code>20000002</code> 而不是 <code>20000000</code></strong>：作者现场解释——<strong>模块里的全局变量 <code>MyDMA_Size</code> 被编译器分配到了 SRAM 开头的位置</strong>（占 2 字节），所以数组地址往后偏了 2 个字节；<strong>这是编译器分配的结果，不是 DMA 造成的</strong>。</li>
-<li><strong>扩展：把 Flash 的数据搬到 SRAM</strong>：在 <strong><code>DataA</code> 前面加 <code>const</code></strong>，让它定义到 Flash 里；此时<strong>下面 <code>DataA[0]++</code> 那几行必须删掉</strong>（const 数据不能改，否则编译报错）；下载后现象：<strong>DataA 的地址变成 <code>08</code> 开头</strong>（说明在 Flash 里），<strong>DataB 的数据和 DataA 一样</strong>，说明 Flash 的数据成功转运到了 SRAM。</li>
+<li>传参：数组名就是地址，不用取地址符，强转 <code>uint32_t</code>；第三个参数给 4（4 个数据，转运 4 次）。</li>
+<li>现象：<code>DataA</code> 地址 <code>2000 0002</code>（即 <code>0x20000002</code>）、数据 <code>01 02 03 04</code>；<code>DataB</code> 地址 <code>2000 0006</code>（即 <code>0x20000006</code>）、数据 <code>00 00 00 00</code>；转运后 DataB 变成 <code>01 02 03 04</code>，源端 DataA 不变。</li>
+<li>地址为什么是 <code>20000002</code> 而不是 <code>20000000</code>：模块里的全局变量 <code>MyDMA_Size</code> 被编译器分到 SRAM 开头，占 2 字节，数组地址就往后偏 2 字节——编译器分配的结果，不是 DMA 造成的。</li>
+<li>扩展：<code>DataA</code> 前加 <code>const</code> 就能把 Flash 的数据搬到 SRAM，此时下面 <code>DataA[0]++</code> 那几行必须删掉（等价于 <code>DataA++</code> 全部作废），否则编译报错；现象是 DataA 地址变 <code>08</code> 开头、DataB 数据与 DataA 一样。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/08-main-program1.jpg" alt="图 8：程序一 main.c 中间版本——OLED_ShowString(1, 1, &quot;DataA&quot;)、(3, 1, &quot;DataB&quot;)、OLED_ShowHexNum(1, 8, (uint32_t)DataA, 8);（高亮，显示地址），下面是第 1 行 DataA 的 0～3 号元素、第 2 行 DataB 的 0～3 号元素 的十六进制显示；字幕「OLED_ShowHexNum(1, 8, (uint32_t)DataA, 8);」"></p>
-<p><em>图 8：程序一 main.c 中间版本——<code>OLED_ShowString(1, 1, &quot;DataA&quot;)</code>、<code>(3, 1, &quot;DataB&quot;)</code>、<code>OLED_ShowHexNum(1, 8, (uint32_t)DataA, 8);</code>（高亮，显示地址），下面是第 1 行 DataA 的 0～3 号元素、第 2 行 DataB 的 0～3 号元素 的十六进制显示；字幕「OLED_ShowHexNum(1, 8, (uint32_t)DataA, 8);」</em></p>
-<p><img src="../assets/images/stm32-24/09-program1-phenomenon.jpg" alt="图 9：程序一现象（转运前）——OLED 四行：DataA 20000002 / 01 02 03 04 / DataB 20000006 / 00 00 00 00；字幕「DataB，地址是2000 0006」"></p>
-<p><em>图 9：程序一现象（转运前）——OLED 四行：<code>DataA 20000002</code> / <code>01 02 03 04</code> / <code>DataB 20000006</code> / <code>00 00 00 00</code>；字幕「DataB，地址是2000 0006」</em></p>
-<p><img src="../assets/images/stm32-24/10-const-version.jpg" alt="图 10：const 版改造——DataA 的 0～3 号元素各自 ++ 的四行被打上红叉（要删除，因为 const 数据不能改），下面是第 2 行 DataA、第 4 行 DataB 的显示语句；字幕「就不能要了，因为const数据，不能重新更改」"></p>
-<p><em>图 10：const 版改造——<code>DataA</code> 的 0～3 号元素各自 <code>++</code> 的四行被打上红叉（要删除，因为 const 数据不能改），下面是第 2 行 DataA、第 4 行 DataB 的显示语句；字幕「就不能要了，因为const数据，不能重新更改」</em></p>
+<p><img src="../assets/images/stm32-24/08-main-program1.jpg" alt="图 8：程序一 main.c 中间版本——OLED_ShowString(1, 1, &quot;DataA&quot;)、(3, 1, &quot;DataB&quot;)、OLED_ShowHexNum(1, 8, (uint32_t)DataA, 8);（高亮，显示地址）"></p>
+<p><em>图 8：程序一 main.c 中间版本——<code>OLED_ShowString(1, 1, &quot;DataA&quot;)</code>、<code>(3, 1, &quot;DataB&quot;)</code>、<code>OLED_ShowHexNum(1, 8, (uint32_t)DataA, 8);</code>（高亮，显示地址）</em></p>
+<p><img src="../assets/images/stm32-24/09-program1-phenomenon.jpg" alt="图 9：程序一现象（转运前）——OLED 四行：DataA 20000002 / 01 02 03 04 / DataB 20000006 / 00 00 00 00"></p>
+<p><em>图 9：程序一现象（转运前）——OLED 四行：<code>DataA 20000002</code> / <code>01 02 03 04</code> / <code>DataB 20000006</code> / <code>00 00 00 00</code></em></p>
+<p><img src="../assets/images/stm32-24/10-const-version.jpg" alt="图 10：const 版改造——DataA 的 0～3 号元素各自 ++ 的四行被打红叉（const 数据不能改，要删）"></p>
+<p><em>图 10：const 版改造——<code>DataA</code> 的 0～3 号元素各自 <code>++</code> 的四行被打红叉（const 数据不能改，要删）</em></p>
 <h2 id="4-程序二-8-2-dma-ad多通道">4. 程序二：<code>8-2 DMA+AD多通道</code></h2>
 <h3 id="4-1-接线与准备">4.1 接线与准备</h3>
 <ul>
-<li>接线图 <code>8-2 DMA+AD多通道</code> <strong>和上一节 AD 多通道一样</strong>：<strong>PA0 接电位器、PA1～PA3 接三个传感器模块的 AO 输出</strong>；</li>
-<li>从上一集的「AD 多通道」工程复制，改名 <strong><code>8-2 DMA+AD多通道</code></strong>，先编译一下；然后把上一个工程的 <strong>DMA 初始化整段复制过来、粘到 ADC 使能之前</strong>，并把<strong>开启 DMA 时钟的函数挪到前面</strong>（开时钟都放在一起）。</li>
+<li>接线与上一集 AD 多通道一样：PA0 接电位器、PA1～PA3 接三个传感器模块的 AO 输出。</li>
+<li>复制上一集的「AD 多通道」工程 → 改名 <code>8-2 DMA+AD多通道</code>，先编译；再把上个工程的 DMA 初始化整段复制到 ADC 使能之前，并把开 DMA 时钟的函数挪到前面。</li>
+<li>ADC 初始化开头（图 18）：<code>uint16_t AD_Value</code> 数组、<code>void AD_Init(void)</code>、<code>RCC_APB2PeriphClockCmd(ADC1/GPIOA)</code>、<code>RCC_ADCCLKConfig(RCC_PCLK2_Div6);</code>、<code>GPIO_Mode_AIN</code>、<code>GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3</code>、<code>GPIO_Speed_50MHz</code>。</li>
 </ul>
 <h3 id="4-2-adc-侧-扫描模式-4-个通道">4.2 ADC 侧：扫描模式 + 4 个通道</h3>
 <ul>
-<li>执行流程就是 P23 最后一页「ADC 扫描模式 + DMA」：<strong>先扫描 PA0～PA3 这 4 个通道</strong>；</li>
-<li>用 <strong>4 次 <code>ADC_RegularChannelConfig</code></strong> 把<strong>通道 0～3 填到序列 1～4 的位置</strong>（「菜单上的 1～4 号空位，我填上了 0～3 这 4 个通道」；通道和次序可以任意改，<strong>最终结果存放的顺序也会相应变化</strong>）；</li>
-<li><strong><code>ADC_ScanConvMode = ENABLE</code></strong>（「告诉厨师我点了多个菜，不要只盯着第一个菜看」）；<strong><code>ADC_NbrOfChannel = 4</code></strong>（「告诉厨师我点的是 4 个菜，你看前 4 个位置就可以了」）；</li>
-<li><strong>连续模式这里先用 <code>DISABLE</code>（单次扫描）</strong>，后面再演示连续扫描。</li>
+<li>流程就是 P23 最后一页的「ADC 扫描模式 + DMA」：先扫描 PA0～PA3 这 4 个通道。</li>
+<li>用 4 次 <code>ADC_RegularChannelConfig</code> 把通道 0～3 填到序列 1～4；通道和次序可以任意改，结果存放的顺序也会相应变化。</li>
+<li><code>ADC_ScanConvMode = ENABLE</code>（扫描多个通道）、<code>ADC_NbrOfChannel = 4</code>（只看前 4 个位置）。</li>
+<li>连续模式这里先用 <code>DISABLE</code>（单次扫描），后面再演示连续扫描。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/11-adc-seq-config.jpg" alt="图 11：程序二 ADC.c——ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5); 开始逐条填序列（第 18 行 ADC_Channel_1, 2 高亮，说明通道 1 放在序列 2），下面 ADC_Init 六成员；字幕「然后通道1，放在序列2」"></p>
-<p><em>图 11：程序二 ADC.c——<code>ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5);</code> 开始逐条填序列（第 18 行 <code>ADC_Channel_1, 2</code> 高亮，说明通道 1 放在序列 2），下面 <code>ADC_Init</code> 六成员；字幕「然后通道1，放在序列2」</em></p>
+<p><img src="../assets/images/stm32-24/11-adc-seq-config.jpg" alt="图 11：程序二 ADC.c——ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5); 开始逐条填序列（第 18 行 ADC_Channel_1, 2 高亮，说明通道 1 放在序列 2），下面是 ADC_Init 六成员"></p>
+<p><em>图 11：程序二 ADC.c——<code>ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_55Cycles5);</code> 开始逐条填序列（第 18 行 <code>ADC_Channel_1, 2</code> 高亮，说明通道 1 放在序列 2），下面是 <code>ADC_Init</code> 六成员</em></p>
 <h3 id="4-3-dma-侧参数-与程序一的区别">4.3 DMA 侧参数：与程序一的区别</h3>
-<blockquote>
-<p>「DMA 你可以想象成服务员，ADC 这个厨师把菜做好了，DMA 这个服务员要尽快把菜端出来，防止被覆盖。」</p>
-</blockquote>
 <table>
 <thead>
 <tr>
@@ -469,15 +465,17 @@ int main(void)
 </tr>
 </tbody></table>
 <ul>
-<li><strong>为什么必须用通道 1</strong>：看 P23 的「图22 DMA1请求映像」——<strong>ADC1 的硬件触发只接在了 DMA1 的通道 1 上</strong>，「所以这里通道必须要使用 DMA1 的通道 1，其他的通道都不行」；这也解释了「<strong>同一通道有多个触发源时，具体用哪个取决于你把哪个外设的 DMA 输出开启了</strong>」。</li>
-<li><strong>必须先开 ADC 的 DMA 输出</strong>：在 ADC 使能之前要 <strong><code>ADC_DMACmd(ADC1, ENABLE);</code></strong>——<strong>这个函数就是用来开启 ADC 到 DMA 的触发信号输出的</strong>；不开启的话 DMA 收不到硬件触发信号。</li>
+<li>程序二相对程序一只改这些行：<code>PeripheralBaseAddr = (uint32_t)&amp;ADC1-&gt;DR</code>、<code>PeripheralDataSize = HalfWord</code>、<code>PeripheralInc = Disable</code>、<code>MemoryBaseAddr = (uint32_t)AD_Value</code>、<code>MemoryDataSize = HalfWord</code>、<code>MemoryInc = Enable</code>、<code>BufferSize = 4</code>、<code>Mode = Normal</code>（版本 A）、<code>M2M = Disable</code>。</li>
+<li>图 13 里逐个改的宏名：<code>PeripheralDataSize_HalfWord</code>、<code>PeripheralInc_Disable</code>、<code>MemoryDataSize_HalfWord</code>、<code>MemoryInc_Enable</code>、<code>DIR_PeripheralSRC</code>、<code>Priority_Medium</code>、<code>DMA_Init(DMA1_Channel1, …)</code>、<code>DMA_Cmd(DISABLE)</code>；<code>M2M = DMA_M2M_Enable</code> 与 <code>DMA_Mode = DMA_Mode_Normal;</code> 是中间态，随后改 <code>Disable</code> / <code>Circular</code>。</li>
+<li>为什么必须通道 1：P23 的「图22 DMA1请求映像」里，ADC1 的硬件触发只接在 DMA1 通道 1 上，其他通道都不行；同一通道有多个触发源时，用哪个取决于你把哪个外设的 DMA 输出开了。</li>
+<li>必须先开 ADC 的 DMA 输出：<code>ADC_DMACmd(ADC1, ENABLE);</code> 就是开 ADC 到 DMA 的触发信号输出，不开 DMA 收不到硬件触发。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/12-scan-and-dma-block.jpg" alt="图 12：程序二 ADC.c——ADC_ScanConvMode = ENABLE;（此帧高亮在下面的 DMA_PeripheralBaseAddr = AddrA;）、ADC_NbrOfChannel = 4;、ADC_Init(...)，下面是刚粘贴过来的 DMA 初始化块（PeripheralBaseAddr = AddrA; 还被标红叉、M2M_Enable 等仍是程序一的参数，待逐个改）；字幕「所以端菜的源头地址，就填ADC_DR的地址」"></p>
-<p><em>图 12：程序二 ADC.c——<code>ADC_ScanConvMode = ENABLE;</code>（此帧高亮在下面的 <code>DMA_PeripheralBaseAddr = AddrA;</code>）、<code>ADC_NbrOfChannel = 4;</code>、<code>ADC_Init(...)</code>，下面是刚粘贴过来的 DMA 初始化块（<code>PeripheralBaseAddr = AddrA;</code> 还被标红叉、<code>M2M_Enable</code> 等仍是程序一的参数，待逐个改）；字幕「所以端菜的源头地址，就填ADC_DR的地址」</em></p>
-<p><img src="../assets/images/stm32-24/13-dma-params-adc.jpg" alt="图 13：程序二 DMA 参数块——PeripheralBaseAddr = (uint32_t)&amp;ADC1-&gt;DR;（此帧高亮在 DMA_Mode = DMA_Mode_Normal;）、PeripheralDataSize_HalfWord、PeripheralInc_Disable、MemoryBaseAddr = (uint32_t)AD_Value;、MemoryDataSize_HalfWord、MemoryInc_Enable、DIR_PeripheralSRC、BufferSize = 4;、Mode 正在改、`M2M = DMA_M2M_Enable`（此刻仍是中间态，随后要改 Disable）、Priority_Medium、DMA_Init(DMA1_Channel1, …)、DMA_Cmd(DISABLE)；字幕「然后，M2M，要给Disable，不使用软件触发」"></p>
-<p><em>图 13：程序二 DMA 参数块——<code>PeripheralBaseAddr = (uint32_t)&amp;ADC1-&gt;DR;</code>（此帧高亮在 <code>DMA_Mode = DMA_Mode_Normal;</code>）、<code>PeripheralDataSize_HalfWord</code>、<code>PeripheralInc_Disable</code>、<code>MemoryBaseAddr = (uint32_t)AD_Value;</code>、<code>MemoryDataSize_HalfWord</code>、<code>MemoryInc_Enable</code>、<code>DIR_PeripheralSRC</code>、<code>BufferSize = 4;</code>、<code>Mode</code> 正在改、<strong><code>M2M = DMA_M2M_Enable</code>（此刻仍是中间态，随后要改 Disable）</strong>、<code>Priority_Medium</code>、<code>DMA_Init(DMA1_Channel1, …)</code>、<code>DMA_Cmd(DISABLE)</code>；字幕「然后，M2M，要给Disable，不使用软件触发」</em></p>
-<p><img src="../assets/images/stm32-24/14-dma1-request-map.jpg" alt="图 14：PPT「DMA请求」——图22 DMA1请求映像：左边外设请求信号（ADC1/TIM2_CH3/TIM4_CH1 → 通道1；USART3_TX… → 通道2；…），右边「固定的硬件优先级」→「内部DMA1请求」；字幕「这里有3个硬件触发源，具体使用哪个，取决于把哪个的DMA输出给开启了」"></p>
-<p><em>图 14：PPT「DMA请求」——图22 DMA1请求映像：左边外设请求信号（ADC1/TIM2_CH3/TIM4_CH1 → 通道1；USART3_TX… → 通道2；…），右边「固定的硬件优先级」→「内部DMA1请求」；字幕「这里有3个硬件触发源，具体使用哪个，取决于把哪个的DMA输出给开启了」</em></p>
+<p><img src="../assets/images/stm32-24/12-scan-and-dma-block.jpg" alt="图 12：程序二 ADC.c——ADC_ScanConvMode = ENABLE;（此帧高亮在 DMA_PeripheralBaseAddr = AddrA;）、ADC_NbrOfChannel = 4;、ADC_Init(...)，下面是刚粘贴的 DMA 初始化块（PeripheralBaseAddr = AddrA; 还标着红叉、M2M_Enable 仍是程序一的参数）"></p>
+<p><em>图 12：程序二 ADC.c——<code>ADC_ScanConvMode = ENABLE;</code>（此帧高亮在 <code>DMA_PeripheralBaseAddr = AddrA;</code>）、<code>ADC_NbrOfChannel = 4;</code>、<code>ADC_Init(...)</code>，下面是刚粘贴的 DMA 初始化块（<code>PeripheralBaseAddr = AddrA;</code> 还标着红叉、<code>M2M_Enable</code> 仍是程序一的参数）</em></p>
+<p><img src="../assets/images/stm32-24/13-dma-params-adc.jpg" alt="图 13：程序二 DMA 参数块——PeripheralBaseAddr = (uint32_t)&amp;ADC1-&gt;DR;、BufferSize = 4;，Mode 正在改"></p>
+<p><em>图 13：程序二 DMA 参数块——<code>PeripheralBaseAddr = (uint32_t)&amp;ADC1-&gt;DR;</code>、<code>BufferSize = 4;</code>，<code>Mode</code> 正在改</em></p>
+<p><img src="../assets/images/stm32-24/14-dma1-request-map.jpg" alt="图 14：PPT「DMA请求」——图22 DMA1请求映像：左边外设请求信号（ADC1/TIM2_CH3/TIM4_CH1 → 通道1；USART3_TX → 通道2；…），右边「固定的硬件优先级」→「内部DMA1请求」"></p>
+<p><em>图 14：PPT「DMA请求」——图22 DMA1请求映像：左边外设请求信号（ADC1/TIM2_CH3/TIM4_CH1 → 通道1；USART3_TX → 通道2；…），右边「固定的硬件优先级」→「内部DMA1请求」</em></p>
 <h3 id="4-4-使能与软件触发流程">4.4 使能与软件触发流程</h3>
 <pre><code class="language-c">    DMA_Cmd(DMA1_Channel1, ENABLE);   /* DMA 先使能 */
     ADC_DMACmd(ADC1, ENABLE);         /* 开启 ADC 的 DMA 请求输出 */
@@ -488,8 +486,8 @@ int main(void)
     while (ADC_GetCalibrationStatus(ADC1) == SET);
 </code></pre>
 <ul>
-<li><strong>DMA 先使能也不会立刻工作</strong>：三个条件里「计数器不为 0」满足，但「触发源有信号」<strong>不满足</strong>——因为这里是<strong>硬件触发，ADC 还没启动、不会有触发信号</strong>。</li>
-<li>所以还需要 ADC 触发：单次扫描版里，<strong><code>AD_GetValue</code> 的参数和返回值都不需要了</strong>，改成 <strong><code>void AD_GetValue(void)</code></strong>：</li>
+<li>DMA 先使能也不会立刻工作：三个条件里「计数器不为 0」满足，但「触发源有信号」不满足——这里是硬件触发，ADC 还没启动、不会有触发信号。</li>
+<li>所以还要 ADC 触发：单次扫描版把 <code>AD_GetValue</code> 改成 <code>void AD_GetValue(void)</code>，参数和返回值都不需要了。</li>
 </ul>
 <pre><code class="language-c">void AD_GetValue(void)
 {
@@ -502,23 +500,23 @@ int main(void)
 }
 </code></pre>
 <ul>
-<li>要点：<strong>因为 ADC 还是单次模式、DMA 也是单次模式</strong>，所以每次调用前要<strong>重新写传输计数器</strong>；<strong>等待只等 DMA 完成即可</strong>——「因为转运总是在转换之后的」，<strong>原来等待 ADC 转换完成（EOC）的代码就不需要了</strong>；</li>
-<li>调用一次 <code>AD_GetValue</code>：<strong>ADC 开始转换、连续扫描 4 个通道 → AD 转换结果依次放进 <code>AD_Value</code> 数组</strong>；之后 main 里<strong>直接读 <code>AD_Value[0]～[3]</code></strong>（<code>AD_Value[0]</code> 是序列 1 即通道 0 的结果，以此类推）；数组要在头文件里用 <strong><code>extern</code></strong> 声明成外部可调用的数组。</li>
+<li>要点：ADC 单次、DMA 也单次，所以每次调用前都要重写传输计数器；只等 DMA 完成即可——转运总在转换之后，原来等 ADC 转换完成（EOC）的代码就不需要了。</li>
+<li>调用一次 <code>AD_GetValue</code>：ADC 连续扫描 4 个通道，结果依次放进 <code>AD_Value</code>，之后 main 直接读 <code>AD_Value[0]～[3]</code>（<code>AD_Value[0]</code> 是序列 1 即通道 0 的结果）；数组要在头文件里用 <code>extern</code> 声明。</li>
+<li>初始化末尾的顺序（图 15）：DMA 参数改完后 <code>DMA_Cmd(DMA1_Channel1, ENABLE);</code> → <code>ADC_DMACmd(ADC1, ENABLE);</code> → <code>ADC_Cmd(ADC1, ENABLE);</code> → 校准四步；<code>AD_GetValue</code> 一开始只写了 <code>void AD_GetValue(void) { ADC_SoftwareStartConvCmd(ADC1, ENABLE); }</code>，之后才补全。</li>
 </ul>
-<p><img src="../assets/images/stm32-24/15-dma-enable-adcdmacmd.jpg" alt="图 15：程序二 ADC.c 尾部——DMA_M2M = DMA_M2M_Disable;（最终值）、Priority_Medium、DMA_Init(DMA1_Channel1, …)、DMA_Cmd(DMA1_Channel1, ENABLE);、`ADC_DMACmd(ADC1, ENABLE);`、ADC_Cmd(ADC1, ENABLE);、校准四步，下面是 void AD_GetValue(void) { ADC_SoftwareStartConvCmd(ADC1, ENABLE); }（正在改）；字幕「因为DMA也是正常的单次模式」"></p>
-<p><em>图 15：程序二 ADC.c 尾部——<code>DMA_M2M = DMA_M2M_Disable;</code>（最终值）、<code>Priority_Medium</code>、<code>DMA_Init(DMA1_Channel1, …)</code>、<code>DMA_Cmd(DMA1_Channel1, ENABLE);</code>、<strong><code>ADC_DMACmd(ADC1, ENABLE);</code></strong>、<code>ADC_Cmd(ADC1, ENABLE);</code>、校准四步，下面是 <code>void AD_GetValue(void) { ADC_SoftwareStartConvCmd(ADC1, ENABLE); }</code>（正在改）；字幕「因为DMA也是正常的单次模式」</em></p>
+<p><img src="../assets/images/stm32-24/15-dma-enable-adcdmacmd.jpg" alt="图 15：程序二 ADC.c 尾部——DMA 使能、ADC_DMACmd(ADC1, ENABLE);、ADC_Cmd(ADC1, ENABLE);、校准四步"></p>
+<p><em>图 15：程序二 ADC.c 尾部——DMA 使能、<code>ADC_DMACmd(ADC1, ENABLE);</code>、<code>ADC_Cmd(ADC1, ENABLE);</code>、校准四步</em></p>
 <h3 id="4-5-版本-a-现象-单次扫描-单次转运">4.5 版本 A 现象（单次扫描 + 单次转运）</h3>
 <ul>
-<li>OLED 显示 4 个通道的结果：<code>AD0:2763</code>、<code>AD1:1329</code>、<code>AD2:1943</code>、<code>AD3:4020</code>，<strong>随电位器/光敏（遮挡）/热敏（加热）/红外（靠近）各自变化</strong>——「这就是 ADC 单次扫描 + DMA 单次转运的模式」。</li>
+<li>OLED 显示 4 个通道的结果：<code>AD0:2763</code>、<code>AD1:1329</code>、<code>AD2:1943</code>、<code>AD3:4020</code>，随电位器/光敏（遮挡）/热敏（加热）/红外（靠近）各自变化。</li>
 </ul>
 <p><img src="../assets/images/stm32-24/16-program2-phenomenon.jpg" alt="图 16：程序二现象——OLED 显示 AD0:2763、AD1:1329、AD2:1943、AD3:4020，手正放在传感器附近"></p>
 <p><em>图 16：程序二现象——OLED 显示 <code>AD0:2763</code>、<code>AD1:1329</code>、<code>AD2:1943</code>、<code>AD3:4020</code>，手正放在传感器附近</em></p>
 <h3 id="4-6-版本-b-连续扫描-循环转运-最终版">4.6 版本 B：连续扫描 + 循环转运（最终版）</h3>
 <ul>
-<li>改三处：<strong>ADC 连续模式打开</strong>（<code>ADC_ContinuousConvMode = ENABLE</code>）；<strong>DMA 循环模式打开</strong>（<code>DMA_Mode_Circular</code>）；<strong>把 ADC 的软件触发直接放到初始化最后一行</strong>（<code>ADC_SoftwareStartConvCmd(ADC1, ENABLE);</code> 放初始化末尾）；</li>
-<li>效果：<strong>ADC 触发之后，ADC 连续转换、DMA 循环转运，两者一直在工作，始终把最新的转换结果刷新到 SRAM 数组里</strong>——<strong>想要数据的时候随时去数组里取就行了</strong>；</li>
-<li>所以<strong>最后面那个 <code>AD_GetValue</code> 函数完全不需要了</strong>：头文件里删掉、主函数里也删掉，<strong>主循环啥都不干，直接读 <code>AD_Value</code> 数组就能得到结果</strong>；</li>
-<li>现象照样能完成 AD 多通道转换——「这就是 ADC 连续扫描 + DMA 循环转运的程序代码」。</li>
+<li>改三处：<code>ADC_ContinuousConvMode = ENABLE</code>；<code>DMA_Mode_Circular</code>；把 <code>ADC_SoftwareStartConvCmd(ADC1, ENABLE);</code> 放到初始化最后一行。</li>
+<li>效果：ADC 连续转换、DMA 循环转运，两者一直在工作，数组里始终是最新的转换结果，想要数据随时去取。</li>
+<li>所以 <code>AD_GetValue</code> 整个删掉（头文件和主函数都删），主循环直接读 <code>AD_Value</code> 数组。</li>
 </ul>
 <pre><code class="language-c">/* 版本 B 与版本 A 的差别（只列改动点） */
 ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;   /* ADC 连续转换 */
@@ -527,10 +525,10 @@ DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;      /* DMA 循环模式 */
 ADC_SoftwareStartConvCmd(ADC1, ENABLE);
 /* 删除 AD_GetValue()，主循环直接读 AD_Value[0～3] */
 </code></pre>
-<p><img src="../assets/images/stm32-24/17-circular-version.jpg" alt="图 17：连续 + 循环最终版——Mode = DMA_Mode_Circular;（此帧高亮在 ADC_Cmd(ADC1, ENABLE);）、M2M_Disable、DMA_Init、DMA_Cmd(ENABLE)、ADC_DMACmd(ADC1, ENABLE)、ADC_Cmd(ADC1, ENABLE)、校准四步，最后一行 `ADC_SoftwareStartConvCmd(ADC1, ENABLE);`（放在初始化末尾）；字幕「这样就是定时器触发ADC，ADC触发DMA」"></p>
-<p>*图 17：连续 + 循环最终版——<code>Mode = DMA_Mode_Circular;</code>（此帧高亮在 <code>ADC_Cmd(ADC1, ENABLE);</code>）、<code>M2M_Disable</code>、<code>DMA_Init</code>、<code>DMA_Cmd(ENABLE)</code>、<code>ADC_DMACmd(ADC1, ENABLE)</code>、<code>ADC_Cmd(ADC1, ENABLE)</code>、校准四步，最后一行 <strong><code>ADC_SoftwareStartConvCmd(ADC1, ENABLE);</code>（放在初始化末尾）</strong>；字幕「这样就是定时器触发ADC，ADC触发DMA」*</p>
-<p><img src="../assets/images/stm32-24/18-adc-init-head.jpg" alt="图 18：程序二 ADC.c 开头（最终版）——uint16_t AD_Value 数组（4 个元素）、void AD_Init(void)、RCC_APB2PeriphClockCmd(ADC1/GPIOA)、`RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1)`、RCC_ADCCLKConfig(RCC_PCLK2_Div6);、GPIO_Mode_AIN、GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3、GPIO_Speed_50MHz；字幕「相信你学会了本节的内容，再扩展到存储器到外设的应用」"></p>
-<p><em>图 18：程序二 ADC.c 开头（最终版）——<code>uint16_t AD_Value</code> 数组（4 个元素）、<code>void AD_Init(void)</code>、<code>RCC_APB2PeriphClockCmd(ADC1/GPIOA)</code>、<strong><code>RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1)</code></strong>、<code>RCC_ADCCLKConfig(RCC_PCLK2_Div6);</code>、<code>GPIO_Mode_AIN</code>、<code>GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3</code>、<code>GPIO_Speed_50MHz</code>；字幕「相信你学会了本节的内容，再扩展到存储器到外设的应用」</em></p>
+<p><img src="../assets/images/stm32-24/17-circular-version.jpg" alt="图 17：连续 + 循环最终版——Mode = DMA_Mode_Circular;、M2M_Disable、DMA_Init、DMA_Cmd(ENABLE)、ADC_DMACmd(ADC1, ENABLE)、ADC_Cmd(ADC1, ENABLE)、校准四步，最后一行 ADC_SoftwareStartConvCmd(ADC1, ENABLE);"></p>
+<p><em>图 17：连续 + 循环最终版——<code>Mode = DMA_Mode_Circular;</code>、<code>M2M_Disable</code>、<code>DMA_Init</code>、<code>DMA_Cmd(ENABLE)</code>、<code>ADC_DMACmd(ADC1, ENABLE)</code>、<code>ADC_Cmd(ADC1, ENABLE)</code>、校准四步，最后一行 <code>ADC_SoftwareStartConvCmd(ADC1, ENABLE);</code></em></p>
+<p><img src="../assets/images/stm32-24/18-adc-init-head.jpg" alt="图 18：程序二 ADC.c 开头（最终版）——uint16_t AD_Value 数组与 void AD_Init(void) 的时钟、GPIO 配置"></p>
+<p><em>图 18：程序二 ADC.c 开头（最终版）——<code>uint16_t AD_Value</code> 数组与 <code>void AD_Init(void)</code> 的时钟、GPIO 配置</em></p>
 <h2 id="5-程序二两套最终代码对比">5. 程序二两套最终代码对比</h2>
 <table>
 <thead>
@@ -571,34 +569,33 @@ ADC_SoftwareStartConvCmd(ADC1, ENABLE);
 <td><strong>数组里始终是最新结果</strong></td>
 </tr>
 </tbody></table>
-<h2 id="6-硬件自动化的意义-本集小结">6. 硬件自动化的意义（本集小结）</h2>
+<h2 id="6-硬件自动化的意义">6. 硬件自动化的意义</h2>
 <ul>
-<li>版本 B 之后，<strong>硬件外设已经实现了相互配合和高度的自动化</strong>：各种操作都是硬件自己完成的，<strong>极大地减轻了软件负担</strong>——<strong>软件什么都不需要做，也不需要进任何中断，硬件自动就把活干完了</strong>；</li>
-<li>还可以再加一个外设：<strong>ADC 用单次扫描、再用定时器定时触发</strong>——这样就变成 <strong>定时器触发 ADC、ADC 触发 DMA</strong>，整个过程完全自动、不需要程序手动操作；</li>
-<li>这就是 <strong>STM32 中硬件自动化的一大特色</strong>：<strong>各个外设互相连接、互相交织，形成网状结构</strong>，而不是传统的「一个 CPU 单独控制多个独立外设」；</li>
-<li>之前的学习里也经常遇到这种设计：<strong>定时器的输出可以通向 ADC、DAC 或其他定时器</strong>；<strong>ADC 的触发源可以来自定时器或外部中断</strong>；<strong>DMA 的触发源可以来自 ADC、定时器、串口等</strong>——这样完成某些<strong>简单且繁琐</strong>的工作时可以自动完成，<strong>既减轻 CPU 负担、又大大提高外设性能</strong>。</li>
-<li>本集覆盖了 <strong>存储器→存储器</strong>、<strong>外设→存储器</strong> 两种情况；<strong>存储器→外设（比如串口发送一批数据）本集没讲</strong>，作者留给大家自己研究（「学会了本节的内容，再扩展应该也是没问题的」）。</li>
+<li>版本 B 之后硬件外设已经高度自动化：操作都由硬件完成，极大地减轻软件负担，软件什么都不用做、也不用进任何中断。</li>
+<li>还能再叠一层：ADC 用单次扫描 + 定时器定时触发，就变成定时器触发 ADC、ADC 触发 DMA，全程不需要程序手动操作。</li>
+<li>这是 STM32 的特色：各外设互相连接、互相交织形成网状结构，而不是「一个 CPU 单独控制多个独立外设」——定时器输出可通向 ADC、DAC 或其他定时器，ADC 的触发源可来自定时器或外部中断，DMA 的触发源可来自 ADC、定时器、串口。</li>
+<li>本集覆盖存储器→存储器、外设→存储器两种情况；存储器→外设（串口发送一批数据）留给大家自己研究。</li>
 </ul>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong><code>const</code> 数据不能改</strong>：DataA 加 <code>const</code> 后 <code>DataA[0]++</code> 必须删掉，否则编译报错；const 数据在 Flash 里，<strong>可读不可写</strong>。</li>
-<li><strong><code>const</code> 的地址 08 开头、变量 20 开头</strong>：Flash 区有程序代码，所以常量地址会<strong>靠后且有偏移</strong>，不像 SRAM 那样从第一个位置开始。</li>
-<li><strong>DMA 是 AHB 设备</strong>：开时钟要用 <strong><code>RCC_AHBPeriphClockCmd</code></strong>，不是 APB2/APB1。</li>
-<li><strong><code>DMA_Init</code> 第一个参数是 <code>DMAy_Channelx</code></strong>：一个参数同时选 DMA 和通道（DMA1 通道 1～7、DMA2 通道 1～5）。</li>
-<li><strong>存储器到存储器、软件触发时通道可任选</strong>；但<strong>硬件触发必须用绑定通道</strong>（ADC1 → <strong>DMA1 通道 1</strong>），选错通道收不到触发。</li>
-<li><strong>写传输计数器前必须先失能 DMA</strong>：<code>DMA_Cmd(DISABLE)</code> → <code>DMA_SetCurrDataCounter</code> → <code>DMA_Cmd(ENABLE)</code>。</li>
-<li><strong>TC 标志位必须手动清除</strong>：<code>DMA_ClearFlag(DMA1_FLAG_TC1);</code>，否则下次判断会误以为已完成。</li>
-<li><strong>循环模式不能用于存储器到存储器</strong>：库函数注释明确写「循环模式不能应用在 M2M 情况下」，即<strong>自动重装与软件触发不能同时用</strong>。</li>
-<li><strong>程序一的 <code>M2M = Enable</code>、程序二的 <code>M2M = Disable</code></strong>：前者是软件触发（数组转运），后者是硬件触发（ADC 触发）——<strong>两个程序不要抄混</strong>。</li>
-<li><strong>程序二必须调用 <code>ADC_DMACmd(ADC1, ENABLE)</code></strong>：不开这个，ADC 的 DMA 请求不会输出，DMA 永远等不到硬件触发。</li>
-<li><strong>程序二通道固定为 DMA1_Channel1</strong>：ADC1 的硬件触发只接在通道 1（图22）；同时明确是哪个触发源取决于开启了哪个外设的 DMA 输出。</li>
-<li><strong>DMA 先使能不会立刻工作</strong>：硬件触发模式下，ADC 没启动就没有触发信号，三条件不满足。</li>
-<li><strong>版本 A 要等 DMA 完成而不是等 ADC 的 EOC</strong>：因为转运总在转换之后，等 <code>DMA1_FLAG_TC1</code> 即可——<strong>原来 AD_GetValue 里等 EOC 的代码可以删</strong>。</li>
-<li><strong>版本 B 删掉 <code>AD_GetValue</code> 后别忘了改主循环</strong>：直接读 <code>AD_Value[]</code>，否则编译报错/读不到新数据。</li>
-<li><strong>数组地址偏移不是 DMA 造成的</strong>：<code>0x20000002</code> 是因为全局 <code>MyDMA_Size</code> 占了 SRAM 开头 2 字节，属编译器分配结果。</li>
-<li><strong><code>AD_Value</code> 要在头文件 <code>extern</code> 声明</strong>，main 才能访问。</li>
-<li><strong>本集没讲 DMA 中断</strong>：<code>DMA_ITConfig</code> 只在库函数列表里出现，未配置；<strong>存储器到外设（串口发送）也留作自学</strong>。</li>
-<li><strong>DataA/DataB 初始值别写错</strong>：全 0 可省略不写（全局变量默认 0），但写了更直观。</li>
+<li><code>const</code> 数据不能改：DataA 加 <code>const</code> 后 <code>DataA[0]++</code> 必须删掉，否则编译报错；Flash 可读不可写。</li>
+<li><code>const</code> 地址 08 开头、变量 20 开头：Flash 前有程序代码，常量地址靠后且有偏移。</li>
+<li>DMA 是 AHB 设备：开时钟用 <code>RCC_AHBPeriphClockCmd</code>，不是 APB2/APB1。</li>
+<li><code>DMA_Init</code> 第一个参数是 <code>DMAy_Channelx</code>：一个参数同时选 DMA 和通道（DMA1 是 1～7、DMA2 是 1～5）。</li>
+<li>存储器到存储器、软件触发时通道可任选；硬件触发必须用绑定通道（ADC1 → <code>DMA1_Channel1</code>）。</li>
+<li>写传输计数器前必须先失能：<code>DMA_Cmd(DISABLE)</code> → <code>DMA_SetCurrDataCounter</code> → <code>DMA_Cmd(ENABLE)</code>。</li>
+<li>TC 标志位必须手动清除：<code>DMA_ClearFlag(DMA1_FLAG_TC1);</code>，否则下次判断会误以为已完成。</li>
+<li>循环模式不能用于存储器到存储器：库函数注释明确写「循环模式不能应用在 M2M 情况下」。</li>
+<li>程序一 <code>M2M = Enable</code>、程序二 <code>M2M = Disable</code>：前者软件触发、后者硬件触发，别抄混。</li>
+<li>程序二必须调用 <code>ADC_DMACmd(ADC1, ENABLE)</code>：不开 ADC 不发 DMA 请求，DMA 永远等不到硬件触发。</li>
+<li>程序二通道固定为 <code>DMA1_Channel1</code>：ADC1 的硬件触发只接通道 1（图22）。</li>
+<li>DMA 先使能不会立刻工作：硬件触发模式下 ADC 没启动就没有触发信号，三条件不满足。</li>
+<li>版本 A 要等 DMA 完成而不是等 EOC：转运总在转换之后，等 <code>DMA1_FLAG_TC1</code> 即可。</li>
+<li>版本 B 删掉 <code>AD_GetValue</code> 后别忘了改主循环：直接读 <code>AD_Value[]</code>。</li>
+<li>数组地址偏移不是 DMA 造成的：全局 <code>MyDMA_Size</code> 占了 SRAM 开头 2 字节。</li>
+<li><code>AD_Value</code> 要在头文件 <code>extern</code> 声明，main 才能访问。</li>
+<li>本集没讲 DMA 中断：<code>DMA_ITConfig</code> 只在库函数列表里出现；存储器到外设也留作自学。</li>
+<li>DataA/DataB 初始值全 0 可省略不写（全局变量默认 0），但写了更直观。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -610,7 +607,7 @@ ADC_SoftwareStartConvCmd(ADC1, ENABLE);
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E7%90%86%E8%AE%BA%E5%85%A8%E5%9C%A8-8-1-p23">0. 本集定位：代码课，理论全在 [8-1] P23</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 片头与工程准备</a>
         <a class="level-2" href="#2-%E6%89%A9%E5%B1%95%E5%B0%8F%E5%AE%9E%E9%AA%8C-%E5%AD%98%E5%82%A8%E5%99%A8%E6%98%A0%E5%83%8F%E7%9A%84%E7%9C%9F%E5%AE%9E%E9%AA%8C%E8%AF%81-1-00-9-30">2. 扩展小实验：存储器映像的真实验证（1:00–9:30）</a>
         <a class="level-3" href="#2-1-%E5%8F%98%E9%87%8F-%E5%9C%B0%E5%9D%80%E5%9C%A8-sram-%E5%8C%BA">2.1 变量：地址在 SRAM 区</a>
@@ -631,7 +628,7 @@ ADC_SoftwareStartConvCmd(ADC1, ENABLE);
         <a class="level-3" href="#4-5-%E7%89%88%E6%9C%AC-a-%E7%8E%B0%E8%B1%A1-%E5%8D%95%E6%AC%A1%E6%89%AB%E6%8F%8F-%E5%8D%95%E6%AC%A1%E8%BD%AC%E8%BF%90">4.5 版本 A 现象（单次扫描 + 单次转运）</a>
         <a class="level-3" href="#4-6-%E7%89%88%E6%9C%AC-b-%E8%BF%9E%E7%BB%AD%E6%89%AB%E6%8F%8F-%E5%BE%AA%E7%8E%AF%E8%BD%AC%E8%BF%90-%E6%9C%80%E7%BB%88%E7%89%88">4.6 版本 B：连续扫描 + 循环转运（最终版）</a>
         <a class="level-2" href="#5-%E7%A8%8B%E5%BA%8F%E4%BA%8C%E4%B8%A4%E5%A5%97%E6%9C%80%E7%BB%88%E4%BB%A3%E7%A0%81%E5%AF%B9%E6%AF%94">5. 程序二两套最终代码对比</a>
-        <a class="level-2" href="#6-%E7%A1%AC%E4%BB%B6%E8%87%AA%E5%8A%A8%E5%8C%96%E7%9A%84%E6%84%8F%E4%B9%89-%E6%9C%AC%E9%9B%86%E5%B0%8F%E7%BB%93">6. 硬件自动化的意义（本集小结）</a>
+        <a class="level-2" href="#6-%E7%A1%AC%E4%BB%B6%E8%87%AA%E5%8A%A8%E5%8C%96%E7%9A%84%E6%84%8F%E4%B9%89">6. 硬件自动化的意义</a>
         <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>
   </aside>

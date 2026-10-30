@@ -177,29 +177,26 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>22 分钟</span>
+      <span>14 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">SPI</span><span class="tag">硬件SPI</span><span class="tag">W25Q64</span>
     </div>
     <article class="prose"><h1>[11-5] 硬件SPI读写W25Q64 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 11 的代码课（下）</strong>——把上一集的<strong>软件 SPI 工程（<code>11-1 软件SPI读写W25Q64</code>）<strong>改造成</strong>硬件 SPI（<code>11-2 硬件SPI读写W25Q64</code>）</strong>，<strong>只改通信层 <code>MySPI.c</code></strong>，<strong>W25Q64 业务层一行不改</strong>。结尾 26:34「那我们 SPI 的课程到这里也就全部结束了」，<strong>无下节预告</strong>（模块 11 结束）。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p><strong>接线完全不用改</strong>：因为上一集软件 SPI <strong>就是特意接在硬件 SPI1 的引脚上</strong>——查引脚定义表可知 <strong>SPI1 默认复用：<code>NSS=PA4</code>、<code>SCK=PA5</code>、<code>MISO=PA6</code>、<code>MOSI=PA7</code></strong>（SPI2 是 <code>PB12～PB15</code>；SPI1 还能重映射到 <code>PA15/PB3/PB4/PB5</code>，但<strong>那几个脚默认是 JTAG 调试端口、要先解除调试复用</strong>，本集不用）。<strong>改造思路</strong>：任务只是<strong>把底层 <code>MySPI.c</code> 的初始化与时序执行从软件实现换成硬件实现</strong>——<strong>基于通信层的 W25Q64 业务代码不需要任何修改</strong>，这正是<strong>分层封装/代码隔离</strong>的好处。<strong>本集与 [10-2] 硬件 I2C 那集不同：不删除 MySPI 模块</strong>——因为这里用的是<strong>非连续传输方案</strong>（简单、易封装），直接在原模块里改即可：<strong>删掉 <code>MySPI_W_SCK</code>、<code>MySPI_W_MOSI</code>、<code>MySPI_R_MISO</code> 三个软件翻转引脚的函数</strong>（改由硬件外设控制），<strong>保留 <code>MySPI_W_SS</code>（SS 仍用 GPIO 软件模拟）以及 <code>MySPI_Start</code>/<code>MySPI_Stop</code></strong>（它们内部就是拉低/拉高 SS），再<strong>重写 <code>MySPI_Init</code> 与 <code>MySPI_SwapByte</code> 的函数体</strong>。<strong><code>MySPI_Init</code> 四步</strong>：<strong>① 开时钟</strong>：<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE)</code> + <strong><code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE)</code></strong>（<strong>SPI1 是 APB2 外设</strong>）；<strong>② 配置 GPIO</strong>：<strong>PA4＝通用推挽 <code>GPIO_Mode_Out_PP</code></strong>（SS 由软件控制）、<strong>PA5｜PA7＝复用推挽 <code>GPIO_Mode_AF_PP</code></strong>（SCK/MOSI 由外设控制）、<strong>PA6＝上拉输入 <code>GPIO_Mode_IPU</code></strong>（MISO 是外设输入，没有「复用输入」这种模式）；<strong>③ <code>SPI_InitTypeDef</code> 九个成员</strong>（顺序随意）：<strong><code>SPI_Mode = SPI_Mode_Master</code></strong>、<strong><code>SPI_Direction = SPI_Direction_2Lines_FullDuplex</code></strong>、<strong><code>SPI_DataSize = SPI_DataSize_8b</code></strong>、<strong><code>SPI_FirstBit = SPI_FirstBit_MSB</code></strong>、<strong><code>SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_128</code></strong>、<strong><code>SPI_CPOL = SPI_CPOL_Low</code></strong>、<strong><code>SPI_CPHA = SPI_CPHA_1Edge</code></strong>、<strong><code>SPI_NSS = SPI_NSS_Soft</code></strong>、<strong><code>SPI_CRCPolynomial = 7</code></strong> → <strong><code>SPI_Init(SPI1, &amp;SPI_InitStructure)</code></strong>；<strong>④ <code>SPI_Cmd(SPI1, ENABLE)</code></strong> 使能外设，再 <strong><code>MySPI_W_SS(1)</code></strong> 让 SS 默认输出高（不选中从机）。其中 <strong><code>SPI_BaudRatePrescaler_128</code></strong> 表示 <strong>SCK ＝ PCLK/128</strong>（共 8 档：2/4/8/16/32/64/128/256，分频越大越慢）；<strong>因为用的是 SPI1（APB2）所以按 72MHz/128 计算</strong>（按公式推算约为 <strong>562.5kHz</strong>）；若换成 SPI2 则要按 36MHz 算。<strong><code>SPI_CPOL_Low</code>（CPOL=0）+ <code>SPI_CPHA_1Edge</code>（CPHA=0）＝ SPI 模式 0</strong>——W25Q64 <strong>模式 0 与模式 3 都兼容</strong>，本集选模式 0。<strong><code>MySPI_SwapByte</code> 改为硬件实现（四步）</strong>：<strong>① <code>while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) != SET);</code></strong> 等发送寄存器空（<code>TXE=1</code> 才写）→ <strong>② <code>SPI_I2S_SendData(SPI1, ByteSend);</code></strong> 写 DR（数据进 TDR，<strong>之后自动转入移位寄存器并自动生成波形，不需要额外调用任何「启动传输」函数</strong>）→ <strong>③ <code>while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) != SET);</code></strong> 等接收完成（<strong>发送与接收同步，接收移位完成即表示发送完成</strong>）→ <strong>④ <code>return SPI_I2S_ReceiveData(SPI1);</code></strong> 读 DR 取回交换到的数据。<strong>不再需要手动给 SCK/MOSI 置高低电平、也不用关心数据位怎么移</strong>——这些都由硬件电路自动完成。<strong>两个关键注意点</strong>：<strong>① 硬件 SPI 必须「先发送」才能「接收」</strong>——只调用接收函数时序不会动，<strong>只有往 TDR 写数据才会触发移位</strong>；<strong>② TXE/RXNE 不需要手动清标志</strong>——手册 23.3.7 写明「<strong>当写入 SPI_DR 时，TXE 标志被清除</strong>」「<strong>读 SPI 数据寄存器可以清除此标志（RXNE）</strong>」，而我们的代码顺序<strong>正好是「等 TXE→写 DR」和「等 RXNE→读 DR」</strong>，所以<strong>顺带就清除了</strong>（对比 STM32 中大多数标志位（如中断标志）仍需手动清除）。<strong>while 死等没有加超时</strong>：作者说只要外设电路不损坏、TDR 里的数据就一定会转入移位寄存器，不会卡死（不放心也可以自己加）。<strong>现象</strong>：OLED 显示 <strong><code>MID:EF DID:4017</code></strong>、<strong><code>W:01 02 03 04</code></strong>、<strong><code>R:01 02 03 04</code></strong>——<strong>与软件 SPI 版本完全一致</strong>，说明改造成功。</p>
-<h2 id="0-本集定位-代码课-软件-spi-工程-硬件-spi-只改通信层">0. 本集定位：代码课（软件 SPI 工程 → 硬件 SPI，只改通信层）</h2>
+<p>把软件 SPI 工程改成硬件 SPI，只改 <code>MySPI.c</code> 通信层，W25Q64 业务层一行不改。SPI1 用 PA4～PA7，初始化填 <code>SPI_InitTypeDef</code> 九个成员，交换字节改成「等 TXE → SendData → 等 RXNE → ReceiveData」四步。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集不写新功能</strong>：复制上一集工程 <code>11-1 软件SPI读写W25Q64</code> → 改名 <strong><code>11-2 硬件SPI读写W25Q64</code></strong>；</li>
-<li><strong>只改 <code>MySPI.c</code></strong>：初始化、时序执行从<strong>软件实现（手动翻转电平）<strong>换成</strong>硬件实现（SPI 外设）</strong>；</li>
-<li><strong>W25Q64 驱动层/业务层一行不改</strong>——「具体通信是怎么实现的，是影响不到上层代码的」；</li>
-<li>片尾 26:34「那我们 SPI 的课程到这里也就全部结束了」，<strong>无下节预告</strong>。</li>
+<li>模块 11 的代码课（下）：复制 <code>11-1 软件SPI读写W25Q64</code> 改名为 <code>11-2 硬件SPI读写W25Q64</code>。</li>
+<li>只改 <code>MySPI.c</code>：初始化与时序执行从手动翻转电平换成 SPI 外设，上层 <code>W25Q64.c</code>、<code>main.c</code> 不动。</li>
+<li>与 [10-2] 硬件 I2C 不同：本集不删除 <code>MySPI</code> 模块，因为用的是非连续传输方案。</li>
+<li>结尾 26:34「那我们 SPI 的课程到这里也就全部结束了」，无下节预告（模块 11 结束）。</li>
 </ul>
-<p><img src="../assets/images/stm32-40/01-wiring.jpg" alt="图 1：接线图 11-2 硬件SPI读写W25Q64——与上一集软件 SPI 完全相同（W25Q64 模块、STM32 最小系统板、OLED、ST-Link 之间用 4 根飞线接 PA4～PA7 区域），右下角注明 *此图为OLED下方被遮挡的接线图；字幕「而这里硬件SPI的引脚就不能任意选择了」"></p>
-<p><em>图 1：接线图 <code>11-2 硬件SPI读写W25Q64</code>——与上一集软件 SPI 完全相同（W25Q64 模块、STM32 最小系统板、OLED、ST-Link 之间用 4 根飞线接 PA4～PA7 区域），右下角注明 <code>*此图为OLED下方被遮挡的接线图</code>；字幕「而这里硬件SPI的引脚就不能任意选择了」</em></p>
+<p><img src="../assets/images/stm32-40/01-wiring.jpg" alt="图 1：接线图 11-2 硬件SPI读写W25Q64——与上一集软件 SPI 完全相同（W25Q64 模块、STM32 最小系统板、OLED、ST-Link 之间 4 根飞线接 PA4～PA7 区域），右下角注明 *此图为OLED下方被遮挡的接线图"></p>
+<p><em>图 1：接线与软件版相同，字幕「而这里硬件SPI的引脚就不能任意选择了」</em></p>
 <h2 id="1-接线与引脚选择">1. 接线与引脚选择</h2>
 <ul>
-<li><strong>接线不用改</strong>：上一集软件 SPI <strong>就是特意把引脚放在硬件 SPI1 的引脚上</strong>，所以硬件版沿用同一套接线；</li>
-<li><strong>软件 SPI 的引脚可以任意选，硬件 SPI 的引脚不能任意选</strong>——<strong>凡涉及 STM32 内部硬件外设的引脚，基本都要查引脚定义表</strong>（硬件没有软件那么灵活）；</li>
-<li><strong>查「默认复用功能」栏</strong>（以 STM32F103C8T6 引脚定义表为例）：</li>
+<li>接线不用改：上一集软件 SPI 就是把引脚特意放在硬件 SPI1 的引脚上。</li>
+<li>软件 SPI 的引脚可以任意选，硬件 SPI 的引脚不能任意选——凡涉及内部硬件外设的引脚，基本都要查引脚定义表。</li>
+<li>查「默认复用功能」栏（以 STM32F103C8T6 引脚定义表为例）：</li>
 </ul>
 <table>
 <thead>
@@ -234,38 +231,39 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>NSS 可以不用硬件引脚</strong>：上一集已经得出结论——<strong>SS 用软件 GPIO 模拟即可，没必要必须接在 PA4</strong>；但<strong>其他三个脚（SCK/MISO/MOSI）必须用 PA5/PA6/PA7</strong>；</li>
-<li><strong>重映射提醒</strong>：<strong><code>PA15</code>(JTDI)、<code>PB3</code>(JTDO)、<code>PB4</code>(NJTRST) 默认是 JTAG 调试端口</strong>，要用它们的 GPIO 功能或重映射外设功能，<strong>必须先解除调试端口复用</strong>（方法见视频 6-4）；<strong>本集不用重映射</strong>；</li>
-<li><strong>本集方案</strong>：用 <strong>SPI1</strong>，<strong>SCK=PA5、MOSI=PA7、MISO=PA6</strong>，<strong>NSS 仍用 PA4 的 GPIO 软件模拟</strong>；模块 VCC/GND 供电——<strong>接线与软件版一模一样</strong>。</li>
+<li>NSS 可以不用硬件引脚：SS 用软件 GPIO 模拟即可，但 SCK/MISO/MOSI 必须用 PA5/PA6/PA7。</li>
+<li>引脚定义表里的位置：第 17 行是 PA7，25～28 行是 <code>PB12～PB15</code>，38～41 行是 <code>PA15/PB3/PB4/PB5</code>。</li>
+<li>重映射提醒：<code>PA15</code>(JTDI)、<code>PB3</code>(JTDO)、<code>PB4</code>(NJTRST) 默认是 JTAG 调试端口，要用它们的 GPIO 或重映射功能，必须先解除调试端口复用（见视频 6-4）；本集不用重映射。</li>
+<li>本集方案：SPI1，<code>SCK=PA5</code>、<code>MOSI=PA7</code>、<code>MISO=PA6</code>，<code>NSS=PA4</code> 仍用 GPIO 软件模拟，VCC/GND 供电与软件版一模一样。</li>
 </ul>
-<p><img src="../assets/images/stm32-40/02-pin-table.jpg" alt="图 2：引脚定义表（STM32F103C8T6）——17 行 PA7（SPI1_MOSI/ADC12_IN7/TIM3_CH2）；25～28 行 PB12（SPI2_NSS/I2C2_SMBAI/USART3_CK/TIM1_BKIN，红圈标出）、PB13（SPI2_SCK）、PB14（SPI2_MISO）、PB15（SPI2_MOSI）；38～41 行 PA15（JTDI / TIM2_CH1_ETR/PA15/SPI1_NSS）、PB3（JTDO / PB3/TRACESWO/TIM2_CH2/SPI1_SCK）、PB4（NJTRST / PB4/TIM3_CH1/SPI1_MISO）、PB5（SPI1_MOSI）；字幕「其中SPI2的NSS，复用在了PB12」"></p>
-<p><em>图 2：引脚定义表（STM32F103C8T6）——17 行 PA7（SPI1_MOSI/ADC12_IN7/TIM3_CH2）；25～28 行 PB12（SPI2_NSS/I2C2_SMBAI/USART3_CK/TIM1_BKIN，红圈标出）、PB13（SPI2_SCK）、PB14（SPI2_MISO）、PB15（SPI2_MOSI）；38～41 行 PA15（JTDI / TIM2_CH1_ETR/PA15/SPI1_NSS）、PB3（JTDO / PB3/TRACESWO/TIM2_CH2/SPI1_SCK）、PB4（NJTRST / PB4/TIM3_CH1/SPI1_MISO）、PB5（SPI1_MOSI）；字幕「其中SPI2的NSS，复用在了PB12」</em></p>
-<h2 id="2-改造思路-保留-myspi-模块-只换通信层">2. 改造思路：保留 MySPI 模块，只换通信层</h2>
+<p><img src="../assets/images/stm32-40/02-pin-table.jpg" alt="图 2：引脚定义表（STM32F103C8T6）——17 行 PA7（SPI1_MOSI）、25～28 行 PB12～PB15（SPI2）、38～41 行 PA15/PB3/PB4/PB5（SPI1 重映射，默认 JTAG）"></p>
+<p><em>图 2：引脚定义表，字幕「其中SPI2的NSS，复用在了PB12」</em></p>
+<h2 id="2-改造思路-保留-myspi-只换通信层">2. 改造思路：保留 MySPI，只换通信层</h2>
 <ul>
-<li><strong>任务</strong>：<strong>修改底层 <code>MySPI.c</code> 文件</strong>里的初始化与时序执行步骤，<strong>由软件实现改成硬件实现</strong>；</li>
-<li><strong>上层不动</strong>：基于通信层的业务代码（<code>W25Q64.c</code>、<code>main.c</code>）<strong>不需要任何修改</strong>——「具体通信是怎么实现的，是影响不到上层代码的」；</li>
-<li><strong>为什么这次不删模块</strong>（和 [10-2] 硬件 I2C 那集不同）：本集用<strong>非连续传输方案</strong>（简单、容易封装），<strong>直接在 <code>MySPI</code> 模块里改</strong>最方便；作者也说「模块是否移除、分层还是都放一起，取决于你对工程的规划」，<strong>保留这个模块很方便</strong>；</li>
-<li><strong>具体删/留</strong>：<ul>
-<li><strong>删掉</strong>：<code>MySPI_W_SCK</code>、<code>MySPI_W_MOSI</code>、<code>MySPI_R_MISO</code>（软件控制 SPI 通信引脚的三个函数，由硬件外设代替）；</li>
-<li><strong>保留</strong>：<strong><code>MySPI_W_SS</code></strong>（SS 仍软件模拟）、<strong><code>MySPI_Start</code>/<code>MySPI_Stop</code></strong>（内部就是 <code>W_SS(0)</code>/<code>W_SS(1)</code>）；</li>
-<li><strong>重写</strong>：<code>MySPI_Init</code> 的内容 → <strong>SPI 外设初始化</strong>；<code>MySPI_SwapByte</code> 的内容 → <strong>硬件实现</strong>。</li>
+<li>任务：修改底层 <code>MySPI.c</code> 里的初始化与时序执行步骤，由软件实现改成硬件实现。</li>
+<li>上层不动：基于通信层的业务代码不需要任何修改，这是分层封装、代码隔离的好处。</li>
+<li>为什么这次不删模块：非连续传输方案简单、容易封装，直接在 <code>MySPI</code> 模块里改最方便；模块是否移除、分层还是放一起，取决于工程规划。</li>
+<li>删掉：<code>MySPI_W_SCK</code>、<code>MySPI_W_MOSI</code>、<code>MySPI_R_MISO</code>（软件控制通信引脚的三个函数，改由硬件外设代替）。</li>
+<li>保留：<code>MySPI_W_SS</code>（SS 仍软件模拟）、<code>MySPI_Start</code>/<code>MySPI_Stop</code>（内部就是 <code>W_SS(0)</code>/<code>W_SS(1)</code>）。</li>
+<li>重写：<code>MySPI_Init</code> 换成 SPI 外设初始化；<code>MySPI_SwapByte</code> 换成硬件实现。</li>
+<li>软件版 <code>MySPI_Stop</code> 里是 <code>MySPI_W_SS(1);</code>，<code>MySPI_Start</code> 里是 <code>MySPI_W_SS(0);</code>——这两个函数原样保留。</li>
 </ul>
-</li>
-</ul>
-<p><img src="../assets/images/stm32-40/03-mySPI-before.jpg" alt="图 3：改造前的 MySPI.c（软件版）——MySPI_Stop 里 MySPI_W_SS(1);，MySPI_SwapByte 是掩码法的软件实现（for (i = 0; i &lt; 8; i ++) { MySPI_W_MOSI(ByteSend &amp; (0x80 &gt;&gt; i)); MySPI_W_SCK(1); if (MySPI_R_MISO() == 1) { ByteReceive |= (0x80 &gt;&gt; i); } MySPI_W_SCK(0); }）；工程已是 11-2 硬件SPI读写W25Q64；字幕「像上一节I2C的代码」"></p>
-<p><em>图 3：改造前的 <code>MySPI.c</code>（软件版）——<code>MySPI_Stop</code> 里 <code>MySPI_W_SS(1);</code>，<code>MySPI_SwapByte</code> 是掩码法的软件实现（<code>for (i = 0; i &lt; 8; i ++) { MySPI_W_MOSI(ByteSend &amp; (0x80 &gt;&gt; i)); MySPI_W_SCK(1); if (MySPI_R_MISO() == 1) { ByteReceive |= (0x80 &gt;&gt; i); } MySPI_W_SCK(0); }</code>）；工程已是 <code>11-2 硬件SPI读写W25Q64</code>；字幕「像上一节I2C的代码」</em></p>
-<h2 id="3-初始化流程-对照-spi-基本结构图">3. 初始化流程（对照 SPI 基本结构图）</h2>
-<p>四步：</p>
+<p><img src="../assets/images/stm32-40/03-mySPI-before.jpg" alt="图 3：改造前的 MySPI.c（软件版），MySPI_SwapByte 用掩码法：for (i = 0; i &lt; 8; i ++) { MySPI_W_MOSI(ByteSend &amp; (0x80 &gt;&gt; i)); MySPI_W_SCK(1); if (MySPI_R_MISO() == 1) { ByteReceive |= (0x80 &gt;&gt; i); } MySPI_W_SCK(0); }"></p>
+<p><em>图 3：改造前的软件版 <code>MySPI.c</code>，字幕「像上一节I2C的代码」</em></p>
+<h2 id="3-初始化四步-对照-spi-基本结构图">3. 初始化四步（对照 SPI 基本结构图）</h2>
 <ol>
-<li><strong>开启 SPI 和 GPIO 的时钟</strong>；</li>
-<li><strong>初始化 GPIO</strong>：<strong>SCK 和 MOSI 是硬件外设控制的输出信号 → 复用推挽输出（<code>AF_PP</code>）</strong>；<strong>MISO 是硬件外设的输入信号 → 上拉输入（<code>IPU</code>）</strong>（因为输入设备可以有多个，<strong>不存在「复用输入」这种东西</strong>，普通 GPIO 和外设都能读）；<strong>SS 是软件控制的输出信号 → 通用推挽输出（<code>Out_PP</code>）</strong>；</li>
-<li><strong>配置 SPI 外设</strong>：用 <code>SPI_InitTypeDef</code> 结构体选参数（数据帧 8/16 位、高位/低位先行、主/从、模式等）；</li>
-<li><strong>开关控制</strong>：调用 <strong><code>SPI_Cmd(SPI1, ENABLE)</code></strong> 使能 SPI。</li>
+<li>开启 SPI 和 GPIO 的时钟。</li>
+<li>初始化 GPIO：SCK 和 MOSI 是外设控制的输出 → 复用推挽（<code>AF_PP</code>）；MISO 是外设输入 → 上拉输入（<code>IPU</code>）；SS 是软件控制的输出 → 通用推挽（<code>Out_PP</code>）。</li>
+<li>配置 SPI 外设：用 <code>SPI_InitTypeDef</code> 结构体选参数（数据帧 8/16 位、高位/低位先行、主/从、模式等）。</li>
+<li>开关控制：调用 <code>SPI_Cmd(SPI1, ENABLE)</code> 使能 SPI。</li>
 </ol>
-<p><img src="../assets/images/stm32-40/04-spi-structure-ppt.jpg" alt="图 4：PPT「SPI基本结构」+ 红笔标注——数据控制器 ↔ 接收数据寄存器 RDR / &lt;&lt;移位寄存器&lt;&lt; / 发送数据寄存器 TDR；波特率发生器 → GPIO → SCK；GPIO → MOSI、MISO（红圈圈出 GPIO 与引脚）；右下「开关控制」，右侧红笔写 SS 引出方向；字幕「SPI模式几、主机还是从机，等等等等」"></p>
-<p><em>图 4：PPT「SPI基本结构」+ 红笔标注——数据控制器 ↔ 接收数据寄存器 RDR / <code>&lt;&lt;移位寄存器&lt;&lt;</code> / 发送数据寄存器 TDR；波特率发生器 → GPIO → SCK；GPIO → MOSI、MISO（红圈圈出 GPIO 与引脚）；右下「开关控制」，右侧红笔写 SS 引出方向；字幕「SPI模式几、主机还是从机，等等等等」</em></p>
+<ul>
+<li>输入设备可以有多个，不存在「复用输入」这种东西，普通 GPIO 和外设都能读，所以 MISO 配普通上拉输入即可。</li>
+</ul>
+<p><img src="../assets/images/stm32-40/04-spi-structure-ppt.jpg" alt="图 4：PPT「SPI基本结构」+ 红笔标注——数据控制器 ↔ 接收数据寄存器 RDR / &lt;&lt;移位寄存器&lt;&lt; / 发送数据寄存器 TDR；波特率发生器 → GPIO → SCK；GPIO → MOSI、MISO（红圈）；右下「开关控制」，右侧红笔写 SS 引出方向"></p>
+<p><em>图 4：SPI 基本结构图，字幕「SPI模式几、主机还是从机，等等等等」</em></p>
 <h2 id="4-spi-库函数">4. SPI 库函数</h2>
-<p>打开 <code>stm32f10x_spi.h</code>（<code>spi.c</code> 里的实现）——<strong>很多函数带 <code>I2S_</code> 前缀，因为 SPI 和 I2S 共用</strong>（当它不存在即可）：</p>
+<p>打开 <code>stm32f10x_spi.h</code>（<code>spi.c</code> 里的实现）——很多函数带 <code>I2S_</code> 前缀，因为 SPI 和 I2S 共用，当它不存在即可：</p>
 <table>
 <thead>
 <tr>
@@ -341,12 +339,13 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong><code>SPI_I2S_SendData</code> 内部代码</strong>：把参数 <code>Data</code> 赋值给 <strong><code>SPIx-&gt;DR</code></strong>——就是<strong>写数据到发送数据寄存器 TDR</strong>；</li>
-<li><strong><code>SPI_I2S_ReceiveData</code> 内部代码</strong>：把 <strong><code>SPIx-&gt;DR</code></strong> 读出来 <code>return</code> 回去——返回值就是<strong>接收数据寄存器 RDR</strong>；</li>
-<li><strong>本项目主要用</strong>：<code>SPI_Init</code>、<code>SPI_Cmd</code>、<code>SPI_I2S_SendData</code>、<code>SPI_I2S_ReceiveData</code>、<code>SPI_I2S_GetFlagStatus</code>。</li>
+<li><code>SPI_I2S_SendData</code> 内部就是把参数 <code>Data</code> 赋值给 <code>SPIx-&gt;DR</code>，即写数据到 TDR。</li>
+<li><code>SPI_I2S_ReceiveData</code> 内部是把 <code>SPIx-&gt;DR</code> 读出来 <code>return</code> 回去，返回值就是 RDR。</li>
+<li>本项目主要用：<code>SPI_Init</code>、<code>SPI_Cmd</code>、<code>SPI_I2S_SendData</code>、<code>SPI_I2S_ReceiveData</code>、<code>SPI_I2S_GetFlagStatus</code>。</li>
+<li>头文件里还有 <code>I2S_Init</code>、<code>I2S_StructInit</code>、<code>I2S_Cmd</code> 等 I2S 版本函数，本课程用不到。</li>
 </ul>
-<p><img src="../assets/images/stm32-40/05-spi-h-functions.jpg" alt="图 5：stm32f10x_spi.h 的库函数声明列表——SPI_I2S_DeInit、SPI_Init、I2S_Init、SPI_StructInit（高亮）、I2S_StructInit、SPI_Cmd、I2S_Cmd、SPI_I2S_ITConfig、SPI_I2S_DMACmd、SPI_I2S_SendData、SPI_I2S_ReceiveData、SPI_NSSInternalSoftwareConfig、SPI_SSOutputCmd、SPI_DataSizeConfig、SPI_TransmitCRC、SPI_CalculateCRC、SPI_GetCRC 等；字幕「SPI_Cmd，外设使能」"></p>
-<p><em>图 5：<code>stm32f10x_spi.h</code> 的库函数声明列表——<code>SPI_I2S_DeInit</code>、<code>SPI_Init</code>、<code>I2S_Init</code>、<code>SPI_StructInit</code>（高亮）、<code>I2S_StructInit</code>、<code>SPI_Cmd</code>、<code>I2S_Cmd</code>、<code>SPI_I2S_ITConfig</code>、<code>SPI_I2S_DMACmd</code>、<code>SPI_I2S_SendData</code>、<code>SPI_I2S_ReceiveData</code>、<code>SPI_NSSInternalSoftwareConfig</code>、<code>SPI_SSOutputCmd</code>、<code>SPI_DataSizeConfig</code>、<code>SPI_TransmitCRC</code>、<code>SPI_CalculateCRC</code>、<code>SPI_GetCRC</code> 等；字幕「SPI_Cmd，外设使能」</em></p>
+<p><img src="../assets/images/stm32-40/05-spi-h-functions.jpg" alt="图 5：stm32f10x_spi.h 的库函数声明列表——SPI_Init、SPI_Cmd、SPI_I2S_SendData、SPI_I2S_ReceiveData、SPI_I2S_GetFlagStatus、SPI_DataSizeConfig 等，带 I2S_ 前缀的是 I2S 版本"></p>
+<p><em>图 5：<code>stm32f10x_spi.h</code> 函数列表，字幕「SPI_Cmd，外设使能」</em></p>
 <h2 id="5-myspi-init-代码">5. <code>MySPI_Init</code> 代码</h2>
 <pre><code class="language-c">void MySPI_Init(void)
 {
@@ -391,15 +390,17 @@
 </code></pre>
 <h3 id="5-1-时钟与-gpio">5.1 时钟与 GPIO</h3>
 <ul>
-<li><strong>开两个时钟</strong>：<code>RCC_APB2Periph_GPIOA</code>（GPIO 用 A 端）和 <strong><code>RCC_APB2Periph_SPI1</code></strong>（<strong>SPI1 挂 APB2</strong>）；</li>
-<li><strong>PA4 = <code>GPIO_Mode_Out_PP</code></strong>（通用推挽）：<strong>SS 还是软件模拟</strong>，所以要能被程序控制；</li>
-<li><strong>PA5｜PA7 = <code>GPIO_Mode_AF_PP</code></strong>（<strong>复用推挽</strong>）：<strong>SCK 和 MOSI 由硬件外设控制</strong>，必须配复用输出；</li>
-<li><strong>PA6 = <code>GPIO_Mode_IPU</code></strong>（上拉输入）：<strong>MISO 是外设输入</strong>，配成输入即可（不需要「复用输入」）。</li>
+<li>开两个时钟：<code>RCC_APB2Periph_GPIOA</code>（GPIO 用 A 端）和 <code>RCC_APB2Periph_SPI1</code>（SPI1 挂 APB2）。</li>
+<li>两个调用分别是 <code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE)</code> 与 <code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE)</code>。</li>
+<li>文件开头 <code>#include &quot;stm32f10x.h&quot;</code>；<code>MySPI_W_SS</code> 用 <code>GPIO_WriteBit(GPIOA, GPIO_Pin_4, (BitAction)BitValue)</code> 控制 SS。</li>
+<li>PA4 = <code>GPIO_Mode_Out_PP</code>（通用推挽）：SS 还是软件模拟，要能被程序控制。</li>
+<li>PA5｜PA7 = <code>GPIO_Mode_AF_PP</code>（复用推挽）：SCK 和 MOSI 由硬件外设控制，必须配复用输出。</li>
+<li>PA6 = <code>GPIO_Mode_IPU</code>（上拉输入）：MISO 是外设输入，配输入即可。</li>
 </ul>
-<p><img src="../assets/images/stm32-40/06-init-clocks.jpg" alt="图 6：MySPI.c 初始化开头——#include &quot;stm32f10x.h&quot;、MySPI_W_SS 用 GPIO_WriteBit(GPIOA, GPIO_Pin_4, (BitAction)BitValue)；MySPI_Init 里 RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE); + `RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);`，PA4 GPIO_Mode_Out_PP、Pin_4、50MHz、GPIO_Init；字幕「所以这里，PA4，我们还是配置为通用推挽输出」"></p>
-<p>*图 6：<code>MySPI.c</code> 初始化开头——<code>#include &quot;stm32f10x.h&quot;</code>、<code>MySPI_W_SS</code> 用 <code>GPIO_WriteBit(GPIOA, GPIO_Pin_4, (BitAction)BitValue)</code>；<code>MySPI_Init</code> 里 <code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);</code> + <strong><code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);</code></strong>，PA4 <code>GPIO_Mode_Out_PP</code>、Pin_4、50MHz、<code>GPIO_Init</code>；字幕「所以这里，PA4，我们还是配置为通用推挽输出」*</p>
-<p><img src="../assets/images/stm32-40/07-gpio-three-groups.jpg" alt="图 7：GPIO 三段配置全貌——上一段 Pin_4 / Out_PP，本段 `GPIO_Mode = GPIO_Mode_AF_PP`（复用推挽）、`GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7`（高亮行），再接 `GPIO_Mode_IPU`、`Pin_6`，均 50MHz；字幕「这个函数名称，写多了就能记住了，对吧」"></p>
-<p>*图 7：GPIO 三段配置全貌——上一段 <code>Pin_4 / Out_PP</code>，本段 <strong><code>GPIO_Mode = GPIO_Mode_AF_PP</code>（复用推挽）、<code>GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7</code></strong>（高亮行），再接 <strong><code>GPIO_Mode_IPU</code>、<code>Pin_6</code></strong>，均 50MHz；字幕「这个函数名称，写多了就能记住了，对吧」*</p>
+<p><img src="../assets/images/stm32-40/06-init-clocks.jpg" alt="图 6：MySPI.c 初始化开头——RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);，PA4 配 GPIO_Mode_Out_PP、Pin_4、50MHz、GPIO_Init"></p>
+<p><em>图 6：开时钟与 PA4 配置——<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);</code>、<code>RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1, ENABLE);</code>；字幕「所以这里，PA4，我们还是配置为通用推挽输出」</em></p>
+<p><img src="../assets/images/stm32-40/07-gpio-three-groups.jpg" alt="图 7：GPIO 三段配置全貌——上一段 Pin_4 / Out_PP，本段 GPIO_Mode = GPIO_Mode_AF_PP（复用推挽）、GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_7（高亮），再接 GPIO_Mode_IPU、Pin_6，均 50MHz"></p>
+<p><em>图 7：GPIO 三段配置，字幕「这个函数名称，写多了就能记住了，对吧」</em></p>
 <h3 id="5-2-spi-inittypedef-九个成员">5.2 <code>SPI_InitTypeDef</code> 九个成员</h3>
 <table>
 <thead>
@@ -412,12 +413,12 @@
 <tbody><tr>
 <td><strong><code>SPI_Mode</code></strong></td>
 <td><code>SPI_Mode_Master</code> / <code>SPI_Mode_Slave</code></td>
-<td><strong>主/从模式</strong>，本集用<strong>主机</strong></td>
+<td><strong>主/从模式</strong>，本集用主机</td>
 </tr>
 <tr>
 <td><strong><code>SPI_Direction</code></strong></td>
 <td><code>SPI_Direction_2Lines_FullDuplex</code> 等 4 个</td>
-<td><strong>方向</strong>：双线全双工（本集用）/ 单线半双工收 / 单线半双工发 / 双线只收（用来<strong>裁剪 SPI</strong>）</td>
+<td><strong>方向</strong>：双线全双工（本集）/ 单线半双工收 / 单线半双工发 / 双线只收（用来裁剪 SPI）</td>
 </tr>
 <tr>
 <td><strong><code>SPI_DataSize</code></strong></td>
@@ -456,14 +457,15 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong><code>SPI_Direction</code> 的最后两个取值其实不是这个结构体的参数</strong>（是和别的函数参数重名了，提示列表里会混进来）；</li>
-<li><strong>波特率</strong>：<strong>8 档分频（2/4/8/16/32/64/128/256）</strong>，<strong>分频越大 SCK 越慢</strong>；本集选 <strong>128</strong>，<strong>因为用 SPI1（APB2，PCLK＝72MHz）所以按 72MHz/128 计算</strong>（<strong>按公式推算约 562.5kHz</strong>）；若用 SPI2 则按 36MHz 算；</li>
-<li><strong>CPOL/CPHA</strong>：<strong><code>SPI_CPOL_Low</code>＝CPOL=0、<code>SPI_CPHA_1Edge</code>＝CPHA=0 → SPI 模式 0</strong>；<strong>模式 0 和模式 3 都兼容 W25Q64</strong>，本集选模式 0；</li>
-<li><strong>NSS</strong>：选<strong>软件 NSS</strong>（<code>SPI_NSS_Soft</code>），因为 SS 用 GPIO 模拟；</li>
-<li><strong>作者提醒</strong>：这些参数<strong>大部分不用改</strong>，实际需要动的可能就 3 个（分频、CPOL/CPHA 相关）。</li>
+<li><code>SPI_Direction</code> 的最后两个取值其实不是这个结构体的参数（和别的函数参数重名，提示列表里混进来的）。</li>
+<li>波特率：8 档分频（2/4/8/16/32/64/128/256），分频越大 SCK 越慢；本集选 128，SPI1 按 72MHz/128 算（约 <strong>562.5kHz</strong>），换 SPI2 则按 36MHz 算。</li>
+<li>CPOL/CPHA：<code>SPI_CPOL_Low</code>＝CPOL=0、<code>SPI_CPHA_1Edge</code>＝CPHA=0 → SPI 模式 0；模式 0 与模式 3 都兼容 W25Q64，本集选模式 0。</li>
+<li>NSS 选软件模式（<code>SPI_NSS_Soft</code>），因为 SS 用 GPIO 模拟；这些参数大部分不用改，实际要动的可能就 3 个（分频、CPOL/CPHA 相关）。</li>
+<li>九个成员依次赋值：<code>SPI_Mode = SPI_Mode_Master</code>、<code>SPI_Direction = SPI_Direction_2Lines_FullDuplex</code>、<code>SPI_DataSize = SPI_DataSize_8b</code>、<code>SPI_FirstBit = SPI_FirstBit_MSB</code>、<code>SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_128</code>、<code>SPI_CPOL = SPI_CPOL_Low</code>、<code>SPI_CPHA = SPI_CPHA_1Edge</code>、<code>SPI_NSS = SPI_NSS_Soft</code>、<code>SPI_CRCPolynomial = 7</code>，最后 <code>SPI_Init(SPI1, &amp;SPI_InitStructure)</code>。</li>
+<li>收尾：<code>SPI_Cmd(SPI1, ENABLE)</code> 使能外设，再 <code>MySPI_W_SS(1)</code> 让 SS 默认输出高（不选中从机）。</li>
 </ul>
-<p><img src="../assets/images/stm32-40/08-spi-initstruct.jpg" alt="图 8：SPI_InitTypeDef 九项完整填写 + SPI_Init——SPI_InitTypeDef SPI_InitStructure;、SPI_Mode = SPI_Mode_Master、SPI_Direction = SPI_Direction_2Lines_FullDuplex、SPI_DataSize = SPI_DataSize_8b、SPI_FirstBit = SPI_FirstBit_MSB、SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_128、SPI_CPOL = SPI_CPOL_Low、SPI_CPHA = SPI_CPHA_1Edge、SPI_NSS = SPI_NSS_Soft、SPI_CRCPolynomial = 7、SPI_Init(SPI1, &amp;SPI_InitStructure)，下方补全框显示 MySPI_Init、MySPI_W_SS、SPI_BaudRatePrescaler_128 等；字幕「我们调用SPI_Cmd函数」"></p>
-<p><em>图 8：<code>SPI_InitTypeDef</code> 九项完整填写 + <code>SPI_Init</code>——<code>SPI_InitTypeDef SPI_InitStructure;</code>、<code>SPI_Mode = SPI_Mode_Master</code>、<code>SPI_Direction = SPI_Direction_2Lines_FullDuplex</code>、<code>SPI_DataSize = SPI_DataSize_8b</code>、<code>SPI_FirstBit = SPI_FirstBit_MSB</code>、<code>SPI_BaudRatePrescaler = SPI_BaudRatePrescaler_128</code>、<code>SPI_CPOL = SPI_CPOL_Low</code>、<code>SPI_CPHA = SPI_CPHA_1Edge</code>、<code>SPI_NSS = SPI_NSS_Soft</code>、<code>SPI_CRCPolynomial = 7</code>、<code>SPI_Init(SPI1, &amp;SPI_InitStructure)</code>，下方补全框显示 <code>MySPI_Init</code>、<code>MySPI_W_SS</code>、<code>SPI_BaudRatePrescaler_128</code> 等；字幕「我们调用SPI_Cmd函数」</em></p>
+<p><img src="../assets/images/stm32-40/08-spi-initstruct.jpg" alt="图 8：九项成员完整填写 + SPI_Init——SPI_InitTypeDef SPI_InitStructure; 之后逐项赋值，再 SPI_Init(SPI1, &amp;SPI_InitStructure)"></p>
+<p><em>图 8：九项成员填写，下方补全框显示 <code>MySPI_Init</code>、<code>MySPI_W_SS</code>、<code>SPI_BaudRatePrescaler_128</code>；字幕「我们调用SPI_Cmd函数」</em></p>
 <h2 id="6-myspi-swapbyte-硬件实现-四步">6. <code>MySPI_SwapByte</code> 硬件实现（四步）</h2>
 <pre><code class="language-c">uint8_t MySPI_SwapByte(uint8_t ByteSend)
 {
@@ -474,51 +476,44 @@
 }
 </code></pre>
 <ul>
-<li><strong>对照 PPT 的非连续传输流程</strong>：<strong>① 等 TXE=1（发送寄存器为空）→ ② 软件写入数据至 SPI_DR → ③ 等 RXNE=1 → ④ 读取 SPI_DR</strong>——<strong>四步正好一一对应</strong>；</li>
-<li><strong>等待 TXE（①）</strong>：<code>while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) != SET);</code>——也可以写成 <code>== RESET</code>、或者前面加 <code>!</code>，<strong>效果一样</strong>；</li>
-<li><strong>写数据（②）</strong>：<code>SPI_I2S_SendData(SPI1, ByteSend)</code> 写 DR，数据进 <strong>TDR</strong> → <strong>自动转入移位寄存器</strong>、<strong>波形自动产生</strong>——<strong>不需要再调用任何「启动传输」的函数</strong>，数据会自动经 MOSI 发出；</li>
-<li><strong>等接收完成（③）</strong>：<strong>发送与接收是同步的</strong>——<strong>接收移位完成时 RXNE 置 1，此刻也代表发送移位完成</strong>，所以等 RXNE 就等于等整个字节的时序；</li>
-<li><strong>读数据（④）</strong>：<code>SPI_I2S_ReceiveData(SPI1)</code> 读 DR，返回值就是 <strong>RDR</strong> 里的数据，<strong>直接 <code>return</code></strong>；</li>
-<li><strong><code>while</code> 死等没有加超时</strong>：只要 SPI 外设电路不损坏，<strong>TDR 有数据就一定会转入移位寄存器</strong>，不会卡死（不放心也可以自己加超时）。</li>
+<li>对照 PPT 的非连续传输流程：等 <code>TXE=1</code> → 软件写入数据至 SPI_DR → 等 <code>RXNE=1</code> → 读取 SPI_DR，四步一一对应。</li>
+<li>等待 TXE：<code>while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) != SET);</code>——也可以写成 <code>== RESET</code> 或前面加 <code>!</code>，效果一样。</li>
+<li>写数据：<code>SPI_I2S_SendData(SPI1, ByteSend)</code> 写 DR，数据进 TDR 后自动转入移位寄存器、自动产生波形，不需要再调用任何「启动传输」函数。</li>
+<li>等接收完成：<code>while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) != SET);</code>——发送与接收是同步的，接收移位完成时 RXNE 置 1，此刻也代表发送移位完成。</li>
+<li>读数据：<code>SPI_I2S_ReceiveData(SPI1)</code> 读 DR（原型 <code>uint16_t SPI_I2S_ReceiveData(SPI_TypeDef *SPIx)</code>），返回值就是 RDR 里的数据，直接 <code>return</code>。</li>
+<li><code>while</code> 死等没有加超时：只要外设电路不损坏，TDR 有数据就一定会转入移位寄存器，不会卡死（不放心可以自己加超时）。</li>
 </ul>
-<p><img src="../assets/images/stm32-40/09-fig218-ppt.jpg" alt="图 9：PPT「非连续传输」（图218，复习用）——红圈 MOSI(输出)、红笔划 TXE 标志区段，底部是四步操作框；字幕「那该等到什么时候，这一个字节的时序才会完成呢」"></p>
-<p><em>图 9：PPT「非连续传输」（图218，复习用）——红圈 MOSI(输出)、红笔划 TXE 标志区段，底部是四步操作框；字幕「那该等到什么时候，这一个字节的时序才会完成呢」</em></p>
-<p><img src="../assets/images/stm32-40/10-swapbyte-hw.jpg" alt="图 10：MySPI_SwapByte 写成硬件版——while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) != SET);、SPI_I2S_SendData(SPI1, ByteSend);、while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) != SET);、SPI_I2S_ReceiveData(SPI1);（补全提示框显示 uint16_t SPI_I2S_ReceiveData(SPI_TypeDef *SPIx)）；上方是保留的 MySPI_Start（MySPI_W_SS(0);）与 MySPI_Stop（MySPI_W_SS(1);）；字幕「我们直接return」"></p>
-<p><em>图 10：<code>MySPI_SwapByte</code> 写成硬件版——<code>while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_TXE) != SET);</code>、<code>SPI_I2S_SendData(SPI1, ByteSend);</code>、<code>while (SPI_I2S_GetFlagStatus(SPI1, SPI_I2S_FLAG_RXNE) != SET);</code>、<code>SPI_I2S_ReceiveData(SPI1);</code>（补全提示框显示 <code>uint16_t SPI_I2S_ReceiveData(SPI_TypeDef *SPIx)</code>）；上方是保留的 <code>MySPI_Start</code>（<code>MySPI_W_SS(0);</code>）与 <code>MySPI_Stop</code>（<code>MySPI_W_SS(1);</code>）；字幕「我们直接return」</em></p>
-<p><img src="../assets/images/stm32-40/11-swapbyte-full.jpg" alt="图 11：MySPI_SwapByte 四步完整版（整段蓝色高亮）——while (...TXE) != SET; → SPI_I2S_SendData(SPI1, ByteSend); → while (...RXNE) != SET; → return SPI_I2S_ReceiveData(SPI1);；字幕「这样简单的四步，就完成了SPI一个字节的交换」"></p>
-<p><em>图 11：<code>MySPI_SwapByte</code> 四步完整版（整段蓝色高亮）——<code>while (...TXE) != SET;</code> → <code>SPI_I2S_SendData(SPI1, ByteSend);</code> → <code>while (...RXNE) != SET;</code> → <code>return SPI_I2S_ReceiveData(SPI1);</code>；字幕「这样简单的四步，就完成了SPI一个字节的交换」</em></p>
+<p><img src="../assets/images/stm32-40/09-fig218-ppt.jpg" alt="图 9：PPT「非连续传输」（图218，复习用）——红圈 MOSI(输出)、红笔划 TXE 标志区段，底部是四步操作框"></p>
+<p><em>图 9：图218 复习，字幕「那该等到什么时候，这一个字节的时序才会完成呢」</em></p>
+<p><img src="../assets/images/stm32-40/10-swapbyte-hw.jpg" alt="图 10：MySPI_SwapByte 写成硬件版——四步 while (...TXE) != SET;、SPI_I2S_SendData(SPI1, ByteSend);、while (...RXNE) != SET;、SPI_I2S_ReceiveData(SPI1);；上方是保留的 MySPI_Start 与 MySPI_Stop"></p>
+<p><em>图 10：<code>MySPI_SwapByte</code> 硬件版，字幕「我们直接return」</em></p>
+<p><img src="../assets/images/stm32-40/11-swapbyte-full.jpg" alt="图 11：MySPI_SwapByte 四步完整版（整段蓝色高亮）——while (...TXE) != SET; → SPI_I2S_SendData(SPI1, ByteSend); → while (...RXNE) != SET; → return SPI_I2S_ReceiveData(SPI1);"></p>
+<p><em>图 11：四步完整版，字幕「这样简单的四步，就完成了SPI一个字节的交换」</em></p>
 <h2 id="7-两个关键注意点">7. 两个关键注意点</h2>
-<h3 id="7-1-硬件-spi-必须-先发送-才能-接收">7.1 硬件 SPI 必须「先发送」才能「接收」</h3>
+<h3 id="7-1-硬件-spi-必须先发送才能接收">7.1 硬件 SPI 必须先发送才能接收</h3>
 <ul>
-<li><strong>SPI 是全双工的</strong>：<strong>只有往 TDR 写数据，才会触发移位、产生时钟</strong>；</li>
-<li>所以<strong>只调用 <code>SPI_I2S_ReceiveData</code> 时序是不会动的</strong>——<strong>想接收必须先发送</strong>；</li>
-<li>这也解释了「为什么只收数据时也要发一个占位字节」。</li>
+<li>SPI 是全双工的：只有往 TDR 写数据才会触发移位、产生时钟。</li>
+<li>只调用 <code>SPI_I2S_ReceiveData</code> 时序不会动，想接收必须先发送——这也是「只收数据时也要发占位字节」的原因。</li>
 </ul>
 <h3 id="7-2-txe-rxne-不需要手动清标志">7.2 TXE/RXNE 不需要手动清标志</h3>
 <ul>
-<li>一开始作者也疑惑：手册图里写「TXE 由硬件设置并由软件清除」，那<strong>要不要手动调用 <code>ClearFlag</code></strong>？</li>
-<li><strong>查手册 23.3.7 状态标志可知</strong>：<ul>
-<li><strong>「当写入 SPI_DR 时，TXE 标志被清除」</strong>；</li>
-<li><strong>「读 SPI 数据寄存器可以清除此标志（RXNE）」</strong>；</li>
-<li>BSY 标志由硬件设置与清除（写无效）；</li>
+<li>手册 23.3.7 状态标志写明：当写入 SPI_DR 时 TXE 标志被清除；读 SPI 数据寄存器可以清除 RXNE 标志；BSY 由硬件设置与清除（写无效）。</li>
+<li>代码顺序正好是「等 TXE=1 → 写 DR」（顺带清 TXE）、「等 RXNE=1 → 读 DR」（顺带清 RXNE），所以完全不需要手动调 <code>ClearFlag</code>。</li>
+<li>对比：STM32 里大多数标志位（尤其中断标志）还是要手动清除的，只有少数能在执行顺序操作时顺便清除。</li>
 </ul>
-</li>
-<li><strong>而我们的代码顺序正好是</strong>：<strong>等 TXE=1 → 写 DR</strong>（顺带清 TXE）、<strong>等 RXNE=1 → 读 DR</strong>（顺带清 RXNE）——<strong>所以完全不需要手动清标志</strong>；</li>
-<li><strong>对比</strong>：STM32 里<strong>大多数标志位（尤其中断标志）还是要手动清除的</strong>，只有少数能在执行顺序操作时顺便清除——具体要<strong>仔细看手册</strong>。</li>
-</ul>
-<p><img src="../assets/images/stm32-40/12-manual-flags.jpg" alt="图 12：参考手册「23.3.7 状态标志」——发送缓冲器空闲标志（TXE）：此标志为 1 时表明发送缓冲器为空，可以写下一个待发送数据；当写入 SPI_DR 时，TXE 标志被清除；接收缓冲器非空（RXNE）：此标志为 1 时表明接收缓冲器中含有有效的接收数据，读 SPI 数据寄存器可以清除此标志；忙（Busy）标志：BSY 由硬件设置与清除（写入无效），关闭 SPI 前可用它检测传输是否结束；左侧书签为 23.3.1～23.5.10；字幕「发送缓冲器空闲标志(TXE)」"></p>
-<p>*图 12：参考手册「23.3.7 状态标志」——<strong>发送缓冲器空闲标志（TXE）</strong>：此标志为 1 时表明发送缓冲器为空，可以写下一个待发送数据；<strong>当写入 SPI_DR 时，TXE 标志被清除</strong>；<strong>接收缓冲器非空（RXNE）</strong>：此标志为 1 时表明接收缓冲器中含有有效的接收数据，<strong>读 SPI 数据寄存器可以清除此标志</strong>；<strong>忙（Busy）标志</strong>：BSY 由硬件设置与清除（写入无效），关闭 SPI 前可用它检测传输是否结束；左侧书签为 23.3.1～23.5.10；字幕「发送缓冲器空闲标志(TXE)」*</p>
+<p><img src="../assets/images/stm32-40/12-manual-flags.jpg" alt="图 12：参考手册「23.3.7 状态标志」——发送缓冲器空闲标志（TXE）：为 1 时表明发送缓冲器为空，可以写下一个待发送数据；当写入 SPI_DR 时 TXE 标志被清除；接收缓冲器非空（RXNE）：读 SPI 数据寄存器可以清除此标志；忙标志（BSY）由硬件设置与清除，关闭 SPI 前可用它检测传输是否结束；左侧书签 23.3.1～23.5.10"></p>
+<p><em>图 12：手册 23.3.7 状态标志，字幕「发送缓冲器空闲标志(TXE)」</em></p>
 <h2 id="8-编译下载与现象">8. 编译下载与现象</h2>
 <ul>
-<li>代码改完编译下载（<code>Flash Load finished at 12:45:53</code>）；</li>
-<li><strong>现象</strong>：OLED 显示 <strong><code>MID:EF DID:4017</code></strong>、<strong><code>W:01 02 03 04</code></strong>、<strong><code>R:01 02 03 04</code></strong>——<strong>与软件 SPI 版本完全一致</strong>，说明硬件 SPI 改造成功；</li>
-<li>本集<strong>只验证这一组读写现象</strong>（没有重做上一集那四组实验：掉电保持、擦除变 FF、非擦除改写、跨页）；</li>
-<li>作者评价：「这小节的任务还是比较轻松的」——<strong>因为分层做得好，只改底层通信层就行</strong>。</li>
+<li>代码改完编译下载（<code>Flash Load finished at 12:45:53</code>）。</li>
+<li>现象：OLED 显示 <code>MID:EF DID:4017</code>、<code>W:01 02 03 04</code>、<code>R:01 02 03 04</code>，与软件 SPI 版本完全一致，说明硬件 SPI 改造成功。</li>
+<li>本集只验证这一组读写现象，没有重做上一集那四组实验（掉电保持、擦除变 FF、非擦除改写、跨页）。</li>
+<li>因为分层做得好，只改底层通信层就行，任务比较轻松。</li>
 </ul>
-<p><img src="../assets/images/stm32-40/13-download.jpg" alt="图 13：MySPI_SwapByte 完整版 + 下载记录（Load &quot;…\11-2 硬件SPI读写W25Q64\Objects\Project.axf&quot;、Flash Load finished at 12:45:53）；字幕「下载」"></p>
-<p><em>图 13：<code>MySPI_SwapByte</code> 完整版 + 下载记录（<code>Load &quot;…\11-2 硬件SPI读写W25Q64\Objects\Project.axf&quot;</code>、<code>Flash Load finished at 12:45:53</code>）；字幕「下载」</em></p>
-<p><img src="../assets/images/stm32-40/14-phenomenon.jpg" alt="图 14：现象——面包板上 OLED 显示 MID:EF DID:4017 / W:01 02 03 04 / R:01 02 03 04，与软件 SPI 版本完全一致；字幕「好，到这里」"></p>
-<p><em>图 14：现象——面包板上 OLED 显示 <code>MID:EF DID:4017</code> / <code>W:01 02 03 04</code> / <code>R:01 02 03 04</code>，与软件 SPI 版本完全一致；字幕「好，到这里」</em></p>
+<p><img src="../assets/images/stm32-40/13-download.jpg" alt="图 13：MySPI_SwapByte 完整版 + 下载记录（Load &quot;…\11-2 硬件SPI读写W25Q64\Objects\Project.axf&quot;、Flash Load finished at 12:45:53）"></p>
+<p><em>图 13：编译下载，字幕「下载」</em></p>
+<p><img src="../assets/images/stm32-40/14-phenomenon.jpg" alt="图 14：现象——面包板上 OLED 显示 MID:EF DID:4017 / W:01 02 03 04 / R:01 02 03 04，与软件 SPI 版本完全一致"></p>
+<p><em>图 14：OLED 现象一致，字幕「好，到这里」</em></p>
 <h2 id="9-软件-spi-vs-硬件-spi-本集改造对照">9. 软件 SPI vs 硬件 SPI（本集改造对照）</h2>
 <table>
 <thead>
@@ -576,19 +571,19 @@
 </tbody></table>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>别写成「删掉 MySPI 模块」</strong>：本集<strong>保留</strong> MySPI，只删 <code>W_SCK</code>/<code>W_MOSI</code>/<code>R_MISO</code> 三个函数（和 [10-2] 删 MyI2C 不同）。</li>
+<li><strong>别写成「删掉 MySPI 模块」</strong>：本集保留 MySPI，只删 <code>W_SCK</code>/<code>W_MOSI</code>/<code>R_MISO</code> 三个函数。</li>
 <li><strong>SPI1 是 APB2 外设</strong>：开时钟用 <code>RCC_APB2Periph_SPI1</code>，别写成 APB1。</li>
-<li><strong>GPIO 模式分三种</strong>：<strong>PA4 通用推挽</strong>（软件控 SS）、<strong>PA5/PA7 复用推挽 <code>AF_PP</code></strong>（外设控 SCK/MOSI）、<strong>PA6 上拉输入 <code>IPU</code></strong>（MISO）。</li>
+<li><strong>GPIO 模式分三种</strong>：PA4 通用推挽、PA5/PA7 复用推挽、PA6 上拉输入 <code>IPU</code>。</li>
 <li><strong><code>SPI_InitTypeDef</code> 是 9 个成员</strong>（不是 6 个），别漏 <code>SPI_NSS</code>、<code>SPI_CRCPolynomial</code>。</li>
-<li><strong>分频要按所挂总线算</strong>：SPI1 用 72M、SPI2 用 36M；128 分频 → 约 562.5kHz（推算值）。</li>
+<li><strong>分频要按所挂总线算</strong>：SPI1 用 72M、SPI2 用 36M；128 分频约 562.5kHz（推算值）。</li>
 <li><strong>模式 0 = <code>SPI_CPOL_Low</code> + <code>SPI_CPHA_1Edge</code></strong>；W25Q64 兼容模式 0 与模式 3。</li>
 <li><strong>硬件 SPI 必须先发送才能接收</strong>：只调 <code>ReceiveData</code> 时序不会动。</li>
-<li><strong>TXE/RXNE 不用手动清</strong>：写 DR 清 TXE、读 DR 清 RXNE（顺序操作顺带清除），别多写 <code>ClearFlag</code>。</li>
+<li><strong>TXE/RXNE 不用手动清</strong>：写 DR 清 TXE、读 DR 清 RXNE，别多写 <code>ClearFlag</code>。</li>
 <li><strong>写数据后不用调「启动传输」函数</strong>：写 DR 后自动转入移位寄存器、自动产生波形。</li>
 <li><strong>SS 仍用 GPIO 模拟</strong>：<code>SPI_NSS_Soft</code> + <code>MySPI_W_SS</code>，硬件 NSS 用不上。</li>
 <li><strong>重映射脚（PA15/PB3/PB4/PB5）默认是 JTAG</strong>：要用得先解除调试端口复用，本集不用。</li>
 <li><strong>while 死等没加超时</strong>：外设不坏不会卡死，但不放心可以自己加超时。</li>
-<li><strong>W25Q64 业务层不要动</strong>：本集只改通信层，上层一行不改——这正是分层的价值。</li>
+<li><strong>W25Q64 业务层不要动</strong>：本集只改通信层，上层一行不改。</li>
 <li><strong>本集只验证一组现象</strong>：没有重做上一集的四组实验。</li>
 </ol>
 </article>
@@ -601,17 +596,17 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-%E8%BD%AF%E4%BB%B6-spi-%E5%B7%A5%E7%A8%8B-%E7%A1%AC%E4%BB%B6-spi-%E5%8F%AA%E6%94%B9%E9%80%9A%E4%BF%A1%E5%B1%82">0. 本集定位：代码课（软件 SPI 工程 → 硬件 SPI，只改通信层）</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%BC%95%E8%84%9A%E9%80%89%E6%8B%A9">1. 接线与引脚选择</a>
-        <a class="level-2" href="#2-%E6%94%B9%E9%80%A0%E6%80%9D%E8%B7%AF-%E4%BF%9D%E7%95%99-myspi-%E6%A8%A1%E5%9D%97-%E5%8F%AA%E6%8D%A2%E9%80%9A%E4%BF%A1%E5%B1%82">2. 改造思路：保留 MySPI 模块，只换通信层</a>
-        <a class="level-2" href="#3-%E5%88%9D%E5%A7%8B%E5%8C%96%E6%B5%81%E7%A8%8B-%E5%AF%B9%E7%85%A7-spi-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84%E5%9B%BE">3. 初始化流程（对照 SPI 基本结构图）</a>
+        <a class="level-2" href="#2-%E6%94%B9%E9%80%A0%E6%80%9D%E8%B7%AF-%E4%BF%9D%E7%95%99-myspi-%E5%8F%AA%E6%8D%A2%E9%80%9A%E4%BF%A1%E5%B1%82">2. 改造思路：保留 MySPI，只换通信层</a>
+        <a class="level-2" href="#3-%E5%88%9D%E5%A7%8B%E5%8C%96%E5%9B%9B%E6%AD%A5-%E5%AF%B9%E7%85%A7-spi-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84%E5%9B%BE">3. 初始化四步（对照 SPI 基本结构图）</a>
         <a class="level-2" href="#4-spi-%E5%BA%93%E5%87%BD%E6%95%B0">4. SPI 库函数</a>
         <a class="level-2" href="#5-myspi-init-%E4%BB%A3%E7%A0%81">5. MySPI_Init 代码</a>
         <a class="level-3" href="#5-1-%E6%97%B6%E9%92%9F%E4%B8%8E-gpio">5.1 时钟与 GPIO</a>
         <a class="level-3" href="#5-2-spi-inittypedef-%E4%B9%9D%E4%B8%AA%E6%88%90%E5%91%98">5.2 SPI_InitTypeDef 九个成员</a>
         <a class="level-2" href="#6-myspi-swapbyte-%E7%A1%AC%E4%BB%B6%E5%AE%9E%E7%8E%B0-%E5%9B%9B%E6%AD%A5">6. MySPI_SwapByte 硬件实现（四步）</a>
         <a class="level-2" href="#7-%E4%B8%A4%E4%B8%AA%E5%85%B3%E9%94%AE%E6%B3%A8%E6%84%8F%E7%82%B9">7. 两个关键注意点</a>
-        <a class="level-3" href="#7-1-%E7%A1%AC%E4%BB%B6-spi-%E5%BF%85%E9%A1%BB-%E5%85%88%E5%8F%91%E9%80%81-%E6%89%8D%E8%83%BD-%E6%8E%A5%E6%94%B6">7.1 硬件 SPI 必须「先发送」才能「接收」</a>
+        <a class="level-3" href="#7-1-%E7%A1%AC%E4%BB%B6-spi-%E5%BF%85%E9%A1%BB%E5%85%88%E5%8F%91%E9%80%81%E6%89%8D%E8%83%BD%E6%8E%A5%E6%94%B6">7.1 硬件 SPI 必须先发送才能接收</a>
         <a class="level-3" href="#7-2-txe-rxne-%E4%B8%8D%E9%9C%80%E8%A6%81%E6%89%8B%E5%8A%A8%E6%B8%85%E6%A0%87%E5%BF%97">7.2 TXE/RXNE 不需要手动清标志</a>
         <a class="level-2" href="#8-%E7%BC%96%E8%AF%91%E4%B8%8B%E8%BD%BD%E4%B8%8E%E7%8E%B0%E8%B1%A1">8. 编译下载与现象</a>
         <a class="level-2" href="#9-%E8%BD%AF%E4%BB%B6-spi-vs-%E7%A1%AC%E4%BB%B6-spi-%E6%9C%AC%E9%9B%86%E6%94%B9%E9%80%A0%E5%AF%B9%E7%85%A7">9. 软件 SPI vs 硬件 SPI（本集改造对照）</a>

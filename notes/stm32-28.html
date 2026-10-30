@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[9-4] USART串口数据包 · 我的学习笔记</title>
-  <meta name="description" content="STM32 [9-4]（理论课，代码在 P29）：为什么需要数据包（多字节、错位）；HEX 包（0xFF 包头+固定 4 字节+0xFE 包尾）；载荷与包头包尾重复的三解法（限幅/固定包长对齐/增加包头包尾数量）；固定 vs 可变包长；文本包（@ 包头+指令+\r\n 包尾）；HEX vs 文本优缺点；发送流程；接收状态机（HEX 3 状态、文本 3 状态）与状态机通用方法。">
+  <meta name="description" content="STM32 [9-4]（理论课，代码在 P29）：为什么需要数据包（多字节、错位）；HEX 包（0xFF 包头 + 固定 4 字节 + 0xFE 包尾）；载荷与包头包尾重复的三解法（限幅/固定包长对齐/增加包头包尾数量）；固定 vs 可变包长；文本包（@ 包头 + 指令 + \r\n 包尾）；HEX vs 文本优缺点；发送流程；接收状态机（HEX 3 状态、文本 3 状态）。">
   <meta property="og:title" content="[9-4] USART串口数据包 · 我的学习笔记">
-  <meta property="og:description" content="STM32 [9-4]（理论课，代码在 P29）：为什么需要数据包（多字节、错位）；HEX 包（0xFF 包头+固定 4 字节+0xFE 包尾）；载荷与包头包尾重复的三解法（限幅/固定包长对齐/增加包头包尾数量）；固定 vs 可变包长；文本包（@ 包头+指令+\r\n 包尾）；HEX vs 文本优缺点；发送流程；接收状态机（HEX 3 状态、文本 3 状态）与状态机通用方法。">
+  <meta property="og:description" content="STM32 [9-4]（理论课，代码在 P29）：为什么需要数据包（多字节、错位）；HEX 包（0xFF 包头 + 固定 4 字节 + 0xFE 包尾）；载荷与包头包尾重复的三解法（限幅/固定包长对齐/增加包头包尾数量）；固定 vs 可变包长；文本包（@ 包头 + 指令 + \r\n 包尾）；HEX vs 文本优缺点；发送流程；接收状态机（HEX 3 状态、文本 3 状态）。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,119 +177,119 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>22 分钟</span>
+      <span>13 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">串口</span><span class="tag">USART</span><span class="tag">数据包</span>
     </div>
     <article class="prose"><h1>[9-4] USART串口数据包 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 9 的理论课（数据包）</strong>——00:00–03:35 <strong>只演示两个成品工程的现象</strong>（串口收发 HEX 数据包、串口收发文本数据包），03:35 起全是 PPT：HEX 数据包格式、文本数据包格式、两个接收状态机；<strong>全程没有一行 Keil 写码</strong>。片尾 20:27「接下来我们就来写程序，验证一下刚才所学的内容」——<strong>代码在 P29</strong>；本集<strong>无库函数、无代码</strong>，写法一律注明「在 P29」。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>单个字节的收发已经会了，但实际模块（陀螺仪、温湿度等）一次要发<strong>多个字节</strong>，接收方<strong>可能从数据流的任意位置开始接收</strong>，于是 <code>XYZXYZXYZ</code> 这样的连续数据流<strong>分不清哪个字节是 X、哪个是 Y</strong>（<strong>数据错位/粘包</strong>）——这就需要<strong>把同一批数据「打包」成一个数据包、并在连续数据流中「分割」出来</strong>。本集给了两种最常用的数据包：<strong>① HEX 数据包</strong>——用<strong>包头 <code>0xFF</code> + 载荷 + 包尾 <code>0xFE</code></strong> 界定，示例是<strong>固定包长</strong>（包头 + <strong>固定 4 字节</strong> + 包尾，如 <code>FF 66 88 AB CD FE</code>），收到 <code>FF</code> 就知道包来了、接着收 4 字节存数组、收到 <code>FE</code> 就置「收到一包」标志；<strong>② 文本数据包</strong>——用 <strong><code>@</code> 作包头、<code>\r\n</code>（回车换行两个字符）作包尾</strong>，载荷是<strong>字符串指令</strong>（如 <code>@LED_ON</code>），收到后按字符串判断执行，回传 <code>LED_ON_OK</code>；乱指令回 <code>ERROR_COMMAND</code>——这就是简单的<strong>人机交互</strong>。<strong>关键问题与解法</strong>：<strong>① 载荷本身可能等于包头/包尾（如数据就是 FF、FE）会误判</strong> → 三种解法：<strong>限制载荷范围</strong>（如 X/Y/Z 限 0～100）、<strong>用固定包长并靠包头包尾对齐</strong>（收载荷时不判断包头包尾、只在收包头包尾时判断，几个包之后自然对齐）、<strong>增加包头包尾数量</strong>（包头 FF、FE，包尾 FD、FC，尽量选载荷不会出现的组合）；<strong>② 包头包尾不是都必须有</strong>——只留包头也能工作，但<strong>载荷全是 FF 时就分不清</strong>，加包尾更可靠；<strong>③ 固定 vs 可变包长</strong>——<strong>载荷可能与包头包尾重复时必须固定包长</strong>，不会重复则可用可变包长（1/3/4/10 字节随意，非常灵活）；另外<strong>任何数据类型（16/32 位整型、float/double、结构体）都能用 <code>uint8_t*</code> 指针当字节数组发</strong>。<strong>发送很简单</strong>（HEX 包＝填好数组用 <code>Serial_SendArray</code>；文本包＝写好字符串用 <code>Serial_SendString</code>——<strong>发送完全自主可控</strong>）；<strong>接收才复杂</strong>：每收到一个字节进一次中断、彼此独立，而数据包有<strong>前后关联</strong>（包头→数据→包尾），所以要<strong>用状态机</strong>：<strong>定义状态（画圈）→ 想清转移条件（画线）→ 按图编程</strong>。本集给的两个状态机：<strong>HEX 固定包长</strong>：<code>S=0 等待包头</code>（收 <code>0xFF</code> → S=1，否则自环）→ <code>S=1 接收数据</code>（未收够 4 个自环，收够 → S=2）→ <code>S=2 等待包尾</code>（收 <code>0xFE</code> → S=0，否则自环）；<strong>文本可变包长</strong>：<code>S=0 等 @</code> → <code>S=1 接收数据兼等包尾</code>（收到 <code>\r</code> 不接收、转 S=2）→ <code>S=2 等 </code>\n``（收到 <code>\n</code> → S=0）。<strong>代码在下一集 P29。</strong></p>
-<h2 id="0-本集定位-理论课-数据包格式与收发思路-代码在-p29">0. 本集定位：理论课（数据包格式与收发思路），代码在 P29</h2>
+<p>数据包要解决的是「多个字节连在一起、接收方分不清哪个是哪个」。HEX 包用 <code>0xFF</code> 包头、<code>0xFE</code> 包尾夹住固定 4 字节载荷；文本包用 <code>@</code> 包头、<code>\r\n</code> 包尾夹住指令字符串。接收要按状态机写：先定义状态，再定转移条件，最后照图编程。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯理论课</strong>：片头 3 分半<strong>只演示两个已经写好的成品工程</strong>，之后全是 PPT（HEX 数据包 / 文本数据包 / HEX 数据包接收 / 文本数据包接收 4 页 + 大量红笔批注），<strong>没有打开 Keil 写代码</strong>。</li>
-<li><strong>本集不讲的内容</strong>：<strong>没有校验和、没有 CRC、也没有长度字段</strong>——可变包长是靠<strong>包头/包尾界分</strong>的（与常见工业协议不同）；这些内容本集一概没有，笔记不编造。</li>
-<li><strong>片尾</strong>（20:27）：「数据包的定义、分类、优缺点和注意事项讲完了，<strong>接下来我们就来写程序</strong>，验证一下刚才所学的内容」——<strong>代码在 P29</strong>。</li>
-<li>前情：P27 已经会了单字节收发（<code>Serial_SendByte</code>/<code>Serial_SendArray</code>/<code>Serial_SendString</code>/中断接收 + <code>Serial_GetRxFlag</code>），本集是在此基础上讲<strong>数据包</strong>。</li>
+<li><strong>模块 9 的理论课</strong>：00:00–03:35 只演示两个已写好的成品工程（串口收发 HEX 数据包、串口收发文本数据包），之后全是 PPT，没有任何 Keil 写码。</li>
+<li>代码在 P29——片尾 20:27「接下来我们就来写程序，验证一下刚才所学的内容」。</li>
+<li>本集没有校验和、没有 CRC、也没有长度字段；可变包长靠包头包尾界分，与常见工业协议不同。</li>
+<li>前情：P27 已经会单字节收发（<code>Serial_SendByte</code>/<code>Serial_SendArray</code>/<code>Serial_SendString</code> + 中断接收 <code>Serial_GetRxFlag</code>）。</li>
 </ul>
 <h2 id="1-片头两个成品工程">1. 片头两个成品工程</h2>
 <h3 id="1-1-程序1-串口收发-hex-数据包">1.1 程序①：串口收发 HEX 数据包</h3>
 <ul>
-<li><strong>工程 <code>9-3 串口收发HEX数据包</code></strong>（帧可见工程名）；OLED <strong>上面两行显示 Tx 数据包、下面两行显示 Rx 数据包</strong>；面包板上<strong>额外接了一个 PB1 按键</strong>控制发送；</li>
-<li>串口助手<strong>发送模式和接收模式都选 HEX 模式</strong>；</li>
-<li><strong>按一下 PB1</strong>：OLED 显示发出了一个数据包，串口助手也收到——<strong>数据包格式：以 <code>FF</code> 为包头、<code>FE</code> 为包尾，中间固定 4 个字节为数据</strong>；每按一次发一包，<strong>中间数据设置成递增变化</strong>（实际应用可替换成真实数据）；</li>
-<li><strong>接收</strong>：在串口助手发送区手写一包，如 <strong><code>FF 66 88 AB CD FE</code></strong> 发出去 → <strong>OLED 显示 <code>66 88 AB CD</code></strong>——<strong>包头 <code>FF</code> 和包尾 <code>FE</code> 只用于控制接收、不显示</strong>；</li>
-<li>换一组数据再发，接收也没问题——这就是串口收发 HEX 数据包的现象。</li>
+<li>工程 <code>9-3 串口收发HEX数据包</code>：OLED 上两行显示 <code>TxPacket</code>、下两行显示 <code>RxPacket</code>；面包板额外接 PB1 按键控制发送。</li>
+<li>main 里 <code>OLED_Init(); Key_Init(); Serial_Init();</code>，标题用 <code>OLED_ShowString(1, 1, &quot;TxPacket&quot;)</code> 与 <code>OLED_ShowString(3, 1, &quot;RxPacket&quot;)</code>。</li>
+<li><code>uint8_t KeyNum;</code> 存键值，<code>Serial_TxPacket</code> 是 4 字节发送缓存，每按一次数据自增。</li>
+<li>串口助手收发都选 <code>HEX模式</code>，参数 COM12、9600、8、1、无。</li>
+<li>按 PB1 发一包：<code>FF</code> 包头 + 固定 4 字节 + <code>FE</code> 包尾，中间数据递增（实际应用换成真实数据）。</li>
+<li>收：发送区手写 <code>FF 66 88 AB CD FE</code> → OLED 显示 <code>66 88 AB CD</code>，包头包尾只用于控制、不显示。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/01-project9-3-main.jpg" alt="图 1：程序①的 main.c 预览——工程标题栏 9-3 串口收发HEX数据包；#include &quot;stm32f10x.h&quot;/&quot;Delay.h&quot;/&quot;OLED.h&quot;/&quot;Serial.h&quot;/&quot;Key.h&quot;、uint8_t KeyNum;、OLED_Init(); Key_Init(); Serial_Init();、OLED_ShowString(1, 1, &quot;TxPacket&quot;)、OLED_ShowString(3, 1, &quot;RxPacket&quot;)、Serial_TxPacket 数组的第 0、1 个元素赋 0x01、0x02；字幕「下载」"></p>
-<p><em>图 1：程序①的 main.c 预览——工程标题栏 <code>9-3 串口收发HEX数据包</code>；<code>#include &quot;stm32f10x.h&quot;/&quot;Delay.h&quot;/&quot;OLED.h&quot;/&quot;Serial.h&quot;/&quot;Key.h&quot;</code>、<code>uint8_t KeyNum;</code>、<code>OLED_Init(); Key_Init(); Serial_Init();</code>、<code>OLED_ShowString(1, 1, &quot;TxPacket&quot;)</code>、<code>OLED_ShowString(3, 1, &quot;RxPacket&quot;)</code>、<code>Serial_TxPacket</code> 数组的第 0、1 个元素赋 0x01、0x02；字幕「下载」</em></p>
-<p><img src="../assets/images/stm32-28/02-hex-packet-demo.jpg" alt="图 2：程序①现象——OLED 显示 TxPacket/RxPacket 两行标题，面包板上有 PB1 按键；右侧串口助手（COM12、9600、8、1、无，接收/发送均 HEX模式）；字幕「接着，电脑端打开串口助手」"></p>
-<p><em>图 2：程序①现象——OLED 显示 <code>TxPacket</code>/<code>RxPacket</code> 两行标题，面包板上有 PB1 按键；右侧串口助手（COM12、9600、8、1、无，接收/发送均 <code>HEX模式</code>）；字幕「接着，电脑端打开串口助手」</em></p>
+<p><img src="../assets/images/stm32-28/01-project9-3-main.jpg" alt="图 1：程序① main.c 预览——#include &quot;stm32f10x.h&quot;/&quot;Delay.h&quot;/&quot;OLED.h&quot;/&quot;Serial.h&quot;/&quot;Key.h&quot;、uint8_t KeyNum;、Serial_TxPacket 赋初值"></p>
+<p><em>图 1：程序① main.c 预览——<code>#include &quot;stm32f10x.h&quot;/&quot;Delay.h&quot;/&quot;OLED.h&quot;/&quot;Serial.h&quot;/&quot;Key.h&quot;</code>、<code>uint8_t KeyNum;</code>、<code>Serial_TxPacket</code> 赋初值</em></p>
+<p><img src="../assets/images/stm32-28/02-hex-packet-demo.jpg" alt="图 2：程序①现象——OLED 两行标题、面包板上 PB1 按键；串口助手 COM12、9600、8、1、无，收发均 HEX模式"></p>
+<p><em>图 2：程序①现象——OLED 两行标题、面包板上 PB1 按键；串口助手 COM12、9600、8、1、无，收发均 <code>HEX模式</code></em></p>
 <h3 id="1-2-程序2-串口收发文本数据包">1.2 程序②：串口收发文本数据包</h3>
 <ul>
-<li>面包板上<strong>再增加一个 LED</strong> 用于测试；串口助手<strong>发送模式和接收模式都选文本模式</strong>；</li>
-<li><strong>文本数据包格式</strong>：<strong>以 <code>@</code> 符号为包头</strong>，中间是数据（<strong>规定好的指令</strong>），<strong>最后以换行符为包尾</strong>——「注意一定要打个换行，<strong>换行也是字符</strong>」（即 <code>\r\n</code>）；</li>
-<li>发送 <strong><code>@LED_ON</code></strong>：OLED 显示接收到了 <code>LED_ON</code>，STM32 <strong>回传字符串 <code>LED_ON_OK</code></strong>，<strong>LED 点亮</strong>；</li>
-<li>发送 <strong><code>@LED_OFF</code></strong>：回传 <code>LED_OFF_OK</code>，<strong>LED 熄灭</strong>；</li>
-<li><strong>随便给个指令</strong>：STM32 也能收到，但<strong>回传 <code>ERROR_COMMAND</code></strong>（错误指令）——「这就是一个简单的利用串口进行人机交互的设计」。</li>
+<li>面包板再加一个 LED；串口助手收发都选 <code>文本模式</code>。</li>
+<li>格式：<code>@</code> 符号作包头，中间是规定好的指令，最后以换行符作包尾——「注意一定要打个换行，换行也是字符」，即 <code>\r\n</code>。</li>
+<li>发 <code>@LED_ON</code>：OLED 显示收到了 <code>LED_ON</code>，STM32 回传 <code>LED_ON_OK</code>，LED 点亮。</li>
+<li>发 <code>@LED_OFF</code>：回传 <code>LED_OFF_OK</code>，LED 熄灭。</li>
+<li>随便给个指令：STM32 也能收到，但回传 <code>ERROR_COMMAND</code>——这就是简单的串口人机交互。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/03-text-packet-demo.jpg" alt="图 3：程序②现象——OLED 显示 TxPacket LED_ON_OK 与 RxPacket LED_ON；右侧串口助手接收区 LED_ON_OK、发送区 @LED_ON，收发均 文本模式；面包板上 LED 已点亮；字幕「可以看到OLED显示接收到了LED_ON」"></p>
-<p><em>图 3：程序②现象——OLED 显示 <code>TxPacket LED_ON_OK</code> 与 <code>RxPacket LED_ON</code>；右侧串口助手接收区 <code>LED_ON_OK</code>、发送区 <code>@LED_ON</code>，收发均 <code>文本模式</code>；面包板上 LED 已点亮；字幕「可以看到OLED显示接收到了LED_ON」</em></p>
+<p><img src="../assets/images/stm32-28/03-text-packet-demo.jpg" alt="图 3：程序②现象——OLED 显示 TxPacket LED_ON_OK 与 RxPacket LED_ON；串口助手接收 LED_ON_OK、发送 @LED_ON，收发均 文本模式"></p>
+<p><em>图 3：程序②现象——OLED 显示 <code>TxPacket LED_ON_OK</code> 与 <code>RxPacket LED_ON</code>；串口助手接收 <code>LED_ON_OK</code>、发送 <code>@LED_ON</code>，收发均 <code>文本模式</code></em></p>
 <h2 id="2-为什么需要数据包">2. 为什么需要数据包</h2>
 <ul>
-<li><strong>数据包的作用：把一个个单独的数据「打包」起来，方便进行多字节的数据通信</strong>；</li>
-<li>P27 已经会了「发送一个字节、接收一个字节」，但<strong>实际应用中往往需要把多个字节打包成一个整体发送</strong>；</li>
-<li>例如<strong>陀螺仪传感器</strong>用串口给 STM32 发数据：<strong>X 轴 1 个字节、Y 轴 1 个字节、Z 轴 1 个字节</strong>，3 个数据<strong>连续不断地发送</strong>；</li>
-<li><strong>问题</strong>：像 <code>XYZXYZXYZ</code> 这样连续发时，<strong>接收方不知道哪个数据对应 X、哪个是 Y、哪个是 Z</strong>——因为<strong>接收方可能从任意位置开始接收</strong>，会出现<strong>数据错位</strong>；</li>
-<li>所以需要一种<strong>分割方式</strong>，把属于同一批的数据（X、Y、Z）<strong>分割成一个数据包</strong>；这样接收时就知道「<strong>数据包的第 1 个是 X、第 2 个是 Y、第 3 个是 Z</strong>」；</li>
-<li><strong>数据包的任务就是把同一批数据打包、并在连续数据流中分割出来，方便接收方识别</strong>；分割打包的方法<strong>可以自己发挥想象力设计，只要逻辑行得通</strong>。</li>
+<li>作用：<strong>把一个个单独的数据打包</strong>，方便多字节数据通信。</li>
+<li>P27 只会单字节收发，而实际模块（陀螺仪等）往往一次发多个字节。</li>
+<li>例：陀螺仪给 STM32 发 X、Y、Z 各 1 个字节，3 个数据连续不断地发。</li>
+<li>问题：<code>XYZXYZXYZ</code> 这样连发，接收方可能从任意位置开始收——第一个收到的字节不一定是 X，于是分不清哪个是 X、哪个是 Y，这就是数据错位。</li>
+<li>所以要把同一批数据打包、并在连续数据流中分割出来，接收方就能按位置识别「第 1 个是 X、第 2 个是 Y」。</li>
+<li>分割打包的方法可以自己设计，只要逻辑行得通。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/04-hex-packet-format.jpg" alt="图 4：PPT「HEX数据包」——固定包长（0xFF 0x01 0x02 0x03 0x04 0xFE | 0xFF 0x05 0x06 0x07 0x08 0xFE …，标注「数据包1」「数据包2」）与可变包长（0xFF 0x01 0x02 0x03 0x04 0xFE | 0xFF 0x05 0x06 0x07 0xFE …）；字幕「这里前面两个PPT就是我规定的数据包格式」"></p>
-<p><em>图 4：PPT「HEX数据包」——固定包长（<code>0xFF 0x01 0x02 0x03 0x04 0xFE</code> | <code>0xFF 0x05 0x06 0x07 0x08 0xFE</code> …，标注「数据包1」「数据包2」）与可变包长（<code>0xFF 0x01 0x02 0x03 0x04 0xFE</code> | <code>0xFF 0x05 0x06 0x07 0xFE</code> …）；字幕「这里前面两个PPT就是我规定的数据包格式」</em></p>
-<p><img src="../assets/images/stm32-28/05-xyz-misalign.jpg" alt="图 5：同一页上的红笔标注——把固定包长数据包 1 的 0x01 0x02 0x03 标成 X Y Z，并画出两个数据包的分界；字幕「那有关分割打包的方法，可以自己发挥想象力来设计」"></p>
-<p><em>图 5：同一页上的红笔标注——把固定包长数据包 1 的 <code>0x01 0x02 0x03</code> 标成 <code>X Y Z</code>，并画出两个数据包的分界；字幕「那有关分割打包的方法，可以自己发挥想象力来设计」</em></p>
+<p><img src="../assets/images/stm32-28/04-hex-packet-format.jpg" alt="图 4：PPT「HEX数据包」——固定包长 0xFF 0x01 0x02 0x03 0x04 0xFE / 0xFF 0x05 0x06 0x07 0x08 0xFE；可变包长 0xFF 0x01 0x02 0x03 0x04 0xFE / 0xFF 0x05 0x06 0x07 0xFE"></p>
+<p><em>图 4：PPT「HEX数据包」——固定包长 <code>0xFF 0x01 0x02 0x03 0x04 0xFE</code> / <code>0xFF 0x05 0x06 0x07 0x08 0xFE</code>；可变包长 <code>0xFF 0x01 0x02 0x03 0x04 0xFE</code> / <code>0xFF 0x05 0x06 0x07 0xFE</code></em></p>
+<p><img src="../assets/images/stm32-28/05-xyz-misalign.jpg" alt="图 5：同页红笔标注——把数据包 1 的 0x01 0x02 0x03 标成 X Y Z，并画出两个数据包的分界"></p>
+<p><em>图 5：同页红笔标注——把数据包 1 的 <code>0x01 0x02 0x03</code> 标成 <code>X Y Z</code>，并画出两个数据包的分界</em></p>
 <h2 id="3-hex-数据包格式">3. HEX 数据包格式</h2>
 <ul>
-<li>本集规定的 HEX 数据包 = <strong>额外添加包头包尾</strong>：<strong>包头 <code>0xFF</code> + 载荷数据 + 包尾 <code>0xFE</code></strong>；</li>
-<li><strong>两种形式</strong>：<ol>
-<li><strong>固定包长、含包头包尾</strong>：<strong>每个数据包长度固定不变</strong>——例如「包头 <code>0xFF</code> + <strong>固定 4 字节数据</strong> + 包尾 <code>0xFE</code>」；</li>
-<li><strong>可变包长、含包头包尾</strong>：<strong>每个数据包长度可以不一样</strong>——包头之后是变长数据，最后是包尾；</li>
-</ol>
-</li>
-<li><strong>格式是用户自己规定的，也可以由模块厂家规定</strong>（买模块时对方给协议文档）；</li>
-<li><strong>接收逻辑</strong>：<strong>收到 <code>0xFF</code> 就知道「数据包来了」→ 接着收到的 4 个字节当作数据包的第 1～4 个数据、存进数组 → 收到 <code>0xFE</code> 就置一个「收到一包」的标志位</strong>告诉程序；之后新数据包来了重复这个过程——<strong>这样就能在连续不断的数据流中分割出想要的数据包</strong>。</li>
+<li>格式 = <strong>额外添加包头包尾</strong>：<code>0xFF</code> 包头 + 载荷 + <code>0xFE</code> 包尾。</li>
+<li>两种形式都必须有包头包尾，区别只在载荷长度是否固定。</li>
+<li>① <strong>固定包长</strong>：每个包长度不变，如「包头 <code>0xFF</code> + 固定 4 字节 + 包尾 <code>0xFE</code>」。</li>
+<li>② <strong>可变包长</strong>：每个包长度可不同，包头之后是变长数据，最后是包尾。</li>
+<li>格式由用户自己规定，也可由模块厂家规定（买模块时会给协议文档）。</li>
+<li>接收逻辑：收到 <code>0xFF</code> 就知道包来了 → 接着 4 个字节存进数组 → 收到 <code>0xFE</code> 就置「收到一包」标志。</li>
 </ul>
 <h3 id="3-1-另一种分包思路-本集不采用">3.1 另一种分包思路（本集不采用）</h3>
 <ul>
-<li>也可以<strong>把数据包第一个数据的最高位置 1</strong>（其余数据最高位置 0）当标志位：<strong>收到最高位为 1 的数据，就认为是一包开始</strong>，紧跟的两个数据就是 Y 和 Z；</li>
-<li>这种「用最高位当标志位」的方法<strong>实际也有应用</strong>（比如 <strong>UTF8 编码</strong>就是类似思路），但<strong>本节不采用</strong>——因为<strong>它破坏了原始数据，使用起来比较复杂</strong>；</li>
-<li><strong>本节用的是额外添加包头包尾的方式</strong>。</li>
+<li>把数据包第一个数据的最高位置 1（其余置 0）当标志位：收到最高位为 1 的数据就认为一包开始。</li>
+<li>收到最高位为 1 的数据，紧跟的两个数据就是 Y 和 Z。</li>
+<li>这种思路实际也有应用（UTF8 编码类似），但破坏原始数据、用起来复杂，本节不采用。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/06-msb-flag-method.jpg" alt="图 6：同一页的红笔标注（讲最高位法时）——把可变包长数据包 1 的 0x01 0x02 0x03 圈起来标 X Y Z，并在包头/包尾位置做标记；字幕「当我接收到数据之后，判断一下最高位」"></p>
-<p><em>图 6：同一页的红笔标注（讲最高位法时）——把可变包长数据包 1 的 <code>0x01 0x02 0x03</code> 圈起来标 <code>X Y Z</code>，并在包头/包尾位置做标记；字幕「当我接收到数据之后，判断一下最高位」</em></p>
+<p><img src="../assets/images/stm32-28/06-msb-flag-method.jpg" alt="图 6：最高位法讲稿页——圈出 0x01 0x02 0x03 标 X Y Z，并在包头包尾位置做标记"></p>
+<p><em>图 6：最高位法讲稿页——圈出 <code>0x01 0x02 0x03</code> 标 <code>X Y Z</code>，并在包头包尾位置做标记</em></p>
 <h2 id="4-三个关键问题与解法">4. 三个关键问题与解法</h2>
 <h3 id="4-1-问题1-载荷与包头包尾重复">4.1 问题① 载荷与包头包尾重复</h3>
 <ul>
-<li>定义 <code>FF</code> 为包头、<code>FE</code> 为包尾——<strong>如果我传输的数据本身就是 <code>FF</code> 或 <code>FE</code> 呢？</strong> 这个问题<strong>确实存在</strong>：<strong>载荷与包头包尾重复可能引起误判</strong>；</li>
-<li><strong>解法① 限制载荷数据的范围</strong>：如果可以，发送时对数据<strong>限幅</strong>——比如 X/Y/Z 三个数据变化范围都是 <strong>0～100</strong>，那<strong>载荷里只发 0～100 的数据，就不会和包头包尾重复</strong>；</li>
-<li><strong>解法② 使用固定长度的数据包 + 对齐</strong>：如果无法避免重复，就<strong>尽量用固定长度数据包</strong>——<strong>因为载荷长度固定，只要通过包头包尾把数据对齐了，就能严格知道哪个位置应该是包头包尾、哪个位置应该是载荷</strong>；具体做法：<strong>接收载荷数据时不判断它是不是包头包尾，只有在接收包头包尾时才判断</strong>——<strong>经过几个数据包的对齐之后，剩下的数据包基本就不会出错了</strong>；</li>
-<li><strong>解法③ 增加包头包尾的数量</strong>：让包头包尾<strong>尽量呈现出载荷数据出现不了的状态</strong>——比如<strong>包头用 <code>FF</code>、<code>FE</code>，包尾用 <code>FD</code>、<code>FC</code></strong>，这样也能避免载荷与包头包尾重复。</li>
+<li>定义 <code>FF</code> 为包头、<code>FE</code> 为包尾，但载荷本身就可能是 <code>FF</code> 或 <code>FE</code>，会误判。</li>
+<li>解法① 限制载荷范围：X/Y/Z 只发 0～100，就不会与包头包尾重复。</li>
+<li>解法② 固定包长 + 对齐：收载荷时不判包头包尾，只在收包头包尾时判，几个包之后自然对齐。</li>
+<li>解法③ 增加包头包尾数量：包头用 <code>FF</code>、<code>FE</code>，包尾用 <code>FD</code>、<code>FC</code>，选载荷不会出现的组合。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/07-payload-conflict.jpg" alt="图 7：红圈圈出第二个数据包里的 0x02、0x03 两个字节（说明「如果这两个字节本身就是包头包尾的值会怎样」）；字幕「如果我传输的数据本身就是FF和FE怎么办呢」"></p>
-<p><em>图 7：红圈圈出第二个数据包里的 <code>0x02</code>、<code>0x03</code> 两个字节（说明「如果这两个字节本身就是包头包尾的值会怎样」）；字幕「如果我传输的数据本身就是FF和FE怎么办呢」</em></p>
-<p><img src="../assets/images/stm32-28/08-limit-range.jpg" alt="图 8：同一页上的红笔 X Y Z 0～100——解法①限幅：把 X/Y/Z 三个载荷的取值范围限制在 0～100，就不会和包头包尾重复；字幕「这样就不会和包头包尾重复了」"></p>
-<p><em>图 8：同一页上的红笔 <code>X Y Z 0～100</code>——解法①限幅：把 X/Y/Z 三个载荷的取值范围限制在 0～100，就不会和包头包尾重复；字幕「这样就不会和包头包尾重复了」</em></p>
+<p><img src="../assets/images/stm32-28/07-payload-conflict.jpg" alt="图 7：红圈圈出第二个包里的 0x02、0x03——如果载荷本身就是包头包尾的值怎么办"></p>
+<p><em>图 7：红圈圈出第二个包里的 <code>0x02</code>、<code>0x03</code>——如果载荷本身就是包头包尾的值怎么办</em></p>
+<p><img src="../assets/images/stm32-28/08-limit-range.jpg" alt="图 8：限幅解法——红笔 X Y Z 0～100，取值范围限死就不会与包头包尾重复"></p>
+<p><em>图 8：限幅解法——红笔 <code>X Y Z 0～100</code>，取值范围限死就不会与包头包尾重复</em></p>
 <h3 id="4-2-问题2-包头包尾不是都必须有">4.2 问题② 包头包尾不是都必须有</h3>
 <ul>
-<li><strong>可以只要一个包头、把包尾删掉</strong>：格式变成「<strong>一个包头 <code>FF</code> + 4 个数据</strong>」——检测到 <code>FF</code> 就开始接收，收够 4 个字节就置标志位、一个数据包接收完成；</li>
-<li><strong>但这样载荷和包头重复的问题会更严重</strong>：最严重的情况是<strong>载荷全是 <code>FF</code>、包头也是 <code>FF</code></strong>，那就<strong>不知道哪个是包头</strong>了；</li>
-<li>而<strong>加上 <code>FE</code> 作包尾之后，无论数据怎么变化，都能分辨出包头包尾</strong>——所以<strong>加包尾更可靠</strong>。</li>
+<li>只留包头也能工作：<code>FF</code> + 4 个数据，检测到 <code>FF</code> 开始收，收够 4 个就置标志。</li>
+<li>但载荷全是 <code>FF</code>、包头也是 <code>FF</code> 时就分不清哪个是包头。</li>
+<li>加上 <code>FE</code> 作包尾后，无论数据怎么变都能分辨出包头包尾，所以加包尾更可靠。</li>
 </ul>
 <h3 id="4-3-问题3-固定包长-vs-可变包长">4.3 问题③ 固定包长 vs 可变包长</h3>
 <ul>
-<li>对 HEX 数据包：<strong>如果载荷会出现和包头包尾重复的情况 → 最好选择固定包长</strong>（避免接收错误）；<strong>如果又会重复、又选可变包长，数据很容易乱套</strong>；</li>
-<li><strong>如果载荷不会和包头包尾重复 → 可以选择可变包长</strong>：数据长度 4 位、3 位、1 位、10 位来回任意变都没问题——<strong>因为包头包尾是唯一的，出现包头就开始、出现包尾就结束，非常灵活</strong>。</li>
+<li>载荷可能出现重复 → 必须选<strong>固定包长</strong>，否则数据很容易乱套。</li>
+<li>载荷不会重复 → <strong>可变包长</strong>随意：4 位、3 位、1 位、10 位来回变都行，包头包尾唯一，非常灵活。</li>
+<li>可变包长的结束只能靠包尾，所以包尾的判断必须可靠。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/09-fixed-vs-variable.jpg" alt="图 9：同一页上的红笔：圈出「固定包长」标题与数据包 1 的载荷 0x01～0x04，并划出「可变包长」标题；字幕「数据长度，像这样，4位、3位、等等，1位、10位」"></p>
-<p><em>图 9：同一页上的红笔：圈出「固定包长」标题与数据包 1 的载荷 <code>0x01～0x04</code>，并划出「可变包长」标题；字幕「数据长度，像这样，4位、3位、等等，1位、10位」</em></p>
+<p><img src="../assets/images/stm32-28/09-fixed-vs-variable.jpg" alt="图 9：圈出「固定包长」与数据包 1 的载荷 0x01～0x04，并划出「可变包长」标题"></p>
+<p><em>图 9：圈出「固定包长」与数据包 1 的载荷 <code>0x01～0x04</code>，并划出「可变包长」标题</em></p>
 <h3 id="4-4-各种数据类型怎么变成字节流">4.4 各种数据类型怎么变成字节流</h3>
 <ul>
-<li>数据包都是<strong>一个字节一个字节</strong>组成的；如果想发送 <strong>16 位整型、32 位整型、float、double 甚至结构体，其实都没问题</strong>——因为<strong>它们内部本来就是一个字节一个字节组成的</strong>；</li>
-<li>做法：<strong>用一个 <code>uint8_t</code> 指针指向它，把它当作字节数组发送</strong>即可（指针教程里讲过）。</li>
+<li>数据包都是一个字节一个字节组成的，16 位整型、32 位整型、float、double、结构体都能发。</li>
+<li>做法：用 <code>uint8_t</code> 指针指向它，把它当字节数组发送。</li>
 </ul>
 <h2 id="5-文本数据包格式">5. 文本数据包格式</h2>
 <ul>
-<li><strong>文本数据包和 HEX 数据包分别对应「文本模式」和「HEX 模式」</strong>：HEX 包里数据是<strong>原始字节数据本身</strong>；文本包里<strong>每个字节经过一层编码/译码</strong>，最终表现出来是<strong>文本格式</strong>——但<strong>每个文本字符背后其实还是一个字节的 HEX 数据</strong>；</li>
-<li>同样有<strong>固定包长</strong>和<strong>可变包长</strong>两种；</li>
-<li><strong>本集规定</strong>：<strong>以 <code>@</code> 字符作为包头</strong>，<strong>以 <code>\r\n</code>（回车、换行两个字符）作为包尾</strong>，中间是载荷（指令/数据字符串）；<strong>载荷里可以出现除包头包尾以外的任意字符</strong>；</li>
-<li><strong>由于数据被译码成字符形式，有大量字符可以作为包头包尾</strong>——<strong>可以有效避免载荷与包头包尾重复</strong>，<strong>文本数据包基本不用担心重复问题，使用非常灵活</strong>（可变包长、各种字母符号数字随意用）；</li>
-<li><strong>接收到的载荷就是一个字符串</strong>，在软件里<strong>直接对字符串操作和判断</strong>，就能实现各种指令控制功能；</li>
-<li><strong>文本包的好处：表达意义明显</strong>——可以把字符串数据包<strong>直接打印到串口助手</strong>，「什么指令、什么数据一眼就能看明白」；<strong>通常以换行作包尾</strong>，这样打印时可以<strong>一行一行显示</strong>，非常方便。</li>
+<li>文本包与 HEX 包对应两种数据模式：HEX 包是原始字节，文本包每个字节经过编码/译码。</li>
+<li>每个文本字符背后其实还是一个字节的 HEX 数据；同样有固定包长与可变包长。</li>
+<li>本集规定：<code>@</code> 作包头，<code>\r\n</code>（回车、换行两个字符）作包尾，中间是载荷（指令/数据字符串）。</li>
+<li>载荷可含除包头包尾外的任意字符；可选字符多，基本不用担心重复，使用非常灵活。</li>
+<li>收到的载荷就是一个字符串，直接做字符串操作与判断，就能实现各种指令控制。</li>
+<li>好处是表达意义明显：打印到串口助手一眼看明白；以换行作包尾还能一行一行显示。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/10-text-packet-format.jpg" alt="图 10：PPT「文本数据包」——固定包长（@ A B C \r \n | @ D E F \r \n …，标注数据包1/2）与可变包长（同样的样式）；字幕「接下来看一下文本数据包」"></p>
-<p><em>图 10：PPT「文本数据包」——固定包长（<code>@ A B C \r \n</code> | <code>@ D E F \r \n</code> …，标注数据包1/2）与可变包长（同样的样式）；字幕「接下来看一下文本数据包」</em></p>
+<p><img src="../assets/images/stm32-28/10-text-packet-format.jpg" alt="图 10：PPT「文本数据包」——固定包长 @ A B C \r \n / @ D E F \r \n；可变包长同样样式"></p>
+<p><em>图 10：PPT「文本数据包」——固定包长 <code>@ A B C \r \n</code> / <code>@ D E F \r \n</code>；可变包长同样样式</em></p>
 <h2 id="6-hex-包-vs-文本包-优缺点对比">6. HEX 包 vs 文本包：优缺点对比</h2>
+<ul>
+<li><strong>HEX 包适合模块吐原始数据，文本包适合人发指令</strong>：前者省字节、解析快，后者可读、灵活。</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -301,92 +301,88 @@
 </thead>
 <tbody><tr>
 <td><strong>HEX 数据包</strong></td>
-<td><strong>传输最直接、解析数据非常简单</strong></td>
-<td><strong>灵活性不足；载荷容易与包头包尾重复</strong></td>
-<td><strong>模块发送原始数据</strong>——如串口陀螺仪、温湿度传感器</td>
+<td>传输最直接、解析简单</td>
+<td>灵活性不足；载荷容易与包头包尾重复</td>
+<td>模块发送原始数据——串口陀螺仪、温湿度传感器</td>
 </tr>
 <tr>
 <td><strong>文本数据包</strong></td>
-<td><strong>数据直观易理解、非常灵活</strong></td>
-<td><strong>解析效率低</strong>（要字符↔数据转换）</td>
-<td><strong>输入指令做人机交互</strong>——如蓝牙模块的 <strong>AT 指令</strong>、CNC/3D 打印机的 <strong>G 代码</strong></td>
+<td>数据直观易理解、非常灵活</td>
+<td>解析效率低（要字符↔数据转换）</td>
+<td>输入指令做人机交互——蓝牙模块 AT 指令、G 代码</td>
 </tr>
 </tbody></table>
 <ul>
-<li><strong>解析效率低的例子</strong>：<strong>发送一个数 <code>100</code></strong>——<strong>HEX 数据包就是「一个字节 100」</strong>，完事；<strong>文本数据包得是 3 个字节的字符 <code>&#39;1&#39; &#39;0&#39; &#39;0&#39;</code></strong>，收到之后<strong>还要把字符转换成数据</strong>才能得到 100；</li>
-<li><strong>结论</strong>：<strong>根据实际场景来选择和设计数据包格式</strong>。</li>
+<li>解析效率低的例子：发送数 <code>100</code>——HEX 包就一个字节 100 完事；文本包得 3 个字节的字符 <code>&#39;1&#39; &#39;0&#39; &#39;0&#39;</code>，收到后还要转回数据。</li>
+<li>结论：按实际场景选择、设计数据包格式。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/11-hex-vs-text.jpg" alt="图 11：文本数据包页上的红笔「100」——用来对比 HEX 与文本的解析效率（HEX 一个字节、文本 3 个字符）；字幕「HEX数据包就是一个字节100，完事」"></p>
-<p><em>图 11：文本数据包页上的红笔「100」——用来对比 HEX 与文本的解析效率（HEX 一个字节、文本 3 个字符）；字幕「HEX数据包就是一个字节100，完事」</em></p>
+<p><img src="../assets/images/stm32-28/11-hex-vs-text.jpg" alt="图 11：文本包页上的红笔「100」——对比 HEX 一个字节与文本 3 个字符的解析效率"></p>
+<p><em>图 11：文本包页上的红笔「100」——对比 HEX 一个字节与文本 3 个字符的解析效率</em></p>
 <h2 id="7-发送流程-简单-自主可控">7. 发送流程：简单、自主可控</h2>
 <ul>
-<li><strong>HEX 数据包</strong>：<strong>定义一个数组、填好包头/数据/包尾，然后用 P27 写的 <code>Serial_SendArray</code> 发出去</strong>就完事了；</li>
-<li><strong>文本数据包</strong>：<strong>写一个字符串，调用 <code>Serial_SendString</code> 发送</strong>就完事了；</li>
-<li><strong>发送过程完全自主可控，想发啥就发啥</strong>——「写代码的时候也能感受到，<strong>串口发送比接收简单多了</strong>」。</li>
+<li>HEX 包：定义数组、填好包头/数据/包尾，用 P27 的 <code>Serial_SendArray</code> 发出去就完事。</li>
+<li>文本包：写一个字符串，调 <code>Serial_SendString</code> 发出去就完事。</li>
+<li><strong>发送完全自主可控</strong>，想发啥就发啥——串口发送比接收简单多了。</li>
 </ul>
 <h2 id="8-接收流程-状态机">8. 接收流程：状态机</h2>
 <h3 id="8-1-为什么接收要用状态机">8.1 为什么接收要用状态机</h3>
 <ul>
-<li>根据 P27 的代码我们知道：<strong>每收到一个字节，程序都会进一遍中断、在中断函数里拿到这一个字节，然后就得退出中断</strong>——<strong>每拿到一个数据都是一个独立的过程</strong>；</li>
-<li>而<strong>数据包有很强的前后关联性</strong>：<strong>包头之后是数据、数据之后是包尾</strong>——三种位置需要<strong>不同的处理逻辑</strong>；</li>
-<li>所以程序里需要一种<strong>能记住不同状态、在不同状态执行不同操作、还要能合理转移状态</strong>的机制——<strong>这种程序设计思维就叫「状态机」</strong>；</li>
-<li><strong>设计状态机时画一张状态转移图是必要的</strong>（本集 PPT 就画了图）。</li>
+<li>每收到一个字节进一次中断，拿到这个字节就退出——每个数据都是独立过程。</li>
+<li>而数据包有前后关联：包头之后是数据、数据之后是包尾，三种位置要不同处理逻辑。</li>
+<li>所以需要一种能记住状态、按状态执行、还能合理转移的机制——这就是<strong>状态机</strong>。</li>
+<li>设计时画一张状态转移图是必要的。</li>
 </ul>
 <h3 id="8-2-固定包长-hex-数据包的状态机-3-个状态">8.2 固定包长 HEX 数据包的状态机（3 个状态）</h3>
 <ul>
-<li><strong>定义 3 个状态</strong>：<strong>① 等待包头 ② 接收数据 ③ 等待包尾</strong>；<strong>每个状态用一个变量标记</strong>——PPT 里用变量 <strong><code>S</code></strong>，三个状态依次是 <strong><code>S=0</code>、<code>S=1</code>、<code>S=2</code></strong>（「这一点类似于置标志位，只不过标志位只有 0 和 1，而状态机是多标志位状态的一种方式」）；</li>
-<li><strong>流程</strong>：<ul>
-<li><strong>最开始 <code>S=0</code></strong>：收到数据进中断，按 <code>S=0</code> 进入「等待包头」逻辑，<strong>判断数据是不是包头 <code>FF</code></strong>——<strong>是 <code>FF</code> 就置 <code>S=1</code></strong>，退出中断；<strong>不是就保持 <code>S=0</code></strong>（数据包没对齐，继续等包头）；</li>
-<li><strong><code>S=1</code> 接收数据</strong>：再收到数据就<strong>直接存进数组</strong>，<strong>另外用变量记录收了多少个</strong>；<strong>没收够 4 个就一直是接收状态</strong>，<strong>收够了就置 <code>S=2</code></strong>；</li>
-<li><strong><code>S=2</code> 等待包尾</strong>：<strong>判断数据是不是 <code>FE</code></strong>——是就<strong>置 <code>S=0</code> 回到最初状态、开始下一个轮回</strong>；<strong>不是就继续等待包尾</strong>（因为数据与包头重复时包头位置可能判断错，加了包尾判断<strong>更能预防数据与包头重复造成的错误</strong>）。</li>
+<li>定义 3 个状态：① <strong>等待包头</strong> ② <strong>接收数据</strong> ③ <strong>等待包尾</strong>，用变量 <code>S</code> 标记，依次 <code>S=0</code>、<code>S=1</code>、<code>S=2</code>。</li>
+<li>类似置标志位，只是标志位只有 0 和 1，状态机是多状态。</li>
+<li><code>S=0</code>：判断是不是包头 <code>FF</code>——是就置 <code>S=1</code>，不是就自环继续等。</li>
+<li><code>S=1</code>：数据直接存数组，另用变量记收到几个；收够 4 个就置 <code>S=2</code>。</li>
+<li><code>S=2</code>：判断是不是 <code>FE</code>——是就置 <code>S=0</code> 开始下一轮回，不是就继续等包尾。</li>
+<li>加包尾判断是为了防「载荷与包头重复」造成的误判：数据与 <code>FF</code> 相同时包头位置可能判断错。</li>
 </ul>
-</li>
-</ul>
-<p><img src="../assets/images/stm32-28/12-hex-state-machine.jpg" alt="图 12：PPT「HEX数据包接收」——上方数据包流（0xFF 0x01 0x02 0x03 0x04 0xFE | 0xFF 0x05 0x06 0x07 0x08 0xFE …），下方状态转移图：`S=0 等待包头`（收到其他数据自环）→ 收到 `0xFF` → `S=1 接收数据`（未收够 4 个数据自环）→ 收够 4 个数据 → `S=2 等待包尾`（收到其他数据自环）→ 收到 `0xFE` → 回到 S=0；字幕「画一个这样的状态转移图是必要的」"></p>
-<p>*图 12：PPT「HEX数据包接收」——上方数据包流（<code>0xFF 0x01 0x02 0x03 0x04 0xFE</code> | <code>0xFF 0x05 0x06 0x07 0x08 0xFE</code> …），下方状态转移图：<strong><code>S=0 等待包头</code></strong>（收到其他数据自环）→ <strong>收到 <code>0xFF</code></strong> → <strong><code>S=1 接收数据</code></strong>（未收够 4 个数据自环）→ <strong>收够 4 个数据</strong> → <strong><code>S=2 等待包尾</code></strong>（收到其他数据自环）→ <strong>收到 <code>0xFE</code></strong> → 回到 <code>S=0</code>；字幕「画一个这样的状态转移图是必要的」*</p>
-<p><img src="../assets/images/stm32-28/13-state-s1.jpg" alt="图 13：同一状态机图上的红笔——红色箭头指向 S=1 接收数据 并圈出该状态；字幕「这时再收到数据，我们就直接把它存在数组中」"></p>
-<p><em>图 13：同一状态机图上的红笔——红色箭头指向 <code>S=1 接收数据</code> 并圈出该状态；字幕「这时再收到数据，我们就直接把它存在数组中」</em></p>
+<p><img src="../assets/images/stm32-28/12-hex-state-machine.jpg" alt="图 12：PPT「HEX数据包接收」——状态图：S=0 等待包头 →收到 0xFF→ S=1 接收数据 →收够 4 个→ S=2 等待包尾 →收到 0xFE→ 回 S=0"></p>
+<p><em>图 12：PPT「HEX数据包接收」——状态图：<code>S=0 等待包头</code> →收到 <code>0xFF</code>→ <code>S=1 接收数据</code> →收够 4 个→ <code>S=2 等待包尾</code> →收到 <code>0xFE</code>→ 回 <code>S=0</code></em></p>
+<p><img src="../assets/images/stm32-28/13-state-s1.jpg" alt="图 13：状态机图上的红笔——箭头指向 S=1 接收数据 并圈出该状态"></p>
+<p><em>图 13：状态机图上的红笔——箭头指向 <code>S=1 接收数据</code> 并圈出该状态</em></p>
 <h3 id="8-3-可变包长文本数据包的状态机-3-个状态">8.3 可变包长文本数据包的状态机（3 个状态）</h3>
 <ul>
-<li>同样<strong>定义 3 个状态</strong>（PPT 变量 <strong><code>S</code></strong>）：<ul>
-<li><strong><code>S=0</code> 等待包头</strong>：<strong>判断收到的是不是规定的 <code>@</code> 符号</strong>，<strong>收到 <code>@</code> 就进入接收状态</strong>，否则保持等待（收到其他数据自环）；</li>
-<li><strong><code>S=1</code> 接收数据、兼等包尾</strong>：<strong>因为是可变包长，接收数据的同时要时刻监视是不是收到包尾</strong>——收到一个数据<strong>先判断是不是 <code>\r</code></strong>：<strong>不是就正常接收存起来</strong>；<strong>是 <code>\r</code> 就不接收，同时跳到下一个状态 S=2</strong>；</li>
-<li><strong><code>S=2</code> 等待包尾</strong>：这里<strong>判断是不是 <code>\n</code></strong>，收到 <code>\n</code> 就<strong>回到 <code>S=0</code></strong>，一包结束（收到其他数据自环）。</li>
+<li><code>S=0</code> <strong>等待包头</strong>：判断是不是 <code>@</code>，是就进入接收状态，否则自环。</li>
+<li><code>S=1</code> 接收数据、兼等包尾：可变包长下收数据的同时要时刻监视包尾，先判断是不是 <code>\r</code>——不是就正常存起来，是就不接收、跳到 <code>S=2</code>。</li>
+<li><code>S=2</code> 等待包尾：判断是不是 <code>\n</code>，是就回到 <code>S=0</code>，一包结束。</li>
+<li>第 3 个状态是为包尾有两个字符 <code>\r</code>、<code>\n</code>：收到 <code>\r</code> 时包尾还没结束，必须再等 <code>\n</code>。</li>
+<li>推论：包尾只有一个字符时 2 个状态就够，但收数据与等包尾要在同一状态里做。</li>
+<li>文本包基本不会错位：包头包尾一般不会出现在数据中。</li>
+<li>状态机速记：<code>S=0 等 @</code> → <code>S=1 接收数据兼等包尾</code> → <code>S=2 等</code> <code>\n</code>（收到就回 <code>S=0</code>）。</li>
 </ul>
-</li>
-<li><strong>为什么要有第 3 个状态</strong>：因为<strong>这个数据包有两个包尾字符 <code>\r</code>、<code>\n</code></strong>——收到 <code>\r</code> 时包尾还没结束，必须再等 <code>\n</code>；</li>
-<li><strong>推论（作者口述，非画面原文）</strong>：<strong>如果包尾只有一个字符，那两个状态就够</strong>——但<strong>接收数据和等待包尾需要在一个状态里同时进行</strong>（这是可变包长的特点）；</li>
-<li><strong>文本包基本不会出现数据错位</strong>：<strong>串口的包头包尾一般不会出现在数据中</strong>，所以不用担心错位。</li>
-</ul>
-<p><img src="../assets/images/stm32-28/15-text-state-machine.jpg" alt="图 14：PPT「文本数据包接收」——上方数据包流（@ A B C \r \n | @ D E F \r \n …），下方状态转移图：`S=0 等待包头`（收到其他数据自环）→ 收到 `&#39;@&#39;` → `S=1 接收数据等待包尾`（收到其他数据自环）→ 收到 `&#39;\r&#39;` → `S=2 等待包尾`（收到其他数据自环）→ 收到 `&#39;\n&#39;` → 回到 S=0；字幕「第一个状态，等待包头，判断收到的是不是我们规定的@符号」"></p>
-<p>*图 14：PPT「文本数据包接收」——上方数据包流（<code>@ A B C \r \n</code> | <code>@ D E F \r \n</code> …），下方状态转移图：<strong><code>S=0 等待包头</code></strong>（收到其他数据自环）→ <strong>收到 <code>&#39;@&#39;</code></strong> → <strong><code>S=1 接收数据等待包尾</code></strong>（收到其他数据自环）→ <strong>收到 <code>&#39;\r&#39;</code></strong> → <strong><code>S=2 等待包尾</code></strong>（收到其他数据自环）→ <strong>收到 <code>&#39;\n&#39;</code></strong> → 回到 <code>S=0</code>；字幕「第一个状态，等待包头，判断收到的是不是我们规定的@符号」*</p>
+<p><img src="../assets/images/stm32-28/15-text-state-machine.jpg" alt="图 14：PPT「文本数据包接收」——S=0 等待包头 →收到 &#39;@&#39;→ S=1 接收数据等待包尾 →收到 &#39;\r&#39;→ S=2 等待包尾 →收到 &#39;\n&#39;→ 回 S=0"></p>
+<p><em>图 14：PPT「文本数据包接收」——<code>S=0 等待包头</code> →收到 <code>&#39;@&#39;</code>→ <code>S=1 接收数据等待包尾</code> →收到 <code>&#39;\r&#39;</code>→ <code>S=2 等待包尾</code> →收到 <code>&#39;\n&#39;</code>→ 回 <code>S=0</code></em></p>
 <h2 id="9-状态机编程的通用方法">9. 状态机编程的通用方法</h2>
-<ul>
-<li><strong>状态机是一种非常广泛的编程思路</strong>，很多地方都能用到；<strong>使用的基本步骤</strong>：<ol>
-<li><strong>先根据项目要求定义状态</strong>——「画几个圈」；</li>
-<li><strong>然后考虑好各个状态在什么情况下会转移、如何转移</strong>——「画好线和转移条件」；</li>
-<li><strong>最后根据这个图来进行编程</strong>——「这样思维就会非常清晰了」；</li>
+<ol>
+<li>按项目要求定义状态——画几个圈。</li>
+<li>想清各状态在什么条件下转移、怎么转移——画线写条件。</li>
+<li>按这张图编程——思路会非常清晰。</li>
 </ol>
-</li>
-<li><strong>应用例子</strong>：做<strong>菜单</strong>（按什么键、切换什么菜单、执行什么程序）；<strong>芯片内部逻辑</strong>（什么情况下进入待机、什么情况下进入工作状态）；</li>
-<li><strong>建议</strong>：研究一下状态机，对编程肯定有帮助。</li>
+<ul>
+<li>应用例子：做菜单（按什么键、切换什么菜单、执行什么程序）、芯片内部逻辑（何时进待机、何时进工作状态）。</li>
+<li>状态机是应用很广的编程思路，值得研究。</li>
 </ul>
-<p><img src="../assets/images/stm32-28/14-sm-general.jpg" alt="图 15：状态机图上的红笔——S=0 等待包头 被红笔圈出；字幕「先根据项目要求定义状态，画几个圈」"></p>
-<p><em>图 15：状态机图上的红笔——<code>S=0 等待包头</code> 被红笔圈出；字幕「先根据项目要求定义状态，画几个圈」</em></p>
+<p><img src="../assets/images/stm32-28/14-sm-general.jpg" alt="图 15：状态机图上的红笔——S=0 等待包头 被圈出，讲通用方法时用"></p>
+<p><em>图 15：状态机图上的红笔——<code>S=0 等待包头</code> 被圈出，讲通用方法时用</em></p>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>载荷可能等于包头/包尾</strong>：数据本身是 <code>FF</code>/<code>FE</code> 会误判——用<strong>限幅</strong>（如 0～100）、<strong>固定包长对齐</strong>、<strong>增加包头包尾数量</strong>（FF/FE + FD/FC）解决。</li>
-<li><strong>可变包长必须真的「不会重复」才用</strong>：会重复又用可变包长，<strong>数据很容易乱套</strong>。</li>
-<li><strong>包头包尾不是必须成对</strong>：只留包头也能工作，但<strong>载荷全 FF 时分不清包头</strong>，<strong>加包尾更可靠</strong>。</li>
-<li><strong>固定包长接收时不要判断载荷里的包头包尾</strong>：只在收包头/包尾时判断，载荷区一律当数据存——这样才能对齐。</li>
-<li><strong>状态机变量 <code>S</code> 是 PPT 里的示意变量</strong>：本集没有给实际代码变量名，P29 代码里怎么命名以代码为准。</li>
-<li><strong><code>\r\n</code> 是两个字符</strong>：包尾有两个字符，所以<strong>文本包需要 3 个状态</strong>；单个包尾字符时 2 个状态就够（作者推论）。</li>
-<li><strong>文本包发送时「一定要打换行」</strong>：换行本身也是字符，少了包尾接收方永远收不完一包。</li>
-<li><strong>文本包 S=1 状态下收到 <code>\r</code> 时不要把它存进载荷</strong>：它是包尾的一部分。</li>
-<li><strong>HEX 包收数据要另外记个数</strong>：状态机只记得「在收数据」，<strong>还要一个计数值判断是否收够 4 个</strong>。</li>
-<li><strong>数据包格式没有校验和/CRC/长度字段</strong>：本集的协议只靠包头包尾和固定长度界定，<strong>别把它当成通用工业协议</strong>。</li>
-<li><strong>发送简单、接收复杂</strong>：发送是主动可控的（填数组/写字符串即可），接收必须用状态机处理前后关联。</li>
-<li><strong>数据类型转字节流</strong>：16/32 位整型、float/double、结构体都能用 <code>uint8_t*</code> 指针按字节数组发送。</li>
+<li><strong>载荷可能等于包头包尾</strong>：数据本身是 <code>FF</code>/<code>FE</code> 会误判，用限幅、固定包长对齐、加多字节包头包尾解决。</li>
+<li><strong>会重复就别用可变包长</strong>：载荷会撞包头包尾又选可变包长，数据很容易乱套。</li>
+<li><strong>包头包尾不必成对</strong>：只留包头也能工作，但载荷全 <code>FF</code> 时分不清，加包尾更可靠。</li>
+<li><strong>固定包长收载荷时不判包头包尾</strong>：只在收包头/包尾时判，这样才对得齐。</li>
+<li><strong><code>S</code> 是 PPT 里的示意变量</strong>：本集没给代码变量名，P29 的命名以代码为准。</li>
+<li><strong><code>\r\n</code> 是两个字符</strong>：所以文本包要 3 个状态；单字符包尾 2 个状态够。</li>
+<li><strong>文本包一定要打换行</strong>：换行也是字符，少了包尾接收方永远收不完一包。</li>
+<li><strong>S=1 收到 <code>\r</code> 不要存进载荷</strong>：它是包尾的一部分。</li>
+<li><strong>HEX 包收数据要另记个数</strong>：状态机只知道在收数据，还要计数值判满 4 个。</li>
+<li><strong>本集协议没有校验和/CRC/长度字段</strong>：只靠包头包尾与固定长度界定。</li>
+<li><strong>发送简单、接收复杂</strong>：发送是主动可控的，接收必须用状态机处理前后关联。</li>
+<li><strong>数据类型转字节流</strong>：16/32 位整型、float/double、结构体都能用 <code>uint8_t*</code> 指针按字节发。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -398,7 +394,7 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E6%95%B0%E6%8D%AE%E5%8C%85%E6%A0%BC%E5%BC%8F%E4%B8%8E%E6%94%B6%E5%8F%91%E6%80%9D%E8%B7%AF-%E4%BB%A3%E7%A0%81%E5%9C%A8-p29">0. 本集定位：理论课（数据包格式与收发思路），代码在 P29</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-%E7%89%87%E5%A4%B4%E4%B8%A4%E4%B8%AA%E6%88%90%E5%93%81%E5%B7%A5%E7%A8%8B">1. 片头两个成品工程</a>
         <a class="level-3" href="#1-1-%E7%A8%8B%E5%BA%8F1-%E4%B8%B2%E5%8F%A3%E6%94%B6%E5%8F%91-hex-%E6%95%B0%E6%8D%AE%E5%8C%85">1.1 程序①：串口收发 HEX 数据包</a>
         <a class="level-3" href="#1-2-%E7%A8%8B%E5%BA%8F2-%E4%B8%B2%E5%8F%A3%E6%94%B6%E5%8F%91%E6%96%87%E6%9C%AC%E6%95%B0%E6%8D%AE%E5%8C%85">1.2 程序②：串口收发文本数据包</a>

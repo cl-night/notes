@@ -177,93 +177,88 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>33 分钟</span>
+      <span>19 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">串口</span><span class="tag">USART</span><span class="tag">外设</span>
     </div>
     <article class="prose"><h1>[9-2] USART串口外设 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 9 的理论课（下半部分）</strong>——专门讲 <strong>STM32 内部的 USART 外设</strong>（上一集 P25 讲的是「串口协议」）。00:00 起就是 PPT：USART 简介 → <strong>USART 框图（图248）</strong> → 引脚定义表 → <strong>USART 基本结构（简化图）</strong> → 数据帧（图249 字长 / 图250 停止位）→ 起始位侦测（图252）/ 数据采样（图253）→ <strong>波特率发生器与 BRR</strong>；约 32:15 之后转 PDF 看 <strong>CH340G 模块原理图</strong> 与<strong>参考手册第 25 章</strong>。<strong>本集没有写一行代码、没有库函数/结构体</strong>（只在口述里说「用库函数配置就是给结构体赋值」「库函数会自动帮我们算波特率」）；片尾 39:46「有关 USART 的理论部分就结束了，<strong>我们下一小节来写串口的代码</strong>」——<strong>代码在 P27</strong>。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>USART（<strong>Universal Synchronous/Asynchronous Receiver/Transmitter，通用同步/异步收发器</strong>）是 <strong>STM32 内部集成的硬件外设</strong>，作用就是**「串口协议的硬件支持电路」<strong>：<strong>发送部分</strong>把数据寄存器里的</strong>一个字节自动转换成协议规定的波形、从 TX 引脚发出去**；<strong>接收部分</strong>自动接收 RX 引脚的波形、<strong>按协议解码成一个字节、存回数据寄存器</strong>——所以配好之后<strong>直接读写数据寄存器就能自动收发</strong>，非常方便（UART 比 USART 少个 S，就是<strong>异步</strong>版本；STM32 的同步模式<strong>只多了一个时钟输出、且只输出不输入</strong>，不能两个 USART 做同步通信，所以<strong>实际只用异步</strong>）。要看懂它就得抓住<strong>图248 框图</strong>的几条主线：<strong>① 收发数据寄存器</strong>——<strong>TDR（发送数据寄存器）和 RDR（接收数据寄存器）占用同一个地址</strong>，软件层面只见一个 <strong>DR</strong>（写 DR 进 TDR、读 DR 出 RDR，类似 51 的 SBUF）；<strong>② 双缓存与两个标志位</strong>——数据从 TDR 搬到<strong>发送移位寄存器</strong>时置 <strong>TXE</strong>（发送寄存器空，<strong>此时数据还没发完，但可以写下一个</strong>），移位寄存器在波特率时钟下<strong>右移</strong>（对应协议的低位先行）输出到 TX；接收端把 RX 波形<strong>右移入接收移位寄存器</strong>、凑满一个字节整体搬进 RDR 时置 <strong>RXNE</strong>（接收寄存器非空）——<strong>TDR/RDR 与移位寄存器构成双缓存，保证连续发送时帧间没有空闲</strong>；<strong>③ 其他增强功能</strong>——<strong>硬件流控 nRTS（输出，告诉对方我能不能收）/nCTS（输入，对方是否允许我发）</strong>、<strong>CK 时钟输出</strong>（同步模式，可兼容 SPI、可做自适应波特率）、<strong>唤醒单元</strong>（给串口分配地址实现一条总线多设备）、<strong>中断输出控制</strong>（把 TXE/RXNE 等标志位接到 NVIC）、<strong>波特率发生器</strong>。<strong>引脚是固定的复用</strong>：<strong>USART1：TX=PA9、RX=PA10；USART2：TX=PA2、RX=PA3；USART3：TX=PB10、RX=PB11</strong>（只有 USART1 可以重映射一次，设计电路要提前规划）。<strong>数据帧</strong>由「起始位 + 数据位 + 可选校验位 + 停止位」组成，<strong>字长（数据位长度）包含校验位</strong>：<strong>选 9 位字长（位0～位7 + 位8）就可以用位8 做奇偶校验，选 8 位字长就最好无校验</strong>——<strong>推荐「9 位字长 + 校验」或「8 位字长 + 无校验」，这样每帧有效载荷正好 1 字节</strong>；<strong>停止位</strong>可配 <strong>0.5/1/1.5/2 位</strong>（时长不同），一般用 <strong>1 位</strong>。<strong>接收侧的两个细节</strong>：<strong>起始位侦测</strong>——输入电路按 <strong>16 倍波特率</strong>采样，检测到下降沿后<strong>在第 3/5/7 次与第 8/9/10 次采样各看一组，每组「每 3 位至少 2 个 0」才算起始位</strong>（否则认为是噪声、回空闲重找；若只有一位不同会置 <strong>NE 噪声标志</strong>），确认后<strong>第 8/9/10 次正好落在起始位正中间</strong>、之后每位都在第 8/9/10 次采样；<strong>数据采样</strong>——每位 16 个采样时钟，取<strong>第 8/9/10 次三连采样、按 2:1 多数判决</strong>，三值不一致就置 <strong>NE</strong>。<strong>波特率</strong>由 <strong>BRR 寄存器的 DIV</strong> 决定：<strong>波特率 = fPCLK2/1 / (16 × DIV)</strong>（多除一个 16 是因为内部还有 16 倍波特率的采样时钟），<strong>DIV 分整数部分 DIV_Mantissa（位15:4）与小数部分 DIV_Fraction（位3:0）</strong>，例如 <strong>USART1 要 9600：DIV = 72M/9600/16 = 468.75</strong>（二进制 <code>111010100.11</code>）——<strong>但用库函数时直接写波特率，库函数会自动算，不用手写 BRR</strong>。最后还看了 <strong>CH340G USB 转串口模块的原理图</strong>（USB 四线 → CH340G → TXD/RXD；板上 5V 经稳压得 3.3V；<strong>跳线帽插 4-5 或 5-6 决定 CH340 的供电与 TTL 电平 5V/3.3V</strong>，STM32 用 3.3V 就插 4-5；<strong>跳线帽拔掉仍能通信是作者实测，建议还是插上</strong>）。<strong>代码在下一集 P27。</strong></p>
-<h2 id="0-本集定位-理论课-usart-外设原理-代码在-p27">0. 本集定位：理论课（USART 外设原理），代码在 P27</h2>
+<p>USART 是 STM32 内部的串口硬件：把数据寄存器的一个字节自动变成 TX 波形，也把 RX 波形自动解码回一个字节。核心是 TDR/RDR 共用一个地址、TXE/RXNE 两个标志位，引脚固定、波特率由 BRR 的 DIV 决定。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集是纯理论课</strong>：00:00 起全程 PPT，约 32:15 之后转 PDF 看 CH340G 模块原理图与参考手册第 25 章，<strong>全程没有打开 Keil、没有写代码/编译下载</strong>。</li>
-<li><strong>与上一集的分工</strong>：P25 讲的是<strong>串口协议</strong>（软硬件规则，与具体硬件无关）；<strong>本集讲 STM32 内部的 USART 外设</strong>（按协议产生/接收高低电平的硬件电路）。</li>
-<li><strong>本集没有任何库函数/结构体/代码</strong>：<code>USART_Init</code>、<code>USART_Cmd</code>、<code>USART_SendData</code> 等<strong>均未出现</strong>；只在口述里提「这些参数都可以通过配置寄存器完成，用库函数配置就是直接给结构体赋值」「需要多少波特率直接写，库函数会自动帮我们算」——<strong>具体写法在 P27</strong>。</li>
-<li>片尾（39:46）「有关 USART 的理论部分就结束了，我们下一小节来写串口的代码」。</li>
+<li>模块 9 的理论课（下半部分），专门讲 <strong>STM32 内部的 USART 外设</strong>；P25 讲的是「串口协议」。</li>
+<li>结构：00:00 起全程 PPT——USART 简介 → 框图（图248）→ 引脚定义表 → 基本结构（简化图）→ 数据帧（图249 字长 / 图250 停止位）→ 起始位侦测（图252）/ 数据采样（图253）→ 波特率与 BRR；约 32:15 之后转 PDF 看 CH340G 原理图与参考手册第 25 章。</li>
+<li>本集<strong>没有代码、没有库函数/结构体</strong>：<code>USART_Init</code>、<code>USART_Cmd</code>、<code>USART_SendData</code> 均未出现，只在口述里提「用库函数配置就是给结构体赋值」「库函数会自动帮我们算波特率」——<strong>具体写法在 P27</strong>。</li>
+<li>片尾 39:46「有关 USART 的理论部分就结束了，我们下一小节来写串口的代码」。</li>
 </ul>
 <h2 id="1-usart-是什么">1. USART 是什么</h2>
 <h3 id="1-1-名称与功能">1.1 名称与功能</h3>
 <ul>
-<li><strong>USART（Universal Synchronous/Asynchronous Receiver/Transmitter）通用同步/异步收发器</strong>；</li>
-<li>顺便区分：<strong>UART</strong> 少了 <strong>S（Synchronous）</strong>，就是<strong>异步</strong>收发器；<strong>我们串口很少用同步功能，所以 USART 和 UART 用起来没什么区别</strong>；</li>
-<li><strong>STM32 的 USART 同步模式只是多了一个时钟输出，而且只支持时钟输出、不支持时钟输入</strong>——所以<strong>不支持两个 USART 之间做同步通信</strong>，同步模式更多是为了<strong>兼容别的协议或特殊用途</strong>；<strong>学串口主要还是异步通信</strong>；</li>
-<li><strong>USART 是 STM32 内部集成的硬件外设</strong>：<strong>可根据数据寄存器的一个字节数据自动生成数据帧时序、从 TX 引脚发送出去；也可以自动接收 RX 引脚的数据帧时序、拼接为一个字节数据存放在数据寄存器里</strong>；</li>
-<li>换句话说，<strong>USART 就是串口通信的硬件支持电路</strong>：<strong>发送部分</strong>把数据寄存器的一个字节自动转换为协议规定的波形、从 TX 发出；<strong>接收部分</strong>自动接收 RX 引脚的波形、按协议解码为一个字节存进数据寄存器——<strong>配置好之后直接读写数据寄存器就能自动收发</strong>。</li>
+<li>USART（Universal Synchronous/Asynchronous Receiver/Transmitter）通用同步/异步收发器。</li>
+<li>UART 少了 S（Synchronous），就是异步收发器；串口很少用同步功能，所以 USART 和 UART 用起来没什么区别。</li>
+<li>STM32 的同步模式只多一个时钟输出、且只输出不输入，所以不支持两个 USART 之间做同步通信；同步模式更多是兼容别的协议，学串口主要还是异步。</li>
+<li>USART 是 STM32 内部集成的硬件外设：发送部分把数据寄存器的一个字节自动转成协议规定的波形、从 TX 发出；接收部分自动接收 RX 波形、按协议解码为一个字节存进数据寄存器——配置好后直接读写数据寄存器就能自动收发。</li>
+<li>换句话说，它<strong>就是串口通信的硬件支持电路</strong>。</li>
 </ul>
 <h3 id="1-2-特性与参数">1.2 特性与参数</h3>
 <ul>
-<li><strong>自带波特率发生器，最高达 4.5Mbit/s</strong>：波特率发生器<strong>其实就是分频器</strong>——比如 APB2 总线给 72MHz，波特率发生器分频得到想要的波特率时钟，最后在这个时钟下进行收发；</li>
-<li><strong>可配置数据位长度（8/9）</strong>：<strong>这个长度是包含奇偶校验位的</strong>——<strong>一般不需要校验就选 8 位、需要校验就选 9 位</strong>；</li>
-<li><strong>可配置停止位长度（0.5/1/1.5/2）</strong>：<strong>停止位长度决定了连续发送时帧的间隔</strong>；<strong>最常用 1 位停止位</strong>；</li>
-<li><strong>可选校验位（无校验/奇校验/偶校验）</strong>：<strong>最常用无校验</strong>；</li>
-<li><strong>以上所有参数都可以通过配置寄存器完成</strong>；<strong>用库函数配置更简单，直接给结构体赋值就行</strong>；</li>
-<li><strong>最常用的串口参数</strong>：<strong>波特率 9600 或 115200 + 数据位 8 位 + 停止位 1 位 + 无校验</strong>——「一般我们都选这种常用的参数，不用纠结的，选它就是了」。</li>
+<li>自带波特率发生器，最高达 4.5Mbit/s：它其实就是分频器——APB2 给 72MHz，分频得到想要的波特率时钟，再在这个时钟下收发。</li>
+<li>数据位长度可配 8/9：<strong>这个长度是包含奇偶校验位的</strong>，一般不需要校验选 8 位、需要校验选 9 位。</li>
+<li>停止位长度可配 0.5/1/1.5/2：决定连续发送时帧的间隔，最常用 1 位；校验位可选无/奇/偶，最常用无校验。</li>
+<li>以上参数都能通过配置寄存器完成；用库函数配置更简单，直接给结构体赋值。</li>
+<li>最常用的串口参数：波特率 9600 或 115200 + 数据位 8 位 + 停止位 1 位 + 无校验。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/01-usart-intro.jpg" alt="图 1：PPT「USART简介」——USART（Universal Synchronous/Asynchronous Receiver/Transmitter）通用同步/异步收发器；STM32 内部集成的硬件外设，可根据数据寄存器的一个字节数据自动生成数据帧时序从 TX 发送、也可自动接收 RX 数据帧拼接为字节存入数据寄存器；自带波特率发生器最高 4.5Mbit/s；数据位长度 8/9、停止位长度 0.5/1/1.5/2、校验无/奇/偶；支持同步模式、硬件流控制、DMA、智能卡、IrDA、LIN；STM32F103C8T6 USART 资源：USART1、USART2、USART3；字幕「直译就是通用同步/异步收发器」"></p>
-<p><em>图 1：PPT「USART简介」——USART（Universal Synchronous/Asynchronous Receiver/Transmitter）通用同步/异步收发器；STM32 内部集成的硬件外设，可根据数据寄存器的一个字节数据自动生成数据帧时序从 TX 发送、也可自动接收 RX 数据帧拼接为字节存入数据寄存器；自带波特率发生器最高 4.5Mbit/s；数据位长度 8/9、停止位长度 0.5/1/1.5/2、校验无/奇/偶；支持同步模式、硬件流控制、DMA、智能卡、IrDA、LIN；STM32F103C8T6 USART 资源：USART1、USART2、USART3；字幕「直译就是通用同步/异步收发器」</em></p>
-<p><img src="../assets/images/stm32-26/02-usart-params.jpg" alt="图 2：同一页「USART简介」，数据位长度（8/9）、停止位长度（0.5/1/1.5/2）、可选校验位（无/奇/偶）三行被高亮——这些都是可配置参数；字幕「那以上这些所有的参数，都是可以通过配置寄存器来完成的」"></p>
-<p><em>图 2：同一页「USART简介」，<strong>数据位长度（8/9）、停止位长度（0.5/1/1.5/2）、可选校验位（无/奇/偶）三行被高亮</strong>——这些都是可配置参数；字幕「那以上这些所有的参数，都是可以通过配置寄存器来完成的」</em></p>
+<p><img src="../assets/images/stm32-26/01-usart-intro.jpg" alt="图 1：PPT「USART简介」"></p>
+<p><em>图 1：PPT「USART简介」——USART 是 STM32 内部集成的硬件外设，可根据数据寄存器的一个字节自动生成数据帧时序从 TX 发送、也可自动接收 RX 数据帧拼成字节存入数据寄存器；支持同步模式、硬件流控制、DMA、智能卡、IrDA、LIN</em></p>
+<p><img src="../assets/images/stm32-26/02-usart-params.jpg" alt="图 2：同一页「USART简介」，数据位长度、停止位长度、可选校验位三行被高亮"></p>
+<p><em>图 2：同一页「USART简介」，数据位长度（8/9）、停止位长度（0.5/1/1.5/2）、可选校验位（无/奇/偶）三行被高亮——这些都是可配置参数</em></p>
 <h3 id="1-3-增强功能与资源">1.3 增强功能与资源</h3>
 <ul>
-<li><strong>硬件流控制</strong>：比如 A 设备的 TX 向 B 设备的 RX 一直发、发得太快，B 处理不过来——没有流控就只能<strong>丢弃新数据或覆盖原数据</strong>；有流控则在硬件上<strong>多出一根线</strong>：<strong>B 没准备好接收就置高电平、准备好了置低电平</strong>，A 收到反馈「只会在 B 准备好的时候才发」——<strong>防止因为 B 处理慢而丢失数据</strong>；<strong>STM32 也支持流控，但一般不用</strong>；</li>
-<li><strong>DMA</strong>：串口支持用 DMA 转运数据，<strong>如果有大量数据收发，可以用 DMA 减轻 CPU 负担</strong>（DMA 上一节学过）；</li>
-<li><strong>同步模式 / 智能卡 / IrDA / LIN</strong>：这些都是<strong>和串口非常像的其他协议</strong>，STM32 给 USART 加了一点小改动就能兼容；<strong>我们一般不用</strong>（智能卡跟饭卡、公交卡有关；IrDA 是红外通信、靠红外发光管闪烁通信，<strong>不是遥控器那种红外</strong>；LIN 是局域网通信协议）；</li>
-<li><strong>资源与时钟</strong>：<strong>C8T6 有 USART1、USART2、USART3 三个独立的 USART 外设</strong>；<strong>USART1 挂在 APB2 总线（PCLK2，72MHz）</strong>，<strong>USART2、USART3 挂在 APB1 总线（PCLK1，36MHz）</strong>——<strong>开时钟的时候注意一下</strong>（挂哪个总线对使用影响不大）。</li>
+<li>硬件流控制：A 的 TX 一直向 B 的 RX 发、发得太快，B 处理不过来就只能丢弃新数据或覆盖原数据；有流控则多出一根线，B 没准备好置高电平、准备好置低电平，A 只在 B 准备好时才发——STM32 支持，但一般不用。</li>
+<li>DMA：串口支持用 DMA 转运数据，大量数据收发时能减轻 CPU 负担。</li>
+<li>同步模式 / 智能卡 / IrDA / LIN：都是和串口非常像的其他协议，加一点小改动就能兼容，一般不用（智能卡跟饭卡、公交卡有关；IrDA 是红外通信、靠红外发光管闪烁，不是遥控器那种红外；LIN 是局域网通信协议）。</li>
+<li>资源与时钟：C8T6 有 USART1、USART2、USART3 三个独立外设；USART1 挂 APB2（PCLK2，72MHz），USART2、USART3 挂 APB1（PCLK1，36MHz），开时钟时注意。</li>
 </ul>
 <h2 id="2-usart-框图-图248">2. USART 框图（图248）</h2>
-<blockquote>
-<p>框图第一眼看上去很复杂（线路、框框很多），实际上<strong>主要是把各个寄存器和寄存器每一位控制的地方都画出来了</strong>，所以显得乱——<strong>看的时候可以先忽略寄存器，先看主体结构</strong>。</p>
-</blockquote>
+<ul>
+<li>框图第一眼看着很复杂，实际主要是把各个寄存器和寄存器每一位都画出来了；看的时候可以先忽略寄存器，先看主体结构。</li>
+</ul>
 <h3 id="2-1-引脚与数据寄存器">2.1 引脚与数据寄存器</h3>
 <ul>
-<li><strong>左上角是引脚部分</strong>：<strong>TX 和 RX 分别是发送和接收引脚</strong>；下面 <strong>SW_RX、IRDA_OUT/IRDA_IN 这些是智能卡和 IrDA 通信的引脚</strong>——我们不用这些协议，<strong>这些引脚和右边的 IrDA SIR 编解码模块都不用管</strong>；</li>
-<li><strong>右侧是数据寄存器</strong>：<strong>发送数据寄存器 TDR（Transmit DR）</strong> 和<strong>接收数据寄存器 RDR（Receive DR）</strong>——<strong>这两个寄存器占用同一个地址</strong>，就像 51 单片机串口的 <strong>SBUF</strong> 一样，<strong>程序上只表现为一个寄存器 DR（Data Register）</strong>；但硬件上分成两个：<strong>TDR 只写、RDR 只读</strong>——<strong>写操作时数据写入 TDR、读操作时数据从 RDR 读出</strong>。</li>
+<li>左上角是引脚：TX、RX 分别是发送和接收引脚；SW_RX、IRDA_OUT/IRDA_IN 是智能卡和 IrDA 用的，这些协议不用，引脚和右边的 IrDA SIR 编解码模块都不用管。</li>
+<li>右侧是数据寄存器：发送数据寄存器 TDR（Transmit DR）和接收数据寄存器 RDR（Receive DR）<strong>占用同一个地址</strong>，像 51 单片机的 SBUF，程序上只表现为一个寄存器 DR；硬件上 TDR 只写、RDR 只读。</li>
 </ul>
 <h3 id="2-2-发送流程与-txe">2.2 发送流程与 TXE</h3>
 <ul>
-<li>TDR 下面是<strong>发送移位寄存器</strong>：<strong>给 TDR 写入一个字节（例如 0x55，二进制 01010101）后，硬件检测到写入，会先检查当前移位寄存器是否正有数据在移位</strong>——<strong>如果没有，这个字节就立刻全部移动到发送移位寄存器、准备发送</strong>；</li>
-<li><strong>数据从 TDR 移到移位寄存器时会置一个标志位 TXE（TX Empty，发送寄存器空）</strong>——<strong>我们检查 TXE 置 1 了，就可以往 TDR 写入下一个数据</strong>；</li>
-<li><strong>注意：TXE 置 1 时数据其实还没发送出去</strong>——只要数据从 TDR 转移到移位寄存器，TXE 就会置 1，就可以写新数据了；</li>
-<li>移位寄存器在<strong>波特率发生器时钟的驱动下向右移位</strong>，<strong>一位一位把数据输出到 TX 引脚</strong>——<strong>右移正好和串口协议规定的「低位先行」一致</strong>；</li>
-<li><strong>双缓存（TDR + 移位寄存器）</strong>：数据移完后新数据自动从 TDR 转移过来；<strong>如果移位还没完成，TDR 的数据就等待、一旦移位完成立刻转移过来</strong>——这样<strong>连续发送时帧与帧之间不会有空闲</strong>，提高效率（「数据一旦从 TDR 转移到移位寄存器，不管有没有移位完成，我立刻把下一个数据放在 TDR 等着」）。</li>
+<li>TDR 下面是发送移位寄存器：给 TDR 写入一个字节（例如 0x55，二进制 01010101）后，硬件先检查移位寄存器当前是否正有数据在移位——没有就立刻整体移进移位寄存器、准备发送。</li>
+<li>数据从 TDR 移到移位寄存器时置 <strong>TXE</strong>（TX Empty，发送寄存器空）——检查到 TXE 置 1，就可以往 TDR 写下一个数据。</li>
+<li>注意：TXE 置 1 时数据其实还没发送出去，只要从 TDR 转移到移位寄存器就会置 1。</li>
+<li>移位寄存器在波特率时钟驱动下<strong>向右移位</strong>，一位一位输出到 TX 引脚——右移正好和协议规定的「低位先行」一致。</li>
+<li>双缓存（TDR + 移位寄存器）：移位没完成时新数据在 TDR 等待，一旦完成立刻转移过来，所以连续发送时帧与帧之间不会有空闲。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/03-block-diagram-zoom.jpg" alt="图 3：图248 USART 框图的放大（上半部分）——左侧 TX/RX 引脚与 IrDA SIR 编解码模块；上方「发送数据寄存器 TDR」「接收数据寄存器 RDR」与「发送移位寄存器」「接收移位寄存器」；右侧 CR3/CR2/CR1 的位域（DMAR/SCEN/NACK/HD/IRLP/IREN、LINE/STOP/CLKEN/CPOL/CPHA/LBCL、UE/M/WAKE/PCE/PS/PIE 等）、SCLK；左侧 nRTS/nCTS 硬件数据流控；下方发送器控制、唤醒单元、接收器控制、接收器时钟、USART 中断控制、SR 状态位、USART_BRR、/16、USARTDIV；字幕「但是实际上主要部分也没有很多」"></p>
-<p><em>图 3：图248 USART 框图的放大（上半部分）——左侧 TX/RX 引脚与 IrDA SIR 编解码模块；上方「发送数据寄存器 TDR」「接收数据寄存器 RDR」与「发送移位寄存器」「接收移位寄存器」；右侧 CR3/CR2/CR1 的位域（DMAR/SCEN/NACK/HD/IRLP/IREN、LINE/STOP/CLKEN/CPOL/CPHA/LBCL、UE/M/WAKE/PCE/PS/PIE 等）、SCLK；左侧 nRTS/nCTS 硬件数据流控；下方发送器控制、唤醒单元、接收器控制、接收器时钟、USART 中断控制、SR 状态位、USART_BRR、/16、USARTDIV；字幕「但是实际上主要部分也没有很多」</em></p>
-<p><img src="../assets/images/stm32-26/04-tdr-shift-txe.jpg" alt="图 4：图248 全图（讲双缓存时）——红圈圈住「发送数据寄存器 TDR」与下方的「发送移位寄存器」，以及两者之间的转移箭头；字幕「TDR的数据就会进行等待，一旦移位完成，就会立刻转移过来」"></p>
-<p><em>图 4：图248 全图（讲双缓存时）——红圈圈住「发送数据寄存器 TDR」与下方的「发送移位寄存器」，以及两者之间的转移箭头；字幕「TDR的数据就会进行等待，一旦移位完成，就会立刻转移过来」</em></p>
+<p><img src="../assets/images/stm32-26/03-block-diagram-zoom.jpg" alt="图 3：图248 框图的放大（上半部分）"></p>
+<p><em>图 3：图248 框图的放大——左侧 TX/RX 引脚与 IrDA SIR 编解码模块；上方 TDR/RDR 与发送/接收移位寄存器；右侧 CR3/CR2/CR1 的位域（DMAR/SCEN/NACK/HD/IRLP/IREN、LINE/STOP/CLKEN/CPOL/CPHA/LBCL、UE/M/WAKE/PCE/PS/PIE 等）</em></p>
+<p><img src="../assets/images/stm32-26/04-tdr-shift-txe.jpg" alt="图 4：图248 全图（讲双缓存时）"></p>
+<p><em>图 4：图248 全图（讲双缓存时）——红圈圈住「发送数据寄存器 TDR」与下方的「发送移位寄存器」，以及两者之间的转移箭头</em></p>
 <h3 id="2-3-接收流程与-rxne">2.3 接收流程与 RXNE</h3>
 <ul>
-<li><strong>数据从 RX 引脚通向接收移位寄存器</strong>，在接收器控制下<strong>一位一位地读取 RX 电平</strong>——<strong>先把电平放在最高位，然后向右移位</strong>，<strong>移位 8 次后就接收到一个字节</strong>；</li>
-<li>同样因为<strong>串口协议是低位先行</strong>，<strong>接收移位寄存器是从高位往低位方向移动</strong>；</li>
-<li>一个字节移位完成后，<strong>整个字节一次性转移到接收数据寄存器 RDR</strong>，<strong>转移的同时置标志位 RXNE（RX Not Empty，接收数据寄存器非空）</strong>——<strong>检测到 RXNE 置 1 就可以把数据读走</strong>；</li>
-<li>这里也是<strong>两个寄存器缓存</strong>：<strong>数据从移位寄存器转移到 RDR 后，就可以直接移位接收下一帧</strong>。</li>
+<li>数据从 RX 引脚通向接收移位寄存器，在接收器控制下一位一位地读 RX 电平——先把电平放在最高位、然后向右移位，移 8 次就接收一个字节；因为协议是低位先行，所以接收移位寄存器是从高位往低位方向移动。</li>
+<li>一个字节移位完成后，整个字节一次性转移到 RDR，<strong>转移的同时置 RXNE</strong>（RX Not Empty，接收数据寄存器非空）——检测到 RXNE 置 1 就可以把数据读走。</li>
+<li>这里也是两个寄存器缓存：数据转移到 RDR 后就可以直接移位接收下一帧。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/05-block-diagram-full.jpg" alt="图 5：图248 完整 USART 框图（PPT「USART框图」页）——可见 TX/RX、TDR/RDR、发送/接收移位寄存器、控制器、nRTS/nCTS、CK/SCLK、唤醒单元、中断控制、SR 状态位、USART_BRR（DIV_Mantissa/DIV_Fraction）、/16 与 USARTDIV，左下角标注 USARTDIV = DIV_Mantissa + DIV_Fraction/16；字幕「好，到这里，我们这个串口的主体结构就看完了」"></p>
-<p><em>图 5：图248 完整 USART 框图（PPT「USART框图」页）——可见 TX/RX、TDR/RDR、发送/接收移位寄存器、控制器、nRTS/nCTS、CK/SCLK、唤醒单元、中断控制、SR 状态位、USART_BRR（DIV_Mantissa/DIV_Fraction）、/16 与 USARTDIV，左下角标注 <code>USARTDIV = DIV_Mantissa + DIV_Fraction/16</code>；字幕「好，到这里，我们这个串口的主体结构就看完了」</em></p>
+<p><img src="../assets/images/stm32-26/05-block-diagram-full.jpg" alt="图 5：图248 完整 USART 框图（PPT「USART框图」页）"></p>
+<p><em>图 5：图248 完整 USART 框图——可见 TX/RX、TDR/RDR、发送/接收移位寄存器、控制器、nRTS/nCTS、CK/SCLK、唤醒单元、中断控制、SR 状态位、USART_BRR（DIV_Mantissa/DIV_Fraction）、/16 与 USARTDIV，左下角标注 <code>USARTDIV = DIV_Mantissa + DIV_Fraction/16</code></em></p>
 <h3 id="2-4-控制器-流控-ck-唤醒单元与中断">2.4 控制器、流控、CK、唤醒单元与中断</h3>
 <ul>
-<li><strong>发送器控制 / 接收器控制</strong>：分别控制<strong>发送移位寄存器 / 接收移位寄存器</strong>的工作；</li>
-<li><strong>硬件数据流控（nRTS/nCTS）</strong>：<strong>nRTS（Request To Send，请求发送）是输出脚</strong>——告诉别人「我当前能不能接收」；<strong>nCTS（Clear To Send，清除发送）是输入脚</strong>；<strong>前面加 n 表示低电平有效</strong>。用法：<strong>我的 RTS 输出「能否接收」的反馈，接到对方的 CTS</strong>——<strong>我能接收时 RTS 置低电平（请求对方发送）</strong>，对方 CTS 收到就一直发；<strong>我处理不过来时（比如 RDR 一直没读、又有新数据来）RTS 置高电平，对方 CTS 收到就暂停发送</strong>，直到 RDR 被读走、RTS 回低电平再继续。反过来<strong>我发送时，我的 CTS 要接对方的 RTS</strong>——所以 <strong>TX 和 CTS 是一对、RX 和 RTS 是一对，CTS 和 RTS 也要交叉连接</strong>（一般不用流控）；</li>
-<li><strong>CK 时钟输出</strong>：配合发送移位寄存器——<strong>每移位一次，同步时钟电平就跳变一个周期</strong>，告诉对方「我移出去一位数据了」；<strong>只支持输出不支持输入</strong>（所以两个 USART 不能同步通信）；用途：<strong>兼容别的协议</strong>（加了时钟就像 SPI）、<strong>自适应波特率</strong>（测量时钟周期反推波特率）；</li>
-<li><strong>唤醒单元</strong>：用来实现<strong>串口挂载多设备</strong>——给串口<strong>分配一个地址</strong>，收到指定地址就唤醒工作、收到别的地址就保持沉默（串口一般是点对点，这个功能一般不用）；</li>
-<li><strong>中断输出控制</strong>：把<strong>状态寄存器 SR 的各种标志位</strong>接到 NVIC——其中<strong>最重点的是 TXE（发送寄存器空）和 RXNE（接收寄存器非空）</strong>，<strong>这两个是判断发送状态和接收状态的必要标志位</strong>；中断输出控制就是配置中断<strong>是否能通向 NVIC</strong>；</li>
-<li><strong>波特率发生器</strong>（见第 6 章）：输入 <strong>fPCLKx（USART1 是 PCLK2=72MHz，其他是 PCLK1=36MHz）</strong>，<strong>除以 USARTDIV（含整数+4 位小数）后再除以 16</strong>，得到<strong>发送器时钟和接收器时钟</strong>；<strong>TE（TX Enable）为 1 时发送部分的波特率才有效，RE（RX Enable）为 1 时接收部分的波特率有效</strong>。</li>
+<li>发送器控制 / 接收器控制：分别控制发送移位寄存器、接收移位寄存器的工作。</li>
+<li>硬件数据流控：<strong>nRTS（Request To Send）是输出脚</strong>，告诉别人我当前能不能接收；<strong>nCTS（Clear To Send）是输入脚</strong>；前面加 n 表示低电平有效。我的 RTS 接对方 CTS——能接收时 RTS 置低（请求对方发送），处理不过来时置高、对方暂停发送；反过来我发送时我的 CTS 接对方 RTS，所以 <strong>TX 和 CTS 一对、RX 和 RTS 一对，CTS 和 RTS 也要交叉连接</strong>（一般不用流控）。</li>
+<li>CK 时钟输出：配合发送移位寄存器，每移位一次同步时钟跳变一个周期，告诉对方移出去一位；<strong>只支持输出不支持输入</strong>，用途是兼容别的协议（加了时钟就像 SPI）和自适应波特率。</li>
+<li>唤醒单元：给串口分配一个地址实现一条总线挂多设备，收到指定地址才唤醒工作（串口一般点对点，不用）。</li>
+<li>中断输出控制：把状态寄存器 SR 的各种标志位接到 NVIC，最重点的是 <strong>TXE 和 RXNE</strong>——判断发送状态和接收状态的必要标志位。</li>
+<li>波特率发生器（见第 7 章）：输入 fPCLKx（USART1 是 PCLK2=72MHz，其他是 PCLK1=36MHz），除以 USARTDIV（含整数 + 4 位小数）后再除以 16，得到发送器和接收器时钟；<strong>TE 为 1 时发送部分的波特率才有效、RE 为 1 时接收部分的波特率才有效</strong>。</li>
 </ul>
 <h2 id="3-引脚映射">3. 引脚映射</h2>
 <ul>
-<li>看<strong>引脚定义表</strong>的「复用功能」一栏，就能查到每个 USART 的引脚复用在了哪个 GPIO 上：</li>
+<li>看引脚定义表的「复用功能」一栏，就能查到每个 USART 复用在了哪个 GPIO 上：</li>
 </ul>
 <table>
 <thead>
@@ -290,135 +285,119 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>这些引脚必须按引脚定义表来</strong>：比如用 USART1，<strong>TX 必须是 PA9、RX 必须是 PA10</strong>；</li>
-<li><strong>只有 USART1 有重映射</strong>——「看一下重映射这里有没有重映射，这里有 USART1 的重映射，所以有机会换一次」；<strong>其他 USART 就没有机会换引脚了</strong>；</li>
-<li><strong>这个表在设计电路时很重要</strong>——<strong>要提前规划好引脚，别让复用功能冲突</strong>；「有关外设的复用引脚是哪个，都是看这个表，一看就知道」。</li>
+<li>这些引脚必须按引脚定义表来：用 USART1 就要求 TX=PA9、RX=PA10。</li>
+<li><strong>只有 USART1 有重映射</strong>，有一次换引脚的机会；其他 USART 就没有机会换引脚了。</li>
+<li>这个表在设计电路时很重要——提前规划好引脚，别让复用功能冲突。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/06-pin-table.jpg" alt="图 6：引脚定义表（STM32F103C8T6引脚定义）——可见 PA2/PA3 的复用功能是 USART2_TX/USART2_RX、PA9/PA10 是 USART1_TX/USART1_RX、PB10/PB11 是 USART3_TX/USART3_RX；字幕「它的各个引脚都是复用在了哪个GPIO上的」"></p>
-<p><em>图 6：引脚定义表（<code>STM32F103C8T6引脚定义</code>）——可见 PA2/PA3 的复用功能是 <code>USART2_TX/USART2_RX</code>、PA9/PA10 是 <code>USART1_TX/USART1_RX</code>、PB10/PB11 是 <code>USART3_TX/USART3_RX</code>；字幕「它的各个引脚都是复用在了哪个GPIO上的」</em></p>
-<h2 id="4-usart-基本结构-作者简化图">4. USART 基本结构（作者简化图）</h2>
-<p>作者画了一张<strong>简化结构图</strong>（USART 最主要、最基本的结构），写代码时对照它最直观：</p>
+<p><img src="../assets/images/stm32-26/06-pin-table.jpg" alt="图 6：引脚定义表"></p>
+<p><em>图 6：引脚定义表（<code>STM32F103C8T6引脚定义</code>）——PA2/PA3 的复用功能是 <code>USART2_TX/USART2_RX</code>、PA9/PA10 是 <code>USART1_TX/USART1_RX</code>、PB10/PB11 是 <code>USART3_TX/USART3_RX</code></em></p>
+<h2 id="4-usart-基本结构-简化图">4. USART 基本结构（简化图）</h2>
 <ul>
-<li><strong>最左边是波特率发生器</strong>：产生约定的通信速率，<strong>时钟来源是 PCLK2/PCLK1</strong>；</li>
-<li>分频后的时钟<strong>通向发送控制器和接收控制器</strong>，由它们<strong>控制发送移位和接收移位</strong>；</li>
-<li><strong>发送侧</strong>：<strong>发送数据寄存器 TDR 和发送移位寄存器配合</strong>，把数据一位一位移出去，<strong>通过 GPIO 的复用输出到 TX 引脚</strong>，产生串口协议规定的波形（图上画了右移符号 = <strong>低位先行</strong>）；<strong>数据由数据寄存器转到移位寄存器时置 TXE</strong>，判断它就知道能不能写下一个数据；</li>
-<li><strong>接收侧</strong>：<strong>RX 引脚的波形通过 GPIO 输入</strong>，在接收控制器控制下<strong>一位一位移入接收移位寄存器</strong>（也是右移，因为低位先行所以从左边移进来）；<strong>移完一帧后数据统一转运到接收数据寄存器 RDR</strong>，同时<strong>置 RXNE</strong>——检查它就知道是否收到数据；<strong>RXNE 也可以去申请中断</strong>，这样收到数据时能直接进中断函数快速读取和保存；</li>
-<li><strong>软件层面只有一个 DR</strong>：右边实际有四个寄存器，但<strong>写入 DR 时数据走上面（发送）、读取 DR 时走下面（接收）</strong>；</li>
-<li><strong>右下角是开关控制</strong>：配置完成后用 Cmd 开启外设。</li>
+<li>最左边是波特率发生器，产生约定的通信速率，时钟来源是 PCLK2/1。</li>
+<li>分频后的时钟通向发送控制器和接收控制器，由它们控制发送移位和接收移位。</li>
+<li>发送侧：TDR 和发送移位寄存器配合，把数据一位一位移出去，通过 GPIO 复用输出到 TX（图上画了右移符号＝低位先行）；数据从数据寄存器转到移位寄存器时置 TXE。</li>
+<li>接收侧：RX 波形通过 GPIO 输入，在接收控制器控制下一位一位移入接收移位寄存器（也是右移），移完一帧后统一转运到 RDR、同时置 RXNE；RXNE 也可以申请中断，收到数据直接进中断快速读取保存。</li>
+<li>软件层面只有一个 DR：右边实际有四个寄存器，写入 DR 走发送、读取 DR 走接收；右下角是开关控制，配置完成后用 Cmd 开启外设。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/07-basic-structure.jpg" alt="图 7：PPT「USART基本结构」（作者简化图）——左侧 PCLK2/1 → 红圈圈住的「波特率发生器」→ 发送控制器 / 接收控制器；发送侧「发送数据寄存器 TDR」→「&gt;&gt;发送移位寄存器&gt;&gt;」→ GPIO → TX，接收侧 GPIO ← RX ←「&gt;&gt;接收移位寄存器&gt;&gt;」→「接收数据寄存器 RDR」；右下角「开关控制」；字幕「最左边这里是波特率发生器，用于产生约定的通信速率」"></p>
-<p><em>图 7：PPT「USART基本结构」（作者简化图）——左侧 <code>PCLK2/1</code> → 红圈圈住的「波特率发生器」→ 发送控制器 / 接收控制器；发送侧「发送数据寄存器 TDR」→「&gt;&gt;发送移位寄存器&gt;&gt;」→ GPIO → TX，接收侧 GPIO ← RX ←「&gt;&gt;接收移位寄存器&gt;&gt;」→「接收数据寄存器 RDR」；右下角「开关控制」；字幕「最左边这里是波特率发生器，用于产生约定的通信速率」</em></p>
+<p><img src="../assets/images/stm32-26/07-basic-structure.jpg" alt="图 7：PPT「USART基本结构」（作者简化图）"></p>
+<p><em>图 7：PPT「USART基本结构」（作者简化图）——左侧 <code>PCLK2/1</code> → 红圈圈住的「波特率发生器」→ 发送控制器 / 接收控制器；发送侧 TDR → 移位寄存器 → GPIO → TX，接收侧 GPIO ← RX ← 移位寄存器 ← RDR；右下角「开关控制」</em></p>
 <h2 id="5-数据帧格式-字长与停止位">5. 数据帧格式（字长与停止位）</h2>
 <h3 id="5-1-字长-图249">5.1 字长（图249）</h3>
 <ul>
-<li>图249「字长设置」是<strong>程序中配置 9 位字长和 8 位字长的波形对比</strong>——<strong>这里的「字长」就是数据位长度，且是「包含校验位」的描述方式</strong>；</li>
-<li><strong>9 位字长（设置了 M 位）</strong>：空闲高电平 → 起始位 0 → 依次发送<strong>位0～位8（共 9 位）</strong> → 停止位 1；<strong>其中位8（第 9 位）可以是奇偶校验位</strong>，通过配置寄存器可设为奇校验/偶校验/无校验——<strong>可以配置成「8 位有效载荷 + 1 位校验位」，也可以选择「9 位全是有效载荷」</strong>；<strong>不过既然选了 9 位字长，一般就是要加校验位的</strong>（因为 8 位有效载荷正好对应一个字节）；</li>
-<li><strong>8 位字长（未设置 M 位）</strong>：数据位从<strong>位0～位7</strong>，共 8 位，比上面少一个位8；<strong>同样最后一位位7 也是可能的奇偶校验位</strong>——<strong>既然选了 8 位字长，最好选无校验</strong>，否则校验位占 1 位、有效载荷只剩 7 位，「字节都发不了」；</li>
-<li><strong>结论（4 种选择里推荐两种）</strong>：<strong>「9 位字长 + 有校验」或「8 位字长 + 无校验」</strong>——这样<strong>每一帧的有效载荷都是 1 字节</strong>；</li>
-<li>图里还有<strong>同步时钟</strong>（时钟频率与数据速率相同、接收端可在<strong>上升沿</strong>采样；极性/相位也可配置）、<strong>空闲帧（从头到尾都是 1）</strong>、<strong>断开帧（从头到尾都是 0）</strong>——<strong>空闲帧和断开帧是局域网协议用的，串口用不着、不用管</strong>。</li>
+<li>图249「字长设置」是程序中配置 9 位字长和 8 位字长的波形对比——这里的「字长」就是数据位长度，而且是「包含校验位」的描述方式。</li>
+<li>9 位字长（设置了 M 位）：空闲高电平 → 起始位 0 → 依次发送<strong>位0～位8（共 9 位）</strong> → 停止位 1；其中<strong>位8 可以是奇偶校验位</strong>，可配奇校验/偶校验/无校验——可配成「8 位有效载荷 + 1 位校验」，也可 9 位全是有效载荷；不过既然选了 9 位字长，一般就是要加校验位。</li>
+<li>8 位字长（未设置 M 位）：数据位是<strong>位0～位7</strong>，共 8 位，比上面少一个位8；最后一位位7 也是可能的校验位——既然选了 8 位字长，最好选无校验，否则校验位占 1 位、有效载荷只剩 7 位。</li>
+<li>结论（4 种选择里推荐两种）：<strong>「9 位字长 + 有校验」或「8 位字长 + 无校验」</strong>——这样每一帧的有效载荷都是 1 字节。</li>
+<li>图里还有同步时钟（时钟频率与数据速率相同、接收端可在<strong>上升沿</strong>采样，极性/相位可配）、<strong>空闲帧（全 1）</strong>、<strong>断开帧（全 0）</strong>——空闲帧和断开帧是局域网协议用的，串口用不着。</li>
 </ul>
+<p><img src="../assets/images/stm32-26/08-frame-word-length.jpg" alt="图 8：PPT「数据帧」——图249「字长设置」"></p>
+<p><em>图 8：PPT「数据帧」——图249「字长设置」：上半 9 位字长（设置了 M 位）、1 个停止位（起始位、位0～位8、可能的奇偶校验位、停止位、下一个数据帧；红笔标出位0/1/位8 的发送顺序）；下半 8 位字长（未设置 M 位）、1 个停止位（起始位、位0～位7）</em></p>
 <h3 id="5-2-停止位-图250">5.2 停止位（图250）</h3>
 <ul>
-<li>STM32 串口的<strong>停止位长度可以配置为 0.5、1、1.5、2 位</strong>，<strong>区别就是停止位的时长不一样</strong>：<ul>
-<li><strong>1 个停止位</strong>：停止位时长 = 数据位一位的时长；</li>
-<li><strong>1.5 个停止位</strong>：时长是数据位一位的 1.5 倍；</li>
-<li><strong>2 个停止位</strong>：2 倍；<strong>0.5 个停止位</strong>：0.5 倍；</li>
+<li>STM32 串口的停止位长度可配 0.5、1、1.5、2 位，区别就是停止位的时长不一样：<ul>
+<li>1 个停止位：时长 = 数据位一位的时长；</li>
+<li>1.5 个停止位：1.5 倍；2 个停止位：2 倍；0.5 个停止位：0.5 倍。</li>
 </ul>
 </li>
 <li><strong>一般选 1 位停止位就行</strong>，其他参数不太常用。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/08-frame-word-length.jpg" alt="图 8：PPT「数据帧」——图249「字长设置」：上半 9 位字长（设置了 M 位）、1 个停止位（起始位、位0～位8、可能的奇偶校验位、停止位、下一个数据帧；红笔标出位0/1/位8 的发送顺序），下方标注「空闲帧（全 1）」「断开帧（全 0）」「LBCL 位控制最后一个数据的时钟脉冲」；下半 8 位字长（未设置 M 位）、1 个停止位（起始位、位0～位7、可能的奇偶校验位、停止位）；字幕「接收端可以在时钟上升沿进行采样」"></p>
-<p><em>图 8：PPT「数据帧」——图249「字长设置」：上半 <strong>9 位字长（设置了 M 位）、1 个停止位</strong>（起始位、位0～位8、可能的奇偶校验位、停止位、下一个数据帧；红笔标出位0/1/位8 的发送顺序），下方标注「空闲帧（全 1）」「断开帧（全 0）」「LBCL 位控制最后一个数据的时钟脉冲」；下半 <strong>8 位字长（未设置 M 位）、1 个停止位</strong>（起始位、位0～位7、可能的奇偶校验位、停止位）；字幕「接收端可以在时钟上升沿进行采样」</em></p>
-<p><img src="../assets/images/stm32-26/09-frame-stop-bits.jpg" alt="图 9：PPT「数据帧」——图250「配置停止位」：同一帧结构下对比 a) 1 个停止位、b) 1½ 个停止位、c) 2 个停止位、d) ½ 个停止位 的波形，红笔标出 1½ 与 2 个停止位的宽度；字幕「然后是1.5个停止位」"></p>
-<p><em>图 9：PPT「数据帧」——图250「配置停止位」：同一帧结构下对比 a) 1 个停止位、b) 1½ 个停止位、c) 2 个停止位、d) ½ 个停止位 的波形，红笔标出 1½ 与 2 个停止位的宽度；字幕「然后是1.5个停止位」</em></p>
+<p><img src="../assets/images/stm32-26/09-frame-stop-bits.jpg" alt="图 9：PPT「数据帧」——图250「配置停止位」"></p>
+<p><em>图 9：PPT「数据帧」——图250「配置停止位」：同一帧结构下对比 a) 1 个停止位、b) 1½ 个停止位、c) 2 个停止位、d) ½ 个停止位 的波形，红笔标出 1½ 与 2 个停止位的宽度</em></p>
 <h2 id="6-起始位侦测与数据采样">6. 起始位侦测与数据采样</h2>
-<blockquote>
-<p>串口的<strong>输出 TX 比输入 RX 简单很多</strong>：输出只要定时翻转电平；<strong>输入就复杂</strong>——既要保证<strong>采样频率和波特率一致</strong>，又要保证<strong>每次采样点正好落在每一位的正中间</strong>（否则采样点靠前/靠后时电平还在翻转，容易采错），<strong>还要对噪声有一定的判断能力</strong>。</p>
-</blockquote>
+<ul>
+<li>输出 TX 比输入 RX 简单很多：输出只要定时翻转电平；输入既要保证采样频率和波特率一致，又要保证采样点落在每一位的正中间，还要对噪声有一定的判断能力。</li>
+</ul>
 <h3 id="6-1-起始位侦测-图252">6.1 起始位侦测（图252）</h3>
 <ul>
-<li><strong>输入电路以波特率的 16 倍频率采样</strong>——<strong>一位的时间里可以采 16 次</strong>；</li>
-<li>策略：<strong>空闲状态高电平，采样一直是 1</strong>；<strong>某个位置突然采到 0，说明这两次采样之间出现了下降沿</strong>——如果没有噪声，之后就是起始位；</li>
-<li>起始位内会连续采 16 次；<strong>没有噪声时 16 次都是 0</strong>，但实际电路有噪声，所以<strong>即使出现下降沿，后续也要再采样几次以防万一</strong>；</li>
-<li>按手册描述：<strong>在下降沿之后的第 3 次、5 次、7 次进行一批采样；在第 8 次、9 次、10 次再进行一批采样</strong>——<strong>这两批采样都要求「每 3 位里至少应有 2 个 0」</strong>：<ul>
-<li>没有噪声 → 全是 0，满足；</li>
-<li><strong>轻微噪声导致 3 位里只有 2 个 0（另一个是 1）→ 也算检测到起始位，但状态寄存器会置 NE（Noise Error）噪声标志</strong>——「数据我是收到了，但是有噪声，你悠着点用」；</li>
-<li><strong>3 位里只有 1 个 0 → 不算检测到起始位</strong>，可能前面的下降沿是噪声导致的，<strong>电路忽略前面的数据、重新开始捕捉下降沿</strong>；</li>
+<li>输入电路以波特率的 <strong>16 倍频率采样</strong>——一位的时间里可以采 16 次。</li>
+<li>空闲状态高电平、采样一直是 1；某个位置突然采到 0，说明这两次采样之间出现了下降沿——没有噪声的话，之后就是起始位。</li>
+<li>实际电路有噪声，所以即使出现下降沿，后续也要再采样几次：在下降沿之后的<strong>第 3、5、7 次</strong>采一批，在<strong>第 8、9、10 次</strong>再采一批，两批都要求「<strong>每 3 位里至少应有 2 个 0</strong>」。</li>
+<li>没有噪声 → 全是 0，满足；<strong>轻微噪声导致 3 位里只有 2 个 0 → 也算检测到起始位，但状态寄存器会置 NE（Noise Error）噪声标志</strong>；<strong>3 位里只有 1 个 0 → 不算检测到起始位</strong>，忽略前面的数据、重新捕捉下降沿。</li>
+<li>通过起始位侦测后，接收状态由<strong>空闲</strong>变为<strong>接收起始位</strong>，同时第 8/9/10 次采样的位置正好是起始位的正中间——之后接收数据位都在这第 8/9/10 次采样，保证采样点落在每一位正中间。</li>
 </ul>
-</li>
-<li><strong>通过起始位侦测后</strong>，接收状态由<strong>空闲</strong>变为<strong>接收起始位</strong>，同时<strong>第 8/9/10 次采样的位置正好是起始位的正中间</strong>——之后接收数据位时都在这第 8/9/10 次采样，<strong>保证采样位置在每一位的正中间</strong>。</li>
-</ul>
+<p><img src="../assets/images/stm32-26/10-start-bit-detect.jpg" alt="图 10：PPT「起始位侦测」——图252"></p>
+<p><em>图 10：PPT「起始位侦测」——图252：上方灰色条表示接收状态（空闲 → 起始位）；「理想的采样时钟」1～16 与「实际的采样时钟」1～16 虚线对齐；下方「判断起始位的条件」标出「1 1 1 0（检测下降沿）」「每 3 位里至少应有 2 个 0」，以及一位时间长度 7/16 + 6/16 + 7/16</em></p>
 <h3 id="6-2-数据采样-图253">6.2 数据采样（图253）</h3>
 <ul>
-<li>到一个数据位的时间长度是 <strong>1～16</strong> 共 <strong>16 个采样时钟</strong>；因为起始位侦测已经对齐了采样时钟，<strong>数据位就直接在第 8、9、10 次采样</strong>；</li>
-<li>为保证可靠性<strong>连续采样 3 次</strong>：<strong>理想情况 3 次全为 1 或全为 0</strong>，全 1 认为收到 1、全 0 认为收到 0；</li>
-<li><strong>如果有噪声导致 3 次不一致</strong>，就按 <strong>2:1 的多数判决</strong>（2 次为 1 认为收到 1、2 次为 0 认为收到 0），<strong>同时置 NE 噪声标志</strong>；</li>
+<li>到一个数据位的时间长度是 <strong>1～16 共 16 个采样时钟</strong>；起始位侦测已经把采样时钟对齐，数据位就直接在<strong>第 8、9、10 次</strong>采样。</li>
+<li>为保证可靠性连续采 3 次：理想情况 3 次全为 1 或全为 0，全 1 认为收到 1、全 0 认为收到 0。</li>
+<li><strong>如果 3 次不一致</strong>，就按 <strong>2:1 的多数判决</strong>，<strong>同时置 NE 噪声标志</strong>。</li>
 <li>一位的时间可以看作 <strong>7/16 + 6/16 + 7/16</strong> 三段（采样点落在中间 6/16 那段的第 8/9/10 次）。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/10-start-bit-detect.jpg" alt="图 10：PPT「起始位侦测」——图252：上方灰色条表示接收状态（空闲 → 起始位）；「理想的采样时钟」1～16 与「实际的采样时钟」1～16 虚线对齐；下方「判断起始位的条件」标出「1 1 1 0（检测下降沿）」「每 3 位里至少应有 2 个 0」两处，以及一位时间长度 7/16 + 6/16 + 7/16；字幕「当输入电路侦测到一个数据帧的起始位后」"></p>
-<p><em>图 10：PPT「起始位侦测」——图252：上方灰色条表示接收状态（空闲 → 起始位）；「理想的采样时钟」1～16 与「实际的采样时钟」1～16 虚线对齐；下方「判断起始位的条件」标出「1 1 1 0（检测下降沿）」「每 3 位里至少应有 2 个 0」两处，以及一位时间长度 7/16 + 6/16 + 7/16；字幕「当输入电路侦测到一个数据帧的起始位后」</em></p>
-<p><img src="../assets/images/stm32-26/11-data-sampling.jpg" alt="图 11：PPT「数据采样」——图253「检测噪声的数据采样」：采样时钟 1～16，红圈圈住第 8/9/10 次「数据采样」，标注一位时间长度 7/16 + 6/16 + 7/16；字幕「为了保证数据的可靠性，这里是连续采样3次」"></p>
-<p><em>图 11：PPT「数据采样」——图253「检测噪声的数据采样」：采样时钟 1～16，红圈圈住第 8/9/10 次「数据采样」，标注一位时间长度 7/16 + 6/16 + 7/16；字幕「为了保证数据的可靠性，这里是连续采样3次」</em></p>
+<p><img src="../assets/images/stm32-26/11-data-sampling.jpg" alt="图 11：PPT「数据采样」——图253「检测噪声的数据采样」"></p>
+<p><em>图 11：PPT「数据采样」——图253「检测噪声的数据采样」：采样时钟 1～16，红圈圈住第 8/9/10 次「数据采样」，标注一位时间长度 7/16 + 6/16 + 7/16</em></p>
 <h2 id="7-波特率发生器与-brr">7. 波特率发生器与 BRR</h2>
 <ul>
-<li><strong>发送器和接收器的波特率由波特率寄存器 BRR 里的 DIV（USARTDIV）确定</strong>；</li>
-<li><strong>计算公式：波特率 = fPCLK2/1 / (16 × DIV)</strong>——<strong>为什么多除一个 16</strong>？因为<strong>内部还有一个 16 倍波特率的采样时钟</strong>，所以「输入时钟 / DIV 要等于 16 倍的波特率」，最终计算波特率自然要多除一个 16；</li>
-<li><strong>USART_BRR 寄存器</strong>（地址偏移 <strong>0x08</strong>、复位值 <strong>0x0000</strong>）：<strong>位 15:4 <code>DIV_Mantissa</code>（USARTDIV 的整数部分）、位 3:0 <code>DIV_Fraction</code>（USARTDIV 的小数部分）</strong>——<strong>DIV 支持小数点后 4 位，分频更精细</strong>（有些波特率用 72M 除整数除不尽，会有误差）；</li>
-<li><strong>计算示例</strong>：把 <strong>USART1 配成 9600</strong>——代入公式 <code>9600 = 72M / (16 × DIV)</code>，<strong>解得 DIV = 72M/9600/16 = 468.75</strong>（带小数的分频系数）；写成寄存器要转成二进制：<strong><code>468.75 = 111010100.11</code></strong>——<strong>整数部分 <code>111010100</code>（前面多出来的补 0）写到 DIV_Mantissa，小数部分 <code>11</code>（后面多出来的补 0）写到 DIV_Fraction</strong>；</li>
-<li><strong>不过用库函数配置就非常方便</strong>：<strong>需要多少波特率直接写，库函数会自动帮我们算</strong>——不用手写 BRR（具体写法在 P27）。</li>
+<li>发送器和接收器的波特率由波特率寄存器 BRR 里的 DIV（USARTDIV）确定。</li>
+<li>计算公式 <code>波特率 = fPCLK2/1 / (16 × DIV)</code>——为什么多除一个 16？因为内部还有一个 16 倍波特率的采样时钟，「输入时钟 / DIV 要等于 16 倍的波特率」，所以算波特率自然要多除一个 16。</li>
+<li><strong>USART_BRR</strong> 寄存器（地址偏移 <strong>0x08</strong>、复位值 <strong>0x0000</strong>）：<strong>位 15:4 是 <code>DIV_Mantissa</code>（USARTDIV 的整数部分）、位 3:0 是 <code>DIV_Fraction</code>（USARTDIV 的小数部分）</strong>——支持小数点后 4 位，分频更精细（有些波特率用 72M 除整数除不尽，会有误差）。</li>
+<li>计算示例：USART1 配 9600——代入 <code>9600 = 72M / (16 × DIV)</code>，解得 <strong>DIV = 72M/9600/16 = 468.75</strong>；写成寄存器要转二进制 <strong><code>468.75 = 111010100.11</code></strong>——整数部分 <code>111010100</code>（前面补 0）写进 DIV_Mantissa，小数部分 <code>11</code>（后面补 0）写进 DIV_Fraction。</li>
+<li>不过用库函数配置非常方便：需要多少波特率直接写，库函数会自动算，不用手写 BRR。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/12-baud-brr.jpg" alt="图 12：PPT「波特率发生器」——发送器和接收器的波特率由 BRR 里的 DIV 确定；计算公式 `波特率 = fPCLK2/1 / (16 × DIV)`；下方手册 25.6.3 波特率比率寄存器（USART_BRR）：地址偏移 0x08、复位值 0x0000，`DIV_Mantissa`（位15:4，USARTDIV 的整数部分）与 `DIV_Fraction`（位3:0，USARTDIV 的小数部分）（红圈标出两段）；字幕「DIV分为整数部分和小数部分，可以实现更细腻的分频」"></p>
-<p>*图 12：PPT「波特率发生器」——发送器和接收器的波特率由 BRR 里的 DIV 确定；<strong>计算公式 <code>波特率 = fPCLK2/1 / (16 × DIV)</code></strong>；下方手册 <strong>25.6.3 波特率比率寄存器（USART_BRR）</strong>：地址偏移 0x08、复位值 0x0000，<strong><code>DIV_Mantissa</code>（位15:4，USARTDIV 的整数部分）与 <code>DIV_Fraction</code>（位3:0，USARTDIV 的小数部分）</strong>（红圈标出两段）；字幕「DIV分为整数部分和小数部分，可以实现更细腻的分频」*</p>
-<p><img src="../assets/images/stm32-26/13-div-calc.jpg" alt="图 13：同一页上的红笔推导——9600 = 72M / (16 · DIV)，字幕「解得，DIV=72M/9600/16」（结果 468.75，再转二进制 111010100.11 写进 BRR）"></p>
-<p><em>图 13：同一页上的红笔推导——<code>9600 = 72M / (16 · DIV)</code>，字幕「解得，DIV=72M/9600/16」（结果 468.75，再转二进制 <code>111010100.11</code> 写进 BRR）</em></p>
-<h2 id="8-ch340g-usb-转串口模块原理图">8. CH340G USB 转串口模块原理图</h2>
-<blockquote>
-<p>这是套件里 USB 转串口模块的内部电路图，有几个注意事项。</p>
-</blockquote>
+<p><img src="../assets/images/stm32-26/12-baud-brr.jpg" alt="图 12：PPT「波特率发生器」"></p>
+<p><em>图 12：PPT「波特率发生器」——发送器和接收器的波特率由 BRR 里的 DIV 确定，计算公式 <code>波特率 = fPCLK2/1 / (16 × DIV)</code>；下方手册 25.6.3 USART_BRR：地址偏移 0x08、复位值 0x0000，<code>DIV_Mantissa</code>（位15:4）与 <code>DIV_Fraction</code>（位3:0）红圈标出</em></p>
+<p><img src="../assets/images/stm32-26/13-div-calc.jpg" alt="图 13：同一页上的红笔推导"></p>
+<p><em>图 13：同一页上的红笔推导——<code>9600 = 72M / (16 · DIV)</code>，解得 DIV=72M/9600/16（结果 468.75，再转二进制 <code>111010100.11</code> 写进 BRR）</em></p>
+<h2 id="8-ch340g-原理图与参考手册导读">8. CH340G 原理图与参考手册导读</h2>
+<h3 id="8-1-ch340g-usb-转串口模块原理图">8.1 CH340G USB 转串口模块原理图</h3>
 <ul>
-<li><strong>最左边是 USB 接口</strong>：USB 有 4 根线 <strong>GND、D+、D-、VCC</strong>；<strong>USB 标准供电是 5V</strong>，中间 <strong>D+/D- 是通信线</strong>（走 USB 协议），所以需要 <strong>CH340G 芯片转换</strong>——转换后输出 <strong>TXD/RXD（串口协议）</strong>，通过排针引出来；</li>
-<li><strong>供电策略</strong>（重点）：所有电都来自 <strong>VCC+5V</strong>；<strong>VCC+5V 经稳压管电路降压得到 VCC+3V3</strong>；<strong>5V 和 3.3V 都通过排针引出来</strong>——所以<strong>第 6 脚和第 4 脚分别是 5V 和 3.3V 输出</strong>；</li>
-<li><strong>第 5 脚标的是 VCC</strong>，看原理图可知它<strong>通向 CH340G 芯片的 VCC</strong>——所以<strong>这个脚实际上是 CH340 的电源输入脚</strong>；</li>
-<li><strong>跳线帽</strong>：模块排针一般有跳线帽，<strong>需要插在 4、5 脚或 5、6 脚上</strong>（板上有文字说明）：<ul>
-<li><strong>短路 5V → VCC：CH340G 供电为 5V，TTL 电平为 5V</strong>；</li>
-<li><strong>短路 3V3 → VCC：CH340G 供电为 3.3V，TTL 电平为 3.3V</strong>；</li>
-<li>所以<strong>跳线帽既用来选择通信电平、也是给 CH340 芯片供电的，最好不要拿掉</strong>；</li>
+<li>最左边是 USB 接口，4 根线 GND、D+、D-、VCC；USB 标准供电 5V，D+/D- 是通信线（走 USB 协议），所以需要 CH340G 转换——转出 TXD/RXD（串口协议）经排针引出。</li>
+<li>供电策略：所有电都来自 VCC+5V，经稳压管电路降压得到 VCC+3V3，5V 和 3.3V 都从排针引出——所以<strong>第 6 脚和第 4 脚分别是 5V 和 3.3V 输出</strong>。</li>
+<li><strong>第 5 脚标的 VCC</strong> 通向 CH340G 芯片的 VCC，所以这个脚实际上是 <strong>CH340 的电源输入脚</strong>。</li>
+<li>跳线帽要插在 4、5 脚或 5、6 脚上：<strong>短路 5V → VCC 时 CH340G 供电 5V、TTL 电平 5V</strong>；<strong>短路 3V3 → VCC 时供电 3.3V、TTL 电平 3.3V</strong>——所以跳线帽既选通信电平、也给 CH340 芯片供电，<strong>最好不要拿掉</strong>。</li>
+<li>实测经验（非手册结论）：即使把跳线帽拔掉、不给芯片供电，串口还是能正常工作（可能从别处汲取了电流），不插时通信电平为 3.3V——但为了稳定最好还是插上。</li>
+<li>STM32 通信需要 3.3V，所以<strong>跳线帽插 4、5 脚</strong>；这样供电只剩一个 5V 脚——5V 和 3.3V 电平可以互相兼容，既要通信又要供电时保证供电正确就行。</li>
+<li>引脚说明：5V 是从 USB 取出的 5V 输出、VCC 是模块供电点、3V3 是稳压出来的 3.3V 输出、TXD 串口数据输出、RXD 串口数据输入、GND 模块负极（与目标系统共地）；右下角还有 PWR 电源指示灯、TXD/RXD 指示灯。</li>
 </ul>
-</li>
-<li><strong>作者实测（经验，非手册结论）</strong>：<strong>即使把跳线帽拔掉、不给芯片供电，这个串口还是能正常工作</strong>（可能是从别处汲取了电流）；<strong>不插跳线帽时通信电平为 3.3V</strong>——<strong>但为了稳定，最好还是插上跳线帽</strong>；</li>
-<li><strong>STM32 通信需要 3.3V，所以跳线帽插在 4、5 脚</strong>；不过这样<strong>供电就只剩一个 5V 脚</strong>（「要么选 5V 电平、剩下供电脚只有 3.3V；要么选 3.3V 电平、剩下供电脚是 5V」）——<strong>因为 5V 和 3.3V 电平可以互相兼容，如果既要通信又要供电，保证供电正确就行</strong>；</li>
-<li><strong>引脚说明</strong>：<strong>5V</strong> 是从 USB 取出的 5V 电源输出；<strong>VCC</strong> 是模块供电点；<strong>3V3</strong> 是模块稳压出来的 3.3V 电源输出；<strong>TXD</strong> 串口数据输出；<strong>RXD</strong> 串口数据输入；<strong>GND</strong> 模块负极（与目标系统共地）；</li>
-<li>右下角是<strong>指示灯和电源滤波</strong>：<strong>PWR 电源指示灯</strong>、<strong>TXD/RXD 指示灯</strong>（引脚上有数据传输时会闪烁）。</li>
-</ul>
-<p><img src="../assets/images/stm32-26/14-ch340g-schematic.jpg" alt="图 14：CH340G 模块原理图（PDF）——左侧 USB 接口（J2，4 线）→ CH340G（U1）→ TXD/RXD；上方 VCC+5V 经 R1/VD1 等得到 VCC+3V3；右侧排针 J1（CON6）6 脚：5V/VCC/3V3/TXD/RXD/GND；右上文字说明「短路 VCC+5V 到 CH340G_VCC：CH340G 供电为 5V，TTL 电平为 5V」「短路 VCC+3V3 到 CH340G_VCC：CH340G 供电为 3.3V，TTL 电平为 3.3V」及 6 个引脚说明；下方 LED1(PWR)/LED2(TXD)/LED3(RXD)；红笔圈出 USB、CH340G 与 TXD/RXD、排针 3/4 脚；字幕「那需要注意的就是这边的供电策略」"></p>
-<p><em>图 14：CH340G 模块原理图（PDF）——左侧 USB 接口（J2，4 线）→ CH340G（U1）→ TXD/RXD；上方 VCC+5V 经 R1/VD1 等得到 VCC+3V3；右侧排针 J1（CON6）6 脚：5V/VCC/3V3/TXD/RXD/GND；右上文字说明「短路 VCC+5V 到 CH340G_VCC：CH340G 供电为 5V，TTL 电平为 5V」「短路 VCC+3V3 到 CH340G_VCC：CH340G 供电为 3.3V，TTL 电平为 3.3V」及 6 个引脚说明；下方 LED1(PWR)/LED2(TXD)/LED3(RXD)；红笔圈出 USB、CH340G 与 TXD/RXD、排针 3/4 脚；字幕「那需要注意的就是这边的供电策略」</em></p>
-<h2 id="9-参考手册导读">9. 参考手册导读</h2>
+<p><img src="../assets/images/stm32-26/14-ch340g-schematic.jpg" alt="图 14：CH340G 模块原理图（PDF）"></p>
+<p><em>图 14：CH340G 模块原理图（PDF）——左侧 USB 接口（J2，4 线）→ CH340G（U1）→ TXD/RXD；上方 VCC+5V 经 R1/VD1 等得到 VCC+3V3；右侧排针 J1（CON6）6 脚：5V/VCC/3V3/TXD/RXD/GND；下方 LED1(PWR)/LED2(TXD)/LED3(RXD)</em></p>
+<h3 id="8-2-参考手册导读">8.2 参考手册导读</h3>
 <ul>
-<li>本集涉及<strong>参考手册第 25 章：通用同步异步收发器（USART）</strong>；</li>
-<li>结构：<strong>25.1 介绍、25.2 主要特性、框图、功能描述</strong>——功能描述就是把 PPT 上介绍的这些细节展开（数据帧格式与字长配置、发送数据寄存器 TDR 与移位寄存器的配合、空闲帧包含可配置的停止位、起始位侦测的采样序列、噪声错误与采样数据有效性表、分数波特率的产生与计算公式、多主机通信、校验控制、LIN 模式、同步模式（CK 脚与 TX 脚联合工作、LBCL 位控制最后数据位的时钟脉冲）、单线半双工、智能卡、IrDA、利用 DMA 连续通信、硬件流控制 RTS/CTS、中断）；</li>
-<li><strong>25.6 寄存器描述</strong>：<strong>SR（状态寄存器，各种标志位，位含 CTS/LBD/TXE/TC/RXNE/IDLE/ORE/NE/FE/PE）、DR（数据寄存器，TDR+RDR）、BRR（波特率寄存器）、CR1/CR2/CR3（配置寄存器）</strong>——「状态寄存器 SR、数据寄存器 DR、配置寄存器 CR」这三类寄存器基本每个外设都有；</li>
-<li>手册里还有<strong>表176「设置波特率时的误差计算」</strong>（36MHz/72MHz 两列、常用波特率对应的 BRR 值与误差）——<strong>只在手册页出现、老师没有逐行讲</strong>，需要时自己查；</li>
-<li><strong>25.6.8 节是 USART 寄存器地址映像（表182）</strong>，列出各寄存器的偏移与复位值；手册最后还有<strong>模式配置表</strong>（可以看到 4 号、5 号 USART 不支持同步功能，所以它们的名字直接叫 <strong>UART</strong>）；</li>
-<li>片尾（39:46）：「有关 USART 的理论部分就结束了，<strong>我们下一小节来写串口的代码</strong>」——<strong>代码在 P27</strong>。</li>
+<li>本集涉及参考手册第 25 章：通用同步异步收发器（USART）。</li>
+<li><strong>25.1 介绍、25.2 主要特性、框图、功能描述</strong>：功能描述把 PPT 上的细节展开（数据帧格式与字长、TDR 与移位寄存器配合、空闲帧含可配置停止位、起始位侦测采样序列、噪声错误与采样数据有效性表、分数波特率公式、多主机通信、校验控制、LIN 模式、同步模式（CK 与 TX 联合、LBCL 控制最后一位时钟）、单线半双工、智能卡、IrDA、DMA 连续通信、RTS/CTS 流控、中断）。</li>
+<li><strong>25.6 寄存器描述</strong>：SR（含 CTS/LBD/TXE/TC/RXNE/IDLE/ORE/NE/FE/PE）、DR（TDR+RDR）、BRR、CR1/CR2/CR3——状态、数据、配置这三类寄存器基本每个外设都有。</li>
+<li>手册里还有<strong>表176「设置波特率时的误差计算」</strong>（36MHz/72MHz 两列、常用波特率对应的 BRR 值与误差）——只在手册页出现、老师没有逐行讲。</li>
+<li><strong>25.6.8 是 USART 寄存器地址映像（表182）</strong>，列出各寄存器偏移与复位值；手册最后还有模式配置表（4 号、5 号 USART 不支持同步功能，所以名字直接叫 UART）。</li>
+<li>片尾 39:46：「有关 USART 的理论部分就结束了，<strong>我们下一小节来写串口的代码</strong>」——<strong>代码在 P27</strong>。</li>
 </ul>
-<p><img src="../assets/images/stm32-26/15-register-map.jpg" alt="图 15：参考手册 25.6.8「USART 寄存器地址映像」表182——偏移 0x00 USART_SR（位含 CTS/LBD/TXE/TC/RXNE/IDLE/ORE/NE/FE/PE 等）、0x04 USART_DR、0x08 USART_BRR（DIV_Mantissa（位15:4）与 DIV_Fraction（位3:0））、0x0C USART_CR1（UE/M/WAKE/PCE/PS/PIE/TXEIE/TCIE/RXNEIE/PEIE/TE/RE/RWU/SBK 等）；字幕「我们下一小节，来写串口的代码」"></p>
-<p><em>图 15：参考手册 25.6.8「USART 寄存器地址映像」表182——偏移 0x00 <code>USART_SR</code>（位含 CTS/LBD/TXE/TC/RXNE/IDLE/ORE/NE/FE/PE 等）、0x04 <code>USART_DR</code>、0x08 <code>USART_BRR</code>（<code>DIV_Mantissa</code>（位15:4）与 <code>DIV_Fraction</code>（位3:0））、0x0C <code>USART_CR1</code>（UE/M/WAKE/PCE/PS/PIE/TXEIE/TCIE/RXNEIE/PEIE/TE/RE/RWU/SBK 等）；字幕「我们下一小节，来写串口的代码」</em></p>
+<p><img src="../assets/images/stm32-26/15-register-map.jpg" alt="图 15：参考手册 25.6.8「USART 寄存器地址映像」表182"></p>
+<p><em>图 15：参考手册 25.6.8「USART 寄存器地址映像」表182——偏移 <code>0x00</code> 是 <code>USART_SR</code>（含 CTS/LBD/TXE/TC/RXNE/IDLE/ORE/NE/FE/PE）、<code>0x04</code> 是 <code>USART_DR</code>、<code>0x08</code> 是 <code>USART_BRR</code>、<code>0x0C</code> 是 <code>USART_CR1</code></em></p>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>TDR 和 RDR 是同一个地址</strong>：软件只见一个 DR——<strong>写 DR 发数据、读 DR 收数据</strong>，别以为有两个可读写的寄存器。</li>
-<li><strong>TXE 置 1 时数据还没发完</strong>：它只表示「TDR 空了、可以写下一个」，<strong>不代表这一帧已经发送出去</strong>；要等发送完成要看 TC 标志（本集只提了标志位种类）。</li>
-<li><strong>RXNE 置 1 表示收到数据了</strong>：读走 RDR 后它会清零，下一次收到数据再置 1——判断收到数据用 RXNE。</li>
-<li><strong>双重缓存（TDR+移位寄存器 / RDR+移位寄存器）的作用</strong>：保证连续收发时帧间没有空闲、不会丢数据——这是 USART 能高速连续收发的原因。</li>
-<li><strong>字长「包含校验位」</strong>：9 位字长 = 8 位有效载荷 + 位8（可做校验）；<strong>如果选了 9 位字长又不用校验，等于浪费 1 位</strong>；<strong>推荐 9 位+校验 或 8 位+无校验</strong>。</li>
-<li><strong>引脚是固定的</strong>：USART1 = PA9/PA10、USART2 = PA2/PA3、USART3 = PB10/PB11；<strong>只有 USART1 能重映射一次</strong>，其他 USART 没有重映射。</li>
-<li><strong>USART1 挂 APB2、USART2/3 挂 APB1</strong>：<strong>开时钟时注意选对总线</strong>（PCLK2=72MHz、PCLK1=36MHz），也影响波特率计算用哪个时钟。</li>
-<li><strong>波特率公式要除 16</strong>：<code>波特率 = fPCLK/(16×DIV)</code>——因为内部有 16 倍波特率的采样时钟，别漏掉这个 16。</li>
-<li><strong>BRR 的整数/小数分开填</strong>：位15:4 是整数部分、位3:0 是小数部分（4 位小数），<strong>不是直接填 DIV 的十进制</strong>；不过<strong>用库函数会自动算</strong>。</li>
-<li><strong>同步模式只输出时钟</strong>：不能两个 USART 做同步通信；CK 只输出不输入。</li>
-<li><strong>流控是「交叉连接」</strong>：TX 配对方 CTS、RX 配对方 RTS；nRTS/nCTS 的 n 表示低电平有效；<strong>一般不用</strong>。</li>
-<li><strong>跳线帽别随便拔</strong>：它既选 TTL 电平（5V/3.3V）又给 CH340 供电；<strong>虽然作者实测拔掉也能通信，但为了稳定要插上</strong>（这是作者经验，不是手册结论）。</li>
-<li><strong>STM32 是 3.3V 器件</strong>：跳线帽插 4-5 脚（3.3V 电平）——电平不一致会通信异常。</li>
-<li><strong>本集没有代码</strong>：所有库函数/结构体配置（<code>USART_Init</code>、<code>USART_Cmd</code>、读写 DR 等）<strong>在 P27</strong>；本集只讲外设原理与寄存器位。</li>
+<li>TDR 和 RDR 是同一个地址：软件只见一个 DR——写 DR 发数据、读 DR 收数据，别以为有两个可读写的寄存器。</li>
+<li>TXE 置 1 时数据还没发完：它只表示「TDR 空了、可以写下一个」，要等发送完成要看 TC 标志。</li>
+<li>RXNE 置 1 表示收到数据了：读走 RDR 后它会清零，下一次收到数据再置 1——判断收到数据用 RXNE。</li>
+<li>双缓存（TDR+移位寄存器 / RDR+移位寄存器）保证连续收发时帧间没有空闲、不丢数据，这是 USART 能高速连续收发的原因。</li>
+<li>字长「包含校验位」：9 位字长 = 8 位有效载荷 + 位8（可做校验）；选了 9 位又不用校验等于浪费 1 位，推荐 9 位+校验 或 8 位+无校验。</li>
+<li>引脚是固定的：USART1 = PA9/PA10、USART2 = PA2/PA3、USART3 = PB10/PB11；只有 USART1 能重映射一次。</li>
+<li>USART1 挂 APB2、USART2/3 挂 APB1：开时钟时注意选对总线（PCLK2=72MHz、PCLK1=36MHz），也影响波特率用哪个时钟。</li>
+<li>波特率公式要除 16：<code>波特率 = fPCLK/(16×DIV)</code>——因为内部有 16 倍波特率的采样时钟，别漏掉这个 16。</li>
+<li>BRR 的整数/小数分开填：位15:4 是整数部分、位3:0 是小数部分（4 位小数），不是直接填 DIV 的十进制；用库函数会自动算。</li>
+<li>同步模式只输出时钟：不能两个 USART 做同步通信，CK 只输出不输入。</li>
+<li>流控是「交叉连接」：TX 配对方 CTS、RX 配对方 RTS；nRTS/nCTS 的 n 表示低电平有效；一般不用。</li>
+<li>跳线帽别随便拔：它既选 TTL 电平（5V/3.3V）又给 CH340 供电；虽然实测拔掉也能通信，但为了稳定要插上。</li>
+<li>STM32 是 3.3V 器件：跳线帽插 4-5 脚（3.3V 电平），电平不一致会通信异常。</li>
+<li>本集没有代码：库函数/结构体配置（<code>USART_Init</code>、<code>USART_Cmd</code>、读写 DR 等）在 P27，本集只讲外设原理与寄存器位。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -430,7 +409,7 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-usart-%E5%A4%96%E8%AE%BE%E5%8E%9F%E7%90%86-%E4%BB%A3%E7%A0%81%E5%9C%A8-p27">0. 本集定位：理论课（USART 外设原理），代码在 P27</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-usart-%E6%98%AF%E4%BB%80%E4%B9%88">1. USART 是什么</a>
         <a class="level-3" href="#1-1-%E5%90%8D%E7%A7%B0%E4%B8%8E%E5%8A%9F%E8%83%BD">1.1 名称与功能</a>
         <a class="level-3" href="#1-2-%E7%89%B9%E6%80%A7%E4%B8%8E%E5%8F%82%E6%95%B0">1.2 特性与参数</a>
@@ -441,7 +420,7 @@
         <a class="level-3" href="#2-3-%E6%8E%A5%E6%94%B6%E6%B5%81%E7%A8%8B%E4%B8%8E-rxne">2.3 接收流程与 RXNE</a>
         <a class="level-3" href="#2-4-%E6%8E%A7%E5%88%B6%E5%99%A8-%E6%B5%81%E6%8E%A7-ck-%E5%94%A4%E9%86%92%E5%8D%95%E5%85%83%E4%B8%8E%E4%B8%AD%E6%96%AD">2.4 控制器、流控、CK、唤醒单元与中断</a>
         <a class="level-2" href="#3-%E5%BC%95%E8%84%9A%E6%98%A0%E5%B0%84">3. 引脚映射</a>
-        <a class="level-2" href="#4-usart-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84-%E4%BD%9C%E8%80%85%E7%AE%80%E5%8C%96%E5%9B%BE">4. USART 基本结构（作者简化图）</a>
+        <a class="level-2" href="#4-usart-%E5%9F%BA%E6%9C%AC%E7%BB%93%E6%9E%84-%E7%AE%80%E5%8C%96%E5%9B%BE">4. USART 基本结构（简化图）</a>
         <a class="level-2" href="#5-%E6%95%B0%E6%8D%AE%E5%B8%A7%E6%A0%BC%E5%BC%8F-%E5%AD%97%E9%95%BF%E4%B8%8E%E5%81%9C%E6%AD%A2%E4%BD%8D">5. 数据帧格式（字长与停止位）</a>
         <a class="level-3" href="#5-1-%E5%AD%97%E9%95%BF-%E5%9B%BE249">5.1 字长（图249）</a>
         <a class="level-3" href="#5-2-%E5%81%9C%E6%AD%A2%E4%BD%8D-%E5%9B%BE250">5.2 停止位（图250）</a>
@@ -449,8 +428,9 @@
         <a class="level-3" href="#6-1-%E8%B5%B7%E5%A7%8B%E4%BD%8D%E4%BE%A6%E6%B5%8B-%E5%9B%BE252">6.1 起始位侦测（图252）</a>
         <a class="level-3" href="#6-2-%E6%95%B0%E6%8D%AE%E9%87%87%E6%A0%B7-%E5%9B%BE253">6.2 数据采样（图253）</a>
         <a class="level-2" href="#7-%E6%B3%A2%E7%89%B9%E7%8E%87%E5%8F%91%E7%94%9F%E5%99%A8%E4%B8%8E-brr">7. 波特率发生器与 BRR</a>
-        <a class="level-2" href="#8-ch340g-usb-%E8%BD%AC%E4%B8%B2%E5%8F%A3%E6%A8%A1%E5%9D%97%E5%8E%9F%E7%90%86%E5%9B%BE">8. CH340G USB 转串口模块原理图</a>
-        <a class="level-2" href="#9-%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C%E5%AF%BC%E8%AF%BB">9. 参考手册导读</a>
+        <a class="level-2" href="#8-ch340g-%E5%8E%9F%E7%90%86%E5%9B%BE%E4%B8%8E%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C%E5%AF%BC%E8%AF%BB">8. CH340G 原理图与参考手册导读</a>
+        <a class="level-3" href="#8-1-ch340g-usb-%E8%BD%AC%E4%B8%B2%E5%8F%A3%E6%A8%A1%E5%9D%97%E5%8E%9F%E7%90%86%E5%9B%BE">8.1 CH340G USB 转串口模块原理图</a>
+        <a class="level-3" href="#8-2-%E5%8F%82%E8%80%83%E6%89%8B%E5%86%8C%E5%AF%BC%E8%AF%BB">8.2 参考手册导读</a>
         <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>
   </aside>

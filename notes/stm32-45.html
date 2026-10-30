@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式 · 我的学习笔记</title>
-  <meta name="description" content="STM32 [13-2]（代码课，4 程序）：①改主频（106～116 行宏、取消只读、PLL 倍频）②睡眠（主循环末尾 __WFI()）③停止（先开 PWR 时钟 + EnterSTOPMode，唤醒后 HSI→SystemInit）④待机（RTC 闹钟唤醒、ALR 只写用变量、EnterSTANDBYMode、WKUP(PA0)、必关外部模块、实测 3µA）。">
+  <meta name="description" content="STM32 [13-2]（代码课，4 程序）：①改主频（106～116 行宏、取消只读、PLL 倍频）②睡眠（主循环尾 __WFI()）③停止（先开 PWR 时钟、唤醒后 SystemInit）④待机（RTC 闹钟、ALR 只写用变量、WKUP(PA0)、必关外部模块、实测 3µA）。">
   <meta property="og:title" content="[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式 · 我的学习笔记">
-  <meta property="og:description" content="STM32 [13-2]（代码课，4 程序）：①改主频（106～116 行宏、取消只读、PLL 倍频）②睡眠（主循环末尾 __WFI()）③停止（先开 PWR 时钟 + EnterSTOPMode，唤醒后 HSI→SystemInit）④待机（RTC 闹钟唤醒、ALR 只写用变量、EnterSTANDBYMode、WKUP(PA0)、必关外部模块、实测 3µA）。">
+  <meta property="og:description" content="STM32 [13-2]（代码课，4 程序）：①改主频（106～116 行宏、取消只读、PLL 倍频）②睡眠（主循环尾 __WFI()）③停止（先开 PWR 时钟、唤醒后 SystemInit）④待机（RTC 闹钟、ALR 只写用变量、WKUP(PA0)、必关外部模块、实测 3µA）。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,13 +177,17 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>27 分钟</span>
+      <span>18 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">PWR</span><span class="tag">低功耗</span><span class="tag">主频</span><span class="tag">代码</span>
     </div>
     <article class="prose"><h1>[13-2] 修改主频&amp;睡眠模式&amp;停止模式&amp;待机模式 — 学习笔记</h1>
+<h2 id="一句话结论">一句话结论</h2>
+<p>改主频只动 <code>system_stm32f10x.c</code> 第 106～116 行宏；睡眠加 <code>__WFI()</code>；停止模式先开 PWR 时钟、唤醒后立刻 <code>SystemInit()</code>；待机靠 RTC 闹钟或 WKUP(PA0) 唤醒，唤醒从头执行。</p>
+<h2 id="1-本集定位">1. 本集定位</h2>
 <ul>
-<li><strong>本集定位</strong>：这是<strong>模块 13 的代码课</strong>——<strong>4 个程序</strong>全部「从复制现成工程开始 → 逐行写码 → 下载验证（含低功耗特殊下载法）」，<strong>无下集预告</strong>。</li>
-<li><strong>4 个程序与复制来源（勿混）</strong>：</li>
+<li>模块 13 的代码课：4 个程序全部「复制现成工程 → 逐行写码 → 下载验证」，无下集预告（结尾是待机电流实测）。</li>
+<li>低功耗模式的下载方式：按住复位 → 点下载 → 松手。</li>
+<li>接线与对应章节基本一样：<code>13-1 修改主频</code>＝最小系统板 + ST-Link + OLED；<code>13-2 睡眠模式+串口</code>＝串口 + OLED；<code>13-3 停止模式+红外计次</code>＝对射式红外传感器 + OLED；<code>13-4 待机模式+实时时钟</code>＝<code>12-2</code> 实时时钟工程 + 一根 PA0/WKUP 绿色飞线。</li>
 </ul>
 <table>
 <thead>
@@ -193,67 +197,51 @@
 </tr>
 </thead>
 <tbody><tr>
-<td><strong><code>13-1 修改主频</code></strong></td>
-<td><strong>OLED 显示屏工程</strong></td>
+<td><code>13-1 修改主频</code></td>
+<td>OLED 显示屏工程</td>
 </tr>
 <tr>
-<td><strong><code>13-2 睡眠模式+串口发送+接收</code></strong></td>
-<td><strong><code>9-2</code> 串口收发工程</strong></td>
+<td><code>13-2 睡眠模式+串口发送+接收</code></td>
+<td><code>9-2</code> 串口收发工程</td>
 </tr>
 <tr>
-<td><strong><code>13-3 停止模式+对射式红外传感器计次</code></strong></td>
-<td><strong><code>5-1</code> 工程</strong></td>
+<td><code>13-3 停止模式+对射式红外传感器计次</code></td>
+<td><code>5-1</code> 工程</td>
 </tr>
 <tr>
-<td><strong><code>13-4 待机模式+实时时钟</code></strong></td>
-<td><strong><code>12-2 实时时钟</code>工程</strong></td>
+<td><code>13-4 待机模式+实时时钟</code></td>
+<td><code>12-2 实时时钟</code>工程</td>
 </tr>
 </tbody></table>
-<h2 id="一句话结论">一句话结论</h2>
-<p><strong>① 修改主频</strong>：入口在 <strong><code>system_stm32f10x.c</code> 文件头注释</strong>——它提供 <strong><code>SystemInit()</code></strong>（配置系统时钟源、PLL 倍频因子、AHB/APBx 预分频、Flash 设置；<strong>在 startup 文件里复位后被调用、进入 main 之前</strong>）、<strong><code>SystemCoreClock</code></strong> 变量（存 <strong>HCLK</strong>，可用来配 SysTick）、<strong><code>SystemCoreClockUpdate()</code></strong>（<strong>运行时改了主频必须调用它更新变量</strong>）。真正改主频的地方在<strong>第 106～116 行的预编译宏区</strong>：<code>#if defined(STM32F10X_LD_VL)…</code> 一组、<strong><code>#else</code> 一组</strong>；<strong>F103C8T6 是 MD 中容量，看 <code>#else</code> 这一组</strong>，里面有 <strong><code>SYSCLK_FREQ_HSE</code> / <code>SYSCLK_FREQ_24MHz</code> / <code>SYSCLK_FREQ_36MHz</code> / <code>SYSCLK_FREQ_48MHz</code> / <code>SYSCLK_FREQ_56MHz</code> / <code>SYSCLK_FREQ_72MHz</code> 六档宏</strong>（默认只放开 72MHz）——<strong>用法就是把当前宏注释掉、把目标频率的宏解除注释</strong>。<strong>⚠ 该文件默认是只读的</strong>（工程树里文件图标带锁），要<strong>右键文件（或整个文件夹）→ 属性 → 取消「只读」<strong>才能编辑。</strong><code>SetSysClockToXX</code> 里的实际算式</strong>：<strong>72M ＝ HSE×9</strong>、<strong>56M ＝ HSE×7</strong>、<strong>48M ＝ HSE×6</strong>、<strong>36M ＝ HSE/2×9</strong>、<strong>24M ＝ HSE/2×6</strong>、<strong>HSE 档＝不分频直通</strong>；AHB <strong>/1</strong>、APB2 <strong>/1</strong>、APB1 <strong>/2</strong>（所以 72M 时 HCLK＝PCLK2＝72M、PCLK1＝36M）。<strong>若 HSE 起振失败会走 <code>else</code> 分支</strong>（注释提示「the application will have wrong clock configuration，可自行加错误处理」），此时系统仍用最初启动的 <strong>HSI 8MHz</strong>——所以「发现主频变成 8M」就说明 HSE 真有问题。<strong>连锁影响（必写）</strong>：<code>Delay_us</code> 里<strong>按 72M 写死了常量</strong>，改主频后所有计时都不准，<strong>通用做法是按 <code>SystemCoreClock</code> 动态计算</strong>；作者的结论是「<strong>牵一发动全身，不推荐随便修改主频</strong>」。现象：72M 时 OLED 显示 <code>SYSCLK:72000000</code>、<code>Running</code> 1s 周期；改成 <strong>36M 后显示 <code>SYSCLK:36000000</code>、<code>Running</code> 周期变 2s</strong>。<strong>② 睡眠模式</strong>：主循环末尾加 <strong><code>__WFI();</code></strong> 即可（也可用 <code>__WFE()</code>，<strong>区别只是唤醒方式</strong>；本工程只演示 WFI，<strong>推荐 WFI 的中断唤醒</strong>）；<strong><code>SLEEPDEEP=0</code> 是默认值，进的就是睡眠模式，不必配寄存器</strong>；若要配 <strong><code>SLEEPDEEP</code>/<code>SLEEPONEXIT</code>/<code>SEVONPEND</code></strong> 得<strong>直接操作内核的 <code>SCB-&gt;SCR</code></strong>（见 Cortex-M3 编程手册 4.4 系统控制块；<strong>属内核、不是 PWR 库</strong>）。<strong>适用性分析</strong>：串口「随时待命收数据」用<strong>睡眠 ✓</strong>（USART 硬件仍能收数据、收到后产生中断唤醒 CPU）；<strong>停止 ✗</strong>（1.8V 时钟全关，<strong>USART 中断不能唤醒停止模式</strong>）；<strong>待机 ✗</strong>。<strong>③ 停止模式</strong>：<strong>必须先开 PWR 时钟</strong> <code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE)</code>——<strong>不开则写寄存器无效、读回来全是 0</strong>；然后调 <strong><code>PWR_EnterSTOPMode(PWR_Regulator_ON, PWR_STOPEntry_WFI)</code></strong>（参数一：<code>PWR_Regulator_ON</code> 调节器开／<code>PWR_Regulator_LowPower</code> 低功耗；参数二：<code>PWR_STOPEntry_WFI</code>／<code>_WFE</code>）。<strong>函数内部</strong>：读 <code>PWR-&gt;CR</code> → <strong><code>tmpreg &amp;= CR_DS_MASK</code></strong>（<strong>清 PDDS 和 LPDS</strong>，清 PDDS＝<strong>选择停止模式</strong>）→ 按参数 <strong>设 LPDS</strong>（ON 时 LPDS=0）→ 写回 <code>PWR-&gt;CR</code> → <strong><code>SCB-&gt;SCR |= SCB_SCR_SLEEPDEEP</code></strong> → 按参数执行 <strong><code>__WFI()</code></strong> 或 <strong><code>__WFE()</code></strong>。<strong>坑：唤醒后主频变 8M</strong>——PPT 停止模式条目写「<strong>当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟</strong>」；首次复位时 <code>SystemInit</code> 配的是 HSE×9＝72M，但退出停止模式后 PLL/HSE 未恢复、默认用 <strong>HSI 8MHz</strong>（现象：<code>Running</code> 明显变慢）。<strong>解决：唤醒后立刻再调一次 <code>SystemInit()</code></strong>，主频恢复 72M。<strong>④ 待机模式</strong>：先把显示改成 <code>CNT:</code>/<code>ALR:</code>/<code>ALRF:</code>（去掉年月日时分秒和 DIV），<strong>用 RTC 闹钟唤醒</strong>：<strong><code>uint32_t Alarm = RTC_GetCounter() + 10; RTC_SetAlarm(Alarm);</code></strong>（约 10s 后唤醒）。<strong>坑：<code>RTC_ALR</code> 寄存器是「只写」的</strong>（手册位说明里标 <code>W</code>、没有 <code>R</code>）→ <strong>读不回来</strong>，所以<strong>必须用变量 <code>Alarm</code> 保存闹钟值再显示</strong>；主循环末尾调 <strong><code>PWR_EnterSTANDBYMode()</code></strong>：内部<strong>先清 WUF 唤醒标志 → 再 <code>PDDS=1</code> 选择待机 → 设 <code>SLEEPDEEP</code> → 执行 <code>__WFI()</code></strong>；<strong>待机不区分 WFI/WFE</strong>（唤醒源固定为那 4 个信号）。<strong>进待机前先 <code>OLED_Clear()</code></strong>（模拟关闭外部模块）并显示 <code>STANDBY</code> 便于观察；<strong>唤醒后程序从头开始执行</strong>（CNT/ALR 重新刷新、<code>Running</code> 再闪，说明没在暂停点继续）。<strong><code>PWR_WakeUpPinCmd(ENABLE)</code></strong> 使能位于 <strong>PA0 的 WKUP 引脚</strong>——<strong>该脚默认下拉、接高电平即唤醒、不需要做 GPIO 初始化</strong>。<strong>进待机前必须关掉外部模块</strong>（作者用 <code>OLED_Clear</code> 模拟，真实产品要切断外挂模块电源，否则「外挂模块耗电远超 STM32 本身，捡了芝麻丢了西瓜」）。<strong>实测电流</strong>：直接测 <strong>1mA 多</strong>（电源指示灯）→ 去掉指示灯 <strong>几百 µA</strong> → 继续排查后 <strong>降到 3µA</strong>，与手册「待机约 3µA」吻合；<strong>正常工作 20 多 mA</strong>。</p>
-<h2 id="0-本集定位-代码课-4-个程序全部写完并验证">0. 本集定位：代码课（4 个程序全部写完并验证）</h2>
-<ul>
-<li>4 个程序都<strong>从复制现成工程开始</strong>、<strong>逐行写码</strong>、<strong>下载验证</strong>（低功耗模式下要用特殊下载法：按住复位 → 点下载 → 松手）；</li>
-<li><strong>无下集预告</strong>，结尾是待机电流实测收束。</li>
-</ul>
-<h2 id="1-接线与工程准备">1. 接线与工程准备</h2>
-<ul>
-<li>本集代码都在之前代码基础上修改，<strong>接线与对应章节基本一样</strong>：<ul>
-<li><code>13-1 修改主频</code>：STM32 最小系统板 + ST-Link + OLED（复制 OLED 工程）；</li>
-<li><code>13-2 睡眠模式+串口</code>：在 <code>9-2</code> 串口工程基础上，接线 = 串口 + OLED；</li>
-<li><code>13-3 停止模式+红外计次</code>：在 <code>5-1</code> 工程基础上（对射式红外传感器 + OLED）；</li>
-<li><code>13-4 待机模式+实时时钟</code>：在 <code>12-2</code> 实时时钟工程基础上，<strong>多了 PA0/WKUP 引脚接线</strong>（红圈标出，用绿色飞线接入）；</li>
-</ul>
-</li>
-<li>面包板接线作者已事先接好（前面章节都演示过），本集不再重复。</li>
-</ul>
-<p><img src="../assets/images/stm32-45/01-wiring-131.jpg" alt="图 1：接线图 13-1 修改主频——STM32 最小系统板 + ST-Link + OLED 显示屏（4 根 I2C 线 + 电源）；右下角注明 *此图为OLED下方被遮挡的接线图"></p>
-<p><em>图 1：接线图 <code>13-1 修改主频</code>——STM32 最小系统板 + ST-Link + OLED 显示屏（4 根 I2C 线 + 电源）；右下角注明 <code>*此图为OLED下方被遮挡的接线图</code></em></p>
-<p><img src="../assets/images/stm32-45/02-wiring-134-wkup.jpg" alt="图 2：接线图 13-4 待机模式+实时时钟——红圈标出板子上的 PA0/WKUP 引脚，并用绿色飞线接入（用于待机唤醒）；字幕「唤醒之后，没有主电源，程序运行不了」"></p>
-<p><em>图 2：接线图 <code>13-4 待机模式+实时时钟</code>——红圈标出板子上的 <strong>PA0/WKUP 引脚</strong>，并用绿色飞线接入（用于待机唤醒）；字幕「唤醒之后，没有主电源，程序运行不了」</em></p>
+<p><img src="../assets/images/stm32-45/01-wiring-131.jpg" alt="图 1：接线图 13-1 修改主频——最小系统板 + ST-Link + OLED（4 根 I2C 线 + 电源），右下角注明 *此图为OLED下方被遮挡的接线图"></p>
+<p><em>图 1：接线图 <code>13-1 修改主频</code>——最小系统板 + ST-Link + OLED（4 根 I2C 线 + 电源），右下角注明 <code>*此图为OLED下方被遮挡的接线图</code></em></p>
+<p><img src="../assets/images/stm32-45/02-wiring-134-wkup.jpg" alt="图 2：接线图 13-4 待机模式+实时时钟——红圈标出 PA0/WKUP 引脚，绿色飞线接入（待机唤醒用）"></p>
+<p><em>图 2：接线图 <code>13-4 待机模式+实时时钟</code>——红圈标出 PA0/WKUP 引脚，绿色飞线接入（待机唤醒用）</em></p>
 <h2 id="2-程序1-修改主频-13-1-修改主频">2. 程序①：修改主频（<code>13-1 修改主频</code>）</h2>
 <h3 id="2-1-system-stm32f10x-c-文件头注释">2.1 <code>system_stm32f10x.c</code> 文件头注释</h3>
 <ul>
-<li><strong>这个文件就是用来配置系统时钟的</strong>（注释要认真读，「读懂这些注释就差不多能理解这个文件了」）；</li>
-<li>文件头写明：<strong>本文件提供 2 个函数和 1 个全局变量</strong>：<ol>
-<li><strong><code>SystemInit()</code></strong>：设置系统时钟（<strong>系统时钟源、PLL 倍频因子、AHB/APBx 预分频、Flash 设置</strong>）——<strong>在 startup 文件里、复位之后、跳转到 main 之前被调用</strong>；</li>
-<li><strong><code>SystemCoreClock</code></strong>：<strong>全局变量，保存核心时钟（HCLK）</strong>，可用于配置 <strong>SysTick</strong> 定时器或其他参数；</li>
-<li><strong><code>SystemCoreClockUpdate()</code></strong>：<strong>更新 <code>SystemCoreClock</code> 变量</strong>——<strong>只要在程序运行中改变了核心时钟，就必须调用它</strong>；</li>
+<li>文件头写明：本文件提供 2 个函数 + 1 个全局变量。<ol>
+<li><code>SystemInit()</code>：设置系统时钟源、PLL 倍频因子、AHB/APBx 预分频、Flash 设置；在 startup 文件里、复位之后、跳转到 main 之前被调用。</li>
+<li><code>SystemCoreClock</code>：全局变量，保存核心时钟 HCLK，可用于配置 SysTick 定时器或其他参数。</li>
+<li><code>SystemCoreClockUpdate()</code>：更新 <code>SystemCoreClock</code> 变量；程序运行中改变了核心时钟就必须调用。</li>
 </ol>
 </li>
 <li>文件版本 <code>V3.5.0</code>、日期 <code>11-March-2011</code>（CMSIS Cortex-M3 Device Peripheral Access Layer System Source File）。</li>
 </ul>
+<p><img src="../assets/images/stm32-45/03-system-header.jpg" alt="图 3：system_stm32f10x.c 文件头注释——@file / @author MCD Application Team / @version V3.5.0 / @date 11-March-2011；正文 1. 列出 2 函数 + 1 变量"></p>
+<p><em>图 3：<code>system_stm32f10x.c</code> 文件头注释——<code>@file / @author MCD Application Team / @version V3.5.0 / @date 11-March-2011</code>；正文 1. 列出 2 函数 + 1 变量</em></p>
 <h3 id="2-2-rcc-时钟树-图8">2.2 RCC 时钟树（图8）</h3>
 <ul>
-<li><strong>HSE 8MHz</strong>（外部晶振）→ <strong>PLLXTPRE</strong>（可 /2）→ <strong>PLLSRC</strong> 选源 → <strong>PLLMUL（×4～×16）</strong> → <strong>PLLCLK</strong> → <strong>SW</strong> 选择 → <strong>SYSCLK 72MHz</strong>；</li>
-<li><strong>AHB 预分频</strong> → <strong>HCLK 72MHz</strong>；<strong>APB2 预分频 /1</strong> → <strong>PCLK2 72MHz</strong>；<strong>APB1 预分频 /2</strong> → <strong>PCLK1 36MHz</strong>；</li>
-<li>另有 <strong>LSE 32.768kHz → RTCCLK</strong>、<strong>LSI 40kHz → IWDGCLK</strong>、<strong>MCO 时钟输出</strong>、USB 预分频等；</li>
-<li><strong>此前课程一直保持默认配置</strong>（晶振 8M、AHB/APB2＝72M、APB1＝36M），<strong>但这些都不是绝对的</strong>，可以按需改——<strong>随意改可能出问题</strong>。</li>
+<li>HSE 8MHz（外部晶振）→ PLLXTPRE（可 /2）→ PLLSRC 选源 → PLLMUL（×4～×16）→ PLLCLK → SW 选择 → SYSCLK 72MHz。</li>
+<li>AHB 预分频 → HCLK 72MHz；APB2 预分频 /1 → PCLK2 72MHz；APB1 预分频 /2 → PCLK1 36MHz。</li>
+<li>另有 LSE 32.768kHz → RTCCLK、LSI 40kHz → IWDGCLK、MCO 时钟输出、USB 预分频。</li>
+<li>此前课程一直保持默认配置（晶振 8M、AHB/APB2＝72M、APB1＝36M），但这些都不是绝对的，随意改可能出问题。</li>
 </ul>
 <h3 id="2-3-改主频的宏-第-106-116-行">2.3 改主频的宏（第 106～116 行）</h3>
 <ul>
-<li>文件里用<strong>预编译指令</strong>分成两组：<code>#if defined(STM32F10X_LD_VL) || (defined STM32F10X_MD_VL) || (defined STM32F10X_HD_VL)</code>（VL 型）与 <strong><code>#else</code></strong>（其他型号）；</li>
-<li><strong>F103C8T6 是 MD 中容量</strong>，<strong>看 <code>#else</code> 这组</strong>；组内 6 个宏（默认只放开 72MHz）：</li>
+<li>文件用预编译指令分两组：<code>#if defined(STM32F10X_LD_VL)…</code>（VL 型）与 <code>#else</code>（其他型号）。</li>
+<li>VL 型的完整条件：<code>#if defined(STM32F10X_LD_VL) || (defined STM32F10X_MD_VL) || (defined STM32F10X_HD_VL)</code>。</li>
+<li>F103C8T6 是 MD 中容量，看 <code>#else</code> 这一组；组内 6 个宏（默认只放开 72MHz）：</li>
 </ul>
 <table>
 <thead>
@@ -274,9 +262,9 @@
 <td>HSE/2×6</td>
 </tr>
 <tr>
-<td><strong><code>SYSCLK_FREQ_36MHz</code></strong></td>
-<td><strong>36000000</strong></td>
-<td><strong>HSE/2×9</strong>（本集演示用它）</td>
+<td><code>SYSCLK_FREQ_36MHz</code></td>
+<td>36000000</td>
+<td>HSE/2×9（本集演示用它）</td>
 </tr>
 <tr>
 <td><code>SYSCLK_FREQ_48MHz</code></td>
@@ -289,28 +277,30 @@
 <td>HSE×7</td>
 </tr>
 <tr>
-<td><strong><code>SYSCLK_FREQ_72MHz</code></strong></td>
-<td><strong>72000000</strong></td>
-<td><strong>HSE×9</strong>（默认）</td>
+<td><code>SYSCLK_FREQ_72MHz</code></td>
+<td>72000000</td>
+<td>HSE×9（默认）</td>
 </tr>
 </tbody></table>
 <ul>
-<li><strong>用法：把当前频率的宏注释掉、把目标频率的宏解除注释</strong>（比如想改 36M，就注掉 72M 宏、放开 36M 宏）。</li>
+<li>宏区原文六行全部被注释：<code>/* #define SYSCLK_FREQ_HSE HSE_VALUE */</code>、<code>/* #define SYSCLK_FREQ_24MHz 24000000 */</code>、<code>/* #define SYSCLK_FREQ_36MHz 36000000 */</code>、<code>/* #define SYSCLK_FREQ_48MHz 48000000 */</code>、<code>/* #define SYSCLK_FREQ_56MHz 56000000 */</code>、<code>/* #define SYSCLK_FREQ_72MHz 72000000 */</code>。</li>
+<li>用法：把当前频率的宏注释掉、把目标频率的宏解除注释（想改 36M 就注掉 72M 宏、放开 36M 宏）。</li>
 </ul>
+<p><img src="../assets/images/stm32-45/04-sysclk-macros.jpg" alt="图 4：第 106～116 行时钟宏区——#else 分支的 6 个宏（SYSCLK_FREQ_HSE～SYSCLK_FREQ_72MHz）全部处于注释状态"></p>
+<p><em>图 4：第 106～116 行时钟宏区——<code>#else</code> 分支的 6 个宏（<code>SYSCLK_FREQ_HSE</code>～<code>SYSCLK_FREQ_72MHz</code>）全部处于注释状态</em></p>
+<p><img src="../assets/images/stm32-45/05-clock-tree.jpg" alt="图 5：PPT「RCC时钟树」图8——HSI 8MHz、HSE 4-16MHz → PLLXTPRE/PLLSRC → PLLMUL（×4～×16）→ PLLCLK → SW → SYSCLK 72MHz；AHB → HCLK 72MHz、APB2 /1 → PCLK2 72MHz、APB1 /2 → PCLK1 36MHz；红圈标 HSE 与 APB1 的 36MHz"></p>
+<p><em>图 5：PPT「RCC时钟树」图8——HSI 8MHz、HSE 4-16MHz → PLLXTPRE/PLLSRC → PLLMUL（×4～×16）→ PLLCLK → SW → SYSCLK 72MHz；AHB → HCLK 72MHz、APB2 /1 → PCLK2 72MHz、APB1 /2 → PCLK1 36MHz；红圈标 HSE 与 APB1 的 36MHz</em></p>
 <h3 id="2-4-文件是只读的">2.4 ⚠ 文件是只读的</h3>
 <ul>
-<li>工程树里 <code>system_stm32f10x.c</code> 的<strong>文件图标带锁标记</strong>，说明它是<strong>只读</strong>的；</li>
-<li><strong>解除只读</strong>：右键选项卡/文件 → <strong>「打开包含的文件夹」</strong> → 在文件夹里右键该文件 → <strong>属性 → 取消「只读」勾选 → 确定</strong>；</li>
-<li>也可以<strong>对整个文件夹</strong>操作，把只读去掉；</li>
-<li>回到 Keil 后才能编辑。</li>
+<li>工程树里 <code>system_stm32f10x.c</code> 的<strong>文件图标带锁标记</strong>，说明它是只读的。</li>
+<li>解除：右键「打开包含的文件夹」→ 右键该文件 → 属性 → 取消「只读」勾选 → 确定；也可对整个文件夹操作，之后回到 Keil 才能编辑。</li>
 </ul>
 <h3 id="2-5-setsysclocktoxx-内部-以-72m-为例">2.5 <code>SetSysClockToXX</code> 内部（以 72M 为例）</h3>
 <pre><code class="language-c">/* PCLK2 = HCLK */
 RCC-&gt;CFGR |= (uint32_t)RCC_CFGR_PPRE2_DIV1;
 /* PCLK1 = HCLK */
 RCC-&gt;CFGR |= (uint32_t)RCC_CFGR_PPRE1_DIV1;
-/* Select HSE as system clock source */
-RCC-&gt;CFGR &amp;= (uint32_t)((uint32_t)~(RCC_CFGR_SW));
+/* Select HSE as system clock source：先清 SW 位，再选 HSE */
 RCC-&gt;CFGR |= (uint32_t)RCC_CFGR_SW_HSE;
 /* Wait till HSE is used as system clock source */
 while ((RCC-&gt;CFGR &amp; (uint32_t)RCC_CFGR_SWS) != (uint32_t)0x04) { }
@@ -322,20 +312,17 @@ else
 }
 </code></pre>
 <ul>
-<li><strong>流程</strong>：先配 <strong>AHB /1（HPRE_DIV1）、APB2 /1（PPRE2_DIV1）、APB1 /2（PPRE1_DIV2）</strong> → <strong>PLL 源选 HSE、PLLMUL×9</strong>（<code>/* PLL configuration: PLLCLK = HSE * 9 = 72 MHz */</code>）→ <strong><code>RCC_CR_PLLON</code> 使能 PLL</strong> 并 <strong><code>while(!(RCC-&gt;CR &amp; RCC_CR_PLLRDY));</code></strong> 等就绪 → <strong><code>RCC_CFGR_SW</code> 切到 PLL 作 SYSCLK</strong> → <strong><code>while((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != 0x08);</code></strong> 等切换完成；</li>
-<li><strong><code>else</code> 分支</strong>：<strong>HSE 起振失败</strong>时走这里（可自行加错误处理），此时<strong>系统仍用最初启动的 HSI 8MHz</strong>——<strong>发现主频变 8M 就说明 HSE 真有问题</strong>；</li>
-<li><strong>各档位算式</strong>：<code>SetSysClockTo56</code> → <strong>HSE×7＝56M</strong>；<code>SetSysClockTo48</code> → <strong>HSE×6＝48M</strong>；<code>SetSysClockTo36</code> → <strong>HSE/2×9＝36M</strong>；<code>SetSysClockTo24</code> → <strong>HSE/2×6＝24M</strong>；<code>SetSysClockToHSE</code> → 不分频直通。</li>
+<li>预分频与切换：<code>/* PCLK2 = HCLK */ …PPRE2_DIV1;</code>、<code>/* PCLK1 = HCLK */ …PPRE1_DIV1;</code> 之后，<code>/* Select HSE as system clock source */ … RCC_CFGR_SW_HSE;</code>，并 <code>while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != 0x04) { }</code> 等切换完成。</li>
+<li>72M 档的完整流程：<code>RCC_CR_PLLON</code> 使能 PLL → <code>while(!(RCC-&gt;CR &amp; RCC_CR_PLLRDY));</code> 等就绪 → <code>RCC_CFGR_SW</code> 切到 PLL → <code>while((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != 0x08);</code> 等切换完成（对应注释 <code>/* PLL configuration: PLLCLK = HSE * 9 = 72 MHz */</code>）。</li>
+<li>PLL 配置段：先按位取反 <code>RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL</code> 再与运算清位，然后 <code>RCC-&gt;CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL7);</code> 选 HSE×7（<code>/* PLL configuration: PLLCLK = HSE * 7 = 56 MHz */</code>）。</li>
+<li>使能与等待：<code>/* Enable PLL */ RCC-&gt;CR |= RCC_CR_PLLON;</code> 之后 <code>/* Wait till PLL is ready */ while((RCC-&gt;CR &amp; RCC_CR_PLLRDY) == 0) { }</code>。</li>
+<li>72M 档对应 <code>SetSysClockTo72</code>，<code>else</code> 分支注释为 <code>else { /* If HSE fails to start-up, the application will have wrong clock configuration. User can add here some code to deal with this error */ }</code>，其后接 <code>#elif defined SYSCLK_FREQ_24MHz</code>。</li>
+<li>各档算式：<code>SetSysClockTo56</code> → HSE×7＝56M；<code>SetSysClockTo48</code> → HSE×6＝48M；<code>SetSysClockTo36</code> → HSE/2×9＝36M；<code>SetSysClockTo24</code> → HSE/2×6＝24M；<code>SetSysClockToHSE</code> → 不分频直通。</li>
 </ul>
-<p><img src="../assets/images/stm32-45/03-system-header.jpg" alt="图 3：system_stm32f10x.c 文件头注释——@file / @author MCD Application Team / @version V3.5.0 / @date 11-March-2011；1. This file provides two functions and one global variable：SystemInit()（Sets up the system clock（System clock source, PLL Multiplier factors, AHB/APBx prescalers and Flash settings），called at startup just after reset and before branch to main program，inside the startup file）、SystemCoreClock（Contains the core clock（HCLK），can be used to setup SysTick timer or configure other parameters）、SystemCoreClockUpdate()（Updates the variable SystemCoreClock and must be called whenever the core clock is changed during program execution）；字幕「读懂这些注释，就差不多能理解这个文件了」"></p>
-<p><em>图 3：<code>system_stm32f10x.c</code> 文件头注释——<code>@file / @author MCD Application Team / @version V3.5.0 / @date 11-March-2011</code>；<strong>1. This file provides two functions and one global variable</strong>：<code>SystemInit()</code>（Sets up the system clock（System clock source, PLL Multiplier factors, AHB/APBx prescalers and Flash settings），called at startup just after reset and before branch to main program，inside the startup file）、<code>SystemCoreClock</code>（Contains the core clock（HCLK），can be used to setup SysTick timer or configure other parameters）、<code>SystemCoreClockUpdate()</code>（Updates the variable SystemCoreClock and must be called whenever the core clock is changed during program execution）；字幕「读懂这些注释，就差不多能理解这个文件了」</em></p>
-<p><img src="../assets/images/stm32-45/04-sysclk-macros.jpg" alt="图 4：第 106～116 行的时钟宏区——#if defined (STM32F10X_LD_VL) || (defined STM32F10X_MD_VL) || (defined STM32F10X_HD_VL) 分支（HSE、24MHz）；`#else` 分支：/* #define SYSCLK_FREQ_HSE HSE_VALUE */、/* #define SYSCLK_FREQ_24MHz 24000000 */、`/* #define SYSCLK_FREQ_36MHz 36000000 */`（高亮，当前生效）、/* #define SYSCLK_FREQ_48MHz 48000000 */、/* #define SYSCLK_FREQ_56MHz 56000000 */、/* #define SYSCLK_FREQ_72MHz 72000000 */（已注释）；字幕「比如你想改成36M，那就把72M的宏注释掉」"></p>
-<p><em>图 4：第 106～116 行的时钟宏区——<code>#if defined (STM32F10X_LD_VL) || (defined STM32F10X_MD_VL) || (defined STM32F10X_HD_VL)</code> 分支（HSE、24MHz）；**<code>#else</code> 分支*</em>：<code>/* #define SYSCLK_FREQ_HSE HSE_VALUE */</code>、<code>/* #define SYSCLK_FREQ_24MHz 24000000 */</code>、<strong><code>/* #define SYSCLK_FREQ_36MHz 36000000 */</code>（高亮，当前生效）</strong>、<code>/* #define SYSCLK_FREQ_48MHz 48000000 */</code>、<code>/* #define SYSCLK_FREQ_56MHz 56000000 */</code>、<code>/* #define SYSCLK_FREQ_72MHz 72000000 */</code>（已注释）；字幕「比如你想改成36M，那就把72M的宏注释掉」*</p>
-<p><img src="../assets/images/stm32-45/05-clock-tree.jpg" alt="图 5：PPT「RCC时钟树」图8——HSI 8MHz、HSE 4-16MHz → PLLXTPRE/PLLSRC → PLLMUL（×4～×16）→ PLLCLK → SW → SYSCLK 72MHz；AHB 预分频 → HCLK 72MHz；APB2 /1 → PCLK2 72MHz、APB1 /2 → PCLK1 36MHz；LSE 32.768kHz → RTCCLK、LSI 40kHz → IWDGCLK、MCO；红圈标出 HSE 与 APB1 的 36MHz；字幕「这里1分频，这里1分频，这里2分频」"></p>
-<p><em>图 5：PPT「RCC时钟树」图8——HSI 8MHz、HSE 4-16MHz → PLLXTPRE/PLLSRC → PLLMUL（×4～×16）→ PLLCLK → SW → <strong>SYSCLK 72MHz</strong>；AHB 预分频 → <strong>HCLK 72MHz</strong>；APB2 /1 → <strong>PCLK2 72MHz</strong>、APB1 /2 → <strong>PCLK1 36MHz</strong>；LSE 32.768kHz → RTCCLK、LSI 40kHz → IWDGCLK、MCO；红圈标出 HSE 与 APB1 的 36MHz；字幕「这里1分频，这里1分频，这里2分频」</em></p>
-<p><img src="../assets/images/stm32-45/06-setclock-56m.jpg" alt="图 6：SetSysClockTo56 的 PLL 配置段——/* PLL configuration: PLLCLK = HSE * 7 = 56 MHz */（高亮）、（先按位取反 RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL 再与运算）、RCC-&gt;CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL7);、/* Enable PLL */ RCC-&gt;CR |= RCC_CR_PLLON;、/* Wait till PLL is ready */ while((RCC-&gt;CR &amp; RCC_CR_PLLRDY) == 0) { }；字幕「HSE*7=56M」"></p>
-<p><em>图 6：<code>SetSysClockTo56</code> 的 PLL 配置段——<code>/* PLL configuration: PLLCLK = HSE * 7 = 56 MHz */</code>（高亮）、（先按位取反 <code>RCC_CFGR_PLLSRC | RCC_CFGR_PLLXTPRE | RCC_CFGR_PLLMULL</code> 再与运算）、<code>RCC-&gt;CFGR |= (uint32_t)(RCC_CFGR_PLLSRC_HSE | RCC_CFGR_PLLMULL7);</code>、<code>/* Enable PLL */ RCC-&gt;CR |= RCC_CR_PLLON;</code>、<code>/* Wait till PLL is ready */ while((RCC-&gt;CR &amp; RCC_CR_PLLRDY) == 0) { }</code>；字幕「HSE</em>7=56M」*</p>
-<p><img src="../assets/images/stm32-45/07-setclock-72m-else.jpg" alt="图 7：SetSysClockTo72 的 AHB/APB 与 HSE 切换段——/* PCLK2 = HCLK */ …PPRE2_DIV1;、/* PCLK1 = HCLK */ …PPRE1_DIV1;（红框 + 手写 HSE）、/* Select HSE as system clock source */ … RCC_CFGR_SW_HSE;、while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != 0x04) { }、`else { /* If HSE fails to start-up, the application will have wrong clock configuration. User can add here some code to deal with this error */ }`、#elif defined SYSCLK_FREQ_24MHz；字幕「根据我们前面解除注释的宏定义」"></p>
-<p><em>图 7：<code>SetSysClockTo72</code> 的 AHB/APB 与 HSE 切换段——<code>/* PCLK2 = HCLK */ …PPRE2_DIV1;</code>、<code>/* PCLK1 = HCLK */ …PPRE1_DIV1;</code>（红框 + 手写 HSE）、<code>/* Select HSE as system clock source */ … RCC_CFGR_SW_HSE;</code>、<code>while ((RCC-&gt;CFGR &amp; RCC_CFGR_SWS) != 0x04) { }</code>、<strong><code>else { /* If HSE fails to start-up, the application will have wrong clock configuration. User can add here some code to deal with this error */ }</code></strong>、<code>#elif defined SYSCLK_FREQ_24MHz</code>；字幕「根据我们前面解除注释的宏定义」</em></p>
+<p><img src="../assets/images/stm32-45/06-setclock-56m.jpg" alt="图 6：SetSysClockTo56 的 PLL 配置段——/* PLL configuration: PLLCLK = HSE * 7 = 56 MHz */，随后写 PLLSRC/PLLMULL 位并等 PLL 就绪"></p>
+<p><em>图 6：<code>SetSysClockTo56</code> 的 PLL 配置段——<code>/* PLL configuration: PLLCLK = HSE * 7 = 56 MHz */</code>，随后写 PLLSRC/PLLMULL 位并等 PLL 就绪</em></p>
+<p><img src="../assets/images/stm32-45/07-setclock-72m-else.jpg" alt="图 7：SetSysClockTo72 的 AHB/APB 与 HSE 切换段——/* PCLK2 = HCLK */ …PPRE2_DIV1;、/* PCLK1 = HCLK */ …PPRE1_DIV1;、选 HSE 作系统时钟并等 SWS 就位"></p>
+<p><em>图 7：<code>SetSysClockTo72</code> 的 AHB/APB 与 HSE 切换段——<code>/* PCLK2 = HCLK */ …PPRE2_DIV1;</code>、<code>/* PCLK1 = HCLK */ …PPRE1_DIV1;</code>、选 HSE 作系统时钟并等 SWS 就位</em></p>
 <h3 id="2-6-main-与现象验证">2.6 main 与现象验证</h3>
 <pre><code class="language-c">OLED_ShowString(1, 1, &quot;SYSCLK:&quot;);
 OLED_ShowNum(1, 8, SystemCoreClock, 8);   /* 显示当前主频 */
@@ -349,20 +336,19 @@ while (1)
 }
 </code></pre>
 <ul>
-<li><strong>72M 时</strong>：OLED 显示 <code>SYSCLK:72000000</code>，<strong><code>Running</code> 闪烁周期 1s</strong>（500ms 亮 + 500ms 灭）；</li>
-<li><strong>改 36M</strong>（注掉 72M 宏、放开 36M 宏 → 重新编译下载）：OLED 显示 <strong><code>SYSCLK:36000000</code></strong>，<strong><code>Running</code> 周期变 2s</strong>——说明主频确实降低了；</li>
-<li><strong>连锁影响</strong>：<code>Delay_us</code> 里<strong>默认按 72M 写死了常量</strong>（<code>Delay_ms</code> 也是基于它），所以<strong>改主频后所有计时都不准</strong>；<strong>通用做法是按 <code>SystemCoreClock</code> 动态计算</strong>；作者结论：<strong>不推荐随便修改主频</strong>（「牵一发而动全身」，要考虑与时钟相关的所有外设/延时）。</li>
+<li>72M 时 OLED 显示 <code>SYSCLK:72000000</code>，<code>Running</code> 闪烁周期 1s（500ms 亮 + 500ms 灭）。</li>
+<li>改 36M（注掉 72M 宏、放开 36M 宏 → 重新编译下载）后显示 <code>SYSCLK:36000000</code>，<code>Running</code> 周期变 2s，说明主频确实降低了。</li>
+<li><strong>连锁影响</strong>：<code>Delay_us</code> 里默认按 72M 写死了常量，<code>Delay_ms</code> 也基于它，改主频后所有计时都不准；通用做法是按 <code>SystemCoreClock</code> 动态计算，不推荐随便修改主频。</li>
 </ul>
 <h2 id="3-程序2-睡眠模式-13-2-睡眠模式-串口发送-接收">3. 程序②：睡眠模式（<code>13-2 睡眠模式+串口发送+接收</code>）</h2>
 <h3 id="3-1-为什么用睡眠-能不能用其它模式">3.1 为什么用睡眠、能不能用其它模式</h3>
 <ul>
-<li>复制 <strong><code>9-2</code> 串口收发工程</strong>；功能是<strong>收到一个字节 → 中断置标志 → 主循环查到后读数据并回发</strong>；</li>
-<li><strong>问题</strong>：如果一直没收到数据，主循环<strong>不断查询标志位</strong>——这是<strong>无意义的耗电操作</strong>；</li>
-<li><strong>思路</strong>：<strong>空闲时让 CPU 睡，中断来了再醒来干活</strong>；</li>
-<li><strong>三种模式对「串口随时待命」的适用性</strong>：<ul>
-<li><strong>睡眠 ✓</strong>：程序不执行，但 <strong>USART 硬件电路仍能接收数据</strong>，收到后<strong>产生中断唤醒 CPU</strong>；</li>
-<li><strong>停止 ✗</strong>：<strong>1.8V 区域时钟全关</strong>，CPU 和外设都不能运行，<strong>USART 中断也不能唤醒停止模式</strong>（只有 EXTI 能）；</li>
-<li><strong>待机 ✗</strong>：唤醒源固定 4 个，也不适合。</li>
+<li>复制 <code>9-2</code> 串口收发工程：收到一个字节 → 中断置标志 → 主循环查到后读数据并回发。</li>
+<li>一直没收到数据时主循环不断查询标志位，是无意义的耗电操作；思路是空闲时让 CPU 睡，中断来了再醒来干活。</li>
+<li>三种模式对「串口随时待命」的适用性：<ul>
+<li>睡眠 ✓：程序不执行，但 USART 硬件电路仍能接收数据，收到后产生中断唤醒 CPU。</li>
+<li>停止 ✗：1.8V 区域时钟全关，USART 中断不能唤醒停止模式（只有 EXTI 能）。</li>
+<li>待机 ✗：唤醒源固定 4 个，也不适合。</li>
 </ul>
 </li>
 </ul>
@@ -385,34 +371,35 @@ while (1)
 }
 </code></pre>
 <ul>
-<li><strong>只需在主循环最后加 <code>__WFI();</code></strong>（也可以 <code>__WFE()</code>，<strong>区别只是唤醒方式</strong>；<strong>推荐 WFI 的中断唤醒</strong>，本工程只演示 WFI）；</li>
-<li><strong><code>__WFI</code> 是 CPU 的内核汇编指令</strong>（转到定义就到头了，看不到实现）——记得住格式即可；</li>
-<li><strong><code>SLEEPDEEP=0</code> 是默认值 → 直接就是睡眠模式，不必配寄存器</strong>；</li>
-<li>若要配 <strong><code>SLEEPDEEP</code>/<code>SLEEPONEXIT</code>/<code>SEVONPEND</code></strong>，必须<strong>直接操作内核的 <code>SCB-&gt;SCR</code></strong>（Cortex-M3 编程手册 <strong>4.4 系统控制块 SCB</strong> → <strong>SCR</strong>）：<ul>
-<li><strong>Bit 4 <code>SEVONPEND</code></strong>：0＝只有<strong>使能的中断或事件</strong>能唤醒；1＝**使能的事件和所有中断（含被禁止的中断）**都能唤醒；</li>
-<li><strong>Bit 2 <code>SLEEPDEEP</code></strong>：0＝Sleep（睡眠）；1＝Deep sleep（深度睡眠）；</li>
-<li><strong>Bit 1 <code>SLEEPONEXIT</code></strong>：0＝中断返回时不睡；1＝<strong>中断返回时进入 sleep</strong>；</li>
-<li>例如在 WFI 上面写 <code>SCB-&gt;SCR |= SCB_SCR_SLEEPDEEP;</code>——<strong>本工程保持默认 0 即可</strong>。</li>
+<li>只需在主循环最后加 <code>__WFI();</code>；也可用 <code>__WFE()</code>，区别只是唤醒方式，推荐 WFI 的中断唤醒（本工程只演示 WFI）。</li>
+<li><code>__WFI</code> 是 CPU 的内核汇编指令（转到定义就到头了，看不到实现），记住格式即可。</li>
+<li><code>SLEEPDEEP=0</code> 是默认值 → 直接就是睡眠模式，不必配寄存器。</li>
+<li>要配 <code>SLEEPDEEP</code>/<code>SLEEPONEXIT</code>/<code>SEVONPEND</code>，必须直接操作内核的 <code>SCB-&gt;SCR</code>（Cortex-M3 编程手册 4.4 系统控制块 SCB，属内核、不是 PWR 库）：<ul>
+<li>Bit 4 <code>SEVONPEND</code>：0＝只有使能的中断或事件能唤醒；1＝使能的事件和所有中断（含被禁止的中断）都能唤醒。</li>
+<li>Bit 2 <code>SLEEPDEEP</code>：0＝Sleep（睡眠）；1＝Deep sleep（深度睡眠）。</li>
+<li>Bit 1 <code>SLEEPONEXIT</code>：0＝中断返回时不睡；1＝中断返回时进入 sleep。</li>
+<li>在 WFI 上面写 <code>SCB-&gt;SCR |= SCB_SCR_SLEEPDEEP;</code> 可置深度睡眠，本工程保持默认 0 即可。</li>
 </ul>
 </li>
 </ul>
 <h3 id="3-3-现象">3.3 现象</h3>
 <ul>
-<li>串口助手（COM10、<strong>9600 8N1</strong>）发一个字节，STM32 <strong>回传并显示 <code>RxData:66</code></strong>；</li>
-<li><strong>细节</strong>：<strong>只有收发那一刻 <code>Running</code> 才闪一次</strong>——<strong>空闲时 CPU 一直在睡眠</strong>，不影响功能又省电。</li>
+<li>串口助手（COM10、9600 8N1）发一个字节，STM32 回传并显示 <code>RxData:66</code>。</li>
+<li>只有收发那一刻 <code>Running</code> 才闪一次——空闲时 CPU 一直在睡眠，不影响功能又省电。</li>
+<li>初版 main.c 的关键行：<code>#include &quot;Serial.h&quot;</code>、<code>uint8_t RxData;</code>、<code>OLED_Init();</code>、<code>OLED_ShowString(1, 1, &quot;RxData:&quot;);</code>、<code>Serial_Init();</code>，循环体为 <code>while (1) { if (Serial_GetRxFlag() == 1) { RxData = Serial_GetRxData(); Serial_SendByte(RxData); OLED_ShowHexNum(1, 8, RxData, 2); } }</code>。</li>
 </ul>
-<p><img src="../assets/images/stm32-45/08-sleep-main.jpg" alt="图 8：程序②的 main.c 初版——#include &quot;Serial.h&quot;、uint8_t RxData;、OLED_Init();、OLED_ShowString(1, 1, &quot;RxData:&quot;);、Serial_Init();、while (1) { if (Serial_GetRxFlag() == 1) { RxData = Serial_GetRxData(); Serial_SendByte(RxData); OLED_ShowHexNum(1, 8, RxData, 2); } }；字幕「中断来了，再醒来干活就行了」"></p>
-<p><em>图 8：程序②的 main.c 初版——<code>#include &quot;Serial.h&quot;</code>、<code>uint8_t RxData;</code>、<code>OLED_Init();</code>、<code>OLED_ShowString(1, 1, &quot;RxData:&quot;);</code>、<code>Serial_Init();</code>、<code>while (1) { if (Serial_GetRxFlag() == 1) { RxData = Serial_GetRxData(); Serial_SendByte(RxData); OLED_ShowHexNum(1, 8, RxData, 2); } }</code>；字幕「中断来了，再醒来干活就行了」</em></p>
-<p><img src="../assets/images/stm32-45/09-sleep-phenomenon.jpg" alt="图 9：程序②现象——面包板上 OLED 显示 RxData:66，右侧串口助手（COM10、9600、数据位 8、停止位 1、校验位无）；字幕「这是耗电操作」（指不加睡眠时主循环空转耗电）"></p>
-<p><em>图 9：程序②现象——面包板上 OLED 显示 <code>RxData:66</code>，右侧串口助手（COM10、9600、数据位 8、停止位 1、校验位无）；字幕「这是耗电操作」（指不加睡眠时主循环空转耗电）</em></p>
-<p><img src="../assets/images/stm32-45/10-scb-scr.jpg" alt="图 10：Cortex-M3 编程手册 SCB_SCR 寄存器——Bit 4 SEVONPEND（0：Only enabled interrupts or events can wakeup the processor, disabled interrupts are excluded；1：Enabled events and all interrupts, including disabled interrupts, can wakeup the processor）、Bit 2 SLEEPDEEP（0：Sleep；1：Deep sleep）、Bit 1 SLEEPONEXIT（0：Do not sleep when returning to Thread mode；1：Enter sleep, or deep sleep, on return from an interrupt service routine）；字幕「那如果你想配置这三个位的话」"></p>
-<p><em>图 10：Cortex-M3 编程手册 <code>SCB_SCR</code> 寄存器——<strong>Bit 4 SEVONPEND</strong>（0：Only enabled interrupts or events can wakeup the processor, disabled interrupts are excluded；1：Enabled events and all interrupts, including disabled interrupts, can wakeup the processor）、<strong>Bit 2 SLEEPDEEP</strong>（0：Sleep；1：Deep sleep）、<strong>Bit 1 SLEEPONEXIT</strong>（0：Do not sleep when returning to Thread mode；1：Enter sleep, or deep sleep, on return from an interrupt service routine）；字幕「那如果你想配置这三个位的话」</em></p>
+<p><img src="../assets/images/stm32-45/08-sleep-main.jpg" alt="图 8：程序②的 main.c 初版——串口接收判断、回发与 OLED 显示；外层是 while (1) 空转"></p>
+<p><em>图 8：程序②的 main.c 初版——串口接收判断、回发与 OLED 显示；外层是 <code>while (1)</code> 空转</em></p>
+<p><img src="../assets/images/stm32-45/09-sleep-phenomenon.jpg" alt="图 9：程序②现象——OLED 显示 RxData:66，串口助手 COM10、9600、数据位 8、停止位 1、校验位无"></p>
+<p><em>图 9：程序②现象——OLED 显示 <code>RxData:66</code>，串口助手 COM10、9600、数据位 8、停止位 1、校验位无</em></p>
+<p><img src="../assets/images/stm32-45/10-scb-scr.jpg" alt="图 10：Cortex-M3 编程手册 SCB_SCR 寄存器——Bit 4 SEVONPEND、Bit 2 SLEEPDEEP（0：Sleep；1：Deep sleep）、Bit 1 SLEEPONEXIT"></p>
+<p><em>图 10：Cortex-M3 编程手册 <code>SCB_SCR</code> 寄存器——Bit 4 SEVONPEND、Bit 2 SLEEPDEEP（0：Sleep；1：Deep sleep）、Bit 1 SLEEPONEXIT</em></p>
 <h2 id="4-程序3-停止模式-13-3-停止模式-对射式红外传感器计次">4. 程序③：停止模式（<code>13-3 停止模式+对射式红外传感器计次</code>）</h2>
 <h3 id="4-1-为什么用停止模式">4.1 为什么用停止模式</h3>
 <ul>
-<li>复制 <strong><code>5-1</code> 工程</strong>；原代码 <code>CounterSensor_Get()</code> <strong>不断轮询</strong>，没有中断信号时就是<strong>无意义的耗电操作</strong>；</li>
-<li>本代码<strong>可以用外部中断唤醒</strong>，所以适合用<strong>更省电的停止模式</strong>——<strong>停止模式下 1.8V 区域时钟全关，但外部中断的工作不需要时钟</strong>（EXTI 是硬件触发），所以仍然能唤醒；</li>
-<li><strong>表8（红圈）</strong>：停机的唤醒列是「<strong>任一外部中断</strong>」、对 1.8V 区域时钟的影响是「<strong>关闭所有 1.8V 区域的时钟</strong>」。</li>
+<li>复制 <code>5-1</code> 工程：原代码 <code>CounterSensor_Get()</code> 不断轮询，没有中断信号时就是无意义的耗电操作。</li>
+<li>本代码可以用外部中断唤醒，所以适合用更省电的停止模式：停止模式下 1.8V 区域时钟全关，但外部中断的工作不需要时钟（EXTI 硬件触发）。</li>
+<li>表8（红圈）：停机唤醒列＝「任一外部中断」，对 1.8V 区域时钟的影响＝「关闭所有 1.8V 区域的时钟」。</li>
 </ul>
 <h3 id="4-2-代码-开-pwr-时钟-pwr-enterstopmode">4.2 代码：开 PWR 时钟 + <code>PWR_EnterSTOPMode</code></h3>
 <pre><code class="language-c">/* 停止模式和待机模式都需要 PWR 外设 → 必须先开 PWR 时钟 */
@@ -435,51 +422,44 @@ while (1)
 }
 </code></pre>
 <ul>
-<li><strong>① 先开 PWR 时钟</strong>：<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE)</code>——<strong>千万不要忘</strong>，<strong>不开则写寄存器无效、读取寄存器全是 0</strong>（可以自己试）；</li>
-<li><strong>② 调用 <code>PWR_EnterSTOPMode(PWR_Regulator_ON, PWR_STOPEntry_WFI)</code></strong>：<ul>
-<li>参数一：<strong><code>PWR_Regulator_ON</code></strong>（电压调节器开启）/ <strong><code>PWR_Regulator_LowPower</code></strong>（调节器低功耗，更省电、唤醒多一段延时）；</li>
-<li>参数二：<strong><code>PWR_STOPEntry_WFI</code></strong> / <strong><code>PWR_STOPEntry_WFE</code></strong>；</li>
-</ul>
-</li>
-<li><strong>函数内部（<code>stm32f10x_pwr.c</code>）</strong>：<ol>
-<li><code>tmpreg = PWR-&gt;CR;</code></li>
-<li><strong><code>tmpreg &amp;= CR_DS_MASK;</code></strong>——<strong>清除 PDDS 和 LPDS 位</strong>（<strong>清 PDDS 就是选择停止模式</strong>，对应流程图 <code>PDDS=0</code> 分支）；</li>
-<li><strong><code>tmpreg |= PWR_Regulator;</code></strong>——按参数<strong>设置 LPDS</strong>（调节器开时 LPDS=0）；</li>
-<li><code>PWR-&gt;CR = tmpreg;</code></li>
-<li><strong><code>SCB-&gt;SCR |= SCB_SCR_SLEEPDEEP;</code></strong>——<strong>置内核 SLEEPDEEP 位</strong>（对应流程图「深度睡眠」分支）；</li>
-<li>根据参数执行 <strong><code>__WFI()</code></strong> 或 <strong><code>__WFE()</code></strong>。</li>
-</ol>
-</li>
-<li><strong>下载方式</strong>：低功耗模式下<strong>按住复位键 → 点下载 → 松手</strong>。</li>
+<li>① <strong>先开 PWR 时钟</strong>：<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);</code>——不开则写寄存器无效、读回来全是 0。</li>
+<li>② 调用 <code>PWR_EnterSTOPMode(PWR_Regulator_ON, PWR_STOPEntry_WFI)</code>：参数一 <code>PWR_Regulator_ON</code>（调节器开启）/ <code>PWR_Regulator_LowPower</code>（低功耗，更省电、唤醒多一段延时）；参数二 <code>PWR_STOPEntry_WFI</code> / <code>PWR_STOPEntry_WFE</code>。</li>
+<li>函数内部（<code>stm32f10x_pwr.c</code>）：<code>uint32_t tmpreg = 0;</code>、<code>assert_param(IS_PWR_REGULATOR(PWR_Regulator));</code>、<code>assert_param(IS_PWR_STOP_ENTRY(PWR_STOPEntry));</code> 之后读寄存器 <code>PWR-&gt;CR</code> 到 tmpreg（<code>tmpreg = PWR-&gt;CR;</code>）。</li>
+<li>清 PDDS 与 LPDS：<code>tmpreg &amp;= CR_DS_MASK</code>（源码注释 <code>/* Clear PDDS and LPDS bits */ tmpreg &amp;= CR_DS_MASK;</code>，单独写就是 <code>tmpreg &amp;= CR_DS_MASK;</code>），清 PDDS＝<code>PDDS=0</code> 选停止模式。</li>
+<li>设 LPDS 并写回：<code>tmpreg |= PWR_Regulator;</code>（源码 <code>/* Set LPDS bit according to PWR_Regulator value */ tmpreg |= PWR_Regulator;</code>），调节器开启时 LPDS=0；再 <code>PWR-&gt;CR = tmpreg;</code>（源码 <code>/* Store the new value */ PWR-&gt;CR = tmpreg;</code>）。</li>
+<li>置位进停止：<code>SCB-&gt;SCR |= SCB_SCR_SLEEPDEEP</code>（源码 <code>/* Set SLEEPDEEP bit of Cortex System Control Register */ SCB-&gt;SCR |= SCB_SCR_SLEEPDEEP;</code>），然后 <code>/* Select STOP mode entry */ if (PWR_STOPEntry == PWR_STOPEntry_WFI) { __WFI(); }</code>，否则执行 <code>__WFE()</code>。</li>
 </ul>
 <h3 id="4-3-坑-唤醒后主频变-8m">4.3 坑：唤醒后主频变 8M</h3>
 <ul>
-<li><strong>现象</strong>：遮挡计次正常，但唤醒后 <strong><code>Running</code> 明显变慢</strong>；</li>
-<li><strong>原因</strong>：PPT 停止模式条目写得很清楚——「<strong>当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟</strong>」；首次复位时 <code>SystemInit</code> 配的是 <strong>HSE×9＝72M</strong>，但<strong>退出停止模式后 PLL/HSE 没有自动恢复</strong>，默认用 <strong>HSI 8MHz</strong>；</li>
-<li><strong>解决</strong>：<strong>在 <code>PWR_EnterSTOPMode()</code> 后面立刻再调一次 <code>SystemInit()</code></strong>，主频恢复到 72M（现象恢复正常）。</li>
+<li><strong>现象</strong>：遮挡计次正常，但唤醒后 <code>Running</code> 明显变慢。</li>
+<li>原因：PPT 停止模式条目写明「当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟」。</li>
+<li>首次复位时 <code>SystemInit</code> 配的是 HSE×9＝72M，退出停止模式后 PLL/HSE 没有自动恢复，默认用 HSI 8MHz。</li>
+<li><strong>解决</strong>：在 <code>PWR_EnterSTOPMode()</code> 后面立刻再调一次 <code>SystemInit()</code>，主频恢复 72M。</li>
 </ul>
-<p><img src="../assets/images/stm32-45/11-table8-stop.jpg" alt="图 11：PPT 表8（红圈标出「停机」行、「任一外部中断」、「关闭所有 1.8V 区域的时钟」）——讲停止模式为什么能被外部中断唤醒；字幕「但是外部中断的工作是不需要时钟的」"></p>
-<p><em>图 11：PPT 表8（红圈标出「停机」行、「任一外部中断」、「关闭所有 1.8V 区域的时钟」）——讲停止模式为什么能被外部中断唤醒；字幕「但是外部中断的工作是不需要时钟的」</em></p>
-<p><img src="../assets/images/stm32-45/12-stop-phenomenon.jpg" alt="图 12：程序③现象——OLED 显示 Count:00002 与 Running；字幕「这个耗电操作，我们可以用停止模式来优化一下」"></p>
-<p><em>图 12：程序③现象——OLED 显示 <code>Count:00002</code> 与 <code>Running</code>；字幕「这个耗电操作，我们可以用停止模式来优化一下」</em></p>
-<p><img src="../assets/images/stm32-45/13-enterstopmode-src.jpg" alt="图 13：PWR_EnterSTOPMode 源码（stm32f10x_pwr.c L199 至 L220）——uint32_t tmpreg = 0;、assert_param(IS_PWR_REGULATOR(PWR_Regulator));、assert_param(IS_PWR_STOP_ENTRY(PWR_STOPEntry));、tmpreg = PWR-&gt;CR;、/* Clear PDDS and LPDS bits */ tmpreg &amp;= CR_DS_MASK;、/* Set LPDS bit according to PWR_Regulator value */ tmpreg |= PWR_Regulator;（高亮）、/* Store the new value */ PWR-&gt;CR = tmpreg;、/* Set SLEEPDEEP bit of Cortex System Control Register */ SCB-&gt;SCR |= SCB_SCR_SLEEPDEEP;、/* Select STOP mode entry */ if (PWR_STOPEntry == PWR_STOPEntry_WFI) { __WFI(); }；字幕「那这里LPDS就等于0」"></p>
-<p><em>图 13：<code>PWR_EnterSTOPMode</code> 源码（<code>stm32f10x_pwr.c</code> L199 至 L220）——<code>uint32_t tmpreg = 0;</code>、<code>assert_param(IS_PWR_REGULATOR(PWR_Regulator));</code>、<code>assert_param(IS_PWR_STOP_ENTRY(PWR_STOPEntry));</code>、<code>tmpreg = PWR-&gt;CR;</code>、<code>/* Clear PDDS and LPDS bits */ tmpreg &amp;= CR_DS_MASK;</code>、<code>/* Set LPDS bit according to PWR_Regulator value */ tmpreg |= PWR_Regulator;</code>（高亮）、<code>/* Store the new value */ PWR-&gt;CR = tmpreg;</code>、<code>/* Set SLEEPDEEP bit of Cortex System Control Register */ SCB-&gt;SCR |= SCB_SCR_SLEEPDEEP;</code>、<code>/* Select STOP mode entry */ if (PWR_STOPEntry == PWR_STOPEntry_WFI) { __WFI(); }</code>；字幕「那这里LPDS就等于0」</em></p>
-<p><img src="../assets/images/stm32-45/14-stop-ppt-hsi.jpg" alt="图 14：PPT「停止模式」——7 条要点，其中「当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟」正是主频变 8M 的原因；字幕「原因就在这里」"></p>
-<p><em>图 14：PPT「停止模式」——7 条要点，其中「<strong>当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟</strong>」正是主频变 8M 的原因；字幕「原因就在这里」</em></p>
+<p><img src="../assets/images/stm32-45/11-table8-stop.jpg" alt="图 11：PPT 表8（红圈标出停机行、「任一外部中断」、「关闭所有 1.8V 区域的时钟」）——讲停止模式为什么能被外部中断唤醒"></p>
+<p><em>图 11：PPT 表8（红圈标出停机行、「任一外部中断」、「关闭所有 1.8V 区域的时钟」）——讲停止模式为什么能被外部中断唤醒</em></p>
+<p><img src="../assets/images/stm32-45/12-stop-phenomenon.jpg" alt="图 12：程序③现象——OLED 显示 Count:00002 与 Running"></p>
+<p><em>图 12：程序③现象——OLED 显示 <code>Count:00002</code> 与 <code>Running</code></em></p>
+<p><img src="../assets/images/stm32-45/13-enterstopmode-src.jpg" alt="图 13：PWR_EnterSTOPMode 源码（stm32f10x_pwr.c L199 至 L220）——断言、读 CR、清 PDDS/LPDS、按参数设 LPDS、写回、置 SLEEPDEEP、按参数 WFI/WFE"></p>
+<p><em>图 13：<code>PWR_EnterSTOPMode</code> 源码（<code>stm32f10x_pwr.c</code> L199 至 L220）——断言、读 CR、清 PDDS/LPDS、按参数设 LPDS、写回、置 SLEEPDEEP、按参数 WFI/WFE</em></p>
+<p><img src="../assets/images/stm32-45/14-stop-ppt-hsi.jpg" alt="图 14：PPT「停止模式」7 条要点——「当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟」正是主频变 8M 的原因"></p>
+<p><em>图 14：PPT「停止模式」7 条要点——「当一个中断或唤醒事件导致退出停止模式时，HSI 被选为系统时钟」正是主频变 8M 的原因</em></p>
 <h2 id="5-程序4-待机模式-13-4-待机模式-实时时钟">5. 程序④：待机模式（<code>13-4 待机模式+实时时钟</code>）</h2>
 <h3 id="5-1-用-rtc-闹钟唤醒">5.1 用 RTC 闹钟唤醒</h3>
 <ul>
-<li>复制 <strong><code>12-2 实时时钟</code> 工程</strong>；先把显示改成 <code>CNT:</code> / <code>ALR:</code> / <code>ALRF:</code>，<strong>去掉年月日时分秒和 DIV 的显示</strong>；</li>
-<li><strong>设定闹钟</strong>（约 10s 后唤醒）：</li>
+<li>复制 <code>12-2 实时时钟</code> 工程；显示改成 <code>CNT:</code> / <code>ALR:</code> / <code>ALRF:</code>，去掉年月日时分秒和 DIV 的显示。</li>
+<li><strong>坑</strong>：<code>RTC_ALR</code> 寄存器是只写的（手册寄存器描述里只有 <code>W</code>、没有 <code>R</code>），读不回来；读写缩写对照：<code>W</code>＝只写、<code>R</code>＝只读、<code>rw</code>＝读写。</li>
+<li>所以必须用变量 <code>Alarm</code> 保存闹钟值再显示。</li>
+<li>显示与闹钟的关键行：<code>OLED_ShowString(1, 1, &quot;CNT :&quot;)/(2, 1, &quot;ALR :&quot;)/(3, 1, &quot;ALRF:&quot;);</code>、<code>uint32_t Alarm = RTC_GetCounter() + 10;</code>、<code>RTC_SetAlarm(Alarm);</code>、<code>OLED_ShowNum(2, 6, Alarm, 10);</code>。</li>
+<li>主循环读值：<code>while (1) { OLED_ShowNum(1, 6, RTC_GetCounter(), 10); OLED_ShowNum(3, 6, RTC_GetCounter(), 10); }</code>。</li>
 </ul>
 <pre><code class="language-c">uint32_t Alarm = RTC_GetCounter() + 10;   /* 当前秒数 + 10s */
 RTC_SetAlarm(Alarm);
 OLED_ShowNum(2, 6, Alarm, 10);            /* 显示闹钟值：必须用变量，不能读寄存器 */
 </code></pre>
 <ul>
-<li><strong>坑：<code>RTC_ALR</code> 寄存器是只写的</strong>！查手册 <strong>RTC 寄存器描述</strong>可以发现 <code>RTC_ALR</code> 各位的读写特征里<strong>只有 <code>W</code>（写）、没有 <code>R</code>（读）</strong>——<strong>读不回来</strong>；</li>
-<li>所以<strong>必须用变量 <code>Alarm</code> 保存闹钟值再显示</strong>（手册里还有读写缩写对照表可以查：<code>W</code>＝只写、<code>R</code>＝只读、<code>rw</code>＝读写等）；</li>
-<li><strong>现象验证</strong>：主循环显示 <code>CNT</code> 不断自增、<code>ALR</code> 是复位后 10s；等 <code>CNT</code> 增长到与 <code>ALR</code> 相等，<strong>在 <code>CNT = ALR</code> 的最后时刻 <code>ALRF</code> 置 1</strong>——闹钟功能正常。</li>
+<li>一句话：<code>uint32_t Alarm = RTC_GetCounter() + 10; RTC_SetAlarm(Alarm);</code> 即约 10s 后唤醒。</li>
+<li>现象：<code>CNT</code> 不断自增、<code>ALR</code> 是复位后 10s；<code>CNT</code> 增长到与 <code>ALR</code> 相等（<code>CNT = ALR</code>）的最后时刻 <code>ALRF</code> 置 1。</li>
 </ul>
 <h3 id="5-2-进入待机">5.2 进入待机</h3>
 <pre><code class="language-c">/* PWR 时钟：本工程前面已有，但为了独立可用，这里再开一次也无妨 */
@@ -505,67 +485,57 @@ while (1)
 }
 </code></pre>
 <ul>
-<li><strong>说明</strong>：虽然 <code>12-2</code> 工程里已经开过 PWR 时钟，但本程序独立使用待机模式，所以<strong>再开一次 PWR 时钟</strong>（重复开启不会有问题）——这样能<strong>降低对 RTC 代码的依赖</strong>；</li>
-<li><strong><code>PWR_EnterSTANDBYMode()</code> 内部</strong>：<ol>
-<li><strong>清除 WakeUp 标志</strong>（<code>PWR_CSR</code> 的 WUF）；</li>
-<li><strong>选择 STANDBY 模式</strong>——实际上就是 <strong><code>PDDS=1</code></strong>；</li>
-<li><strong>设置内核 <code>SLEEPDEEP</code> 位</strong>；</li>
-<li>执行 <strong><code>__WFI()</code></strong>；</li>
-</ol>
-</li>
-<li><strong>待机不区分 WFI/WFE</strong>：它的唤醒条件是<strong>固定的那 4 个信号</strong>（WKUP 上升沿 / RTC 闹钟 / NRST / IWDG），<strong>没有区分中断唤醒和事件唤醒</strong>，所以函数里固定用 WFI；</li>
-<li><strong>现象</strong>：复位后 <code>Running</code> 闪烁、<strong>随后 <code>CNT</code> 不再刷新</strong>（已进入待机）→ <strong>RTC 闹钟触发唤醒</strong> → <code>CNT</code> 与 ALR 重新刷新、<code>Running</code> 再闪——说明<strong>唤醒后程序是从头开始执行的</strong>（如果从中断暂停点继续执行，闹钟值就不会更新）；</li>
-<li><strong>因为待机退出＝程序从头跑</strong>，所以 <code>PWR_EnterSTANDBYMode()</code> 之后的代码永远执行不到（<code>while (1)</code> 其实也可以去掉）。</li>
+<li>虽然 <code>12-2</code> 工程里已开过 PWR 时钟，本程序再写一次 <code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE)</code>（重复开启没问题），可降低对 RTC 代码的依赖。</li>
+<li>标志读取：<code>RTC_GetFlagStatus(RTC_FLAG_ALR)</code> 判断闹钟标志，进待机前再 <code>PWR_EnterSTANDBYMode();</code>。</li>
+<li>进待机的完整动作：<code>OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); OLED_ShowString(4, 9, &quot;        &quot;); Delay_ms(100); OLED_Clear(); PWR_EnterSTANDBYMode();</code>（图 17），简写为 <code>OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); … OLED_Clear(); PWR_EnterSTANDBYMode();</code>。</li>
+<li><code>PWR_EnterSTANDBYMode()</code> 内部：清 <code>PWR_CSR</code> 的 WUF 唤醒标志 → <code>PDDS=1</code> 选待机模式 → 设内核 <code>SLEEPDEEP</code> 位 → 执行 <code>__WFI()</code>。</li>
+<li>待机不区分 WFI/WFE：唤醒条件固定为那 4 个信号（WKUP 上升沿 / RTC 闹钟 / NRST / IWDG），函数里固定用 WFI。</li>
+<li>现象：复位后 <code>Running</code> 闪烁、随后 <code>CNT</code> 不再刷新（已进待机）→ RTC 闹钟唤醒 → <code>CNT</code> 与 ALR 重新刷新、<code>Running</code> 再闪，说明唤醒后程序是从头开始执行的。</li>
+<li>因为待机退出＝程序从头跑，<code>PWR_EnterSTANDBYMode();</code> 之后的代码永远执行不到，<code>while (1)</code> 其实可以去掉。</li>
 </ul>
 <h3 id="5-3-wkup-引脚唤醒与-必须关外部模块">5.3 WKUP 引脚唤醒与「必须关外部模块」</h3>
 <pre><code class="language-c">PWR_WakeUpPinCmd(ENABLE);    /* 使能 WKUP 引脚（PA0），放在 main 靠前位置 */
 </code></pre>
 <ul>
-<li><strong><code>PWR_WakeUpPinCmd(ENABLE)</code></strong> 使能位于 <strong>PA0 的 WKUP 引脚</strong>；</li>
-<li><strong>这个引脚默认是下拉的，接高电平即可唤醒，不需要做 GPIO 初始化</strong>（手册：使能 WKUP 引脚后由 PWR 直接控制）——所以这句<strong>放在 main 里靠前位置</strong>即可；</li>
-<li><strong>现象</strong>：给 WKUP 接高电平（或接其他传感器信号）就能唤醒 STM32；</li>
-<li><strong>进待机前必须关掉外部模块</strong>：作者用 <strong><code>OLED_Clear()</code> 模拟</strong>——真实产品里要<strong>切断外挂模块的电源</strong>，因为<strong>外挂模块的耗电远超 STM32 本身</strong>（「捡了芝麻丢了西瓜」）；这需要精心设计硬件电路。</li>
+<li><code>PWR_WakeUpPinCmd(ENABLE)</code> 使能位于 PA0 的 WKUP 引脚；这个引脚默认下拉，接高电平即可唤醒，不需要做 GPIO 初始化，所以放在 main 靠前位置即可。</li>
+<li>进待机前必须关掉外部模块：示例用 <code>OLED_Clear()</code> 模拟，真实产品里要切断外挂模块的电源。</li>
+<li>外挂模块的耗电远超 STM32 本身，这需要精心设计硬件电路。</li>
 </ul>
 <h3 id="5-4-实测电流">5.4 实测电流</h3>
 <ul>
-<li>手册说待机模式电流<strong>约 3µA</strong>，作者<strong>单独找了块板子、用万用表测电流</strong>验证：<ol>
-<li>直接测：<strong>1mA 多</strong>——远超手册，<strong>电源指示灯肯定耗电</strong>；</li>
-<li>去掉电源指示灯再测：仍有<strong>几百 µA</strong>——还有别的东西耗电；</li>
-<li>继续排查处理：<strong>降到 3µA</strong>，<strong>与手册数据基本一致</strong>；</li>
-</ol>
-</li>
-<li><strong>正常工作电流：20 多 mA</strong>；</li>
-<li>为了便于测电流，作者把 <code>STANDBY</code> 显示时间延长到 <strong>10s</strong>、<strong>待机闹钟改成 100s</strong>（<code>uint32_t Alarm = RTC_GetCounter() + 100;</code>），这样待机时间足够测量。</li>
+<li>手册说待机电流约 <strong>3µA</strong>，实测：直接测 1mA 多（电源指示灯耗电）→ 去掉指示灯仍有几百 µA → 继续排查后降到 3µA，与手册数据基本一致。</li>
+<li>正常工作电流 <strong>20 多 mA</strong>。</li>
+<li>为便于测量，把 <code>STANDBY</code> 显示延长到 10s（<code>OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(10000);</code>）、待机闹钟改成 100s（<code>uint32_t Alarm = RTC_GetCounter() + 100;</code>）。</li>
 </ul>
-<p><img src="../assets/images/stm32-45/15-rtc-alarm-main.jpg" alt="图 15：程序④ main.c——OLED_ShowString(1, 1, &quot;CNT :&quot;)/(2, 1, &quot;ALR :&quot;)/(3, 1, &quot;ALRF:&quot;);、`uint32_t Alarm = RTC_GetCounter() + 10;`、RTC_SetAlarm(Alarm);、OLED_ShowNum(2, 6, Alarm, 10);、while (1) { OLED_ShowNum(1, 6, RTC_GetCounter(), 10); OLED_ShowNum(3, 6, RTC_GetCounter(), 10); }（第 3 行正在改为 ALR 标志）；字幕「在3行6列」"></p>
-<p><em>图 15：程序④ main.c——<code>OLED_ShowString(1, 1, &quot;CNT :&quot;)/(2, 1, &quot;ALR :&quot;)/(3, 1, &quot;ALRF:&quot;);</code>、<strong><code>uint32_t Alarm = RTC_GetCounter() + 10;</code></strong>、<code>RTC_SetAlarm(Alarm);</code>、<code>OLED_ShowNum(2, 6, Alarm, 10);</code>、<code>while (1) { OLED_ShowNum(1, 6, RTC_GetCounter(), 10); OLED_ShowNum(3, 6, RTC_GetCounter(), 10); }</code>（第 3 行正在改为 ALR 标志）；字幕「在3行6列」</em></p>
-<p><img src="../assets/images/stm32-45/16-standby-main.jpg" alt="图 16：程序④ main.c——RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);、显示 CNT/ALR/ALRF、uint32_t Alarm = RTC_GetCounter() + 10;、RTC_SetAlarm(Alarm);、OLED_ShowNum(2, 6, Alarm, 10);、while 里读 CNT 与 RTC_GetFlagStatus(RTC_FLAG_ALR)、Running 闪烁，末尾 `PWR_EnterSTANDBYMode();`；字幕「我们可以确定，待机模式唤醒后」"></p>
-<p>*图 16：程序④ main.c——<code>RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR, ENABLE);</code>、显示 CNT/ALR/ALRF、<code>uint32_t Alarm = RTC_GetCounter() + 10;</code>、<code>RTC_SetAlarm(Alarm);</code>、<code>OLED_ShowNum(2, 6, Alarm, 10);</code>、while 里读 CNT 与 <code>RTC_GetFlagStatus(RTC_FLAG_ALR)</code>、Running 闪烁，末尾 <strong><code>PWR_EnterSTANDBYMode();</code></strong>；字幕「我们可以确定，待机模式唤醒后」*</p>
-<p><img src="../assets/images/stm32-45/17-standby-before.jpg" alt="图 17：程序④ 进待机前的动作——OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); OLED_ShowString(4, 9, &quot;        &quot;); Delay_ms(100); OLED_Clear(); PWR_EnterSTANDBYMode();；字幕「这样看一下」"></p>
-<p><em>图 17：程序④ 进待机前的动作——<code>OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); OLED_ShowString(4, 9, &quot;        &quot;); Delay_ms(100); OLED_Clear(); PWR_EnterSTANDBYMode();</code>；字幕「这样看一下」</em></p>
-<p><img src="../assets/images/stm32-45/18-standby-clear.jpg" alt="图 18：程序④ 主循环末尾——OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); … OLED_Clear(); PWR_EnterSTANDBYMode();（进待机前先清屏，模拟关闭外部模块）；字幕「为此，我进行了测试」"></p>
-<p><em>图 18：程序④ 主循环末尾——<code>OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(1000); … OLED_Clear(); PWR_EnterSTANDBYMode();</code>（进待机前先清屏，模拟关闭外部模块）；字幕「为此，我进行了测试」</em></p>
-<p><img src="../assets/images/stm32-45/19-wkup-100s.jpg" alt="图 19：测电流改造版——多了 `PWR_WakeUpPinCmd(ENABLE);`（第 17 行）、`uint32_t Alarm = RTC_GetCounter() + 100;`（高亮，闹钟改 100s 便于测量）、OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(10000);；字幕「待机闹钟，设置大点，100s」"></p>
-<p>*图 19：测电流改造版——多了 <strong><code>PWR_WakeUpPinCmd(ENABLE);</code></strong>（第 17 行）、<strong><code>uint32_t Alarm = RTC_GetCounter() + 100;</code></strong>（高亮，闹钟改 100s 便于测量）、<code>OLED_ShowString(4, 9, &quot;STANDBY&quot;); Delay_ms(10000);</code>；字幕「待机闹钟，设置大点，100s」*</p>
+<p><img src="../assets/images/stm32-45/15-rtc-alarm-main.jpg" alt="图 15：程序④ main.c——CNT/ALR/ALRF 的显示与闹钟赋值，最后一行读 RTC_GetFlagStatus(RTC_FLAG_ALR)"></p>
+<p><em>图 15：程序④ main.c——CNT/ALR/ALRF 的显示与闹钟赋值，最后一行读 <code>RTC_GetFlagStatus(RTC_FLAG_ALR)</code></em></p>
+<p><img src="../assets/images/stm32-45/16-standby-main.jpg" alt="图 16：程序④ main.c——显示 CNT/ALR/ALRF、Running 闪烁，末尾 PWR_EnterSTANDBYMode();"></p>
+<p><em>图 16：程序④ main.c——显示 CNT/ALR/ALRF、Running 闪烁，末尾 <code>PWR_EnterSTANDBYMode();</code></em></p>
+<p><img src="../assets/images/stm32-45/17-standby-before.jpg" alt="图 17：程序④ 进待机前的动作——显示 STANDBY、延时后清屏，再 PWR_EnterSTANDBYMode();"></p>
+<p><em>图 17：程序④ 进待机前的动作——显示 <code>STANDBY</code>、延时后清屏，再 <code>PWR_EnterSTANDBYMode();</code></em></p>
+<p><img src="../assets/images/stm32-45/18-standby-clear.jpg" alt="图 18：程序④ 主循环末尾——OLED_Clear() 清屏（模拟关闭外部模块）后进待机"></p>
+<p><em>图 18：程序④ 主循环末尾——<code>OLED_Clear()</code> 清屏（模拟关闭外部模块）后进待机</em></p>
+<p><img src="../assets/images/stm32-45/19-wkup-100s.jpg" alt="图 19：测电流改造版——多了 PWR_WakeUpPinCmd(ENABLE);（第 17 行）、闹钟改 100s、STANDBY 显示 10s"></p>
+<p><em>图 19：测电流改造版——多了 <code>PWR_WakeUpPinCmd(ENABLE);</code>（第 17 行）、闹钟改 100s、<code>STANDBY</code> 显示 10s</em></p>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>4 个程序的复制来源别混</strong>：<code>13-1</code>←OLED、<code>13-2</code>←<code>9-2</code> 串口、<code>13-3</code>←<code>5-1</code>、<code>13-4</code>←<code>12-2</code> 实时时钟。</li>
-<li><strong><code>SYSCLK_FREQ_*</code> 宏在第 106～116 行的 <code>#else</code> 组</strong>（F103C8T6 是 MD），共 <strong>6 档</strong>；改法＝注掉当前、放开目标。</li>
-<li><strong><code>system_stm32f10x.c</code> 默认只读</strong>：要先在文件夹里<strong>取消只读属性</strong>才能改。</li>
-<li><strong>PLL 倍频关系</strong>：72M＝HSE×9、56M＝HSE×7、48M＝HSE×6、36M＝<strong>HSE/2×9</strong>、24M＝<strong>HSE/2×6</strong>；AHB /1、APB2 /1、APB1 /2。</li>
-<li><strong>HSE 起振失败走 <code>else</code></strong>：主频仍是 HSI 8M——「发现主频 8M」就是 HSE 有问题。</li>
-<li><strong>改主频连带所有计时</strong>：<code>Delay_us</code> 写死 72M，改主频后不准；<strong>改完要调 <code>SystemCoreClockUpdate()</code></strong>；<strong>作者不推荐随便改主频</strong>。</li>
-<li><strong>睡眠只需 <code>__WFI()</code></strong>：<code>SLEEPDEEP=0</code> 默认就是睡眠；配置 <code>SCB-&gt;SCR</code> 属<strong>内核</strong>，不是 PWR 库。</li>
-<li><strong><code>__WFI</code>/<code>__WFE</code> 是 CMSIS 内核指令</strong>，不是库函数；推荐用 WFI 的中断唤醒。</li>
-<li><strong>停止模式两坑</strong>：① <strong>PWR 时钟必须开</strong>（否则写寄存器无效、读回全 0）；② <strong>唤醒后 HSI 8M 成系统时钟 → 必须立刻 <code>SystemInit()</code></strong>。</li>
-<li><strong><code>PWR_EnterSTOPMode</code> 参数</strong>：<code>PWR_Regulator_ON</code>/<code>_LowPower</code>（LPDS=0/1）与 <code>PWR_STOPEntry_WFI</code>/<code>_WFE</code>。</li>
-<li><strong><code>RTC_ALR</code> 只写</strong>：读不回来，必须用变量保存闹钟值再显示。</li>
-<li><strong>待机不区分 WFI/WFE</strong>：唤醒源固定 4 个（WKUP(PA0)/RTC 闹钟/NRST/IWDG）。</li>
-<li><strong>待机唤醒后程序从头跑</strong>：<code>PWR_EnterSTANDBYMode()</code> 之后的代码永远执行不到。</li>
-<li><strong><code>PWR_WakeUpPinCmd(ENABLE)</code> 不用 GPIO 初始化</strong>：WKUP(PA0) 默认下拉、接高唤醒。</li>
-<li><strong>进待机前必须关外部模块</strong>：外挂模块耗电远超 STM32 本身（示例只 <code>OLED_Clear</code> 模拟）。</li>
-<li><strong>实测待机 3µA</strong> 与手册吻合；正常 20 多 mA——<strong>测之前先把电源指示灯等耗电件处理掉</strong>。</li>
-<li><strong>低功耗模式下下载</strong>：按住复位 → 点下载 → 松手。</li>
+<li>4 个程序的复制来源别混：<code>13-1</code>←OLED、<code>13-2</code>←<code>9-2</code> 串口、<code>13-3</code>←<code>5-1</code>、<code>13-4</code>←<code>12-2</code> 实时时钟。</li>
+<li><code>SYSCLK_FREQ_*</code> 宏在第 106～116 行的 <code>#else</code> 组（F103C8T6 是 MD），共 6 档；改法＝注掉当前、放开目标。</li>
+<li><code>system_stm32f10x.c</code> 默认只读：先取消只读属性才能改。</li>
+<li>PLL 倍频关系：72M＝HSE×9、56M＝HSE×7、48M＝HSE×6、36M＝HSE/2×9、24M＝HSE/2×6；AHB /1、APB2 /1、APB1 /2。</li>
+<li>HSE 起振失败走 <code>else</code>：主频仍是 HSI 8M——「发现主频 8M」就是 HSE 有问题。</li>
+<li>改主频连带所有计时：<code>Delay_us</code> 写死 72M，改完要调 <code>SystemCoreClockUpdate()</code>；不推荐随便改主频。</li>
+<li>睡眠只需 <code>__WFI()</code>：<code>SLEEPDEEP=0</code> 默认就是睡眠；配置 <code>SCB-&gt;SCR</code> 属内核，不是 PWR 库。</li>
+<li><code>__WFI</code>/<code>__WFE</code> 是 CMSIS 内核指令，不是库函数；推荐用 WFI 的中断唤醒。</li>
+<li>停止模式两坑：PWR 时钟必须开（否则写寄存器无效、读回全 0）；唤醒后 HSI 8M 成系统时钟，必须立刻 <code>SystemInit()</code>。</li>
+<li><code>PWR_EnterSTOPMode</code> 参数：<code>PWR_Regulator_ON</code>/<code>_LowPower</code>（LPDS=0/1）与 <code>PWR_STOPEntry_WFI</code>/<code>_WFE</code>。</li>
+<li><code>RTC_ALR</code> 只写：读不回来，必须用变量保存闹钟值再显示。</li>
+<li>待机不区分 WFI/WFE：唤醒源固定 4 个（WKUP(PA0)/RTC 闹钟/NRST/IWDG）。</li>
+<li>待机唤醒后程序从头跑：<code>PWR_EnterSTANDBYMode()</code> 之后的代码永远执行不到。</li>
+<li><code>PWR_WakeUpPinCmd(ENABLE)</code> 不用 GPIO 初始化：WKUP(PA0) 默认下拉、接高唤醒。</li>
+<li>进待机前必须关外部模块：外挂模块耗电远超 STM32 本身（示例只 <code>OLED_Clear</code> 模拟）。</li>
+<li>实测待机 3µA 与手册吻合；正常 20 多 mA——测之前先处理电源指示灯等耗电件。</li>
+<li>低功耗模式下下载：按住复位 → 点下载 → 松手。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -577,8 +547,7 @@ while (1)
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E4%BB%A3%E7%A0%81%E8%AF%BE-4-%E4%B8%AA%E7%A8%8B%E5%BA%8F%E5%85%A8%E9%83%A8%E5%86%99%E5%AE%8C%E5%B9%B6%E9%AA%8C%E8%AF%81">0. 本集定位：代码课（4 个程序全部写完并验证）</a>
-        <a class="level-2" href="#1-%E6%8E%A5%E7%BA%BF%E4%B8%8E%E5%B7%A5%E7%A8%8B%E5%87%86%E5%A4%87">1. 接线与工程准备</a>
+        <a class="level-2" href="#1-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">1. 本集定位</a>
         <a class="level-2" href="#2-%E7%A8%8B%E5%BA%8F1-%E4%BF%AE%E6%94%B9%E4%B8%BB%E9%A2%91-13-1-%E4%BF%AE%E6%94%B9%E4%B8%BB%E9%A2%91">2. 程序①：修改主频（13-1 修改主频）</a>
         <a class="level-3" href="#2-1-system-stm32f10x-c-%E6%96%87%E4%BB%B6%E5%A4%B4%E6%B3%A8%E9%87%8A">2.1 system_stm32f10x.c 文件头注释</a>
         <a class="level-3" href="#2-2-rcc-%E6%97%B6%E9%92%9F%E6%A0%91-%E5%9B%BE8">2.2 RCC 时钟树（图8）</a>

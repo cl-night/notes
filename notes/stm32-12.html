@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>[5-2] 对射式红外传感器计次 / 旋转编码器计次 · 我的学习笔记</title>
-  <meta name="description" content="江协科技 STM32 课程第 12 集：外部中断实战——对射式红外传感器计次（EXTI 五步配置、中断服务函数、OLED 显示 Count）与旋转编码器计次（AB 相正交信号、双中断判方向、计数值增减），最后是中断编程建议。">
+  <meta name="description" content="江协科技 STM32 课程第 12 集：外部中断实战——对射式红外传感器计次（EXTI 五步配置、中断服务函数、OLED 显示 Count）与旋转编码器计次（AB 相正交信号、双中断判方向），最后是中断编程建议。">
   <meta property="og:title" content="[5-2] 对射式红外传感器计次 / 旋转编码器计次 · 我的学习笔记">
-  <meta property="og:description" content="江协科技 STM32 课程第 12 集：外部中断实战——对射式红外传感器计次（EXTI 五步配置、中断服务函数、OLED 显示 Count）与旋转编码器计次（AB 相正交信号、双中断判方向、计数值增减），最后是中断编程建议。">
+  <meta property="og:description" content="江协科技 STM32 课程第 12 集：外部中断实战——对射式红外传感器计次（EXTI 五步配置、中断服务函数、OLED 显示 Count）与旋转编码器计次（AB 相正交信号、双中断判方向），最后是中断编程建议。">
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="../assets/style.css?v=10">
   <script>
@@ -177,16 +177,18 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>20 分钟</span>
+      <span>17 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">中断</span><span class="tag">EXTI</span><span class="tag">旋转编码器</span>
     </div>
     <article class="prose"><h1>[5-2] 对射式红外传感器计次 / 旋转编码器计次 — 学习笔记</h1>
-<h2 id="素材-字幕情况">素材 / 字幕情况</h2>
-<ul>
-<li>前情：中断概念、NVIC 优先级分组、EXTI 内部结构等<strong>理论部分见 [5-1] EXTI外部中断</strong>，本集是外部中断的<strong>代码实现课</strong>，理论只做一句话带过。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p>这一集是中断部分的<strong>程序课</strong>：先用「对射式红外传感器计次」把外部中断的完整配置链路（<strong>RCC → GPIO → AFIO → EXTI → NVIC</strong>）和中断服务函数走一遍，用 OLED 显示中断次数；再用「旋转编码器计次」练习 <strong>AB 相正交信号</strong>——A、B 两相都触发中断，在中断里读另一相电平判断正反转，从而对变量加减；最后总结两条中断编程建议：<strong>中断函数要短</strong>、<strong>中断和主程序不要操作同一硬件</strong>。</p>
+<p>外部中断的代码课：先用对射式红外传感器计次走完 RCC → GPIO → AFIO → EXTI → NVIC 五步配置与中断服务函数，再用旋转编码器计次练 <strong>AB 相正交信号</strong>，两相都触发中断、读另一相电平判方向。建议：<strong>中断函数要短</strong>、<strong>不与主程序操作同一硬件</strong>。</p>
+<h2 id="本集定位">本集定位</h2>
+<ul>
+<li>外部中断的<strong>代码实现课</strong>，理论（中断概念、NVIC 分组、EXTI 结构）见 [5-1] EXTI外部中断。</li>
+<li>两个工程都在 [4-2] OLED显示屏 的 <code>4-1 OLED显示屏</code> 工程上复制改名，再在 <code>Hardware</code> 组新建 <code>CountSensor.c/h</code>、<code>Encoder.c/h</code>。</li>
+<li>工程 1 用五步把 GPIO → AFIO → EXTI → NVIC 打通，工程 2 在此基础上练双中断与方向判断。</li>
+</ul>
 <h2 id="0-本集的两个工程-概览">0. 本集的两个工程（概览）</h2>
 <table>
 <thead>
@@ -198,45 +200,44 @@
 </thead>
 <tbody><tr>
 <td><code>5-1 对射式红外传感器计次</code></td>
-<td>对射式红外传感器模块（VCC/GND + <strong>DO 接 PB14</strong>）+ OLED 显示屏（电路与上一节相同）</td>
-<td>挡光片经过传感器槽口 → DO 电平跳变触发外部中断 → 中断里计数变量 <code>++</code>，主循环用 OLED 显示 <code>Count:00000</code> 并逐次加 1</td>
+<td>对射式红外传感器模块（VCC/GND + <strong>DO 接 PB14</strong>）+ OLED（电路同上）</td>
+<td>挡光经过槽口 → DO 跳变触发外部中断 → 中断里计数 <code>++</code>，主循环用 OLED 显示 <code>Count:00000</code> 并逐次加 1</td>
 </tr>
 <tr>
 <td><code>5-2 旋转编码器计次</code></td>
-<td>旋转编码器模块（VCC/GND + <strong>A 相接 PB0、B 相接 PB1</strong>）+ OLED 显示屏</td>
-<td>向右转编码器 <code>Num</code> 增加，向左转 <code>Num</code> 减小（OLED 显示带符号数，如 <code>Num:+00012</code>）</td>
+<td>旋转编码器模块（VCC/GND + <strong>A 相接 PB0、B 相接 PB1</strong>）+ OLED</td>
+<td>向右转 <code>Num</code> 增加，向左转 <code>Num</code> 减小（OLED 显示带符号数，如 <code>Num:+00012</code>）</td>
 </tr>
 </tbody></table>
-<p>两个工程都是在上一节 [4-2] OLED显示屏 的工程（<code>4-1 OLED显示屏</code>）基础上<strong>复制改名</strong>，然后在 <code>Hardware</code> 组里新建自己的模块文件（<code>CountSensor.c/h</code>、<code>Encoder.c/h</code>）。</p>
 <h2 id="1-工程-1-对射式红外传感器计次的接线与思路">1. 工程 1：对射式红外传感器计次的接线与思路</h2>
 <ul>
-<li>右上角 OLED 部分与上一节「OLED 显示屏」的电路完全一样，先插好用于显示程序现象。</li>
-<li>左下角接一个<strong>对射式红外传感器模块</strong>，接线只有 3 根：<strong>VCC、GND 分别接电源正负极，DO（数字输出）随意选一个 GPIO</strong>，视频里接到了 <strong>PB14</strong>。</li>
-<li>当挡光片（或编码盘）从传感器槽口经过时，DO 就会输出电平跳变的信号；这个跳变信号触发 STM32 <strong>PB14 的外部中断</strong>，在中断函数里执行<strong>变量 ++</strong>，主循环里再调用 OLED 显示这个变量——第一个程序就完成了。</li>
-<li>实物用 <strong>3 根公对母杜邦线</strong>把模块引脚引出来：VCC 接电源正、GND 接电源负、DO 接 PB14；用挡光片挡一下槽口，模块上的<strong>输出指示灯会跟随亮灭</strong>，说明高低电平输出没问题。</li>
+<li>右上角 OLED 部分与上一节完全一样，先插好用于显示现象。</li>
+<li>左下角接<strong>对射式红外传感器模块</strong>，只有 3 根线：<strong>VCC、GND 接电源正负极，DO（数字输出）随意选一个 GPIO</strong>，视频里接 <strong>PB14</strong>。</li>
+<li>挡光片（或编码盘）从槽口经过时，DO 输出电平跳变，触发 <strong>PB14 的外部中断</strong>；中断里执行<strong>变量 ++</strong>，主循环用 OLED 显示这个变量。</li>
+<li>实物用 <strong>3 根公对母杜邦线</strong>引出；挡一下槽口，模块上的<strong>输出指示灯跟随亮灭</strong>，说明高低电平输出正常。</li>
 </ul>
-<p><img src="../assets/images/stm32-12/01-ir-wiring.jpg" alt="图 1：5-1 对射式红外传感器计次接线图——对射式红外传感器模块 VCC/GND 接电源、DO 接 PB14，右上角为 OLED 电路"></p>
-<p><em>图 1：5-1 对射式红外传感器计次接线图——对射式红外传感器模块 VCC/GND 接电源、DO 接 PB14，右上角为 OLED 电路</em></p>
+<p><img src="../assets/images/stm32-12/01-ir-wiring.jpg" alt="图 1：5-1 接线图——传感器模块 VCC/GND 接电源、DO 接 PB14，右上角为 OLED"></p>
+<p><em>图 1：5-1 接线图——传感器模块 VCC/GND 接电源、DO 接 PB14，右上角为 OLED</em></p>
 <h2 id="2-exti-外部中断的配置五步">2. EXTI 外部中断的配置五步</h2>
-<p>视频先回到 PPT 的「EXTI 基本结构」图，把外部中断从 GPIO 到 NVIC 这一路的信号链过了一遍，然后总结出<strong>配置五步</strong>——原则就是：<strong>把从 GPIO 到 NVIC 这一路中出现的外设模块都配置好，把信号电路打通</strong>。</p>
-<p><img src="../assets/images/stm32-12/02-exti-five-steps.jpg" alt="图 2：PPT「EXTI 基本结构」——GPIO → AFIO（中断引脚选择）→ EXTI（边沿检测及控制）→ NVIC → CPU，红笔标出本次要打通的一路信号"></p>
-<p><em>图 2：PPT「EXTI 基本结构」——GPIO → AFIO（中断引脚选择）→ EXTI（边沿检测及控制）→ NVIC → CPU，红笔标出本次要打通的一路信号</em></p>
+<p>视频先过一遍 PPT 的「EXTI 基本结构」，再总结出<strong>配置五步</strong>：<strong>把这一路上出现的外设模块都配置好</strong>。</p>
 <ol>
 <li><strong>配置 RCC</strong>：把涉及的外设时钟都打开（不开时钟外设没法工作）；</li>
-<li><strong>配置 GPIO</strong>：把端口设为输入模式（外部中断引脚选浮空输入/上拉输入/下拉输入之一）；</li>
-<li><strong>配置 AFIO</strong>：选择用哪一路 GPIO 连接到后面的 EXTI（<code>GPIO_EXTILineConfig</code>）；</li>
-<li><strong>配置 EXTI</strong>：选择边沿触发方式（上升沿/下降沿/双边沿）和响应方式（中断响应/事件响应，一般用中断）；</li>
-<li><strong>配置 NVIC</strong>：给这个中断选择一个合适的优先级，中断信号才能进入 CPU、跳转到中断函数。</li>
+<li><strong>配置 GPIO</strong>：设为输入模式（外部中断引脚选浮空输入/上拉输入/下拉输入之一）；</li>
+<li><strong>配置 AFIO</strong>：选择哪一路 GPIO 接到后面的 EXTI（<code>GPIO_EXTILineConfig</code>）；</li>
+<li><strong>配置 EXTI</strong>：选边沿触发方式（上升沿/下降沿/双边沿）和响应方式（中断响应/事件响应，一般用中断）；</li>
+<li><strong>配置 NVIC</strong>：给这个中断选合适的优先级，中断信号才能进入 CPU、跳转到中断函数。</li>
 </ol>
-<p>涉及的外设有 <code>RCC</code>、<code>GPIO</code>、<code>AFIO</code>、<code>EXTI</code>、<code>NVIC</code> 五个，看起来多，但一个外设一个外设配下来并不复杂。</p>
+<p>涉及 <code>RCC</code>、<code>GPIO</code>、<code>AFIO</code>、<code>EXTI</code>、<code>NVIC</code> 五个外设，一个个配下来并不复杂。</p>
+<p><img src="../assets/images/stm32-12/02-exti-five-steps.jpg" alt="图 2：EXTI 基本结构——GPIO → AFIO → EXTI → NVIC → CPU，红笔标出要打通的一路"></p>
+<p><em>图 2：EXTI 基本结构——GPIO → AFIO → EXTI → NVIC → CPU，红笔标出要打通的一路</em></p>
 <h3 id="2-1-第一步-rcc-开启时钟">2.1 第一步：RCC 开启时钟</h3>
 <pre><code class="language-c">RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);   // 开启 GPIOB 时钟
 RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO,  ENABLE);   // 开启 AFIO 时钟
 </code></pre>
 <ul>
-<li><strong>GPIOB 和 AFIO 都是 APB2 上的外设</strong>，所以要用 APB2 的开启时钟函数、配 <code>RCC_APB2Periph_*</code> 参数，两者要对应（写成 APB1/AHB 的宏语法上不报错，但运行时外设不工作）。</li>
-<li>不确定某个外设接在哪个总线上时，可以跳转到 <code>RCC_APB2PeriphClockCmd</code> 的定义看参数列表，列表里有就说明是这个总线上的外设。</li>
-<li><strong>EXTI 和 NVIC 不需要开启时钟</strong>：NVIC 是内核外设（跟 CPU 一起，RCC 管不着）；EXTI 作为独立外设按理该有时钟，但寄存器里没有 EXTI 时钟控制位，原因视频里也没找到确切答案（推测和 EXTI 唤醒有关），知道不用开就行了。</li>
+<li><strong>GPIOB 和 AFIO 都是 APB2 上的外设</strong>，要用 APB2 的开启时钟函数、配 <code>RCC_APB2Periph_*</code> 参数，两者要对应（写成 APB1/AHB 的宏语法上不报错，但运行时外设不工作）。</li>
+<li>不确定外设接在哪条总线时，跳转到 <code>RCC_APB2PeriphClockCmd</code> 的定义看参数列表，列表里有就说明是这个总线上的外设。</li>
+<li><strong>EXTI 和 NVIC 不需要开启时钟</strong>：NVIC 是内核外设（跟 CPU 一起，RCC 管不着）；EXTI 寄存器里没有时钟控制位（原因视频里也没找到确切答案，推测和唤醒有关），知道不用开就行。</li>
 </ul>
 <h3 id="2-2-第二步-gpio-配置为上拉输入">2.2 第二步：GPIO 配置为上拉输入</h3>
 <pre><code class="language-c">GPIO_InitTypeDef GPIO_InitStructure;
@@ -246,11 +247,11 @@ GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;    // 输入模式下不重要
 GPIO_Init(GPIOB, &amp;GPIO_InitStructure);
 </code></pre>
 <ul>
-<li>对于外部中断引脚，<strong>GPIO_Mode 要选浮空输入、上拉输入或下拉输入其中之一</strong>（参考手册 GPIO 章的「外设 GPIO 配置表」里，EXTI 输入线给的推荐配置就是浮空/上拉/下拉）。</li>
+<li>外部中断引脚的 <strong>GPIO_Mode 要选浮空输入、上拉输入或下拉输入之一</strong>（参考手册 GPIO 章的「外设 GPIO 配置表」里，EXTI 输入线推荐的就是这三种）。</li>
 <li>本集选 <strong><code>GPIO_Mode_IPU</code> 上拉输入</strong>，即默认高电平的输入方式。</li>
 </ul>
-<p><img src="../assets/images/stm32-12/03-gpio-input.jpg" alt="图 3：GPIO 配置代码——GPIOB 时钟、GPIO_Mode_IPU 上拉输入，GPIO_Pin 正在填 GPIO_Pin_14"></p>
-<p><em>图 3：GPIO 配置代码——GPIOB 时钟、GPIO_Mode_IPU 上拉输入，GPIO_Pin 正在填 GPIO_Pin_14</em></p>
+<p><img src="../assets/images/stm32-12/03-gpio-input.jpg" alt="图 3：GPIO 配置——GPIO_Mode_IPU 上拉输入，Pin 正在填 GPIO_Pin_14"></p>
+<p><em>图 3：GPIO 配置——GPIO_Mode_IPU 上拉输入，Pin 正在填 GPIO_Pin_14</em></p>
 <h3 id="2-3-第三步-afio-选择中断引脚">2.3 第三步：AFIO 选择中断引脚</h3>
 <p>AFIO 没有单独的库函数文件，<strong>AFIO 的库函数和 GPIO 放在同一个文件（<code>stm32f10x_gpio.c/h</code>）里</strong>。gpio.h 里和 AFIO 相关的函数有：</p>
 <table>
@@ -287,11 +288,11 @@ GPIO_Init(GPIOB, &amp;GPIO_InitStructure);
 <ul>
 <li>第一个参数是 <code>GPIO_PortSourceGPIOx</code>（x 为 A～G），这里选 <code>GPIO_PortSourceGPIOB</code>；</li>
 <li>第二个参数是 <code>GPIO_PinSourcex</code>（x 为 0～15），这里选 <code>GPIO_PinSource14</code>；</li>
-<li>执行后，<strong>AFIO 的第 14 个数据选择器就被拨到了 GPIOB 上（对应 PB14），输出端固定接 EXTI 第 14 个中断线路</strong>——PB14 的电平信号就能通过 AFIO 进入后级 EXTI 电路。</li>
-<li>注意这个函数虽然以 <code>GPIO</code> 开头，但函数体内操作的是 <strong>AFIO 的寄存器</strong>（<code>AFIO-&gt;EXTICR</code>），实际是 AFIO 的函数。</li>
+<li>执行后 <strong>AFIO 的第 14 个数据选择器被拨到 GPIOB（对应 PB14）</strong>，输出端固定接 EXTI 第 14 个中断线路。</li>
+<li>这个函数虽以 <code>GPIO</code> 开头，函数体内操作的却是 <strong>AFIO 的寄存器</strong>（<code>AFIO-&gt;EXTICR</code>），实际是 AFIO 的函数。</li>
 </ul>
-<p><img src="../assets/images/stm32-12/04-afio-extiline.jpg" alt="图 4：AFIO 配置——GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource14)，把 PB14 选为 EXTI 第 14 号线"></p>
-<p><em>图 4：AFIO 配置——GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource14)，把 PB14 选为 EXTI 第 14 号线</em></p>
+<p><img src="../assets/images/stm32-12/04-afio-extiline.jpg" alt="图 4：AFIO 配置——把 PB14 选为 EXTI 第 14 号线"></p>
+<p><em>图 4：AFIO 配置——把 PB14 选为 EXTI 第 14 号线</em></p>
 <h3 id="2-4-第四步-exti-配置触发方式与响应方式">2.4 第四步：EXTI 配置触发方式与响应方式</h3>
 <p>先看 <code>exti.h</code> 里的库函数：<code>EXTI_DeInit</code>（复位）、<code>EXTI_Init</code>（按结构体初始化）、<code>EXTI_StructInit</code>（结构体赋默认值）、<code>EXTI_GenerateSWInterrupt</code>（软件触发一次外部中断），以及读写标志位的 4 个函数：</p>
 <table>
@@ -311,7 +312,7 @@ GPIO_Init(GPIOB, &amp;GPIO_InitStructure);
 </tr>
 </tbody></table>
 <blockquote>
-<p>两组函数本质上都是读写状态寄存器，区别是下面两个函数只读写与中断有关的标志位，并且会判断中断是否允许；建议主程序用上面两个、中断函数用下面两个（当然在中断里用上面两个也没问题）。</p>
+<p>两组函数本质都是读写状态寄存器；下面两个只读写与中断有关的标志位，并会判断中断是否允许。</p>
 </blockquote>
 <p>初始化 EXTI 用 <code>EXTI_Init</code>，只有一个参数——EXTI 初始化结构体的地址（EXTI 只有一个，不用像 GPIO 那样先指定外设）：</p>
 <pre><code class="language-c">EXTI_InitTypeDef EXTI_InitStructure;
@@ -322,37 +323,37 @@ EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;     // 下降沿触发
 EXTI_Init(&amp;EXTI_InitStructure);
 </code></pre>
 <ul>
-<li><code>EXTI_Line</code> 可以是 <code>EXTI_Lines</code> 的任意组合（<code>EXTI_Line0</code>～<code>EXTI_Line15</code>，也可以用按位或同时选多条）；</li>
+<li><code>EXTI_Line</code> 可以是 <code>EXTI_Lines</code> 的任意组合（<code>EXTI_Line0</code>～<code>EXTI_Line15</code>，也可按位或同时选多条）；</li>
 <li><code>EXTI_Mode</code> 是枚举 <code>EXTIMode_TypeDef</code>：中断模式 / 事件模式；</li>
 <li><code>EXTI_Trigger</code> 是枚举 <code>EXTITrigger_TypeDef</code>：<code>EXTI_Trigger_Rising</code>（上升沿）、<code>EXTI_Trigger_Falling</code>（下降沿）、<code>EXTI_Trigger_Rising_Falling</code>（双边沿），<strong>按实际需求选</strong>；</li>
-<li>视频里还指出库函数的一个小疏忽：<code>EXTI_Trigger</code> 的注释里把类型写成了 <code>EXTI_Mode_TypeDef</code>，实际应该是 <code>EXTITrigger_TypeDef</code>。</li>
+<li>库函数有个小疏忽：<code>EXTI_Trigger</code> 的注释把类型写成了 <code>EXTI_Mode_TypeDef</code>，实际应为 <code>EXTITrigger_TypeDef</code>。</li>
 <li>配完后 PB14 的电平信号就能通过 EXTI 通向下一级 NVIC。</li>
 </ul>
-<p><img src="../assets/images/stm32-12/05-exti-inittype.jpg" alt="图 5：EXTI_InitTypeDef 结构体的四个成员（EXTI_Line / EXTI_Mode / EXTI_Trigger / EXTI_LineCmd）及右侧注释（左侧被代码窗口裁掉一部分）"></p>
-<p><em>图 5：EXTI_InitTypeDef 结构体的四个成员（EXTI_Line / EXTI_Mode / EXTI_Trigger / EXTI_LineCmd）及右侧注释（左侧被代码窗口裁掉一部分）</em></p>
+<p><img src="../assets/images/stm32-12/05-exti-inittype.jpg" alt="图 5：EXTI_InitTypeDef 的四个成员及右侧注释（左侧被裁掉一部分）"></p>
+<p><em>图 5：EXTI_InitTypeDef 的四个成员及右侧注释（左侧被裁掉一部分）</em></p>
 <h3 id="2-5-第五步-nvic-配置优先级">2.5 第五步：NVIC 配置优先级</h3>
-<p>NVIC 的库函数在 <code>misc.h</code> 里：<code>NVIC_PriorityGroupConfig</code>（中断分组）、<code>NVIC_Init</code>（按结构体初始化通道），另外还有 <code>NVIC_SetVectorTable</code>、<code>NVIC_SystemLPConfig</code> 两个用得少的函数（可以先不看）。</p>
+<p>NVIC 的库函数在 <code>misc.h</code> 里：<code>NVIC_PriorityGroupConfig</code>（中断分组）、<code>NVIC_Init</code>（按结构体初始化通道），另外还有 <code>NVIC_SetVectorTable</code>、<code>NVIC_SystemLPConfig</code> 两个用得少的函数。</p>
 <pre><code class="language-c">NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);   // 2 位抢占优先级 + 2 位响应优先级
 
 NVIC_InitTypeDef NVIC_InitStructure;
-NVIC_InitStructure.NVIC_IRQChannel = EXTI15_10_IRQn;                 // EXTI10~15 共用这个中断通道
+NVIC_InitStructure.NVIC_IRQChannel = EXTI15_10_IRQn;                 // EXTI10～15 共用这个中断通道
 NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;                      // 使能
 NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;            // 抢占优先级
 NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;                   // 响应优先级
 NVIC_Init(&amp;NVIC_InitStructure);
 </code></pre>
 <ul>
-<li>中断不多、很难产生中断冲突时，<strong>优先级分组比较随意</strong>，视频里选了分组 2（2 位抢占 + 2 位响应，比较平均）；先占优先级 = 抢占优先级、从占优先级 = 响应优先级（视频原话）。</li>
-<li><strong>分组方式整个芯片只能用一种</strong>，所以这段代码整个工程只需要执行一次（可以放在主函数最前面；本集直接放在模块的初始化函数里）。</li>
-<li><code>NVIC_IRQChannel</code> 取值在库函数注释里看不到，要到 <code>stm32f10x.h</code> 的 <code>IRQn_Type</code> 里找（搜索范围要换成「当前工程」），并按芯片容量展开对应的条件编译（本课芯片是 MD 中等密度）。<strong>STM32 的 EXTI10～EXTI15 合并到了 <code>EXTI15_10_IRQn</code> 一个通道里</strong>。</li>
-<li>分组 2 下抢占优先级和响应优先级的取值范围都是 0～3；本程序只有一个中断，抢占、响应都设为 <strong>1</strong> 即可（优先级只在多个中断源同时申请、产生拥挤时才有作用）。</li>
-<li>到这里外部中断的信号就从 GPIO → AFIO → EXTI → NVIC → CPU 打通了。</li>
+<li>中断不多、很难产生冲突时<strong>优先级分组比较随意</strong>，视频选了分组 2（2 位抢占 + 2 位响应，比较平均）；先占优先级 = 抢占优先级、从占优先级 = 响应优先级。</li>
+<li><strong>分组方式整个芯片只能用一种</strong>，所以这段代码整个工程只需要执行一次（可放主函数最前面；本集放在模块的初始化函数里）。</li>
+<li><code>NVIC_IRQChannel</code> 取值在库函数注释里看不到，要到 <code>stm32f10x.h</code> 的 <code>IRQn_Type</code> 里找（搜索范围换成「当前工程」），并按容量展开条件编译（本课芯片是 MD 中等密度）。<strong>STM32 的 EXTI10～EXTI15 合并到了 <code>EXTI15_10_IRQn</code> 一个通道</strong>。</li>
+<li>分组 2 下抢占、响应的取值范围都是 0～3；本程序只有一个中断，都设 <strong>1</strong> 即可（优先级只在多个中断同时申请时才有作用）。</li>
+<li>到这里信号就从 GPIO → AFIO → EXTI → NVIC → CPU 打通了。</li>
 </ul>
 <h3 id="2-6-中断服务函数">2.6 中断服务函数</h3>
 <ul>
-<li><strong>STM32 的中断函数名字都是固定的</strong>，每个中断通道对应一个中断函数，名字可以参考<strong>启动文件</strong>（<code>startup_stm32f10x_md.s</code>）里的中断向量表——以 <code>IRQHandler</code> 结尾的字符串就是中断函数名；找到 <code>EXTI15_10_IRQHandler</code> 复制过来。</li>
-<li>中断函数格式：<code>void</code> 开头、参数 <code>void</code>、<strong>无参无返回值</strong>；<strong>名字写错就进不了中断</strong>，最好直接从启动文件复制。中断函数不需要在头文件里声明，因为它不需要调用、是自动执行的。</li>
-<li>中断函数里一般先<strong>判断中断标志位</strong>：<code>EXTI15_10_IRQHandler</code> 是 EXTI10～EXTI15 共用的，要先确认是不是 EXTI14 触发进来的；中断结束后<strong>必须清除中断标志位</strong>，否则标志位一直为 1 会不断申请中断，程序就卡死在中断函数里了。</li>
+<li><strong>STM32 的中断函数名字都是固定的</strong>，每个中断通道对应一个，名字可参考<strong>启动文件</strong>（<code>startup_stm32f10x_md.s</code>）里的中断向量表——以 <code>IRQHandler</code> 结尾的字符串就是中断函数名；找到 <code>EXTI15_10_IRQHandler</code> 复制过来。</li>
+<li>格式：<code>void</code> 开头、参数 <code>void</code>、<strong>无参无返回值</strong>；<strong>名字写错就进不了中断</strong>，最好直接从启动文件复制。中断函数不需要在头文件声明，因为它由硬件自动调用。</li>
+<li>中断函数里一般先<strong>判断中断标志位</strong>：<code>EXTI15_10_IRQHandler</code> 是 EXTI10～EXTI15 共用的，要先确认是不是 EXTI14 触发进来的；结束后<strong>必须清除中断标志位</strong>，否则标志位一直为 1 会不断申请中断，程序卡死。</li>
 </ul>
 <pre><code class="language-c">void EXTI15_10_IRQHandler(void)
 {
@@ -363,15 +364,15 @@ NVIC_Init(&amp;NVIC_InitStructure);
 	}
 }
 </code></pre>
-<p><img src="../assets/images/stm32-12/06-nvic-irq.jpg" alt="图 6：NVIC 配置（NVIC_PriorityGroup_2、EXTI15_10_IRQn、抢占/响应优先级均为 1）与 EXTI15_10_IRQHandler 中断函数"></p>
-<p><em>图 6：NVIC 配置（NVIC_PriorityGroup_2、EXTI15_10_IRQn、抢占/响应优先级均为 1）与 EXTI15_10_IRQHandler 中断函数</em></p>
+<p><img src="../assets/images/stm32-12/06-nvic-irq.jpg" alt="图 6：NVIC 配置（抢占/响应均 1）与 EXTI15_10_IRQHandler 中断函数"></p>
+<p><em>图 6：NVIC 配置（抢占/响应均 1）与 EXTI15_10_IRQHandler 中断函数</em></p>
 <ul>
 <li>写好模块后<strong>先编译一下</strong>，再去 main.c 调用，否则代码提示可能显示不出新写的函数。</li>
-<li>验证：进调试模式，在中断函数里打断点再全速运行，用挡光片挡一下传感器，程序成功停在断点处（图 7）——说明中断配置和触发都没问题。</li>
+<li>验证：进调试模式，在中断函数里打断点再全速运行，用挡光片挡一下传感器，程序成功停在断点处（图 7）。</li>
 <li>提示：在 <code>main.c</code> 里 <code>#include &quot;CountSensor.h&quot;</code>，主循环前调用 <code>CountSensor_Init()</code>。</li>
 </ul>
-<p><img src="../assets/images/stm32-12/07-debug-breakpoint.jpg" alt="图 7：调试模式在中断函数里打断点，挡一下传感器，程序成功跳转到中断函数并停在断点处"></p>
-<p><em>图 7：调试模式在中断函数里打断点，挡一下传感器，程序成功跳转到中断函数并停在断点处</em></p>
+<p><img src="../assets/images/stm32-12/07-debug-breakpoint.jpg" alt="图 7：在中断函数里打断点，挡一下传感器，程序停在断点处"></p>
+<p><em>图 7：在中断函数里打断点，挡一下传感器，程序停在断点处</em></p>
 <p><strong>本节用到的库函数一览</strong>：</p>
 <table>
 <thead>
@@ -454,9 +455,9 @@ int main(void)
 	}
 }
 </code></pre>
-<p>现象：OLED 显示 <code>Count:00000</code>；挡一下传感器数字加 1，再挡一下再加 1。</p>
-<p><img src="../assets/images/stm32-12/08-count-display.jpg" alt="图 8：工程 1 现象——面包板接线，OLED 显示 Count:00003（挡光片经过 3 次后的计数）"></p>
-<p><em>图 8：工程 1 现象——面包板接线，OLED 显示 Count:00003（挡光片经过 3 次后的计数）</em></p>
+<p>现象：OLED 显示 <code>Count:00000</code>；挡一下加 1，再挡再加 1。</p>
+<p><img src="../assets/images/stm32-12/08-count-display.jpg" alt="图 8：工程 1 现象——OLED 显示 Count:00003（挡光 3 次后）"></p>
+<p><em>图 8：工程 1 现象——OLED 显示 Count:00003（挡光 3 次后）</em></p>
 <p><img src="../assets/images/stm32-12/09-count-trigger.jpg" alt="图 9：遮挡传感器槽口时数字加 1（画面 Count:00001，此时已改为上升沿触发）"></p>
 <p><em>图 9：遮挡传感器槽口时数字加 1（画面 Count:00001，此时已改为上升沿触发）</em></p>
 <p><strong>触发方式与计数时刻</strong>（视频里改了 EXTI_Trigger 演示）：</p>
@@ -467,24 +468,24 @@ int main(void)
 </ul>
 <h2 id="4-工程-2-旋转编码器计次">4. 工程 2：旋转编码器计次</h2>
 <h3 id="4-1-接线">4.1 接线</h3>
-<p>右边还是 OLED 的电路；左边插一个<strong>旋转编码器模块</strong>，VCC/GND 接电源正负极，下面两个引脚是 <strong>A、B 相输出</strong>，分别接到 STM32 的 <strong>PB0（A 相）和 PB1（B 相）</strong>。</p>
-<p>实物接线时，因为模块引脚间距不是标准距离，要稍微别一下引脚才能插到面包板上；然后用面包板跳线接电源（VCC 正、GND 负），A、B 两相用面包板飞线分别接 PB0、PB1。</p>
+<p>右边还是 OLED 的电路；左边插一个<strong>旋转编码器模块</strong>，VCC/GND 接电源正负极，下面两个引脚是 <strong>A、B 相输出</strong>，分别接 STM32 的 <strong>PB0（A 相）和 PB1（B 相）</strong>。</p>
+<p>模块引脚间距不是标准距离，要稍微别一下才能插到面包板；再用跳线接电源，A、B 相飞线接 PB0、PB1。</p>
 <p><img src="../assets/images/stm32-12/10-encoder-wiring.jpg" alt="图 10：5-2 旋转编码器计次接线图——编码器模块 VCC/GND 接电源，A、B 相输出接 PB0、PB1"></p>
 <p><em>图 10：5-2 旋转编码器计次接线图——编码器模块 VCC/GND 接电源，A、B 相输出接 PB0、PB1</em></p>
 <h3 id="4-2-ab-相原理与方向判断">4.2 AB 相原理与方向判断</h3>
 <p>旋转编码器转动时，A、B 两相输出的是<strong>相位差 90° 的方波（正交信号）</strong>：正向旋转时 A 相先出现下降沿，反向旋转时 A 相后出现下降沿。</p>
 <ul>
-<li>最简单的做法：只把<strong>一相</strong>的下降沿用作中断触发，在中断时刻<strong>读取另一相的电平</strong>——正转时读到高电平、反转时读到低电平，这样就能区分旋转方向。</li>
-<li>但这样在操作上有一点小瑕疵：正转时 A 相先出现下降沿，刚开始动就进中断；而反转是 A 相后出现下降沿，要转到位了才进中断。</li>
-<li>所以本集采用的方案是：<strong>A、B 两相都触发中断</strong>——<ul>
-<li><strong>B 相下降沿</strong>（EXTI1）且 <strong>A 相为低电平</strong> → 判断为<strong>正转</strong>，<code>Encoder_Count++</code>；</li>
-<li><strong>A 相下降沿</strong>（EXTI0）且 <strong>B 相为低电平</strong> → 判断为<strong>反转</strong>，<code>Encoder_Count--</code>。</li>
+<li>最简单做法：只把<strong>一相</strong>的下降沿用作中断触发，在中断时刻<strong>读取另一相的电平</strong>——正转读到高电平、反转读到低电平，这样就能区分方向。</li>
+<li>但有小瑕疵：正转时 A 相先出下降沿、刚动就进中断；反转要转到位才进中断。</li>
+<li>所以本集让 <strong>A、B 两相都触发中断</strong>：<ul>
+<li><strong>B 相下降沿</strong>（EXTI1）且 <strong>A 相为低电平</strong> → <strong>正转</strong>，<code>Encoder_Count++</code>；</li>
+<li><strong>A 相下降沿</strong>（EXTI0）且 <strong>B 相为低电平</strong> → <strong>反转</strong>，<code>Encoder_Count--</code>。</li>
 </ul>
 </li>
-<li>这样正转、反转都是<strong>转到位了才执行数字加减</strong>，也顺便演示了两个中断的初始化代码。</li>
+<li>这样正转、反转都是<strong>转到位了才加减</strong>，也顺便演示了两个中断的初始化代码。</li>
 </ul>
-<p><img src="../assets/images/stm32-12/11-encoder-waveform.jpg" alt="图 11：编码器的判断方案（手绘波形）——A、B 两相都触发中断，靠「哪一相先下降沿 + 另一相电平」判断正反转，保证转到位才加减"></p>
-<p><em>图 11：编码器的判断方案（手绘波形）——A、B 两相都触发中断，靠「哪一相先下降沿 + 另一相电平」判断正反转，保证转到位才加减</em></p>
+<p><img src="../assets/images/stm32-12/11-encoder-waveform.jpg" alt="图 11：编码器判断方案——A、B 两相都触发中断，靠「哪一相先下降沿 + 另一相电平」判方向"></p>
+<p><em>图 11：编码器判断方案——A、B 两相都触发中断，靠「哪一相先下降沿 + 另一相电平」判方向</em></p>
 <h3 id="4-3-encoder-init-两个中断通道的配置">4.3 Encoder_Init：两个中断通道的配置</h3>
 <p>做法是把上一个工程的初始化部分复制过来再改：</p>
 <ul>
@@ -494,10 +495,10 @@ int main(void)
 <li>EXTI 的 <code>EXTI_Line = EXTI_Line0 | EXTI_Line1</code>，模式和触发方式两条线相同（中断模式、下降沿），所以<strong>一次 EXTI_Init 就能同时配置两条线</strong>；</li>
 <li>NVIC 分组不变（<code>NVIC_PriorityGroup_2</code>），但<strong>两个通道要分别设置优先级</strong>：<code>EXTI0_IRQn</code> 抢占 1、响应 1；<code>EXTI1_IRQn</code> 抢占 1、响应 2（结构体变量可以重复使用，不用重新定义）。</li>
 </ul>
-<p><img src="../assets/images/stm32-12/12-encoder-exti.jpg" alt="图 12：Encoder_Init 的 EXTI 部分——GPIO_Pin_0 | GPIO_Pin_1、两行 GPIO_EXTILineConfig、EXTI_Line0 | EXTI_Line1"></p>
-<p><em>图 12：Encoder_Init 的 EXTI 部分——GPIO_Pin_0 | GPIO_Pin_1、两行 GPIO_EXTILineConfig、EXTI_Line0 | EXTI_Line1</em></p>
-<p><img src="../assets/images/stm32-12/13-encoder-nvic.jpg" alt="图 13：Encoder_Init 的 NVIC 部分——EXTI0_IRQn（抢占 1/响应 1）与 EXTI1_IRQn（抢占 1/响应 2）分别初始化"></p>
-<p><em>图 13：Encoder_Init 的 NVIC 部分——EXTI0_IRQn（抢占 1/响应 1）与 EXTI1_IRQn（抢占 1/响应 2）分别初始化</em></p>
+<p><img src="../assets/images/stm32-12/12-encoder-exti.jpg" alt="图 12：Encoder_Init 的 EXTI 部分——两个 Pin、两行 GPIO_EXTILineConfig、两条 Line"></p>
+<p><em>图 12：Encoder_Init 的 EXTI 部分——两个 Pin、两行 GPIO_EXTILineConfig、两条 Line</em></p>
+<p><img src="../assets/images/stm32-12/13-encoder-nvic.jpg" alt="图 13：Encoder_Init 的 NVIC 部分——EXTI0_IRQn 与 EXTI1_IRQn 分别初始化"></p>
+<p><em>图 13：Encoder_Init 的 NVIC 部分——EXTI0_IRQn 与 EXTI1_IRQn 分别初始化</em></p>
 <h3 id="4-4-两个中断函数与方向判断">4.4 两个中断函数与方向判断</h3>
 <p>EXTI0 和 EXTI1 <strong>各自独占一个中断函数</strong>，仍按固定格式：先判断标志位、执行程序、最后清标志位。</p>
 <pre><code class="language-c">void EXTI0_IRQHandler(void)          // A 相（PB0）下降沿
@@ -525,14 +526,14 @@ void EXTI1_IRQHandler(void)          // B 相（PB1）下降沿
 }
 </code></pre>
 <ul>
-<li>注意：视频里写这段代码时<strong>手误</strong>，EXTI0 里一开始读的是 <code>GPIO_Pin_0</code>（A 相自己），后来改成 <code>GPIO_Pin_1</code>（B 相）才正确（见「坑与易错点」第 8 条）。</li>
-<li>如果用的是 <code>EXTI9_5</code>、<code>EXTI15_10</code> 这类共用通道的中断，<strong>只能写一个中断函数</strong>，把两个判断并列放在同一个函数里即可。</li>
+<li>视频里写这段时<strong>手误</strong>：EXTI0 里一开始读的是 <code>GPIO_Pin_0</code>（A 相自己），后来改成 <code>GPIO_Pin_1</code>（B 相）才正确（见「坑与易错点」第 8 条）。</li>
+<li>如果用的是 <code>EXTI9_5</code>、<code>EXTI15_10</code> 这类共用通道，<strong>只能写一个中断函数</strong>，把两个判断并列放在同一个函数里即可。</li>
 <li>计数变量用<strong>带符号</strong>的 <code>int16_t Encoder_Count;</code>，因为要正转加、反转减。</li>
 </ul>
-<p><img src="../assets/images/stm32-12/14-encoder-irq.jpg" alt="图 14：两个中断函数与方向判断（修正后）——EXTI0 里读 B 相 PB1 为低则减 1（画面下半部分为 EXTI1_IRQHandler 开头）"></p>
-<p><em>图 14：两个中断函数与方向判断（修正后）——EXTI0 里读 B 相 PB1 为低则减 1（画面下半部分为 EXTI1_IRQHandler 开头）</em></p>
+<p><img src="../assets/images/stm32-12/14-encoder-irq.jpg" alt="图 14：两个中断函数（修正后）——EXTI0 读 B 相 PB1 为低则减 1"></p>
+<p><em>图 14：两个中断函数（修正后）——EXTI0 读 B 相 PB1 为低则减 1</em></p>
 <h3 id="4-5-encoder-get-与-main">4.5 Encoder_Get 与 main</h3>
-<p>为了让 main 能&quot;取走&quot;中断里的计数值，再写一个 <code>Encoder_Get</code> 函数：它返回<strong>调用间隔内的增量</strong>，并且返回后把计数值清 0。因为 <code>return</code> 之后函数就结束了、没法再清零，所以先用一个临时变量 <code>Temp</code> 暂存：</p>
+<p><code>Encoder_Get</code> 返回<strong>调用间隔内的增量</strong>，返回后把计数值清 0；因为 <code>return</code> 后函数就结束、没法清零，先用 <code>Temp</code> 暂存：</p>
 <pre><code class="language-c">int16_t Encoder_Get(void)
 {
 	int16_t Temp;
@@ -559,41 +560,40 @@ int main(void)
 	}
 }
 </code></pre>
-<p><img src="../assets/images/stm32-12/15-encoder-main.jpg" alt="图 15：main.c——OLED_ShowString(1,1,&quot;Num:&quot;)、Num += Encoder_Get()、OLED_ShowSignedNum(1,5,Num,5)"></p>
-<p><em>图 15：main.c——OLED_ShowString(1,1,&quot;Num:&quot;)、Num += Encoder_Get()、OLED_ShowSignedNum(1,5,Num,5)</em></p>
+<p><img src="../assets/images/stm32-12/15-encoder-main.jpg" alt="图 15：main.c——OLED_ShowString、Num += Encoder_Get()、OLED_ShowSignedNum"></p>
+<p><em>图 15：main.c——OLED_ShowString、Num += Encoder_Get()、OLED_ShowSignedNum</em></p>
 <h3 id="4-6-现象与修正">4.6 现象与修正</h3>
 <ul>
-<li>下载后转动编码器，<strong>方向判断不对</strong>：视频里判断&quot;这个问题应该是中断里判断搞错了&quot;，画面上 OLED 甚至显示出了负数 <code>Num:-00013</code>。</li>
-<li>排查：<code>EXTI0_IRQHandler</code>（A 相中断）里应该判断<strong>另一个引脚</strong>——A 相下降沿时读 A 相自己的电平（<code>GPIO_Pin_0</code>）恒为 0、条件恒成立，等于 A 相中断固定执行减 1；改成读 B 相的 <code>GPIO_Pin_1</code> 才对。</li>
+<li>下载后转动编码器，<strong>方向判断不对</strong>：视频判断「问题应该是中断里判断搞错了」，画面 OLED 显示负数 <code>Num:-00013</code>。</li>
+<li>排查：<code>EXTI0_IRQHandler</code>（A 相中断）里应该判断<strong>另一个引脚</strong>——A 相下降沿时读 A 相自己（<code>GPIO_Pin_0</code>）恒为 0、条件恒成立，等于 A 相中断固定执行减 1；改成读 B 相的 <code>GPIO_Pin_1</code> 才对。</li>
 <li>修正后重新编译下载：<strong>向右转数字增加、向左转数字减小</strong>，现象正确（画面 <code>Num:+00012</code>）。</li>
 </ul>
 <p><img src="../assets/images/stm32-12/16-encoder-number.jpg" alt="图 16：修正后的现象——转动编码器，OLED 显示 Num:+00012，方向增减正常"></p>
 <p><em>图 16：修正后的现象——转动编码器，OLED 显示 Num:+00012，方向增减正常</em></p>
-<h2 id="5-中断编程建议-视频结尾">5. 中断编程建议（视频结尾）</h2>
+<h2 id="5-中断编程建议">5. 中断编程建议</h2>
 <ol>
-<li><strong>中断函数里最好不要执行耗时过长的代码</strong>：中断函数要简短快速，别刚进中断就 <code>Delay</code> 多少毫秒。中断处理的是突发的事情，为了一个突发事件待在中断里不出来，主程序会受到严重阻塞。</li>
-<li><strong>最好不要在中断函数和主函数里调用相同的函数或操作同一个硬件</strong>，尤其是硬件相关的函数（比如 OLED 显示函数）：<ul>
-<li>主程序里 OLED 刚显示一半，啪一下进中断，中断里又调用 OLED 显示函数，OLED 的显示位置就被挪到别处了；</li>
-<li>中断结束后要回到主程序继续原来的显示，但硬件的显示位置已经变了，继续显示的内容就会跟着跑到其它地方去；</li>
-<li>中断进入和退出时的保护现场/恢复现场只保证 <strong>CPU 程序</strong>能正常返回，<strong>对外部硬件并没有做现场保护</strong>。</li>
+<li><strong>中断函数里最好不要执行耗时过长的代码</strong>：中断要简短快速，别一进中断就 <code>Delay</code> 多少毫秒；为突发事件待在中断里不出来，主程序严重阻塞。</li>
+<li><strong>中断和主函数不要调用相同函数或操作同一硬件</strong>，尤其硬件相关函数（如 OLED 显示函数）：<ul>
+<li>主程序 OLED 刚显示一半就进中断，中断里又调用 OLED，显示位置被挪到别处；</li>
+<li>中断结束回到主程序继续显示，内容就会跑到别的地方——保护/恢复现场只保证 <strong>CPU 程序</strong>能返回，<strong>对外部硬件没有现场保护</strong>。</li>
 </ul>
 </li>
-<li>所以正确做法是：<strong>中断里只操作变量或标志位，显示和具体操作放到主循环里做</strong>——既能保证中断短小快速，又能避免硬件操作冲突。</li>
-<li>更广义地说，多用变量、标志位或函数作为接口，<strong>减少代码之间的耦合性</strong>，让各部分代码相互独立，程序会更清晰、更强健。</li>
+<li>正确做法：<strong>中断里只操作变量或标志位，显示和具体操作放主循环</strong>——既保证中断短小，又避免硬件冲突。</li>
+<li>更广义地说，多用变量、标志位或函数做接口，<strong>减少代码耦合性</strong>，程序更清晰、更强健。</li>
 </ol>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>中断函数名必须与启动文件一致</strong>：<code>EXTI15_10_IRQHandler</code>、<code>EXTI0_IRQHandler</code>、<code>EXTI1_IRQHandler</code>，写错一个字母就进不了中断；最好直接从启动文件 <code>startup_stm32f10x_md.s</code> 复制。</li>
-<li><strong>中断结束必须清标志位</strong>：<code>EXTI_ClearITPendingBit(EXTI_LineX)</code>，否则标志位一直为 1 会反复申请中断，程序卡死在中断里。</li>
-<li><strong>优先级分组全芯片只能用一种</strong>：<code>NVIC_PriorityGroupConfig</code> 整个工程只需执行一次（可放 main 开头，也可放模块 Init 里）。</li>
-<li><strong>EXTI / NVIC 不需要开时钟</strong>：GPIOB、AFIO 要开（APB2）；EXTI 没有时钟控制位、NVIC 是内核外设，两者都不需要开启时钟。</li>
-<li><strong>RCC 的总线参数要和函数对应</strong>：GPIOB、AFIO 是 APB2 外设，用 <code>RCC_APB2PeriphClockCmd</code> + <code>RCC_APB2Periph_*</code>；写成 APB1/AHB 语法不报错但外设不工作。</li>
+<li><strong>中断函数名必须与启动文件一致</strong>：<code>EXTI15_10_IRQHandler</code>、<code>EXTI0_IRQHandler</code>、<code>EXTI1_IRQHandler</code>；最好直接从 <code>startup_stm32f10x_md.s</code> 复制。</li>
+<li><strong>中断结束必须清标志位</strong>：<code>EXTI_ClearITPendingBit(EXTI_LineX)</code>，否则标志位一直为 1 会反复申请中断，程序卡死。</li>
+<li><strong>优先级分组全芯片只能用一种</strong>：<code>NVIC_PriorityGroupConfig</code> 整个工程只需执行一次。</li>
+<li><strong>EXTI / NVIC 不需要开时钟</strong>：GPIOB、AFIO 要开（APB2）；EXTI 没有时钟控制位、NVIC 是内核外设。</li>
+<li><strong>RCC 的总线参数要和函数对应</strong>：GPIOB、AFIO 是 APB2 外设，用 <code>RCC_APB2PeriphClockCmd</code> + <code>RCC_APB2Periph_*</code>；写成 APB1/AHB 不报错但外设不工作。</li>
 <li><strong>触发方式决定计数时刻</strong>：下降沿 = 移开挡光片加 1；上升沿 = 遮挡加 1；双边沿 = 遮挡和移开都加 1。</li>
-<li><strong>EXTI10～EXTI15 共用一个中断通道</strong>（<code>EXTI15_10_IRQn</code> / <code>EXTI15_10_IRQHandler</code>），中断里必须先 <code>EXTI_GetITStatus</code> 判断是哪条线；而 EXTI0、EXTI1 各自独占一个中断函数。</li>
-<li><strong>编码器方向异常的教训</strong>：<code>EXTI0_IRQHandler</code> 里要读<strong>另一相</strong>的电平（B 相 <code>GPIO_Pin_1</code>），误读成自己这相（<code>GPIO_Pin_0</code>）时，A 相下降沿读自己恒为 0、条件恒成立，方向判断就错了。</li>
+<li><strong>EXTI10～EXTI15 共用一个中断通道</strong>（<code>EXTI15_10_IRQn</code> / <code>EXTI15_10_IRQHandler</code>），中断里先 <code>EXTI_GetITStatus</code> 判断哪条线；EXTI0、EXTI1 各独占一个中断函数。</li>
+<li><strong>编码器方向异常的教训</strong>：<code>EXTI0_IRQHandler</code> 里要读<strong>另一相</strong>的电平（B 相 <code>GPIO_Pin_1</code>），误读成自己这相（<code>GPIO_Pin_0</code>）时条件恒成立，方向判断就错。</li>
 <li><strong>计数变量类型要选对</strong>：只加不减（红外计次）用 <code>uint16_t</code>；有正反转（编码器）用带符号的 <code>int16_t</code>。</li>
 <li><strong>中断里不延时、不操作同一硬件</strong>（见第 5 节），用变量/标志位在主循环里显示和操作。</li>
-<li><strong>模块写好后先编译</strong>：否则回 main.c 调用时，代码提示可能显示不出新写的函数；中断函数不需要在头文件声明。</li>
+<li><strong>模块写好后先编译</strong>：否则回 main.c 调用时代码提示可能显示不出新函数；中断函数不需要在头文件声明。</li>
 </ol>
 </article>
     <nav class="pager">
@@ -604,8 +604,8 @@ int main(void)
   <aside class="toc">
     <p class="toc-title">目录</p>
     <nav>
-        <a class="level-2" href="#%E7%B4%A0%E6%9D%90-%E5%AD%97%E5%B9%95%E6%83%85%E5%86%B5">素材 / 字幕情况</a>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E7%9A%84%E4%B8%A4%E4%B8%AA%E5%B7%A5%E7%A8%8B-%E6%A6%82%E8%A7%88">0. 本集的两个工程（概览）</a>
         <a class="level-2" href="#1-%E5%B7%A5%E7%A8%8B-1-%E5%AF%B9%E5%B0%84%E5%BC%8F%E7%BA%A2%E5%A4%96%E4%BC%A0%E6%84%9F%E5%99%A8%E8%AE%A1%E6%AC%A1%E7%9A%84%E6%8E%A5%E7%BA%BF%E4%B8%8E%E6%80%9D%E8%B7%AF">1. 工程 1：对射式红外传感器计次的接线与思路</a>
         <a class="level-2" href="#2-exti-%E5%A4%96%E9%83%A8%E4%B8%AD%E6%96%AD%E7%9A%84%E9%85%8D%E7%BD%AE%E4%BA%94%E6%AD%A5">2. EXTI 外部中断的配置五步</a>
@@ -623,7 +623,7 @@ int main(void)
         <a class="level-3" href="#4-4-%E4%B8%A4%E4%B8%AA%E4%B8%AD%E6%96%AD%E5%87%BD%E6%95%B0%E4%B8%8E%E6%96%B9%E5%90%91%E5%88%A4%E6%96%AD">4.4 两个中断函数与方向判断</a>
         <a class="level-3" href="#4-5-encoder-get-%E4%B8%8E-main">4.5 Encoder_Get 与 main</a>
         <a class="level-3" href="#4-6-%E7%8E%B0%E8%B1%A1%E4%B8%8E%E4%BF%AE%E6%AD%A3">4.6 现象与修正</a>
-        <a class="level-2" href="#5-%E4%B8%AD%E6%96%AD%E7%BC%96%E7%A8%8B%E5%BB%BA%E8%AE%AE-%E8%A7%86%E9%A2%91%E7%BB%93%E5%B0%BE">5. 中断编程建议（视频结尾）</a>
+        <a class="level-2" href="#5-%E4%B8%AD%E6%96%AD%E7%BC%96%E7%A8%8B%E5%BB%BA%E8%AE%AE">5. 中断编程建议</a>
         <a class="level-2" href="#%E5%9D%91%E4%B8%8E%E6%98%93%E9%94%99%E7%82%B9">坑与易错点</a>
     </nav>
   </aside>

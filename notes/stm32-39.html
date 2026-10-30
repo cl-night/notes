@@ -177,241 +177,203 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>27 分钟</span>
+      <span>16 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">SPI</span><span class="tag">外设</span><span class="tag">硬件SPI</span><span class="tag">参考手册</span>
     </div>
     <article class="prose"><h1>[11-4] SPI通信外设 — 学习笔记</h1>
-<ul>
-<li><strong>本集定位</strong>：这是<strong>模块 11 的理论课（下）</strong>——讲 <strong>STM32 内部的 SPI 外设</strong>：先看 PPT（外设简介、框图、两种传输流程、软硬件波形对比），再用<strong>示波器实测</strong>不同分频下非连续传输的字节间隙，最后精读**《STM32F10xxx 参考手册》第 23 章**。<strong>本集全程没有写一行代码</strong>（Keil 工程从未打开，也没出 <code>SPI_InitTypeDef</code> 成员表），只在口述里提到 <code>SPI_Cmd</code> 和「初始化结构体主要就是用来填充这些位」。结尾 45:17「那到这里，本小节课程，也就结束了」，<strong>无明确下节预告</strong>——<strong>库函数写法在 [11-5]/[11-6]</strong>。</li>
-</ul>
 <h2 id="一句话结论">一句话结论</h2>
-<p><strong>软件 SPI 是自己手动翻转电平，主打方便灵活；硬件 SPI 用 STM32 内部的 SPI 外设，主打高性能</strong>。<strong>SPI 外设简介</strong>：STM32 内部集成<strong>硬件 SPI 收发电路</strong>，<strong>由硬件自动执行时钟生成、数据收发</strong>，<strong>减轻 CPU 负担</strong>；可配置 <strong>8 位/16 位数据帧</strong>（最常用 8 位，因为一般以字节为单位）、<strong>高位先行/低位先行</strong>（SPI 与 I2C 都是<strong>高位先行</strong>，<strong>串口才是低位先行</strong>）；<strong>时钟频率 ＝ fPCLK / (2, 4, 8, 16, 32, 64, 128, 256)</strong>（分频系数不能任意指定，最低是 PCLK 的 256 分频）；<strong>支持多主机模型、主或从操作</strong>；<strong>可精简为半双工/单工</strong>（去掉一根线分时收发＝半双工、只发或只收＝单工）；<strong>支持 DMA</strong>；<strong>兼容 I2S 协议</strong>；<strong>STM32F103C8T6 的硬件 SPI 资源只有 SPI1、SPI2</strong>。<strong>总线差异</strong>：<strong>SPI1 挂 APB2（PCLK＝72MHz）</strong>、<strong>SPI2 挂 APB1（PCLK＝36MHz）</strong>，所以<strong>SPI1 的最高 SCK 频率比 SPI2 大</strong>——开时钟和算 SCK 频率时要注意。<strong>为什么知识点这么多</strong>：硬件电路不像软件那么灵活，一旦设计出来功能基本定死，所以要<strong>考虑最全面的应用场景</strong>、把各种可能的结构都做进去，导致<strong>很多功能实际上很少用到</strong>——学习时<strong>抓住主线（主机、全双工、8 位数据帧、高位先行）</strong>，其他在实践中慢慢探索。<strong>框图（图209）<strong>分两块：<strong>左上＝数据寄存器 + 移位寄存器的经典配合</strong>（<strong>接收缓冲区 RDR ← 移位寄存器 ← 发送缓冲区 TDR</strong>，构成连续数据流；<strong>TDR/RDR 共用同一个地址 <code>SPI_DR</code></strong>；<strong>写入 DR 数据进 TDR、读取 DR 数据从 RDR 出</strong>；移位寄存器受 <strong><code>LSBFIRST</code> 控制位</strong>控制——图上画的是</strong>低位先行</strong>配置，若给 0 则改为左移、高位先出）；<strong>右下＝波特率发生器 + 通信电路 + 主控制电路 + CR1/CR2/SR</strong>：<strong>波特率发生器</strong>接受 PCLK（72M/36M），由 <strong>CR1 的 <code>BR[2:0]</code></strong> 选分频后输出 SCK；<strong>CR1</strong> 关键位 <strong><code>BR</code>（波特率）、<code>MSTR</code>（主/从）、<code>CPOL</code>/<code>CPHA</code>（4 种模式）、<code>LSBFIRST</code>、<code>SPE</code>（使能，即 <code>SPI_Cmd</code>）</strong>；<strong>SR</strong> 里 <strong><code>TXE</code>（发送寄存器空）、<code>RXNE</code>（接收寄存器非空）、<code>BSY</code></strong> 等；<strong>CR2</strong> 是中断/SSOE/DMA 等使能位。<strong>MOSI/MISO 交叉电路</strong>的作用是<strong>主从模式引脚变换</strong>：做主机时 MOSI 为主机输出、MISO 为主机输入，<strong>不走交叉</strong>；做从机时 MOSI 变 SI、MISO 变 SO，<strong>走交叉支路</strong>——本课程<strong>只用主模式</strong>。<strong>收发流程</strong>：<strong>写 <code>SPI_DR</code> → 数据进 TDR；移位寄存器空时 TDR 的数据自动转入移位寄存器发送，并置 <code>TXE=1</code></strong>（这时可以立刻写下一个字节，数据前仆后继实现不间断传输）；<strong>接收时移位寄存器里的数据整体转入 RDR，同时置 <code>RXNE=1</code></strong>，<strong>必须尽快从 RDR 读出，否则会被下一个数据覆盖</strong>；<code>BSY</code> 在有数据传输时由硬件置 1、传输结束自动清除。<strong>三种通信的收发缓冲设计对比</strong>：<strong>SPI 全双工 → 发送和接收分离（TDR/RDR 各一个）</strong>、<strong>I2C 收发不会同时进行 → 数据寄存器可以共用</strong>、<strong>串口收发分离 → 也是两套缓冲</strong>——设计理念相同、细节不同。<strong>NSS 引脚</strong>：分<strong>硬件 NSS 模式</strong>（<code>SSM=0</code>；<code>SSOE=1</code> 时 NSS 作输出，主机结束后 SSOE 清 0、NSS 变输入；<strong>外部输入低电平说明已有别的主机，本机不能进主模式</strong>）与<strong>软件 NSS 模式</strong>（<code>SSM=1</code>，内部电平由 <code>SSI</code> 位决定）；它主要是为<strong>多主机仲裁</strong>准备的——作者用「<strong>揪小辫子</strong>」比喻：谁先跳出来做主机，就揪住所有其他人的小辫子（把公共 NSS 拉低），其他人想跳出来时发现小辫子被揪住就做不了主机；<strong>多从机选择它做不了（需要额外寻址，实现复杂）</strong>，所以<strong>本课程不用硬件 NSS，SS 用普通 GPIO 模拟</strong>。<strong>简化结构图</strong>（作者自画，<strong>PPT 标题栏误写成「I2C基本结构」，实际是 SPI 结构图</strong>）：波特率发生器 → GPIO → SCK；数据控制器 → <strong>接收数据寄存器 RDR / 移位寄存器 / 发送数据寄存器 TDR</strong>；GPIO → MOSI/MISO；<strong>开关控制＝<code>SPI_Cmd</code></strong>；<strong>图里没有画 SS 引脚</strong>（用 GPIO 模拟）。<strong>两种传输流程（口述顺序：先图218 非连续、再图213 连续）</strong>：<strong>图218「非连续传输」</strong>——配置模式 3（CPOL=1/CPHA=1）、低位先行，流程 4 步：<strong>① 等 TXE=1 ② 写发送数据到 TDR ③ 等 RXNE=1 ④ 读 RDR 接收数据</strong>，字节之间<strong>有明显间隙</strong>（第二个字节还没送来）；<strong>图213「主模式全双工连续传输」</strong>——写 DR 后当 TXE=1 就<strong>立刻写下一个字节</strong>，时钟<strong>连续无间隙</strong>，同时还要及时处理 RXNE，<strong>效率最高但程序难写</strong>（发送与接收的操作顺序被交叉，不是「发1收1发2收2」而是「发1发2…收1」）。<strong>示波器实测</strong>（模式 0、交换 5 个字节）：<strong>256 分频</strong>几乎看不出间隙；<strong>128/64 分频</strong>间隙可见但占比小；<strong>2 分频（SCK＝72M/2＝36MHz，已超示波器采样率）时间隙占比是数据传输的好几倍</strong>——所以<strong>非连续传输在极限频率下远达不到标称效率</strong>，<strong>追求极限性能要用连续传输或 DMA</strong>；日常用非连续传输的 4 行代码即可。<strong>手册第 23 章</strong>：<strong>23.1 SPI 简介</strong>（大容量/互联型可配 SPI 或 I2S，<strong>小容量/中容量不支持 I2S</strong>；<strong>警告：SPI3/I2S3 的部分引脚与 JTAG 共用</strong>——<code>SPI3_NSS/I2S3_WS</code> 与 <code>JTDI</code>、<code>SPI3_SCK/I2S3_CK</code> 与 <code>JTDO</code>，复位后默认保留为 JTAG 用途）；<strong>23.3</strong> 功能描述（框图、NSS、4 种模式、主模式配置步骤、裁剪为半双工/单工、CRC）；<strong>23.3.10 错误标志（MODF）</strong>；<strong>23.5</strong> 寄存器（CR1/CR2/SR/DR/CRCPR/RXCRCR/TXCRCR）、<strong>23.5.10 寄存器地址映象（表171）</strong>；I2S 相关寄存器与 CRC 了解即可。</p>
-<h2 id="0-本集定位-理论课-spi-外设原理-手册-23-章-代码在-11-5-11-6">0. 本集定位：理论课（SPI 外设原理 + 手册 23 章），代码在 11-5/11-6</h2>
+<p>软件 SPI 手动翻转电平，方便灵活；硬件 SPI 用 STM32 内部外设自动生成时钟并收发数据，性能高。SPI1 挂 APB2（72M）、SPI2 挂 APB1（36M），SCK ＝ fPCLK/分频，分频只能取 2/4/8/16/32/64/128/256。</p>
+<h2 id="本集定位">本集定位</h2>
 <ul>
-<li><strong>本集全程无代码</strong>：只打开 PPT 和<strong>参考手册 PDF</strong>，<strong>Keil 工程从未打开</strong>，也没有 <code>SPI_InitTypeDef</code> 成员表；</li>
-<li>只在口述里提到 <strong><code>SPI_Cmd</code></strong>（使能，对应 CR1 的 SPE）和「<strong>初始化结构体主要就是用来填充这些位</strong>」；</li>
-<li>片尾 45:17「那到这里，本小节课程，也就结束了」——<strong>无下节预告</strong>；按课程顺序，<strong>库函数写法在 [11-5]/[11-6]</strong>。</li>
+<li>模块 11 的理论课（下）：PPT 讲外设简介、框图、两种传输流程、软硬件波形对比，再做示波器实测，最后精读手册第 23 章。</li>
+<li>全程无代码：Keil 工程没打开，也没有 <code>SPI_InitTypeDef</code> 成员表，只口述了 <code>SPI_Cmd</code> 和「初始化结构体主要就是用来填充这些位」。</li>
+<li>结尾 45:17「那到这里，本小节课程，也就结束了」，无下节预告；库函数写法在 [11-5]/[11-6]。</li>
+<li>硬件 SPI 知识点多，是因为硬件电路一旦设计出来功能就基本定死，只能把各种场景都做进去；学习抓主线即可：主机、全双工、8 位数据帧、高位先行。</li>
 </ul>
 <h2 id="1-spi-外设简介">1. SPI 外设简介</h2>
 <h3 id="1-1-功能列表">1.1 功能列表</h3>
 <ul>
-<li><strong>STM32 内部集成了硬件 SPI 收发电路</strong>：可以由<strong>硬件自动执行时钟生成、数据收发</strong>等功能，<strong>减轻 CPU 负担</strong>（不用自己手动翻转电平）；</li>
-<li><strong>可配置 8 位/16 位数据帧、高位先行/低位先行</strong>；</li>
-<li><strong>时钟频率：fPCLK / (2, 4, 8, 16, 32, 64, 128, 256)</strong>；</li>
-<li><strong>支持多主机模型、主或从操作</strong>；</li>
-<li><strong>可精简为半双工/单工通信</strong>；</li>
-<li><strong>支持 DMA</strong>；</li>
-<li><strong>兼容 I2S 协议</strong>；</li>
-<li><strong>STM32F103C8T6 硬件 SPI 资源：SPI1、SPI2</strong>。</li>
+<li>STM32 内部集成硬件 SPI 收发电路，由硬件自动执行时钟生成、数据收发，减轻 CPU 负担。</li>
+<li>可配置 8 位/16 位数据帧、高位先行/低位先行。</li>
+<li>时钟频率＝fPCLK/(2, 4, 8, 16, 32, 64, 128, 256)。</li>
+<li>支持多主机模型、主或从操作；可精简为半双工/单工；支持 DMA；兼容 I2S。</li>
+<li>STM32F103C8T6 的硬件 SPI 资源只有 SPI1、SPI2。</li>
+<li>功能这么多，是因为硬件电路不像软件那么灵活，设计时要覆盖最全的应用场景，结果很多功能实际很少用到。</li>
 </ul>
-<blockquote>
-<p><strong>为什么知识点这么多</strong>：硬件电路不像软件那么灵活（软件改代码就行，硬件<strong>一旦设计出来功能基本定死</strong>），所以设计时要<strong>考虑最全面的应用场景、把各种可能的结构都做出来</strong>，以免用的时候找不到——结果就是<strong>结构复杂、知识点多，而很多功能实际很少用到</strong>。学习策略：<strong>先抓住最简单的主线（主机、全双工、8 位数据帧、高位先行）</strong>，其他在实践中慢慢探索。</p>
-</blockquote>
-<h3 id="1-2-数据帧">1.2 数据帧</h3>
+<h3 id="1-2-数据帧与位序">1.2 数据帧与位序</h3>
 <ul>
-<li><strong>SPI 最常用的配置是 8 位数据帧</strong>：波形上每次交换的数据都是 8 个 bit；</li>
-<li>因为<strong>一般以字节为单位</strong>，一个字节就是 8 位，所以 8 位数据帧最常见；</li>
-<li><strong>STM32 还可以设计成 16 位数据帧</strong>（16 位用得很少）。</li>
+<li>最常用 8 位数据帧：一般以字节为单位，一个字节就是 8 位；16 位数据帧用得很少。</li>
+<li>SPI 与 I2C 都是高位先行，串口才是低位先行。</li>
+<li>发 <code>0x34</code>（0011 0100）：波形上数据由高位到低位依次出现。</li>
+<li>串口的 <code>0x55</code>＝0101 0101，波形从前到后是 10101010，看数据要<strong>从右往左</strong>才是 0101 0101。</li>
+<li>图213/图218 的示例波形画的都是低位先行（b0 在前），而实际 SPI 高位先行用得更多，理解时序时注意区分。</li>
 </ul>
-<h3 id="1-3-位序-高位先行-vs-低位先行">1.3 位序：高位先行 vs 低位先行</h3>
+<h3 id="1-3-时钟频率与总线">1.3 时钟频率与总线</h3>
 <ul>
-<li><strong>SPI 基本上都是高位先行</strong>（MSB First）；<strong>I2C 也是高位先行</strong>；<strong>串口是低位先行</strong>（LSB First）；</li>
-<li>例：发 <strong>0x34</strong>（0011 0100）——<strong>产生波形时数据由高位到低位依次出现</strong>（先 0、0、1、1…）；</li>
-<li>对<strong>低位先行</strong>的协议（如串口）：0x55＝0101 0101，<strong>产生波形时数据由低位到高位依次出现</strong>（从前到后是 10101010），<strong>看对应数据时要从右往左看</strong>才是 0101 0101＝0x55；</li>
-<li><strong>注意</strong>：本集后面示例波形（图213/图218）画的都是<strong>低位先行</strong>（b0 在前），<strong>实际 SPI 高位先行用得更多</strong>——理解时序时要注意区分（对理解时序影响不大）。</li>
+<li>SCK 频率 ＝ fPCLK/分频系数，一个 SCK 时钟交换一位，所以 SCK 频率体现传输速度。</li>
+<li>分频系数只能是 2/4/8/16/32/64/128/256，频率数值不能任意指定。</li>
+<li>PCLK 是外设时钟：SPI1 挂 APB2，PCLK＝72MHz；SPI2 等挂 APB1，PCLK＝36MHz。</li>
+<li>所以 SPI1 的最高 SCK 频率比 SPI2 大，开时钟与算 SCK 频率时都要注意。</li>
+<li>最低频率是 PCLK 的 256 分频；I2C 最大只有 400kHz，SPI 的速度上限高得多。</li>
 </ul>
-<h3 id="1-4-时钟频率与总线">1.4 时钟频率与总线</h3>
+<h3 id="1-4-其他功能-了解即可">1.4 其他功能（了解即可）</h3>
 <ul>
-<li><strong>SCK 频率 ＝ fPCLK / 分频系数</strong>：<strong>一个 SCK 时钟交换一位</strong>，所以 SCK 频率<strong>体现传输速度</strong>；</li>
-<li><strong>分频系数只能是 2/4/8/16/32/64/128/256</strong>——<strong>频率数值不能任意指定</strong>，只能是 PCLK 除这些数；</li>
-<li><strong>PCLK（Peripheral Clock）＝外设时钟</strong>：<ul>
-<li><strong>SPI1 是 APB2 的外设，PCLK＝72MHz</strong>；</li>
-<li><strong>SPI2 等是 APB1 的外设，PCLK＝36MHz</strong>；</li>
-<li>所以 <strong>SPI1 的最高 SCK 频率比 SPI2 大</strong>——<strong>开时钟时要注意（APB1/APB2 不同）</strong>，计算 SCK 频率时也要注意；</li>
+<li>多主机模型：SPI 支持，但实现复杂、用得少，本课程只学 SPI 做主机。</li>
+<li>半双工：两根数据线合成一根分时收发，节省一根通信线；单工：只保留发送线或只保留接收线。</li>
+<li>DMA：让 DMA 自动搬运数据，比手动操作高效，少量数据可以不用。</li>
+<li>I2S：数字音频传输专用协议（音乐数据按约定格式送 DAC 再输出到扬声器），和 I2C 区别很大、别搞混；SPI 与 I2S 电路可以共用，所以手册一半内容在讲 I2S，本课程用不到。</li>
 </ul>
-</li>
-<li><strong>最低频率是 PCLK 的 256 分频</strong>；对比 I2C 最大只有 400kHz，<strong>SPI 的速度上限高得多</strong>。</li>
-</ul>
-<h3 id="1-5-其他功能-了解即可">1.5 其他功能（了解即可）</h3>
-<ul>
-<li><strong>多主机模型</strong>：SPI 也支持，但<strong>实现复杂、用得很少</strong>——本课程<strong>只学 SPI 做主机</strong>的情况；</li>
-<li><strong>半双工</strong>：把两根数据线合成<strong>一根线分时收发</strong>，<strong>节省一根通信线</strong>；</li>
-<li><strong>单工</strong>：<strong>只保留发送线（只发）<strong>或</strong>只保留接收线（只收）</strong>；</li>
-<li><strong>DMA</strong>：让 DMA 自动搬运数据，<strong>比手动操作更高效</strong>；少量数据可以不用；</li>
-<li><strong>I2S</strong>：<strong>数字音频传输的专用协议</strong>（把音乐数据按约定格式送到 DAC 再输出到扬声器），<strong>和 I2C 区别挺大、别搞混</strong>；<strong>SPI 与 I2S 电路可以共用</strong>（所以手册里有一半内容在讲 I2S）；本课程用不到，感兴趣可以看看。</li>
-</ul>
-<p><img src="../assets/images/stm32-39/01-intro-ppt.jpg" alt="图 1：PPT「SPI外设简介」全条目——STM32 内部集成硬件 SPI 收发电路，可由硬件自动执行时钟生成、数据收发等功能，减轻 CPU 负担；可配置 8 位/16 位数据帧、高位先行/低位先行；时钟频率 fPCLK/(2, 4, 8, 16, 32, 64, 128, 256)；支持多主机模型、主或从操作；可精简为半双工/单工通信；支持 DMA；兼容 I2S 协议；STM32F103C8T6 硬件 SPI 资源：SPI1、SPI2；字幕「硬件SPI，就是使用STM32内部的SPI外设，来实现时序」"></p>
-<p><em>图 1：PPT「SPI外设简介」全条目——STM32 内部集成硬件 SPI 收发电路，可由硬件自动执行时钟生成、数据收发等功能，减轻 CPU 负担；可配置 8 位/16 位数据帧、高位先行/低位先行；时钟频率 fPCLK/(2, 4, 8, 16, 32, 64, 128, 256)；支持多主机模型、主或从操作；可精简为半双工/单工通信；支持 DMA；兼容 I2S 协议；<strong>STM32F103C8T6 硬件 SPI 资源：SPI1、SPI2</strong>；字幕「硬件SPI，就是使用STM32内部的SPI外设，来实现时序」</em></p>
-<p><img src="../assets/images/stm32-39/02-uart-lsb.jpg" alt="图 2：PPT「串口时序」（对比用）+ 右上角红笔写「01010101」——串口的波形是低位先行：产生波形时数据由低位到高位依次出现；字幕「在产生波形时，数据由低位到高位依次出现」"></p>
-<p><em>图 2：PPT「串口时序」（对比用）+ 右上角红笔写「01010101」——串口的波形是低位先行：产生波形时数据由低位到高位依次出现；字幕「在产生波形时，数据由低位到高位依次出现」</em></p>
-<p><img src="../assets/images/stm32-39/03-apb1-pclk.jpg" alt="图 3：简介页 + 「SPI2」被框选——讲总线差异：SPI1 挂 APB2（PCLK 72M）、SPI2 等挂 APB1（PCLK 36M）；字幕「SPI2等等挂载在APB1，PCLK是36M」"></p>
-<p><em>图 3：简介页 + 「SPI2」被框选——讲总线差异：SPI1 挂 APB2（PCLK 72M）、SPI2 等挂 APB1（PCLK 36M）；字幕「SPI2等等挂载在APB1，PCLK是36M」</em></p>
-<p><img src="../assets/images/stm32-39/04-i2s-marked.jpg" alt="图 4：简介页 + 「兼容 I2S 协议」被灰色高亮——讲 I2S 是数字音频专用协议、与 I2C 区别很大；字幕「它和I2C的区别挺大的，不用搞混了」"></p>
-<p><em>图 4：简介页 + 「兼容 I2S 协议」被灰色高亮——讲 I2S 是数字音频专用协议、与 I2C 区别很大；字幕「它和I2C的区别挺大的，不用搞混了」</em></p>
+<p><img src="../assets/images/stm32-39/01-intro-ppt.jpg" alt="图 1：PPT「SPI外设简介」全条目——硬件 SPI 收发电路、8 位/16 位数据帧、高位/低位先行、fPCLK/(2, 4, 8, 16, 32, 64, 128, 256)、多主机、半双工/单工、DMA、I2S、C8T6 只有 SPI1/SPI2"></p>
+<p><em>图 1：PPT「SPI外设简介」全条目，含字幕「硬件SPI，就是使用STM32内部的SPI外设」</em></p>
+<p><img src="../assets/images/stm32-39/02-uart-lsb.jpg" alt="图 2：PPT「串口时序」对比 + 右上角红笔写「01010101」——串口波形低位先行，产生波形时数据由低位到高位依次出现"></p>
+<p><em>图 2：PPT「串口时序」对比 + 红笔「01010101」，讲串口低位先行</em></p>
+<p><img src="../assets/images/stm32-39/03-apb1-pclk.jpg" alt="图 3：简介页 + 「SPI2」被框选——SPI1 挂 APB2（PCLK 72M）、SPI2 等挂 APB1（PCLK 36M），字幕「SPI2等等挂载在APB1，PCLK是36M」"></p>
+<p><em>图 3：简介页框选「SPI2」，讲 APB1 的 PCLK 是 36M</em></p>
+<p><img src="../assets/images/stm32-39/04-i2s-marked.jpg" alt="图 4：简介页 + 「兼容 I2S 协议」被灰色高亮——I2S 是数字音频专用协议，与 I2C 区别很大"></p>
+<p><em>图 4：简介页高亮「兼容 I2S 协议」，字幕「它和I2C的区别挺大的，不用搞混了」</em></p>
 <h2 id="2-spi-框图-图209">2. SPI 框图（图209）</h2>
 <h3 id="2-1-整体分两块">2.1 整体分两块</h3>
 <ul>
-<li><strong>左上</strong>：<strong>数据寄存器 + 移位寄存器配合</strong>——和串口、I2C 那里的设计思路<strong>异曲同工</strong>，<strong>主要是为了实现连续的数据流</strong>（数据前仆后继）；</li>
-<li><strong>右下</strong>：<strong>波特率发生器 + 通信电路 + 主控制电路 + CR1/CR2/SR</strong>——各种黑盒电路，<strong>具体可查手册的寄存器描述</strong>。</li>
+<li>左上：数据寄存器 + 移位寄存器的配合，和串口、I2C 的设计思路一样，目的是实现连续的数据流。</li>
+<li>右下：波特率发生器、通信电路、主控制电路与 CR1/CR2/SR，具体查手册的寄存器描述。</li>
 </ul>
 <h3 id="2-2-数据通路-dr-tdr-rdr-移位寄存器">2.2 数据通路：DR / TDR / RDR / 移位寄存器</h3>
 <ul>
-<li><strong>数据寄存器 DR</strong>（<code>SPI_DR</code>）：<strong>下面的发送缓冲区就是发送数据寄存器 TDR</strong>，<strong>上面的接收缓冲区就是接收数据寄存器 RDR</strong>——<strong>TDR 和 RDR 占用同一个地址</strong>；</li>
-<li><strong>写入 DR 时</strong>：数据<strong>写入 TDR</strong>（发送方向）；</li>
-<li><strong>读取 DR 时</strong>：数据<strong>从 RDR 读出</strong>（接收方向）；</li>
-<li><strong>移位寄存器</strong>：受 <strong><code>LSBFIRST</code> 控制位</strong>控制——<strong>图上画的是低位先行</strong>（输入从右边移进来、从左边移出去，即右移）；<strong>如果 <code>LSBFIRST</code> 给 0，就改为左移、高位先出</strong>；</li>
-<li><strong>发送流程</strong>：写入 DR → 数据进 TDR → <strong>移位寄存器没有数据在移位时，TDR 里的数据立刻转入移位寄存器开始发送</strong>，并<strong>置 SR 的 <code>TXE=1</code></strong>（发送寄存器空）→ <strong>检测到 TXE=1 后立刻写下一个字节</strong>，数据就能不间断跟进，<strong>实现连续传输</strong>；</li>
-<li><strong>接收流程</strong>：移位寄存器自动产生时钟，<strong>移入的数据整体转入 RDR</strong>，同时<strong>置 <code>RXNE=1</code></strong>（接收寄存器非空）→ <strong>必须尽快从 RDR 读出，否则下一个数据到来会把它覆盖</strong>；</li>
-<li><strong><code>BSY</code></strong>：有数据传输时<strong>由硬件置 1</strong>，传输结束后<strong>由硬件清除</strong>。</li>
+<li>数据寄存器 DR 就是 <code>SPI_DR</code>：下面的发送缓冲区是发送数据寄存器 TDR，上面的接收缓冲区是接收数据寄存器 RDR，<strong>两者占用同一个地址</strong>。</li>
+<li>写入 DR 时数据写入 TDR；读取 DR 时数据从 RDR 读出。</li>
+<li>移位寄存器受 <code>LSBFIRST</code> 控制位控制：图上画的是低位先行（右移，从右边移入、左边移出）；<code>LSBFIRST</code> 给 0 就改为左移、高位先出。</li>
+<li>发送流程：写 DR → 数据进 TDR → 移位寄存器空时 TDR 的数据自动转入并开始发送，同时置 <code>TXE=1</code>；检测到 <code>TXE=1</code> 就立刻写下一个字节，数据不间断跟进。</li>
+<li>接收流程：移入的数据整体转入 RDR，同时置 <code>RXNE=1</code>；必须尽快读出，否则下一个数据会把它覆盖。</li>
+<li><code>BSY</code> 在有数据传输时由硬件置 1，传输结束由硬件清除。</li>
+<li>三种通信的收发缓冲设计对比：SPI 全双工 → 收发分离（TDR/RDR 各一个）；I2C 收发不会同时进行 → 数据寄存器可以共用；串口收发分离 → 也是两套缓冲。设计理念相同、细节不同。</li>
 </ul>
 <h3 id="2-3-mosi-miso-交叉电路">2.3 MOSI/MISO 交叉电路</h3>
 <ul>
-<li>这块电路<strong>用来进行主从模式的引脚变换</strong>：<ul>
-<li><strong>做主机时</strong>：MOSI 是<strong>主机输出</strong>、MISO 是<strong>主机输入</strong>，<strong>不走交叉</strong>；</li>
-<li><strong>做从机时</strong>：MOSI 变成 <strong>SI（从机输入）</strong>、MISO 变成 <strong>SO（从机输出）</strong>，<strong>都要走交叉的那条支路</strong>；</li>
-</ul>
-</li>
-<li>简而言之：<strong>主机和从机的输入输出模式不同</strong>，所以需要交叉电路来切换；<strong>本课程只用主模式</strong>。</li>
+<li>作用：主从模式的引脚变换。</li>
+<li>做主机时 MOSI 是主机输出、MISO 是主机输入，不走交叉。</li>
+<li>做从机时 MOSI 变 SI（从机输入）、MISO 变 SO（从机输出），都要走交叉支路；本课程只用主模式。</li>
 </ul>
 <h3 id="2-4-波特率发生器与寄存器">2.4 波特率发生器与寄存器</h3>
 <ul>
-<li><strong>波特率发生器</strong>：<strong>输入时钟是 PCLK（72M 或 36M）</strong>，经过分频器后<strong>输出到 SCK 引脚</strong>；</li>
-<li>分频由 <strong>CR1 的 <code>BR0</code>、<code>BR1</code>、<code>BR2</code>（即 <code>BR[2:0]</code>）</strong> 控制：<strong>三位可以执行 2～256 的分频</strong>；</li>
-<li><strong>CR1 关键位</strong>：<ul>
-<li><strong><code>BR</code>（BaudRate）</strong>：配置波特率（SCK 频率）；</li>
-<li><strong><code>MSTR</code>（Master）</strong>：选择主/从模式，一般用<strong>主模式</strong>；</li>
-<li><strong><code>CPOL</code>/<code>CPHA</code></strong>：选择 SPI 的 <strong>4 种模式</strong>；</li>
-<li><strong><code>LSBFIRST</code></strong>：高位先行/低位先行；</li>
-<li><strong><code>SPE</code></strong>：外设使能（<strong><code>SPI_Cmd</code> 配置的就是这一位</strong>）；</li>
-<li>还有 <strong>BIDIMODE/BIDIOE/CRCEN/CRCNext/RXONLY/SSM/SSI</strong> 等（半双工/单工、CRC、NSS 相关，本课程用不到）；</li>
+<li>波特率发生器输入 PCLK（72M 或 36M），由 CR1 的 <code>BR[2:0]</code>（<code>BR0</code>、<code>BR1</code>、<code>BR2</code>）选分频后输出到 SCK 引脚，三位可做 2～256 的分频。</li>
+<li>CR1 关键位：<code>BR</code>（波特率）、<code>MSTR</code>（主/从）、<code>CPOL</code>/<code>CPHA</code>（4 种模式）、<code>LSBFIRST</code>、<code>SPE</code>（使能，<code>SPI_Cmd</code> 配的就是这一位）。</li>
+<li>CR1 另有 BIDIMODE/BIDIOE/CRCEN/CRCNext/RXONLY/SSM/SSI 等（半双工/单工、CRC、NSS 相关，用不到）。</li>
+<li>SR：<code>TXE</code>（发送寄存器空）、<code>RXNE</code>（接收寄存器非空）最常关注，另有 <code>BSY</code>/OVR/MODF/CRCERR。</li>
+<li>CR2：中断使能（TXEIE/RXNEIE/ERRIE）、SSOE、DMA 使能等。</li>
 </ul>
-</li>
-<li><strong>SR 状态寄存器</strong>：<strong><code>TXE</code>（发送寄存器空）、<code>RXNE</code>（接收寄存器非空）</strong> 是收发时最常关注的两个，另有 <strong>BSY/OVR/MODF/CRCERR</strong> 等；</li>
-<li><strong>CR2 寄存器</strong>：主要是<strong>中断使能</strong>（TXEIE/RXNEIE/ERRIE）、<strong>SSOE</strong>、<strong>DMA 使能</strong>等——「一些使能位」。</li>
-</ul>
-<p><img src="../assets/images/stm32-39/05-block-diagram.jpg" alt="图 5：PPT「SPI框图」（图209）——接收缓冲区（读出）↕ 移位寄存器（受 LSBFIRST 控制位）↕ 发送缓冲区（写入）；右侧 SPI_CR2（TXEIE/RXNEIE/ERRIE/SSOE/DMAEN 等）、SPI_SR（BSY/OVR/MODF/CRCERR/…TXE/RXNE）、通信电路；下方波特率发生器（BR（2:0））、主控制电路、SPI_CR1（LSBFIRST/SPE/BR2～BR0/MSTR/CPOL/CPHA/…）；左侧 MOSI/MISO/SCK/NSS；字幕「输入，从右边移进来」"></p>
-<p><em>图 5：PPT「SPI框图」（图209）——接收缓冲区（读出）↕ 移位寄存器（受 LSBFIRST 控制位）↕ 发送缓冲区（写入）；右侧 SPI_CR2（TXEIE/RXNEIE/ERRIE/SSOE/DMAEN 等）、SPI_SR（BSY/OVR/MODF/CRCERR/…TXE/RXNE）、通信电路；下方波特率发生器（BR[2:0]）、主控制电路、SPI_CR1（LSBFIRST/SPE/BR2～BR0/MSTR/CPOL/CPHA/…）；左侧 MOSI/MISO/SCK/NSS；字幕「输入，从右边移进来」</em></p>
-<p><img src="../assets/images/stm32-39/06-buffers-marked.jpg" alt="图 6：同一框图 + 红笔圈出「接收缓冲区」与「发送缓冲区」——讲上下两个缓冲区就是熟悉的「数据寄存器 + 移位寄存器」设计；字幕「接下来，上下两个缓冲区，就还是我们熟悉的设计」"></p>
-<p><em>图 6：同一框图 + 红笔圈出「接收缓冲区」与「发送缓冲区」——讲上下两个缓冲区就是熟悉的「数据寄存器 + 移位寄存器」设计；字幕「接下来，上下两个缓冲区，就还是我们熟悉的设计」</em></p>
-<p><img src="../assets/images/stm32-39/07-cr1-marked.jpg" alt="图 7：同一框图 + 红笔圈出 LSBFIRST 控制位、通信电路、SR 的 TXE/RXNE、CR1 的 LSBFIRST/BR/MSTR/CPOL/CPHA 等位——讲 CRC 与 I2S 使能位不用关注；字幕「之后CR2寄存器，就是一些使能位了」"></p>
-<p><em>图 7：同一框图 + 红笔圈出 LSBFIRST 控制位、通信电路、SR 的 TXE/RXNE、CR1 的 LSBFIRST/BR/MSTR/CPOL/CPHA 等位——讲 CRC 与 I2S 使能位不用关注；字幕「之后CR2寄存器，就是一些使能位了」</em></p>
 <h3 id="2-5-nss-引脚与多主机仲裁">2.5 NSS 引脚与多主机仲裁</h3>
 <ul>
-<li><strong>NSS</strong>：<strong>硬件 NSS 模式</strong>（<code>SSM=0</code>）：<strong><code>SSOE=1</code> 时 NSS 作为输出引脚</strong>（主机用它拉低来「揪小辫子」），<strong>主机结束后 SSOE 清 0、NSS 变回输入</strong>；<strong>外部输入低电平说明总线上已经有设备在做主机，本机就进不了主模式</strong>；</li>
-<li><strong>软件 NSS 模式</strong>（<code>SSM=1</code>）：<strong>内部 NSS 的电平由 <code>SSI</code> 位决定</strong>（1 还是 0 自己写）；</li>
-<li><strong>「揪小辫子」比喻</strong>（作者注：这是他看手册的理解）：假设 3 个 STM32 的 NSS 连在一起——<strong>谁先跳出来做主机，就把公共 NSS 拉低（揪住所有人的小辫子）</strong>，其他设备就算想跳出来做主机，<strong>发现自己小辫子被揪住也做不了</strong>；主机结束后松开，下一个才能当主机；</li>
-<li><strong>局限</strong>：这样只能实现「<strong>同一时刻只有一个主机</strong>」，<strong>要实现指定某个从机通信还得再加寻址机制，实现起来比较复杂</strong>；</li>
-<li><strong>本课程的结论</strong>：<strong>不用硬件 NSS，SS 用普通 GPIO 模拟</strong>——因为硬件 NSS <strong>完成不了多从机选择的需求</strong>。</li>
+<li>硬件 NSS 模式（<code>SSM=0</code>）：<code>SSOE=1</code> 时 NSS 作输出，主机结束把 SSOE 清 0、NSS 变回输入；外部输入低电平说明总线上已有别的主机，本机进不了主模式。</li>
+<li>软件 NSS 模式（<code>SSM=1</code>）：内部 NSS 的电平由 <code>SSI</code> 位决定。</li>
+<li>多主机仲裁的「揪小辫子」比喻：3 个 STM32 的 NSS 连在一起，谁先跳出来做主机就把公共 NSS 拉低，别人想当主机会发现小辫子被揪住，只能等它结束；主机结束后松开，下一个才能当主机。</li>
+<li>局限：只能保证同一时刻只有一个主机，要指定某个从机通信还得再加寻址机制，实现比较复杂。</li>
+<li>本课程结论：不用硬件 NSS，SS 用普通 GPIO 模拟，因为硬件 NSS 完成不了多从机选择。</li>
 </ul>
-<p><img src="../assets/images/stm32-39/08-nss-braid.jpg" alt="图 8：同一框图 + 左侧红笔「揪小辫子」示意图（画小人、叉号、以及从 NSS 引出并打叉的线），右上角 SSOE 与 CR1 的 SSM/SSI 被圈出——讲硬件 NSS 的输出/输入切换；字幕「当主机结束后，SSOE要清0，NSS变为输入」"></p>
-<p><em>图 8：同一框图 + 左侧红笔「揪小辫子」示意图（画小人、叉号、以及从 NSS 引出并打叉的线），右上角 SSOE 与 CR1 的 SSM/SSI 被圈出——讲硬件 NSS 的输出/输入切换；字幕「当主机结束后，SSOE要清0，NSS变为输入」</em></p>
-<h2 id="3-简化结构图-作者自画">3. 简化结构图（作者自画）</h2>
-<blockquote>
-<p>⚠ <strong>注意</strong>：这张 PPT 的<strong>标题栏写着「I2C基本结构」，实际内容是 SPI 的简化结构图</strong>（作者 PPT 模板遗留），引用时注意这个标题是错的。</p>
-</blockquote>
+<p><img src="../assets/images/stm32-39/05-block-diagram.jpg" alt="图 5：PPT「SPI框图」（图209）——接收缓冲区（读出）↕ 移位寄存器（受 LSBFIRST 控制位）↕ 发送缓冲区（写入）；右侧 SPI_CR2、SPI_SR（BSY/OVR/MODF/CRCERR/…/TXE/RXNE）、通信电路；下方波特率发生器（BR 的 2:0 位）、主控制电路、SPI_CR1（LSBFIRST/SPE/BR2～BR0/MSTR/CPOL/CPHA）；左侧 MOSI/MISO/SCK/NSS"></p>
+<p><em>图 5：框图 图209 全貌，字幕「输入，从右边移进来」</em></p>
+<p><img src="../assets/images/stm32-39/06-buffers-marked.jpg" alt="图 6：同一框图 + 红笔圈出「接收缓冲区」与「发送缓冲区」——即熟悉的「数据寄存器 + 移位寄存器」设计"></p>
+<p><em>图 6：框图圈出上下两个缓冲区，字幕「上下两个缓冲区，就还是我们熟悉的设计」</em></p>
+<p><img src="../assets/images/stm32-39/07-cr1-marked.jpg" alt="图 7：同一框图 + 红笔圈出 LSBFIRST 控制位、通信电路、SR 的 TXE/RXNE、CR1 的 LSBFIRST/BR/MSTR/CPOL/CPHA——CRC 与 I2S 使能位不用关注"></p>
+<p><em>图 7：框图圈出 CR1 关键位与 SR 的 TXE/RXNE，字幕「之后CR2寄存器，就是一些使能位了」</em></p>
+<p><img src="../assets/images/stm32-39/08-nss-braid.jpg" alt="图 8：同一框图 + 左侧「揪小辫子」示意图（小人、叉号、从 NSS 引出并打叉的线），右上角 SSOE 与 CR1 的 SSM/SSI 被圈出——讲硬件 NSS 的输出/输入切换"></p>
+<p><em>图 8：框图配「揪小辫子」示意图，字幕「当主机结束后，SSOE要清0，NSS变为输入」</em></p>
+<h2 id="3-简化结构图-自画">3. 简化结构图（自画）</h2>
 <ul>
-<li><strong>波特率发生器 → GPIO → SCK</strong>；</li>
-<li><strong>数据控制器</strong>（控制所有电路运行）→ <strong>接收数据寄存器 RDR / <code>&lt;&lt;移位寄存器&lt;&lt;</code> / 发送数据寄存器 TDR</strong>；</li>
-<li><strong>移位寄存器 ↔ GPIO → MOSI / MISO</strong>（双向各一根）；</li>
-<li><strong>开关控制＝<code>SPI_Cmd</code></strong>（使能整个外设）；</li>
-<li><strong>图里没有画 SS（从机选择）引脚</strong>——因为<strong>本课程用普通 GPIO 模拟</strong>；</li>
-<li><strong>重点记住这几个词</strong>：<strong>TDR、TXE、RDR、RXNE</strong>（后面会经常提到）。</li>
+<li>注意：这张 PPT 的标题栏写着「I2C基本结构」，实际内容是 SPI 的简化结构图（模板遗留），别被标题误导。</li>
+<li>波特率发生器 → GPIO → SCK；数据控制器（控制所有电路运行）→ 接收数据寄存器 RDR / <code>&lt;&lt;移位寄存器&lt;&lt;</code> / 发送数据寄存器 TDR。</li>
+<li>移位寄存器 ↔ GPIO → MOSI/MISO（双向各一根）；开关控制就是 <code>SPI_Cmd</code>。</li>
+<li>图里没有画 SS 引脚，因为本课程用普通 GPIO 模拟。</li>
+<li>重点记住这几个词：TDR、TXE、RDR、RXNE。</li>
 </ul>
-<p><img src="../assets/images/stm32-39/09-simplified.jpg" alt="图 9：简化结构图（PPT 标题栏误写为「I2C基本结构」，实为 SPI 简化结构图）——波特率发生器 → GPIO → SCK；数据控制器 → 接收数据寄存器 RDR / &lt;&lt;移位寄存器&lt;&lt; / 发送数据寄存器 TDR（红笔标 RDR/RXNE、TDR/TXE）；GPIO → MOSI、MISO（红圈）；右下角「开关控制」；字幕「TDR、TXE、RDR、RXNE这几个词再记一下」"></p>
-<p><em>图 9：简化结构图（PPT 标题栏误写为「I2C基本结构」，实为 SPI 简化结构图）——波特率发生器 → GPIO → SCK；数据控制器 → 接收数据寄存器 RDR / <code>&lt;&lt;移位寄存器&lt;&lt;</code> / 发送数据寄存器 TDR（红笔标 RDR/RXNE、TDR/TXE）；GPIO → MOSI、MISO（红圈）；右下角「开关控制」；字幕「TDR、TXE、RDR、RXNE这几个词再记一下」</em></p>
+<p><img src="../assets/images/stm32-39/09-simplified.jpg" alt="图 9：简化结构图（标题栏误写「I2C基本结构」，实为 SPI）——波特率发生器 → GPIO → SCK；数据控制器 → RDR / &lt;&lt;移位寄存器&lt;&lt; / TDR（红笔标 RDR/RXNE、TDR/TXE）；GPIO → MOSI、MISO；右下角「开关控制」"></p>
+<p><em>图 9：SPI 简化结构图，字幕「TDR、TXE、RDR、RXNE这几个词再记一下」</em></p>
 <h2 id="4-两种传输流程">4. 两种传输流程</h2>
-<blockquote>
-<p><strong>视频讲解顺序是先讲图213（连续，25:43–32:25）、再讲图218（非连续，33:47 起）</strong>（图218 的图在 25:29 先露了一下）；本节为便于理解把「非连续」放前面讲，与视频顺序相反。</p>
-</blockquote>
+<ul>
+<li>视频顺序是先图213（连续，25:43–32:25）、再图218（非连续，33:47 起），图218 的图在 25:29 先露了一下；本节为便于理解把非连续放前面讲。</li>
+</ul>
 <h3 id="4-1-图218-非连续传输">4.1 图218：非连续传输</h3>
 <ul>
-<li><strong>标题</strong>：非连续传输发送（<code>BIDIMODE=0</code> 且 <code>RXONLY=0</code>）时，TXE/BSY 变化示意图；<strong>例子配置 CPOL=1、CPHA=1（SPI 模式 3）</strong>、低位先行；</li>
-<li><strong>4 步流程</strong>（可封装成「交换一个字节」函数）：<ol>
-<li><strong>软件等待 <code>TXE=1</code></strong>（TDR 为空）；</li>
-<li><strong>软件写入发送数据至 TDR</strong>（写 <code>SPI_DR</code>）；</li>
-<li><strong>软件等待 <code>RXNE=1</code></strong>（接收寄存器非空）；</li>
-<li><strong>软件读取 RDR 的接收数据</strong>（读 <code>SPI_DR</code>）；</li>
-</ol>
-</li>
-<li>之后交换第二个字节同理；<strong>封装好之后，和之前软件 SPI 的流程基本一样</strong>，可以直接把软件 SPI 改成硬件 SPI；</li>
-<li><strong>缺点</strong>：数据写入 TDR 后，<strong>字节时序结束时下一个字节还没送过来</strong>，于是<strong>字节之间会产生间隙</strong>，<strong>拖慢整体传输速度</strong>；</li>
-<li><strong>间隙的影响</strong>：SCK 频率低时影响不大；<strong>SCK 频率非常高时，间隙占比会很大</strong>（见下一节示波器实测）；</li>
-<li><strong>优点</strong>：<strong>容易封装、好理解、好用</strong>。</li>
+<li>标题：非连续传输发送（<code>BIDIMODE=0</code> 且 <code>RXONLY=0</code>）时 TXE/BSY 变化示意图；例子为 CPOL=1、CPHA=1（模式 3）、低位先行。</li>
+<li>四步流程（可封装成「交换一个字节」函数）：① 软件等待 <code>TXE=1</code>；② 软件写入发送数据至 TDR；③ 软件等待 <code>RXNE=1</code>；④ 软件读取 RDR 的接收数据。</li>
+<li>封装好之后与软件 SPI 的流程基本一样，可以直接把软件 SPI 改成硬件 SPI（交换第二个字节同理）。</li>
+<li>缺点：数据写入 TDR 后，字节时序结束时下一个字节还没送过来，字节之间产生间隙，拖慢整体速度。</li>
+<li>间隙的影响：SCK 频率低时影响不大；SCK 非常高时间隙占比很大（见示波器实测）。</li>
+<li>优点：容易封装、好理解、好用。</li>
 </ul>
 <h3 id="4-2-图213-主模式全双工连续传输">4.2 图213：主模式全双工连续传输</h3>
 <ul>
-<li><strong>标题</strong>：主模式、全双工模式下（<code>BIDIMODE=0</code> 且 <code>RXONLY=0</code>）连续传输时，TXE/RXNE/BSY 变化示意图；同样 CPOL=1、CPHA=1（模式 3）；</li>
-<li><strong>流程</strong>：写入 <code>0xF1</code> → TDR → 移位寄存器发送，<strong>TXE=1 时立刻写下一个数据 0xF2</strong>（不等波形发完），<strong>数据前仆后继</strong>，<strong>时钟可以连续不间断产生、没有任何空隙</strong>；同时<strong>接收侧 RXNE=1 时要及时读 RDR</strong>（数据是 <code>0xA1/A2/A3</code>）；</li>
-<li><strong>注意</strong>：<strong>发送与接收的操作顺序是交叉的</strong>——不是「发数据1、收数据1、发数据2、收数据2」，而是**「发数据1、发数据2…之后接收数据1」<strong>，所以</strong>对程序设计不太友好**；</li>
-<li><strong>适用</strong>：<strong>对传输效率有非常高要求</strong>时用；否则用非连续传输。</li>
+<li>标题：主模式、全双工（<code>BIDIMODE=0</code> 且 <code>RXONLY=0</code>）连续传输时的 TXE/RXNE/BSY 变化，同样 CPOL=1、CPHA=1（模式 3）。</li>
+<li>流程：写入 <code>0xF1</code> → TDR → 移位寄存器发送；<code>TXE=1</code> 时立刻写下一个数据 <code>0xF2</code>，不等波形发完，时钟可以连续不间断产生。</li>
+<li>接收侧 <code>RXNE=1</code> 时要及时读 RDR（接收数据是 <code>0xA1/A2/A3</code>）。</li>
+<li>注意：收发操作顺序是交叉的——不是「发数据1、收数据1、发数据2、收数据2」，而是「发数据1、发数据2…之后接收数据1」，对程序设计不太友好。</li>
+<li>适用：对传输效率有非常高要求时用；否则用非连续传输。</li>
 </ul>
-<p><img src="../assets/images/stm32-39/10-fig218-noncont.jpg" alt="图 10：PPT「非连续传输」（图218 非连续传输发送，BIDIMODE=0 且 RXONLY=0，TXE/BSY 变化示意图）——例子配置 CPOL=1、CPHA=1；SCK、MOSI(输出) 的 b0～b7、TXE 标志、发送缓冲器（写入 SPI_DR）的 0xF1/0xF2/0xF3、BSY 标志；底部操作框：软件写入 0xF1 至 SPI_DR / 软件等待 TXE=1，但是较晚写入 0xF2 至 SPI_DR / … / 软件等待 BSY=0；字幕「非连续传输的好处就是，容易封装，好理解，好用」"></p>
-<p><em>图 10：PPT「非连续传输」（图218 非连续传输发送，BIDIMODE=0 且 RXONLY=0，TXE/BSY 变化示意图）——例子配置 CPOL=1、CPHA=1；SCK、MOSI(输出) 的 b0～b7、TXE 标志、发送缓冲器（写入 SPI_DR）的 0xF1/0xF2/0xF3、BSY 标志；底部操作框：软件写入 0xF1 至 SPI_DR / 软件等待 TXE=1，但是较晚写入 0xF2 至 SPI_DR / … / 软件等待 BSY=0；字幕「非连续传输的好处就是，容易封装，好理解，好用」</em></p>
-<p><img src="../assets/images/stm32-39/11-fig213-cont.jpg" alt="图 11：PPT「主模式全双工连续传输」（图213）——主模式、全双工（BIDIMODE=0 且 RXONLY=0）连续传输时 TXE/RXNE/BSY 变化示意图，例子 CPOL=1、CPHA=1；SCK、MISO/MOSI(输出) 的 0xF1/0xF2/0xF3、TXE 标志、发送缓冲器、BSY 标志、MISO/MOSI(输入) 的 0xA1/0xA2/0xA3、RXNE 标志、接收缓冲器；底部红圈操作框（软件写入 0xF1 / 软件等待 TXE=1 然后写入 0xF2 / 软件等待 RXNE=1 然后从 SPI_DR 读出 0xA1…）；字幕「F2转入移位寄存器开始发送」"></p>
-<p><em>图 11：PPT「主模式全双工连续传输」（图213）——主模式、全双工（BIDIMODE=0 且 RXONLY=0）连续传输时 TXE/RXNE/BSY 变化示意图，例子 CPOL=1、CPHA=1；SCK、MISO/MOSI(输出) 的 0xF1/0xF2/0xF3、TXE 标志、发送缓冲器、BSY 标志、MISO/MOSI(输入) 的 0xA1/0xA2/0xA3、RXNE 标志、接收缓冲器；底部红圈操作框（软件写入 0xF1 / 软件等待 TXE=1 然后写入 0xF2 / 软件等待 RXNE=1 然后从 SPI_DR 读出 0xA1…）；字幕「F2转入移位寄存器开始发送」</em></p>
+<p><img src="../assets/images/stm32-39/10-fig218-noncont.jpg" alt="图 10：PPT「非连续传输」（图218）——BIDIMODE=0 且 RXONLY=0 时 TXE/BSY 变化，例子 CPOL=1、CPHA=1；SCK、MOSI 的 b0～b7、TXE 标志、发送缓冲器的 0xF1/0xF2/0xF3、BSY 标志；底部操作框：软件写入 0xF1 至 SPI_DR / 等待 TXE=1，但是较晚写入 0xF2 / … / 等待 BSY=0"></p>
+<p><em>图 10：图218 非连续传输，字幕「非连续传输的好处就是，容易封装，好理解，好用」</em></p>
+<p><img src="../assets/images/stm32-39/11-fig213-cont.jpg" alt="图 11：PPT「主模式全双工连续传输」（图213）——SCK、MOSI 输出的 0xF1/0xF2/0xF3、TXE 标志、发送缓冲器、BSY；MISO/MOSI 输入的 0xA1/0xA2/0xA3、RXNE 标志、接收缓冲器；底部红圈操作框（写 0xF1 / 等 TXE 写 0xF2 / 等 RXNE 读 0xA1…）"></p>
+<p><em>图 11：图213 连续传输，字幕「F2转入移位寄存器开始发送」</em></p>
 <h2 id="5-示波器实测-不同分频下非连续传输的间隙">5. 示波器实测：不同分频下非连续传输的间隙</h2>
 <ul>
-<li><strong>测试条件</strong>：<strong>SPI 模式 0</strong>、<strong>非连续传输</strong>、<strong>连续交换 5 个字节</strong>；上面 CH1 是 <strong>SCK</strong>、下面 CH2 是 <strong>SS</strong>（低电平表示选中从机）；</li>
-<li><strong>256 分频</strong>：SCK ≈ 72M/256 ≈ 281kHz（示波器给出的整帧重复率 <strong>F=569.557Hz</strong>），<strong>几乎看不出字节之间的间隙</strong>——「连续交换了 5 个字节，但你几乎看不出间隙」；</li>
-<li><strong>128 分频</strong>：<strong>可以明显看出字节之间不严丝合缝</strong>，但从比例上看仍然很小，可以忽略不计；</li>
-<li><strong>64 分频</strong>：SCK 频率大概 1M 多点，<strong>频率增大、时间尺度缩小，间隙更明显</strong>；</li>
-<li><strong>2 分频</strong>：<strong>SCK ＝ 72M/2 ＝ 36MHz</strong>，<strong>已经超过示波器的采样频率</strong>，所以每个字节的时钟都看不完整了；但<strong>哪里在传输、哪里是间隙仍能区分</strong>——<strong>间隙所占的时间比例已经是数据传输的好几倍</strong>；</li>
-<li><strong>结论</strong>：忽略间隙算出的速率应是 256 分频的 128 倍，但<strong>实测肯定达不到</strong>——因为<strong>2 分频虽然「干活效率高」，但每干 1 个时间单位就要休息好几个时间单位</strong>；所以<strong>追求极限性能必须用连续传输或 DMA</strong>，日常用非连续传输即可。</li>
+<li>测试条件：SPI 模式 0、非连续传输、连续交换 5 个字节；CH1 是 SCK，CH2 是 SS（低电平表示选中从机）。</li>
+<li>256 分频：SCK ≈ 72M/256 ≈ 281kHz（整帧重复率 F=569.557Hz），几乎看不出字节之间的间隙。</li>
+<li>128 分频：能明显看出字节之间不严丝合缝，但比例上仍然很小，可忽略不计。</li>
+<li>64 分频：SCK 频率大概 1M 多点，频率增大、时间尺度缩小，间隙更明显。</li>
+<li>2 分频：SCK ＝ 72M/2 ＝ 36MHz，已经超过示波器采样率，每个字节的时钟看不完整，但传输与间隙仍能区分，间隙时间已是数据传输的好几倍。</li>
+<li>结论：忽略间隙算出的速率应是 256 分频的 128 倍，实测肯定达不到；2 分频「干活效率高」，但每干 1 个时间单位就要休息好几个时间单位。追求极限性能必须用连续传输或 DMA，日常用非连续传输即可。</li>
 </ul>
-<p><img src="../assets/images/stm32-39/12-scope-div256.jpg" alt="图 12：示波器 256 分频实测（CH1 黄＝SCK、CH2 青＝SS，采样率 4MHz）——连续交换 5 个字节，几乎看不出字节间隙，红色笔迹标出数据传输区间；字幕「主要看一下SCK线」"></p>
-<p>*图 12：示波器 <strong>256 分频</strong>实测（CH1 黄＝SCK、CH2 青＝SS，采样率 4MHz）——连续交换 5 个字节，几乎看不出字节间隙，红色笔迹标出数据传输区间；字幕「主要看一下SCK线」*</p>
-<p><img src="../assets/images/stm32-39/13-scope-div2.jpg" alt="图 13：示波器 2 分频实测（采样率 16MHz）——SCK 只剩极窄的脉冲串，红笔写「② 256」并圈出数据区，间隙占比已远超数据本身；字幕「如果你想在极限频率下，进一步提高数据传输速率」"></p>
-<p>*图 13：示波器 <strong>2 分频</strong>实测（采样率 16MHz）——SCK 只剩极窄的脉冲串，红笔写「② 256」并圈出数据区，间隙占比已远超数据本身；字幕「如果你想在极限频率下，进一步提高数据传输速率」*</p>
+<p><img src="../assets/images/stm32-39/12-scope-div256.jpg" alt="图 12：示波器 256 分频实测（CH1 黄＝SCK、CH2 青＝SS，采样率 4MHz）——连续交换 5 个字节，几乎看不出字节间隙，红笔标出数据传输区间"></p>
+<p><em>图 12：256 分频实测，字幕「主要看一下SCK线」</em></p>
+<p><img src="../assets/images/stm32-39/13-scope-div2.jpg" alt="图 13：示波器 2 分频实测（采样率 16MHz）——SCK 只剩极窄脉冲串，红笔写「② 256」并圈出数据区，间隙占比已远超数据本身"></p>
+<p><em>图 13：2 分频实测，字幕「如果你想在极限频率下，进一步提高数据传输速率」</em></p>
 <h2 id="6-软硬件波形对比">6. 软硬件波形对比</h2>
 <ul>
-<li>上面是软件 SPI 波形、下面是硬件 SPI 波形，<strong>数据变换趋势完全一致</strong>、采样得到的数据也一致；</li>
-<li><strong>区别</strong>：<strong>硬件波形的数据线变化是紧贴 SCK 边沿的</strong>，而软件波形有延迟（和上一集 I2C 的软硬件对比一样）；</li>
-<li>更深一层：<strong>I2C 描述的是「SCL 下降沿数据移出」，SPI 也是「下降沿移出、上升沿移入」</strong>——两者<strong>最终波形的表现形式都是「数据变化尽量紧贴边沿」</strong>，这样数据才稳定、不容易出错。</li>
+<li>上面软件 SPI 波形、下面硬件 SPI 波形，数据变换趋势完全一致，采样得到的数据也一致。</li>
+<li>区别：硬件波形的数据线变化紧贴 SCK 边沿，软件波形有延迟（与上一集 I2C 的对比一样）。</li>
+<li>I2C 是「SCL 下降沿数据移出」，SPI 是「下降沿移出、上升沿移入」，最终表现都是数据变化尽量紧贴边沿，这样数据才稳定、不容易出错。</li>
 </ul>
 <h2 id="7-参考手册第-23-章">7. 参考手册第 23 章</h2>
 <h3 id="7-1-23-1-spi-简介">7.1 23.1 SPI 简介</h3>
 <ul>
-<li><strong>SPI 接口默认工作在 SPI 方式</strong>，可以通过软件把功能<strong>从 SPI 模式切换到 I2S 模式</strong>；</li>
-<li><strong>大容量产品和互联型产品</strong>上可配置为 SPI 或 I2S；<strong>小容量和中容量产品上不支持 I2S</strong>（本课程用的 F103C8T6 属中容量 → 没有 I2S）；</li>
-<li><strong>警告</strong>：<strong>SPI3/I2S3 的部分引脚与 JTAG 共用</strong>——<strong><code>SPI3_NSS/I2S3_WS</code> 与 <code>JTDI</code>、<code>SPI3_SCK/I2S3_CK</code> 与 <code>JTDO</code></strong>；这些引脚<strong>不受 IO 控制器控制</strong>，<strong>复位后默认保留为 JTAG 用途</strong>；若要当 SPI3 用，需要<strong>关闭 JTAG 改用 SWD 接口</strong>（详见 8.3.5 节）；</li>
-<li>后面是 <strong>SPI 与 I2S 的主要特性</strong>列表、框图、NSS 硬件/软件模式等内容（作者说「看不懂的可以不必深究」）。</li>
+<li>SPI 接口默认工作在 SPI 方式，可以通过软件把功能从 SPI 模式切换到 I2S 模式。</li>
+<li>大容量产品和互联型产品可配置为 SPI 或 I2S；小容量和中容量产品不支持 I2S（F103C8T6 属中容量，没有 I2S）。</li>
+<li>警告：SPI3/I2S3 的部分引脚与 JTAG 共用——<code>SPI3_NSS/I2S3_WS</code> 与 <code>JTDI</code>、<code>SPI3_SCK/I2S3_CK</code> 与 <code>JTDO</code>；这些引脚不受 IO 控制器控制，复位后默认保留为 JTAG 用途，要当 SPI3 用得先关闭 JTAG 改用 SWD（详见 8.3.5 节）。</li>
 </ul>
 <h3 id="7-2-23-3-功能描述要点">7.2 23.3 功能描述要点</h3>
 <ul>
-<li><strong>NSS 硬件模式</strong>（<code>SSM=0</code>）：<code>SSOE=1</code> 时 NSS 作输出；外部输入低电平时不能进主模式；</li>
-<li><strong>4 种模式</strong>（CPOL/CPHA）的图就是前面讲的那张；</li>
-<li><strong>主模式的配置步骤</strong>（手册用寄存器方式描述）：<strong>设置 CPOL、CPHA、LSBFirst、BR、SSM、SSI、MSTR 等位 → 使能 SPI（SPE）</strong>——用<strong>库函数更容易理解</strong>，「只要这个过程清楚了，配置 SPI 就清楚了」；</li>
-<li><strong>裁剪为半双工/单工</strong>：把标准全双工 SPI 变成「1 条时钟 + 1 条双向数据线」（半双工）或「1 条时钟 + 1 条单向数据线」（单工）——本课程<strong>只需要看主模式全双工的部分</strong>；</li>
-<li><strong>连续传输发送流程</strong>、<strong>CRC 计算</strong>（数据流后面跟 CRC 校验码，用于判断传输是否出错——本课程不用）、<strong>利用 DMA 的 SPI 通信</strong>（了解即可）、<strong>错误标志与中断</strong>（<strong>MODF 主模式失效错误</strong>等，需要时再看）。</li>
+<li>NSS 硬件模式（<code>SSM=0</code>）：<code>SSOE=1</code> 时 NSS 作输出；外部输入低电平时不能进主模式。</li>
+<li>4 种模式（CPOL/CPHA）的图就是前面讲的那张。</li>
+<li>主模式配置步骤（手册用寄存器方式描述）：设置 CPOL、CPHA、LSBFirst、BR、SSM、SSI、MSTR 等位 → 使能 SPI（SPE）；用库函数更容易理解。</li>
+<li>裁剪为半双工/单工：全双工变成「1 条时钟 + 1 条双向数据线」（半双工）或「1 条时钟 + 1 条单向数据线」（单工），本课程只看主模式全双工。</li>
+<li>其余：连续传输发送流程、CRC 计算（数据流后跟校验码，判断传输是否出错，本课程不用）、利用 DMA 的 SPI 通信、错误标志与中断（MODF 主模式失效错误等，需要时再看）。</li>
 </ul>
 <h3 id="7-3-23-5-寄存器">7.3 23.5 寄存器</h3>
 <ul>
-<li><strong><code>SPI_CR1</code></strong>：配置电路——<strong>BIDIMODE/BIDIOE/CRCEN/CRCNext/RXONLY/SSM/SSI/LSBFIRST/SPE/BR[2:0]/MSTR/CPOL/CPHA</strong>；<strong>初始化结构体主要就是用来填充这些位</strong>；</li>
-<li><strong><code>SPI_CR2</code></strong>：也是配置电路——<strong>TXEIE/RXNEIE/ERRIE/SSOE/TXDMAEN/RXDMAEN</strong> 等中断/DMA 使能；</li>
-<li><strong><code>SPI_SR</code></strong>：标志位多，<strong>重点是 <code>TXE</code> 和 <code>RXNE</code></strong>（另有 BSY/OVR/MODF/CRCERR）；</li>
-<li><strong><code>SPI_DR</code></strong>：<strong>写操作写到发送缓冲区（TDR）、读操作返回接收缓冲区（RDR）的数据</strong>；</li>
-<li><strong><code>SPI_CRCPR</code>（CRC 多项式）、<code>SPI_RXCRCR</code>、<code>SPI_TXCRCR</code></strong>：CRC 相关，本课程不用；</li>
-<li><strong>23.5.10 寄存器地址映象（表171）</strong>：<strong><code>SPI_CR1</code>@000h、<code>SPI_CR2</code>@004h、<code>SPI_SR</code>@008h、<code>SPI_DR</code>@00Ch、<code>SPI_CRCPR</code>@010h、<code>SPI_RXCRCR</code>@014h、<code>SPI_TXCRCR</code>@018h</strong>；后面还有 I2S 的寄存器（了解即可）。</li>
+<li><code>SPI_CR1</code>：BIDIMODE/BIDIOE/CRCEN/CRCNext/RXONLY/SSM/SSI/LSBFIRST/SPE/<code>BR[2:0]</code>/MSTR/CPOL/CPHA，初始化结构体主要就是用来填充这些位。</li>
+<li><code>SPI_CR2</code>：TXEIE/RXNEIE/ERRIE/SSOE/TXDMAEN/RXDMAEN 等中断/DMA 使能。</li>
+<li><code>SPI_SR</code>：标志位多，重点是 <code>TXE</code> 与 <code>RXNE</code>（另有 BSY/OVR/MODF/CRCERR）。</li>
+<li><code>SPI_DR</code>：写操作写到发送缓冲区 TDR，读操作返回接收缓冲区 RDR 的数据。</li>
+<li><code>SPI_CRCPR</code>（CRC 多项式）、<code>SPI_RXCRCR</code>、<code>SPI_TXCRCR</code>：CRC 相关，本课程不用。</li>
+<li>23.5.10 寄存器地址映象（表171）：<code>SPI_CR1</code>@000h、<code>SPI_CR2</code>@004h、<code>SPI_SR</code>@008h、<code>SPI_DR</code>@00Ch、<code>SPI_CRCPR</code>@010h、<code>SPI_RXCRCR</code>@014h、<code>SPI_TXCRCR</code>@018h。</li>
 </ul>
-<p><img src="../assets/images/stm32-39/14-manual-231.jpg" alt="图 14：手册第 23 章「23.1 SPI简介」——大容量/互联型产品可配置 SPI 或 I2S，小容量和中容量产品不支持 I2S；SPI 允许芯片与外部设备以半/全双工、同步、串行方式通信；I2S 是 3 引脚同步串行接口；警告：SPI3/I2S3 部分引脚与 JTAG 共用（SPI3_NSS/I2S3_WS 与 JTDI、SPI3_SCK/I2S3_CK 与 JTDO），这些引脚不受 IO 控制器控制、复位后默认保留为 JTAG 用途，需要关闭 JTAG 改用 SWD；左侧是 23.3.1～23.5.10 书签；字幕「手册第23章，是SPI的知识点」"></p>
-<p><em>图 14：手册第 23 章「23.1 SPI简介」——大容量/互联型产品可配置 SPI 或 I2S，小容量和中容量产品不支持 I2S；SPI 允许芯片与外部设备以半/全双工、同步、串行方式通信；I2S 是 3 引脚同步串行接口；<strong>警告</strong>：SPI3/I2S3 部分引脚与 JTAG 共用（SPI3_NSS/I2S3_WS 与 JTDI、SPI3_SCK/I2S3_CK 与 JTDO），这些引脚不受 IO 控制器控制、复位后默认保留为 JTAG 用途，需要关闭 JTAG 改用 SWD；左侧是 23.3.1～23.5.10 书签；字幕「手册第23章，是SPI的知识点」</em></p>
-<p><img src="../assets/images/stm32-39/15-register-map.jpg" alt="图 15：手册「23.5.10 SPI寄存器地址映象」表171——000h SPI_CR1（BIDIMODE/BIDIOE/CRCEN/CRCNext/RXONLY/SSM/SSI/LSBFIRST/SPE/BR 的 2:0 位/MSTR/CPOL/CPHA）、004h SPI_CR2（TXEIE/RXNEIE/ERRIE/SSOE/TXDMAEN/RXDMAEN）、008h SPI_SR（BSY/OVR/MODF/CRCERR/…TXE/RXNE）、00Ch SPI_DR（DR 的 15:0 位）、010h SPI_CRCPR（CRCPOLY）、014h SPI_RXCRCR、018h SPI_TXCRCR；字幕「那到这里，本小节课程，也就结束了」"></p>
-<p><em>图 15：手册「23.5.10 SPI寄存器地址映象」表171——000h SPI_CR1（BIDIMODE/BIDIOE/CRCEN/CRCNext/RXONLY/SSM/SSI/LSBFIRST/SPE/BR 的 2:0 位/MSTR/CPOL/CPHA）、004h SPI_CR2（TXEIE/RXNEIE/ERRIE/SSOE/TXDMAEN/RXDMAEN）、008h SPI_SR（BSY/OVR/MODF/CRCERR/…TXE/RXNE）、00Ch SPI_DR（DR 的 15:0 位）、010h SPI_CRCPR（CRCPOLY）、014h SPI_RXCRCR、018h SPI_TXCRCR；字幕「那到这里，本小节课程，也就结束了」</em></p>
+<p><img src="../assets/images/stm32-39/14-manual-231.jpg" alt="图 14：手册「23.1 SPI简介」——大容量/互联型可配置 SPI 或 I2S，小容量和中容量不支持 I2S；警告：SPI3/I2S3 部分引脚与 JTAG 共用（SPI3_NSS/I2S3_WS 与 JTDI、SPI3_SCK/I2S3_CK 与 JTDO），复位后默认保留为 JTAG 用途，需关闭 JTAG 改用 SWD；左侧书签 23.3.1～23.5.10"></p>
+<p><em>图 14：手册第 23 章 23.1 节，字幕「手册第23章，是SPI的知识点」</em></p>
+<p><img src="../assets/images/stm32-39/15-register-map.jpg" alt="图 15：手册「23.5.10 SPI寄存器地址映象」表171——000h SPI_CR1、004h SPI_CR2、008h SPI_SR、00Ch SPI_DR、010h SPI_CRCPR、014h SPI_RXCRCR、018h SPI_TXCRCR"></p>
+<p><em>图 15：表171 寄存器地址映象，字幕「那到这里，本小节课程，也就结束了」</em></p>
 <h2 id="坑与易错点">坑与易错点</h2>
 <ol>
-<li><strong>SCK 频率不能任意指定</strong>：只能是 <strong>fPCLK/(2,4,8,16,32,64,128,256)</strong>，最低是 256 分频。</li>
-<li><strong>SPI1 与 SPI2 挂的总线不同</strong>：<strong>SPI1→APB2（72M）、SPI2→APB1（36M）</strong>，开时钟和算 SCK 频率别搞混。</li>
-<li><strong>SPI 与 I2C 都是高位先行，串口才是低位先行</strong>：看低位先行的波形时要<strong>从右往左</strong>还原数据。</li>
-<li><strong>本集示例波形是低位先行、模式 3</strong>（图213/图218），<strong>实际最常用高位先行、模式 0</strong>——别把示例配置当成通用配置。</li>
-<li><strong>TDR/RDR 共用 <code>SPI_DR</code> 地址</strong>：写 DR 是发、读 DR 是收，别以为有两个不同地址。</li>
-<li><strong>TXE=1 表示「发送寄存器空」可以写下一个</strong>；<strong>RXNE=1 表示「收到数据」要及时读</strong>，读晚了会被下一个数据覆盖。</li>
-<li><strong><code>BSY</code> 由硬件置位/清除</strong>：判断传输是否真的结束要看 BSY（关闭 SPI 前要等最后一个 RXNE=1）。</li>
-<li><strong>图213 是「连续传输」、图218 是「非连续传输」</strong>（口述顺序先 218 再 213），别写反。</li>
-<li><strong>连续传输的收发顺序是交叉的</strong>：不是「发1收1发2收2」，而是「发1发2…收1」，程序设计与直觉不同。</li>
-<li><strong>非连续传输有字节间隙</strong>：SCK 频率越高间隙占比越大，极限性能要用连续传输或 DMA。</li>
-<li><strong>硬件 NSS 做不了多从机选择</strong>：本课程<strong>用 GPIO 模拟 SS</strong>；NSS 硬件模式只用于多主机仲裁。</li>
-<li><strong>多主机「揪小辫子」只是理解思路</strong>：真要指定从机通信还得加寻址机制。</li>
-<li><strong>简化结构图的标题栏是错的</strong>（写着「I2C基本结构」），实际是 SPI 结构图。</li>
+<li><strong>SCK 频率不能任意指定</strong>：只能是 fPCLK/(2,4,8,16,32,64,128,256)，最低 256 分频。</li>
+<li><strong>总线挂载别搞混</strong>：SPI1→APB2（72M）、SPI2→APB1（36M），开时钟和算 SCK 频率都要对应。</li>
+<li><strong>SPI 与 I2C 高位先行、串口低位先行</strong>：看低位先行的波形要从右往左还原数据。</li>
+<li><strong>示例波形是低位先行、模式 3</strong>（图213/图218），实际最常用高位先行、模式 0，别当成通用配置。</li>
+<li><strong>TDR/RDR 共用 <code>SPI_DR</code> 地址</strong>：写 DR 是发、读 DR 是收，别以为有两个地址。</li>
+<li><strong><code>TXE=1</code> 表示发送寄存器空可以写下一个</strong>；<code>RXNE=1</code> 表示收到数据要及时读，读晚会被覆盖。</li>
+<li><strong><code>BSY</code> 由硬件置位/清除</strong>：关闭 SPI 前要等最后一个 <code>RXNE=1</code>，不能只看 TXE。</li>
+<li><strong>图213 是连续传输、图218 是非连续传输</strong>：视频口述顺序先 218 再 213，别写反。</li>
+<li><strong>连续传输的收发顺序交叉</strong>：不是「发1收1发2收2」，而是「发1发2…收1」。</li>
+<li><strong>非连续传输有字节间隙</strong>：SCK 越高占比越大，极限性能要用连续传输或 DMA。</li>
+<li><strong>硬件 NSS 做不了多从机选择</strong>：本课程用 GPIO 模拟 SS，NSS 硬件模式只用于多主机仲裁。</li>
+<li><strong>「揪小辫子」只是理解思路</strong>：真要指定从机通信还得加寻址机制。</li>
+<li><strong>简化结构图标题栏是错的</strong>（写着「I2C基本结构」），实际是 SPI 结构图。</li>
 <li><strong>SPI3/I2S3 引脚与 JTAG 共用</strong>：要用 SPI3 得先关闭 JTAG 改用 SWD。</li>
 <li><strong>fPCLK 与分频算出的频率只是上限</strong>：实际能跑多快还要看从机器件与接线。</li>
 </ol>
@@ -425,20 +387,19 @@
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-spi-%E5%A4%96%E8%AE%BE%E5%8E%9F%E7%90%86-%E6%89%8B%E5%86%8C-23-%E7%AB%A0-%E4%BB%A3%E7%A0%81%E5%9C%A8-11-5-11-6">0. 本集定位：理论课（SPI 外设原理 + 手册 23 章），代码在 11-5/11-6</a>
+        <a class="level-2" href="#%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D">本集定位</a>
         <a class="level-2" href="#1-spi-%E5%A4%96%E8%AE%BE%E7%AE%80%E4%BB%8B">1. SPI 外设简介</a>
         <a class="level-3" href="#1-1-%E5%8A%9F%E8%83%BD%E5%88%97%E8%A1%A8">1.1 功能列表</a>
-        <a class="level-3" href="#1-2-%E6%95%B0%E6%8D%AE%E5%B8%A7">1.2 数据帧</a>
-        <a class="level-3" href="#1-3-%E4%BD%8D%E5%BA%8F-%E9%AB%98%E4%BD%8D%E5%85%88%E8%A1%8C-vs-%E4%BD%8E%E4%BD%8D%E5%85%88%E8%A1%8C">1.3 位序：高位先行 vs 低位先行</a>
-        <a class="level-3" href="#1-4-%E6%97%B6%E9%92%9F%E9%A2%91%E7%8E%87%E4%B8%8E%E6%80%BB%E7%BA%BF">1.4 时钟频率与总线</a>
-        <a class="level-3" href="#1-5-%E5%85%B6%E4%BB%96%E5%8A%9F%E8%83%BD-%E4%BA%86%E8%A7%A3%E5%8D%B3%E5%8F%AF">1.5 其他功能（了解即可）</a>
+        <a class="level-3" href="#1-2-%E6%95%B0%E6%8D%AE%E5%B8%A7%E4%B8%8E%E4%BD%8D%E5%BA%8F">1.2 数据帧与位序</a>
+        <a class="level-3" href="#1-3-%E6%97%B6%E9%92%9F%E9%A2%91%E7%8E%87%E4%B8%8E%E6%80%BB%E7%BA%BF">1.3 时钟频率与总线</a>
+        <a class="level-3" href="#1-4-%E5%85%B6%E4%BB%96%E5%8A%9F%E8%83%BD-%E4%BA%86%E8%A7%A3%E5%8D%B3%E5%8F%AF">1.4 其他功能（了解即可）</a>
         <a class="level-2" href="#2-spi-%E6%A1%86%E5%9B%BE-%E5%9B%BE209">2. SPI 框图（图209）</a>
         <a class="level-3" href="#2-1-%E6%95%B4%E4%BD%93%E5%88%86%E4%B8%A4%E5%9D%97">2.1 整体分两块</a>
         <a class="level-3" href="#2-2-%E6%95%B0%E6%8D%AE%E9%80%9A%E8%B7%AF-dr-tdr-rdr-%E7%A7%BB%E4%BD%8D%E5%AF%84%E5%AD%98%E5%99%A8">2.2 数据通路：DR / TDR / RDR / 移位寄存器</a>
         <a class="level-3" href="#2-3-mosi-miso-%E4%BA%A4%E5%8F%89%E7%94%B5%E8%B7%AF">2.3 MOSI/MISO 交叉电路</a>
         <a class="level-3" href="#2-4-%E6%B3%A2%E7%89%B9%E7%8E%87%E5%8F%91%E7%94%9F%E5%99%A8%E4%B8%8E%E5%AF%84%E5%AD%98%E5%99%A8">2.4 波特率发生器与寄存器</a>
         <a class="level-3" href="#2-5-nss-%E5%BC%95%E8%84%9A%E4%B8%8E%E5%A4%9A%E4%B8%BB%E6%9C%BA%E4%BB%B2%E8%A3%81">2.5 NSS 引脚与多主机仲裁</a>
-        <a class="level-2" href="#3-%E7%AE%80%E5%8C%96%E7%BB%93%E6%9E%84%E5%9B%BE-%E4%BD%9C%E8%80%85%E8%87%AA%E7%94%BB">3. 简化结构图（作者自画）</a>
+        <a class="level-2" href="#3-%E7%AE%80%E5%8C%96%E7%BB%93%E6%9E%84%E5%9B%BE-%E8%87%AA%E7%94%BB">3. 简化结构图（自画）</a>
         <a class="level-2" href="#4-%E4%B8%A4%E7%A7%8D%E4%BC%A0%E8%BE%93%E6%B5%81%E7%A8%8B">4. 两种传输流程</a>
         <a class="level-3" href="#4-1-%E5%9B%BE218-%E9%9D%9E%E8%BF%9E%E7%BB%AD%E4%BC%A0%E8%BE%93">4.1 图218：非连续传输</a>
         <a class="level-3" href="#4-2-%E5%9B%BE213-%E4%B8%BB%E6%A8%A1%E5%BC%8F%E5%85%A8%E5%8F%8C%E5%B7%A5%E8%BF%9E%E7%BB%AD%E4%BC%A0%E8%BE%93">4.2 图213：主模式全双工连续传输</a>

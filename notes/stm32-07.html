@@ -177,13 +177,18 @@
     <div class="note-meta">
       <a class="back" href="../index.html">项目</a><span class="crumb-sep">/</span><a class="back" href="../projects/stm32.html">STM32 入门教程</a>
       <time datetime="2026-10-27">2026-10-27</time>
-      <span>13 分钟</span>
+      <span>11 分钟</span>
       <span class="tag">STM32</span><span class="tag">学习笔记</span><span class="tag">GPIO</span><span class="tag">输入</span><span class="tag">C语言</span>
     </div>
     <article class="prose"><h1>[3-3] GPIO输入 — 学习笔记</h1>
 <h2 id="一句话结论">一句话结论</h2>
-<p>这一集是 GPIO 输入部分的<strong>理论课</strong>（本集<strong>不写代码</strong>，代码在下一集 [3-4]）：先看「按键控制 LED」「光敏传感器控制蜂鸣器」两个现象，再讲清楚 GPIO 输入要面对的硬件——按键消抖（5～10ms）、按键的 4 种接法、传感器模块的“分压 + LM393 比较器”电路和上下拉“杆子+弹簧”模型，最后补 C 语言基础（数据类型/stdint、宏定义、typedef、结构体、<code>-&gt;</code> 指针访问、枚举）。</p>
-<h2 id="0-两个示例程序的现象">0. 两个示例程序的现象</h2>
+<p>本集是 GPIO 输入的<strong>理论课</strong>（代码在 [3-4]）：按键抖动 5～10ms 要延时消抖、按键有 4 种接法、传感器模块靠「分压 + LM393 比较器」出 DO/AO，最后补 C 语言（stdint、宏定义、typedef、结构体、枚举）。</p>
+<h2 id="0-本集定位-理论课-代码在-3-4">0. 本集定位：理论课，代码在 [3-4]</h2>
+<ul>
+<li>只演示两个现象、不写代码；代码在下一集 [3-4]。</li>
+<li>后半段补 C 语言：数据类型/stdint、宏定义、typedef、结构体、枚举（指针另有专门一期）。</li>
+<li>这些是 [3-4] 的前提。</li>
+</ul>
 <table>
 <thead>
 <tr>
@@ -195,66 +200,59 @@
 <tbody><tr>
 <td><code>3-4 按键控制LED</code></td>
 <td>2 个按键 + 2 个 LED</td>
-<td>按左边按键，左边 LED 点亮/再按熄灭；按右边按键，右边 LED 点亮/熄灭；<strong>两个操作互不影响</strong>，一个按键控制一个 LED</td>
+<td>按左键左灯翻转；按右键右灯翻转；<strong>两个操作互不影响</strong></td>
 </tr>
 <tr>
 <td><code>3-5 光敏传感器控制蜂鸣器</code></td>
 <td>光敏电阻传感器模块 + 蜂鸣器模块</td>
-<td>用手挡住光敏电阻、光线变暗 → 蜂鸣器响；手拿开、光线变亮 → 蜂鸣器停</td>
+<td>挡住光敏电阻、光线变暗 → 蜂鸣器响；手拿开、光线变亮 → 蜂鸣器停</td>
 </tr>
 </tbody></table>
-<ul>
-<li>本集只<strong>演示现象</strong>、不讲这两个程序的代码，代码在下一集 [3-4] 讲。</li>
-</ul>
 <p><img src="../assets/images/stm32-07/01-key-led-demo.jpg" alt="图 1：按键控制 LED 现象——两个按键分别控制两个 LED，互不影响"></p>
 <p><em>图 1：按键控制 LED 现象——两个按键分别控制两个 LED，互不影响</em></p>
 <p><img src="../assets/images/stm32-07/02-light-buzzer-demo.jpg" alt="图 2：光敏传感器控制蜂鸣器现象——手挡住光敏电阻时蜂鸣器响"></p>
 <p><em>图 2：光敏传感器控制蜂鸣器现象——手挡住光敏电阻时蜂鸣器响</em></p>
 <h2 id="1-按键与按键抖动">1. 按键与按键抖动</h2>
 <ul>
-<li><strong>按键</strong>：最常见的输入设备，<strong>按下导通、松手断开</strong>。套件里的按键：上面白色的是按钮，下面两个引脚；按下去两个引脚接通，松手自动断开。</li>
-<li><strong>按键抖动</strong>：按键内部是<strong>机械式弹簧片</strong>通断，所以在按下和松手的瞬间会有一连串抖动。<ul>
-<li>波形：假设没按下是高电平、按下是低电平——按下瞬间从高变低时会来回抖几下；稳定按下约 <strong>50～200ms</strong>；松手时再抖 <strong>5～10ms</strong>。</li>
-<li>抖动很快（约 5～10ms），人眼分辨不出来，但<strong>高速运行的单片机</strong>会当成多次按下。</li>
+<li><strong>按键</strong>：最常见的输入设备，<strong>按下导通、松手断开</strong>；套件按键上面白色的是按钮，下面是两个引脚。</li>
+<li><strong>按键抖动</strong>：内部是<strong>机械式弹簧片</strong>通断，按下和松手的瞬间会有一连串抖动。<ul>
+<li>波形：没按下高电平、按下低电平；按下瞬间来回抖几下，稳定按下约 <strong>50～200ms</strong>，松手时再抖 <strong>5～10ms</strong>。</li>
+<li>抖动约 5～10ms，人眼分辨不出来，但<strong>高速运行的单片机</strong>会当成多次按下。</li>
 </ul>
 </li>
-<li><strong>最简单的消抖办法</strong>：加一段<strong>延时</strong>，把抖动时间耗过去。否则就会出现“按一下，单片机反映多次”的现象；松手时的抖动同样要过滤。</li>
+<li><strong>最简单的消抖</strong>：加一段<strong>延时</strong>把抖动时间耗过去，松手时的抖动同样要过滤。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/03-key-debounce.jpg" alt="图 3：按键抖动波形——按下/松手瞬间抖动约 5～10ms，稳定按下 50～200ms"></p>
 <p><em>图 3：按键抖动波形——按下/松手瞬间抖动约 5～10ms，稳定按下 50～200ms</em></p>
-<h2 id="2-传感器模块-套件里的-4-种">2. 传感器模块（套件里的 4 种）</h2>
-<p>套件提供四种传感器模块：<strong>光敏电阻传感器、热敏电阻传感器、对射式红外传感器、反射式红外传感器</strong>。它们的电路结构和工作原理差不多。</p>
+<h2 id="2-传感器模块-套件-4-种">2. 传感器模块（套件 4 种）</h2>
 <ul>
-<li>传感器元件（光敏电阻、热敏电阻、红外接收管等）的<strong>电阻会随外界模拟量变化</strong>：光线越强光敏电阻越小、温度越高热敏电阻越小、红外线越强红外接收管越小。</li>
-<li>电阻的变化不容易直接观察，所以把传感器元件和<strong>定值电阻串联分压</strong>，得到<strong>模拟电压输出（AO）</strong>；再通过<strong>电压比较器二值化</strong>，得到<strong>数字电压输出（DO）</strong>。</li>
+<li>套件四种：<strong>光敏电阻、热敏电阻、对射式红外、反射式红外</strong>，电路结构和工作原理差不多。</li>
+<li>传感器元件的<strong>电阻随外界模拟量变化</strong>：光线越强光敏电阻越小、温度越高热敏电阻越小、红外线越强红外接收管越小。</li>
+<li>电阻变化不便直接观察，于是与<strong>定值电阻串联分压</strong>得到<strong>模拟电压输出（AO）</strong>；再经<strong>电压比较器二值化</strong>得到<strong>数字电压输出（DO）</strong>。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/04-sensor-module.jpg" alt="图 4：传感器模块介绍——四种模块实物、分压电路、LM393 比较器与 DO/AO 输出"></p>
 <p><em>图 4：传感器模块介绍——四种模块实物、分压电路、LM393 比较器与 DO/AO 输出</em></p>
 <h3 id="2-1-模拟输出-ao-分压电路">2.1 模拟输出 AO：分压电路</h3>
 <ul>
-<li>模块基本电路里，<strong>N1 是传感器元件代表的“可变电阻”</strong>，阻值随光线/温度等模拟量变化；<strong>R1 是与 N1 分压的定值电阻</strong>（图中 10k）；R1 和 N1 串联，一端接 VCC、一端接 GND，中间点就是分压输出。</li>
-<li><strong>C2 是滤波电容</strong>：一端接电路、一端接地，用来滤除干扰、保证输出电压平滑。分析电路时可以先把滤波电容“抹掉”，因为它不是电路的主要框架。</li>
-<li>分压结果：N1 阻值变小 → 下拉作用增强 → AO 电压被拉低；极端情况 N1=0 → AO 被完全下拉到 0V；N1 阻值无穷大（相当于断路）→ AO 被 R1 拉高到 VCC。</li>
-<li><strong>上下拉“杆子+弹簧”模型</strong>（作者总结的理解方法）：<ul>
-<li>把中间的输出电压想象成屋里一根水平杆子的高度；</li>
-<li>R1 是拴在屋顶的上拉弹簧（往上拉），N1 是拦在地面的下拉弹簧（往下拉）；</li>
-<li>电阻阻值越小，弹簧“拉力”越强；两个弹簧对抗，杆子往拉力强的一端偏移；</li>
-<li>两弹簧力度一致 → 杆子居中 → 输出 VCC/2；</li>
-<li>上面阻值小 → 输出电压变高；下面阻值小 → 输出电压变低；</li>
+<li><strong>N1 是传感器元件代表的“可变电阻”</strong>，阻值随光线/温度等模拟量变化；<strong>R1 是与 N1 分压的定值电阻</strong>（图中 10k）。</li>
+<li>R1 与 N1 串联，一端接 VCC、一端接 GND，中间点就是分压输出；<strong>C2 是滤波电容</strong>，滤除干扰、保证输出平滑，分析时可先“抹掉”。</li>
+<li>分压结果：N1 变小 → 下拉增强 → AO 被拉低；N1=0 → AO 到 0V；N1 无穷大（断路）→ AO 被 R1 拉高到 VCC。</li>
+<li><strong>上下拉“杆子+弹簧”模型</strong>：把中间输出电压想象成屋里一根水平杆子的高度。<ul>
+<li>R1 是拴在屋顶的上拉弹簧，N1 是拦在地面的下拉弹簧；阻值越小，弹簧“拉力”越强。</li>
+<li>两弹簧力度一致 → 杆子居中 → 输出 VCC/2；上面阻值小 → 输出变高，下面阻值小 → 输出变低。</li>
 <li>上下电阻都为 0 → 两个无穷大的力对抗 → <strong>电源短路</strong>，要避免。</li>
 </ul>
 </li>
-<li>以后看到上拉/下拉电阻（弱上拉、强上拉、弱下拉、强下拉），都可以用这个模型分析；“强/弱”就是阻值大小、弹簧弹力大小。</li>
+<li>以后看到弱上拉/强上拉/弱下拉/强下拉都用这个模型；“强/弱”就是阻值、弹力大小。</li>
 </ul>
 <h3 id="2-2-数字输出-do-lm393-电压比较器">2.2 数字输出 DO：LM393 电压比较器</h3>
 <ul>
-<li><strong>LM393</strong> 是电压比较器芯片，内部有两个独立的电压比较器电路，其余是 VCC/GND 供电（另有电源滤波电容）。</li>
-<li>比较器（运算放大器的一种用法）：<strong>同相输入端 IN+ 电压 &gt; 反相输入端 IN- 电压 → 输出瞬间升高到 VCC；IN+ &lt; IN- → 输出瞬间降低到 GND</strong>，从而把模拟电压<strong>二值化</strong>。</li>
-<li>实际接法：<strong>IN+ 接 AO</strong>（模拟电压），<strong>IN- 接电位器</strong>分压得到<strong>可调阈值电压</strong>；两电压比较结果就是 <strong>DO 数字输出</strong>。</li>
-<li>DO 输出处还有 <strong>R5 上拉电阻</strong>，保证默认输出为高电平。</li>
-<li>模块上两个指示灯：左边<strong>电源指示灯</strong>（通电就亮）、右边 <strong>DO 输出指示灯</strong>（<strong>低电平点亮、高电平熄灭</strong>）。</li>
-<li>排针 <strong>P1</strong> 引出：<strong>VCC、GND、DO、AO</strong> 四个引脚。</li>
-<li>四种模块的区别：N1 换成光敏电阻/热敏电阻/红外接收管；红外模块多一个红外发射管——对射式用于检测通断（阈值不需要多调），反射式向下发射红外光、检测反射光，可用于寻迹小车。</li>
+<li><strong>LM393</strong> 是电压比较器芯片，内部两个独立比较器，其余是 VCC/GND 供电（另有滤波电容）。</li>
+<li>比较器：<strong>IN+ &gt; IN- → 输出瞬间升高到 VCC；IN+ &lt; IN- → 输出瞬间降低到 GND</strong>，从而把模拟电压<strong>二值化</strong>。</li>
+<li>实际接法：<strong>IN+ 接 AO</strong>，<strong>IN- 接电位器</strong>分压得到<strong>可调阈值电压</strong>，比较结果就是 <strong>DO 数字输出</strong>。</li>
+<li>DO 处有 <strong>R5 上拉电阻</strong>保证默认输出高电平；模块左边<strong>电源指示灯</strong>通电就亮，右边 <strong>DO 输出指示灯低电平点亮、高电平熄灭</strong>。</li>
+<li>排针 <strong>P1</strong> 引出 <strong>VCC、GND、DO、AO</strong> 四个引脚。</li>
+<li>四种模块的区别：N1 换成光敏电阻/热敏电阻/红外接收管；红外模块多一个发射管，对射式检测通断（阈值不用多调），反射式检测反射光，可做寻迹小车。</li>
 </ul>
 <h2 id="3-按键的-4-种接法">3. 按键的 4 种接法</h2>
 <table>
@@ -279,7 +277,7 @@
 <td>PA0 — K1 — GND，PA0 另接 R1 到 3.3V</td>
 <td>低电平</td>
 <td>高电平（被上拉）</td>
-<td>可浮空输入或上拉输入（内外上拉共同作用，高电平更稳，但拉低损耗更大）</td>
+<td>可浮空输入或上拉输入（内外上拉更稳，拉低损耗更大）</td>
 </tr>
 <tr>
 <td>③ 上接</td>
@@ -297,9 +295,8 @@
 </tr>
 </tbody></table>
 <ul>
-<li>上面两种（下接）按键按下时引脚是<strong>低电平</strong>、松手是高电平；下面两种（上接）按下是<strong>高电平</strong>、松手是低电平。</li>
-<li>左边两种接法<strong>必须</strong>要求引脚能配置成上拉/下拉输入模式（否则悬空）。</li>
-<li>一般都用<strong>上面两种（下接）</strong>，和 LED 一样属于电路设计的习惯和规范；下面两种用得少，作为扩展了解。</li>
+<li>下接（上两行）按下是<strong>低电平</strong>、松手是高电平；上接（下两行）按下是<strong>高电平</strong>、松手是低电平。</li>
+<li>下接两种<strong>必须</strong>配合上拉，否则悬空；一般都用下接，和 LED 一样属于电路设计习惯，上接作为扩展了解。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/05-key-wiring-4.jpg" alt="图 5：按键的 4 种接法总览——上两行下接（按下低）、下两行上接（按下高）"></p>
 <p><em>图 5：按键的 4 种接法总览——上两行下接（按下低）、下两行上接（按下高）</em></p>
@@ -307,18 +304,17 @@
 <p><em>图 6：最常用的下接接法——PA0 通过按键 K1 接 GND，PA0 必须配置为上拉输入</em></p>
 <h2 id="4-传感器模块的接线">4. 传感器模块的接线</h2>
 <ul>
-<li><strong>VCC → 3.3V、GND → GND</strong> 供电；</li>
-<li><strong>DO 数字输出 → 任意 GPIO</strong>（如 PA0），用于读取数字量（下一集就用它）；</li>
-<li><strong>AO 模拟输出</strong>以后学 ADC 模数转换器时再用，本课不接。</li>
+<li><strong>VCC → 3.3V、GND → GND</strong> 供电。</li>
+<li><strong>DO 数字输出 → 任意 GPIO</strong>（如 PA0）读数字量（下一集就用它）。</li>
+<li><strong>AO 模拟输出</strong>留到学 ADC 时再用，本课不接。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/07-sensor-wiring.jpg" alt="图 7：传感器模块接线——VCC/GND 供电，DO 接 GPIO，AO 留到 ADC 再用"></p>
 <p><em>图 7：传感器模块接线——VCC/GND 供电，DO 接 GPIO，AO 留到 ADC 再用</em></p>
-<h2 id="5-c-语言补充-库函数里反复出现的知识">5. C 语言补充（库函数里反复出现的知识）</h2>
-<p>本集后半段专门补 C 语言：<strong>数据类型、宏定义、typedef、结构体、枚举</strong>（指针另有专门一期视频）。这些不是 C 语言的根本语法，但库函数里到处都在用。</p>
-<h3 id="5-1-数据类型与-stdint">5.1 数据类型与 stdint</h3>
+<h2 id="5-c-语言补充-库函数里常见">5. C 语言补充（库函数里常见）</h2>
 <ul>
-<li>C 语言基本类型（关键字 / 位数 / 范围）：</li>
+<li>本集补 <strong>数据类型、宏定义、typedef、结构体、枚举</strong>；不是根本语法，但库函数里到处在用。</li>
 </ul>
+<h3 id="5-1-数据类型与-stdint">5.1 数据类型与 stdint</h3>
 <table>
 <thead>
 <tr>
@@ -389,9 +385,9 @@
 </tr>
 </tbody></table>
 <ul>
-<li><strong>注意：STM32 里 <code>int</code> 是 32 位</strong>（51 单片机里 int 是 16 位，别搞混）；<code>long</code> 也是 32 位，想要 64 位要用 <code>long long</code>；<code>float</code>/<code>double</code> 都是带符号的，没有无符号版本。</li>
-<li><strong>stdint.h 新名字</strong>：<code>int8_t</code> / <code>uint8_t</code> / <code>int16_t</code> / <code>uint16_t</code> / <code>int32_t</code> / <code>uint32_t</code> / <code>int64_t</code> / <code>uint64_t</code>——本质就是 <code>char</code>/<code>unsigned char</code>/… 换了个名字（用 typedef 重命名），以后写程序按推荐用这些新名字。</li>
-<li>ST 库函数以前用的老名字 <code>u8</code>/<code>u16</code>/<code>u32</code> 仍然保留（为了兼容老代码，新版库函数也支持），但<strong>推荐用 stdint 的官方名字</strong>。</li>
+<li><strong>注意：STM32 里 <code>int</code> 是 32 位</strong>（51 单片机里 int 是 16 位，别搞混）；<code>long</code> 也是 32 位，要 64 位用 <code>long long</code>；<code>float</code>/<code>double</code> 都带符号，没有无符号版本。</li>
+<li><strong>stdint.h 新名字</strong>：<code>int8_t</code> / <code>uint8_t</code> / <code>int16_t</code> / <code>uint16_t</code> / <code>int32_t</code> / <code>uint32_t</code> / <code>int64_t</code> / <code>uint64_t</code>，本质是 typedef 重命名，以后按推荐用这些新名字。</li>
+<li>ST 库的老名字 <code>u8</code>/<code>u16</code>/<code>u32</code> 仍然保留（兼容老代码），但<strong>推荐用 stdint 的官方名字</strong>。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/08-c-data-types.jpg" alt="图 8：C 语言数据类型表——关键字、位数、表示范围，以及 stdint 和 ST 的新旧名字对照"></p>
 <p><em>图 8：C 语言数据类型表——关键字、位数、表示范围，以及 stdint 和 ST 的新旧名字对照</em></p>
@@ -399,30 +395,29 @@
 <p><em>图 9：数据类型表——右侧两列是 stdint 新名字与 ST 旧名字的对照（同一张表的进一步讲解）</em></p>
 <h3 id="5-2-宏定义-define">5.2 宏定义 #define</h3>
 <ul>
-<li>关键字 <strong><code>#define</code></strong>；用途：①<strong>用一个字符串代替一个数字</strong>，便于理解、防止出错（比如用 1/2/3 表示上拉/下拉/浮空输入，直接用数字很难记）；②<strong>提取程序中经常出现的参数</strong>，便于快速修改（比如 <code>GPIO_Pin_0</code> 在程序里出现很多次，改的时候只改定义处）。</li>
-<li>定义：<code>#define ABC 12345</code>；引用：<code>int a = ABC;</code> 等价于 <code>int a = 12345;</code></li>
+<li>关键字 <strong><code>#define</code></strong>；用途：①<strong>用字符串代替数字</strong>，便于理解、防错（如用 1/2/3 表示上拉/下拉/浮空输入）；②<strong>提取常用参数</strong>，便于快速修改（如 <code>GPIO_Pin_0</code>）。</li>
+<li>定义 <code>#define ABC 12345</code>；引用 <code>int a = ABC;</code> 等价于 <code>int a = 12345;</code></li>
 <li>库函数里 <code>GPIO_Pin_12</code>（实际是 <code>0x1000</code>）、<code>GPIOB</code>、<code>RCC_APB2Periph_GPIOB</code> 都是宏定义，起“改个好记的名字”的作用。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/10-c-macro.jpg" alt="图 10：C 语言宏定义——#define 的用途、定义与引用"></p>
 <p><em>图 10：C 语言宏定义——#define 的用途、定义与引用</em></p>
 <h3 id="5-3-typedef">5.3 typedef</h3>
 <ul>
-<li>关键字 <strong><code>typedef</code></strong>；用途：把比较长的变量类型名<strong>换个短名字</strong>，便于使用。</li>
-<li>定义：<code>typedef unsigned char uint8_t;</code>（<strong>末尾要加分号</strong>）；引用：<code>uint8_t a;</code> 等价于 <code>unsigned char a;</code></li>
+<li>关键字 <strong><code>typedef</code></strong>：把比较长的类型名<strong>换个短名字</strong>，便于使用。</li>
+<li>定义 <code>typedef unsigned char uint8_t;</code>（<strong>末尾要加分号</strong>）；引用 <code>uint8_t a;</code> 等价于 <code>unsigned char a;</code></li>
 <li>和宏定义的区别：<ol>
-<li>新名字的位置相反：宏定义的新名字在<strong>左边</strong>，typedef 的新名字在<strong>右边</strong>；</li>
+<li>新名字位置相反：宏定义在<strong>左边</strong>，typedef 在<strong>右边</strong>；</li>
 <li>宏定义不需要分号，<strong>typedef 必须加分号</strong>；</li>
-<li>宏定义什么名字都能换（无脑替换），typedef <strong>只能给变量类型换名</strong>，会做检查，更安全。</li>
+<li>宏定义什么都能换（无脑替换），typedef <strong>只能给变量类型换名</strong>且会检查，更安全。</li>
 </ol>
 </li>
-<li>重命名是<strong>增加新名字</strong>，原来的名字仍然能用；<code>uint8_t</code>、<code>uint16_t</code> 等就是 typedef 重命名的类型。</li>
+<li>重命名是<strong>增加新名字</strong>，原名仍能用；<code>uint8_t</code>、<code>uint16_t</code> 就是 typedef 出来的。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/11-c-typedef.jpg" alt="图 11：C 语言 typedef——给长类型名换短名字，以及与宏定义的区别"></p>
 <p><em>图 11：C 语言 typedef——给长类型名换短名字，以及与宏定义的区别</em></p>
 <h3 id="5-4-结构体-struct">5.4 结构体 struct</h3>
 <ul>
-<li>数据类型分基本类型和组合类型：数组是<strong>同类型</strong>数据的集合，结构体是<strong>不同类型</strong>数据的集合。</li>
-<li>结构体作用：<strong>数据打包</strong>——把不同类型的变量组合在一起，便于管理和传递，也便于理解程序。</li>
+<li>数组是<strong>同类型</strong>数据的集合，结构体是<strong>不同类型</strong>数据的集合；作用是<strong>数据打包</strong>，便于管理和传递。</li>
 <li>定义与引用：</li>
 </ul>
 <pre><code class="language-c">struct { char x; int y; float z; } StructName;   // 定义结构体变量 StructName
@@ -435,9 +430,9 @@ StructName.z = 1.23;
 pStructName-&gt;x = &#39;A&#39;;    // 指针引用：指针名 -&gt; 成员名（pStructName 是结构体的地址）
 </code></pre>
 <ul>
-<li>内存上就是一块“打包”区域，里面依次存放 x/y/z。</li>
-<li><strong>库函数里的用法</strong>：<code>GPIO_InitTypeDef</code> 就是 typedef 出来的结构体类型，<code>GPIO_InitStructure</code> 是结构体变量；先把参数写进三个成员，再 <code>GPIO_Init(GPIOA, &amp;GPIO_InitStructure)</code> <strong>把结构体地址传进去</strong>（地址传递）；<code>GPIO_Init</code> 函数内部用 <code>GPIO_InitTypeDef*</code> 指针接收，引用成员时用 <code>-&gt;</code>（如 <code>GPIO_InitStruct-&gt;GPIO_Mode</code>）。</li>
-<li>为什么要这样传：参数多的时候（十个八个）直接列参数不方便管理，统一用结构体打包传递；函数里再“拆包”读取成员。</li>
+<li>内存上就是一块“打包”区域，依次存放 x/y/z。</li>
+<li><strong>库函数里的用法</strong>：<code>GPIO_InitTypeDef</code> 是 typedef 出来的结构体类型，<code>GPIO_InitStructure</code> 是结构体变量；写完参数再 <code>GPIO_Init(GPIOA, &amp;GPIO_InitStructure)</code> <strong>把结构体地址传进去</strong>。</li>
+<li><code>GPIO_Init</code> 内部用 <code>GPIO_InitTypeDef*</code> 指针接收，成员用 <code>-&gt;</code> 引用（如 <code>GPIO_InitStruct-&gt;GPIO_Mode</code>）；参数多时统一打包传递，函数里再“拆包”。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/12-c-struct.jpg" alt="图 12：C 语言结构体——数据打包、定义与两种成员引用方式（. 和 -&gt;）"></p>
 <p><em>图 12：C 语言结构体——数据打包、定义与两种成员引用方式（. 和 -&gt;）</em></p>
@@ -445,8 +440,8 @@ pStructName-&gt;x = &#39;A&#39;;    // 指针引用：指针名 -&gt; 成员名�
 <p><em>图 13：库函数里的结构体——GPIO_Init 内部用 GPIO_InitTypeDef</em> 指针接收，用 -&gt; 引用成员*</p>
 <h3 id="5-5-枚举-enum">5.5 枚举 enum</h3>
 <ul>
-<li>关键字 <strong><code>enum</code></strong>；用途：定义一个<strong>取值受限制的整型变量</strong>——限制变量只能取枚举列表里的值。</li>
-<li>例子：定义存星期的变量，理论上只能取 1～7；如果定义成普通整型，存 8 也不会被拦住。用枚举就能把取值范围限制住：</li>
+<li>关键字 <strong><code>enum</code></strong>：定义<strong>取值受限制的整型变量</strong>，只能取列表里的值。</li>
+<li>例子：存星期的变量只能取 1～7，普通整型存 8 不会被拦住，用枚举能限制住：</li>
 </ul>
 <pre><code class="language-c">enum week { MONDAY = 1, TUESDAY = 2, WEDNESDAY = 3, /* ... */ };
 // 配合 typedef：
@@ -455,24 +450,24 @@ week_t week;
 week = MONDAY;     // 只能赋枚举列表里的值；DevC++ 对 week = 8 不报错，Keil 里赋非法值会警告“枚举中混入了其他类型”
 </code></pre>
 <ul>
-<li>枚举值可以省略赋值（编译器按顺序自动补）；typedef 给枚举换名字更方便。</li>
-<li>Keil 里给枚举变量赋非法值会报警告；直接赋 <code>0</code> 也可能报（0 是枚举值但类型不匹配，需要强制类型转换）。</li>
-<li>枚举本质<strong>约等于一个宏定义的集合</strong>；枚举值也可以赋给普通 int 变量（如 <code>int a = ENABLE;</code> 只有“定义了没使用”的警告，没有类型错误）。</li>
-<li>库函数里 <strong><code>ENABLE</code>/<code>DISABLE</code>、<code>GPIO_Mode_*</code> 等都是枚举值</strong>，所以 <code>GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;</code> 是枚举赋值。</li>
+<li>枚举值可省略赋值（编译器自动补）；typedef 给枚举换名字更方便。</li>
+<li>Keil 里赋非法值会报警告；直接赋 <code>0</code> 也可能报（类型不匹配，需强制类型转换）。</li>
+<li>枚举本质<strong>约等于一个宏定义的集合</strong>；枚举值也能赋给普通 int（如 <code>int a = ENABLE;</code> 只有“定义了没使用”的警告）。</li>
+<li>库函数里 <strong><code>ENABLE</code>/<code>DISABLE</code>、<code>GPIO_Mode_*</code> 都是枚举值</strong>，所以 <code>GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;</code> 是枚举赋值。</li>
 </ul>
 <p><img src="../assets/images/stm32-07/14-c-enum.jpg" alt="图 14：Keil 里给枚举变量赋非法值（a = 0）→ 警告 #188-D“enumerated type mixed with another type”"></p>
 <p><em>图 14：Keil 里给枚举变量赋非法值（a = 0）→ 警告 #188-D“enumerated type mixed with another type”</em></p>
 <h2 id="6-坑与易错点">6. 坑与易错点</h2>
 <ol>
-<li><strong>按键必须消抖</strong>：抖动 5～10ms，程序里要加延时过滤，否则一次按下可能被识别多次。</li>
-<li><strong>下接按键必须上拉输入</strong>：按键一端接 GND 时，松手引脚悬空、电平不确定；配置成上拉输入才能在松手时稳定读到高电平。</li>
-<li><strong>没有外部上拉/驱动的引脚不能悬空</strong>：浮空输入本身是合法模式，但接法②④有外部上拉/下拉时可以浮空；接法①③这类会悬空的场合必须配置上拉/下拉输入。</li>
-<li><strong>STM32 的 int 是 32 位</strong>：51 单片机是 16 位；<code>long</code> 也是 32 位，64 位要用 <code>long long</code>。</li>
+<li><strong>按键必须消抖</strong>：抖动 5～10ms，要加延时过滤，否则一次按下可能被识别多次。</li>
+<li><strong>下接按键必须上拉输入</strong>：一端接 GND，松手引脚悬空、电平不确定。</li>
+<li><strong>会悬空的场合不能配浮空输入</strong>：接法②④有外部上拉/下拉可浮空，①③必须上拉/下拉输入。</li>
+<li><strong>STM32 的 int 是 32 位</strong>：51 是 16 位；<code>long</code> 也是 32 位，64 位要用 <code>long long</code>。</li>
 <li><strong>u8/u16 是老名字</strong>：新代码推荐 stdint 的 <code>uint8_t</code>/<code>uint16_t</code>。</li>
-<li><strong>宏定义 vs typedef</strong>：宏不需要分号、什么都能换；typedef 必须加分号、只能给类型换名（有检查）。</li>
-<li><strong>结构体成员访问</strong>：变量用 <code>.</code>，指针用 <code>-&gt;</code>（函数传的是地址时用 <code>-&gt;</code>）。</li>
-<li><strong>枚举只能取列表里的值</strong>：赋非法值会警告；赋 0 一般也要强转成枚举类型。</li>
-<li><strong>传感器模块先用 DO</strong>：AO 模拟输出要等学 ADC 再用；DO 判断阈值可用蓝色电位器调。</li>
+<li><strong>宏定义 vs typedef</strong>：宏不收分号、什么都能换；typedef 必须加分号、只换类型且做检查。</li>
+<li><strong>结构体成员访问</strong>：变量用 <code>.</code>，指针用 <code>-&gt;</code>（函数传地址时用 <code>-&gt;</code>）。</li>
+<li><strong>枚举只能取列表里的值</strong>：赋非法值会警告；赋 0 一般也要强转。</li>
+<li><strong>传感器模块先用 DO</strong>：AO 要等学 ADC 再用；阈值用蓝色电位器调。</li>
 <li><strong>上下拉电阻不能都为 0</strong>：相当于电源短路。</li>
 </ol>
 </article>
@@ -485,14 +480,14 @@ week = MONDAY;     // 只能赋枚举列表里的值；DevC++ 对 week = 8 不�
     <p class="toc-title">目录</p>
     <nav>
         <a class="level-2" href="#%E4%B8%80%E5%8F%A5%E8%AF%9D%E7%BB%93%E8%AE%BA">一句话结论</a>
-        <a class="level-2" href="#0-%E4%B8%A4%E4%B8%AA%E7%A4%BA%E4%BE%8B%E7%A8%8B%E5%BA%8F%E7%9A%84%E7%8E%B0%E8%B1%A1">0. 两个示例程序的现象</a>
+        <a class="level-2" href="#0-%E6%9C%AC%E9%9B%86%E5%AE%9A%E4%BD%8D-%E7%90%86%E8%AE%BA%E8%AF%BE-%E4%BB%A3%E7%A0%81%E5%9C%A8-3-4">0. 本集定位：理论课，代码在 [3-4]</a>
         <a class="level-2" href="#1-%E6%8C%89%E9%94%AE%E4%B8%8E%E6%8C%89%E9%94%AE%E6%8A%96%E5%8A%A8">1. 按键与按键抖动</a>
-        <a class="level-2" href="#2-%E4%BC%A0%E6%84%9F%E5%99%A8%E6%A8%A1%E5%9D%97-%E5%A5%97%E4%BB%B6%E9%87%8C%E7%9A%84-4-%E7%A7%8D">2. 传感器模块（套件里的 4 种）</a>
+        <a class="level-2" href="#2-%E4%BC%A0%E6%84%9F%E5%99%A8%E6%A8%A1%E5%9D%97-%E5%A5%97%E4%BB%B6-4-%E7%A7%8D">2. 传感器模块（套件 4 种）</a>
         <a class="level-3" href="#2-1-%E6%A8%A1%E6%8B%9F%E8%BE%93%E5%87%BA-ao-%E5%88%86%E5%8E%8B%E7%94%B5%E8%B7%AF">2.1 模拟输出 AO：分压电路</a>
         <a class="level-3" href="#2-2-%E6%95%B0%E5%AD%97%E8%BE%93%E5%87%BA-do-lm393-%E7%94%B5%E5%8E%8B%E6%AF%94%E8%BE%83%E5%99%A8">2.2 数字输出 DO：LM393 电压比较器</a>
         <a class="level-2" href="#3-%E6%8C%89%E9%94%AE%E7%9A%84-4-%E7%A7%8D%E6%8E%A5%E6%B3%95">3. 按键的 4 种接法</a>
         <a class="level-2" href="#4-%E4%BC%A0%E6%84%9F%E5%99%A8%E6%A8%A1%E5%9D%97%E7%9A%84%E6%8E%A5%E7%BA%BF">4. 传感器模块的接线</a>
-        <a class="level-2" href="#5-c-%E8%AF%AD%E8%A8%80%E8%A1%A5%E5%85%85-%E5%BA%93%E5%87%BD%E6%95%B0%E9%87%8C%E5%8F%8D%E5%A4%8D%E5%87%BA%E7%8E%B0%E7%9A%84%E7%9F%A5%E8%AF%86">5. C 语言补充（库函数里反复出现的知识）</a>
+        <a class="level-2" href="#5-c-%E8%AF%AD%E8%A8%80%E8%A1%A5%E5%85%85-%E5%BA%93%E5%87%BD%E6%95%B0%E9%87%8C%E5%B8%B8%E8%A7%81">5. C 语言补充（库函数里常见）</a>
         <a class="level-3" href="#5-1-%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B%E4%B8%8E-stdint">5.1 数据类型与 stdint</a>
         <a class="level-3" href="#5-2-%E5%AE%8F%E5%AE%9A%E4%B9%89-define">5.2 宏定义 #define</a>
         <a class="level-3" href="#5-3-typedef">5.3 typedef</a>
